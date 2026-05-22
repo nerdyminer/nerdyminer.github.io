@@ -1,0 +1,611 @@
+---
+title: "Comparación, ordenamiento y reemplazos en arreglos"
+subtitle: "Introducción a los operadores lógicos y su importancia en el filtrado de datos"
+section_href: "/clases/data-analytics/introduccion-al-analisis-de-datos-en-python/computacion-vectorizada-y-arreglos-con-numpy/"
+toc: true
+toc-depth: 3
+page-layout: article
+---
+
+::: {.callout-important}
+## Idea central
+
+En este apunte estudiaremos cómo **<font color='darkmagenta'>Numpy</font>** permite no sólo calcular con arreglos, sino también **compararlos, filtrarlos, seleccionar subconjuntos de datos y reorganizar su contenido**. A partir de operadores de comparación, funciones Booleanas, máscaras lógicas y esquemas más avanzados de indexación, veremos que los arreglos pueden usarse como estructuras dinámicas sobre las cuales es posible tomar decisiones de selección y transformación de manera vectorizada, expresiva y eficiente. Estas herramientas constituyen la base de gran parte del filtrado y preprocesamiento de datos en Python.
+:::
+
+## Operadores de comparación
+
+Cuando comenzamos a estudiar las operaciones aritméticas sobre arreglos de **<font color='darkmagenta'>Numpy</font>**, introdujimos el conjunto de **funciones universales** (`ufuncs`). Vimos que el uso de `+`, `-`, `*`, `/` y otros operadores nos permitía generar operaciones elemento a elemento en los arreglos (siguiendo, por supuesto, las reglas de *broadcasting*). **<font color='darkmagenta'>Numpy</font>** también tiene disponibles operadores de comparación, tales como `<` (menor que) y `>` (mayor que), los cuales operan igualmente elemento a elemento. El resultado de estos operadores de comparación es siempre un arreglo con valores de tipo Booleano.
+
+Veamos este tipo de operaciones mediante ejemplos de código:
+
+```{python}
+import numpy as np
+```
+
+```{python}
+# Creamos un arreglo unidimensional (que llamamos x).
+x = np.arange(start=1, stop=10, step=1)
+
+# Mostramos el arreglo en pantalla.
+x
+```
+
+```{python}
+# Mayor que.
+x > 3
+```
+
+```{python}
+# Menor que.
+x < 3
+```
+
+```{python}
+# Mayor o igual que.
+x >= 3
+```
+
+```{python}
+# Menor o igual que.
+x <= 3
+```
+
+```{python}
+# No es igual a.
+x != 3
+```
+
+```{python}
+# Es igual a.
+x == 3
+```
+
+Vemos pues que la aplicación de cualquier operador de comparación sobre un arreglo verifica la condición definida por dicho operador, elemento a elemento, y devuelve como respuesta un arreglo de la misma geometría que el original, cuyos elementos son Booleanos. Tales elementos denotan un valor cierto (`True`) si la condición efectivamente se cumple, y un valor falso (`False`) si no lo hace.
+
+También es posible realizar comparaciones elemento a elemento considerando dos arreglos, incluyendo, de esta manera, expresiones más compuestas:
+
+```{python}
+# Una expresión comparativa compuesta.
+(2*x) == (x - 2*x + x**2)
+```
+
+Tal y como en el caso de las operaciones aritméticas, y de las funciones trigonométricas, logarítmicas, etc., estos operadores de comparación pueden aplicarse en arreglos independientemente de su tamaño o número de dimensiones. Por ejemplo, en el caso de un arreglo bidimensional, podemos tener:
+
+```{python}
+# Generamos una semilla aleatoria fija.
+rng = np.random.default_rng(42)
+
+# Construimos un arreglo bidimensional.
+M = rng.integers(low=1, high=10, size=(4, 4))
+
+# Y lo mostramos en pantalla.
+M
+```
+
+```{python}
+# Los operadores de comparación pueden aplicarse sin problemas sobre este arreglo bidimensional.
+M <= 5
+```
+
+Vemos pues que el resultado de la operación `M <= 5` es, como cabría esperar, un arreglo con elementos Booleanos, con la misma geometría del arreglo original.
+
+## Funciones con resultado Booleano
+
+Dado un arreglo arbitrario, **<font color='darkmagenta'>Numpy</font>** nos provee de una serie de funciones que nos permiten realizar consultas sobre la data almacenada en él, y cuyas salidas corresponden a arreglos con elementos Booleanos. Para ejemplificar su uso, trabajaremos con el arreglo bidimensional `M` que definimos previamente.
+
+Los valores Booleanos en **<font color='darkmagenta'>Numpy</font>** representan siempre valores binarios, con la convención de que el valor `True` es igual a 1, y el valor `False` es igual a 0. De esta manera, los elementos de un arreglo Booleano siempre podrán sumarse, a fin de conocer cuántos de esos elementos cumplen con una determinada condición impuesta mediante algún operador de comparación.
+
+Un ejemplo sencillo sería consultar cuántos elementos de `M` cumplen con la condición `M > 5`. Esto podemos hacerlo fácilmente usando la función `np.sum()`, aprovechando incluso que esta función permite construir agregaciones:
+
+```{python}
+# Conteo de elementos del arreglo M que cumplen con la condición M > 5.
+np.sum(M > 5)
+```
+
+```{python}
+# Conteo de elementos del arreglo M que cumplen con la condición M > 5, verificados en cada fila.
+np.sum(M > 5, axis=1)
+```
+
+```{python}
+# Conteo de elementos del arreglo M que cumplen con la condición M > 5, verificados en cada columna.
+np.sum(M > 5, axis=0)
+```
+
+Naturalmente, podemos estar interesados en saber si alguno o todos los elementos de un determinado arreglo cumplen con alguna condición. Para ello, podemos utilizar las funciones `np.any()` o `np.all()`, respectivamente:
+
+```{python}
+# ¿Hay algún valor mayor que 8?
+np.any(M > 8)
+```
+
+```{python}
+# ¿Hay algún valor menor que cero?
+np.any(M < 0)
+```
+
+```{python}
+# ¿Son todos los valores menores que 10?
+np.all(M < 10)
+```
+
+```{python}
+# ¿Son todos los valores iguales a 6?
+np.all(M == 6)
+```
+
+```{python}
+# ¿Son todos los valores en cada fila menores que 8?
+np.all(M < 8, axis=1)
+```
+
+```{python}
+# ¿Hay algún valor en cada columna menor que 4?
+np.any(M < 4, axis=0)
+```
+
+## Operadores Booleanos
+
+Los operadores Booleanos permiten, mediante el uso de ciertos símbolos, conectar dos proposiciones o sentencias lógicas a fin de construir proposiciones compuestas cuyo resultado es algún valor de verdad (Booleano). **<font color='darkmagenta'>Numpy</font>** nos provee de varias `ufuncs` que emulan el comportamiento de estos operadores lógicos mediante el correspondiente símbolo utilizado normalmente en Python para la ejecución de este tipo de operaciones. Tales símbolos son `&`, `|`, `^` y `~`, los que se corresponden con las operaciones “AND”, “OR”, “XOR” y “NOT”. Las respectivas funciones universales de **<font color='darkmagenta'>Numpy</font>** (elemento a elemento) que se corresponden con estos operadores son las que se muestran en la @tbl-booleans.
+
+: Operadores Booleanos de **<font color='darkmagenta'>Numpy</font>** {#tbl-booleans}
+
+| Operador | `ufunc` equivalente |
+| -------- | ------------------- |
+| `&`      | `np.bitwise_and()`  |
+| `|`      | `np.bitwise_or()`   |
+| `^`      | `np.bitwise_xor()`  |
+| `~`      | `np.bitwise_not()`  |
+
+Veamos cómo trabajan estos operadores por medio de un ejemplo:
+
+```{python}
+# Construimos un arreglo que emula el histórico de rendimiento
+# de un chancador primario durante los últimos 100 días.
+hist = rng.normal(loc=1250, scale=750, size=100) + 3600
+```
+
+```{python}
+# Realizamos algunas consultas relativas a esta data.
+print(f"Número de días con procesamiento menor a 4000 tph = {np.sum(hist < 4000)}")
+print(f"Número de días con procesamiento entre 4500 y 5000 tph = {np.sum((hist >= 4500) & (hist <= 5000))}")
+print(f"Número de días con procesamiento sobre 6000 tph o bajo 4000 tph = {np.sum((hist > 6000) | (hist < 4000))}")
+```
+
+Notemos que, en el bloque de código anterior, los paréntesis cobran extrema importancia. Esto es debido a que éstos intervienen directamente en la jerarquización de la operación completa. Por lo tanto, en este ejemplo, primero resolvemos las comparaciones, y luego las conjugamos mediante el operador `&`, o bien, las unimos mediante el operador `|`.
+
+## Masking
+
+En los ejemplos anteriores, verificamos la construcción de agregaciones calculadas directamente sobre arreglos Booleanos. Una herramienta aún más poderosa en **<font color='darkmagenta'>Numpy</font>** corresponde a la utilización de arreglos Booleanos como máscaras o filtros, a fin de seleccionar ciertos subconjuntos bien definidos de la data de nuestro interés. Este proceso se conoce como *masking*.
+
+Consideremos nuestro arreglo `M`, previamente construido, y supongamos que queremos obtener un sub-arreglo consistente de todos los elementos de `M` que son menores que 4. Para ello, procedemos enmascarando la condición de interés (`M < 4`) entre corchetes. Luego tenemos:
+
+```{python}
+# El arreglo M.
+M
+```
+
+```{python}
+# Obtenemos un arreglo compuesto únicamente por los elementos de M que son menores que 4.
+M[M < 4]
+```
+
+La selección anterior sigue una lógica bastante sencilla: la condición `M < 4` devuelve un arreglo con elementos Booleanos de las mismas dimensiones que el arreglo original `M`. Por lo tanto, al escribir `M[M < 4]`, el corchete indica que la selección se realizará con respecto a las posiciones del arreglo `M < 4` tales que su valor sea igual a `True`.
+
+El resultado de una selección mediante *masking* es siempre un arreglo unidimensional.
+
+También podemos combinar varias condiciones Booleanas a fin de obtener filtros más expresivos. Por ejemplo, si quisiéramos seleccionar los elementos de `M` que son mayores que 3 y menores que 8, podríamos escribir:
+
+```{python}
+# Selección mediante una máscara compuesta.
+M[(M > 3) & (M < 8)]
+```
+
+## Fancy indexing
+
+En las secciones previas, aprendimos a acceder y modificar porciones de arreglos mediante la implementación de un indexado sencillo (por ejemplo, `x[0]`), *slicing* (por ejemplo, `x[:5]`) y *masking* (por ejemplo, `x[x != 0]`). En esta subsección, echaremos un vistazo a otro estilo muy particular de indexación de arreglos, conocido en la práctica como *fancy indexing*. Este tipo de indexación es parecido al que ya aprendimos, pero esta vez indexamos conforme arreglos completos. Esto nos permite acceder rápidamente a y/o modificar subconjuntos de nuestros arreglos de mayor complejidad.
+
+Este tipo de indexación es conceptualmente simple. Consiste simplemente en pasar un arreglo de índices para acceder a múltiples elementos de un arreglo al mismo tiempo. Por ejemplo, consideremos el siguiente arreglo:
+
+```{python}
+# Generamos una semilla aleatoria fija.
+rng = np.random.default_rng(42)
+
+# Creamos el arreglo `x`.
+x = rng.integers(low=1, high=100, size=20)
+
+# Y lo mostramos en pantalla.
+print(x)
+```
+
+Supongamos que queremos acceder a tres diferentes elementos. Podríamos, dado aquello, hacer algo como esto:
+
+```{python}
+# Acceso a algunos elementos de `x`.
+[x[13], x[7], x[18]]
+```
+
+Alternativamente, podemos también pasar un conjunto de índices para obtener el mismo resultado:
+
+```{python}
+# Definimos las posiciones a escoger en una lista.
+indices = [13, 7, 18]
+
+# Y generamos la selección.
+x[indices]
+```
+
+Con este esquema de indexación, la geometría de los resultados refleja siempre la geometría de los arreglos que definen los índices, en vez de la geometría del arreglo indexado:
+
+```{python}
+# Creamos un arreglo de índices.
+indices = np.array([
+    [13, 7],
+    [18, 2]
+])
+
+# Y generamos la selección a partir del arreglo anterior.
+x[indices]
+```
+
+Este esquema de selección se conoce como **fancy indexing**: nos permite definir posiciones mediante reglas simples que se describen por medio de listas e incluso arreglos, para luego realizar selecciones de datos conforme dichas reglas y en las posiciones descritas por las geometrías de esas listas y/o arreglos.
+
+El esquema de *fancy indexing* también funciona en dimensiones múltiples. Consideremos el siguiente arreglo:
+
+```{python}
+# Definimos un arreglo 2D de enteros.
+M = rng.integers(low=1, high=20, size=(6, 6))
+
+# Y lo mostramos en pantalla.
+M
+```
+
+Como en el caso del indexado simple, el primer índice se refiere a las filas y el segundo a las columnas:
+
+```{python}
+# Definimos las posiciones a indexar por filas y columnas.
+row = np.array([0, 2, 4])
+col = np.array([1, 3, 5])
+
+# Y realizamos la selección.
+M[row, col]
+```
+
+Notemos que el primer valor en el resultado es `M[0, 1]`, el segundo es `M[2, 3]`, y el tercero es `M[4, 5]`. El pareo de índices en el *fancy indexing* sigue las mismas reglas verificadas cuando estudiamos el concepto de *broadcasting*. Siempre es importante recordar que, con el *fancy indexing*, el valor retornado por la operación de indexado refleja siempre la geometría de los índices transmitidos mediante *broadcasting*, en vez de la geometría del arreglo que indexamos.
+
+Vale la pena enfatizar un detalle importante: la operación `M[row, col]` **no** devuelve una submatriz rectangular, sino una selección pareada de posiciones. Si lo que quisiéramos fuera seleccionar el rectángulo definido por las filas `row` y las columnas `col`, podríamos usar `np.ix_()`:
+
+```{python}
+# Selección rectangular de filas y columnas.
+M[np.ix_(row, col)]
+```
+
+**Ejemplo 4.1 – Selección integrada:** Cerraremos esta primera parte del apunte con un ejemplo un poco más elaborado, donde combinaremos varias de las herramientas revisadas hasta ahora: operadores de comparación, funciones Booleanas, *masking*, *slicing* y *fancy indexing*.
+
+Supongamos que el siguiente arreglo `P` representa información de 12 muestras de una campaña metalúrgica. Cada fila corresponde a una muestra, y las columnas representan, respectivamente:
+
+1. Tratamiento de molienda (`tph`).
+2. Presión de alimentación en hidrociclones (`psi`).
+3. Porcentaje retenido en malla de control (`%`).
+4. Ley estimada de cobre (`% Cu`).
+
+```{python}
+# Construimos el arreglo P.
+P = np.array([
+    [5100, 11.2, 29.4, 0.62],
+    [4800, 10.8, 31.1, 0.58],
+    [5300, 12.4, 27.9, 0.67],
+    [4550,  9.8, 35.0, 0.51],
+    [6100, 13.1, 24.8, 0.73],
+    [5900, 12.7, 26.1, 0.70],
+    [4200,  9.5, 36.4, 0.49],
+    [5050, 11.0, 30.2, 0.61],
+    [5700, 12.0, 28.0, 0.66],
+    [4450, 10.1, 34.1, 0.53],
+    [6250, 13.6, 23.9, 0.75],
+    [4950, 10.7, 31.0, 0.59],
+])
+
+# Mostramos el arreglo.
+P
+```
+
+Podemos comenzar realizando algunas consultas Booleanas globales:
+
+```{python}
+# ¿Hay alguna muestra con tratamiento sobre 6000 tph?
+np.any(P[:, 0] > 6000)
+```
+
+```{python}
+# ¿Son todas las muestras de ley superior a 0.45 % Cu?
+np.all(P[:, 3] > 0.45)
+```
+
+Ahora supongamos que queremos filtrar únicamente las muestras que cumplan simultáneamente las siguientes condiciones:
+
+- Tratamiento mayor o igual que 5000 tph.
+- Presión mayor que 11 psi.
+- Ley de cobre mayor o igual que 0.62 %.
+
+Podemos construir una máscara compuesta y aplicarla sobre el arreglo completo:
+
+```{python}
+# Construimos una máscara compuesta.
+mask = (P[:, 0] >= 5000) & (P[:, 1] > 11) & (P[:, 3] >= 0.62)
+
+# Aplicamos la máscara.
+P_filtrado = P[mask]
+P_filtrado
+```
+
+Notemos que el resultado es un subconjunto de filas del arreglo original `P`, es decir, aquellas muestras que cumplen simultáneamente con todas las condiciones impuestas.
+
+Si quisiéramos ahora quedarnos sólo con las columnas relativas al tratamiento y la ley de cobre dentro de ese subconjunto, podemos combinar el filtrado anterior con *fancy indexing* sobre columnas:
+
+```{python}
+# Seleccionamos únicamente las columnas 0 y 3 del subconjunto filtrado.
+P_filtrado[:, [0, 3]]
+```
+
+También podemos usar *slicing* para inspeccionar rápidamente un bloque rectangular del arreglo original. Por ejemplo, las primeras cinco muestras y las tres primeras variables:
+
+```{python}
+# Selección por slicing.
+P[:5, :3]
+```
+
+Finalmente, podemos usar *fancy indexing* en ambos ejes para inspeccionar posiciones puntuales de interés. Supongamos que queremos revisar las muestras en las filas 0, 4, 8 y 10, pero sólo en las columnas asociadas a tratamiento y ley:
+
+```{python}
+# Selección rectangular usando fancy indexing.
+filas = np.array([0, 4, 8, 10])
+columnas = np.array([0, 3])
+
+P[np.ix_(filas, columnas)]
+```
+
+Este ejemplo resume bastante bien la lógica general de esta parte del curso: comparar valores, construir reglas Booleanas, filtrar mediante máscaras y luego seleccionar subconjuntos específicos de datos mediante distintos esquemas de indexación. En la práctica, una fracción muy importante del preprocesamiento de datos en Python consiste precisamente en encadenar este tipo de operaciones de manera clara y eficiente. ◼︎
+
+## Ordenamiento de arreglos
+
+Hasta este punto, hemos considerado herramientas que nos sirven para acceder y manipular los datos almacenados en nuestros arreglos con **<font color='darkmagenta'>Numpy</font>**. Procederemos ahora a cubrir algunas rutinas que nos permiten generar algún tipo de orden en los elementos que constituyen tales arreglos.
+
+A pesar de que Python tiene disponibles las funciones nativas `sort()` y `sorted()`, las cuales funcionan perfecto en objetos tales como listas, no las discutiremos en este curso debido a que la función `np.sort()` es mucho más eficiente que las alternativas nativas (en tiempo de ejecución). De esta manera, para retornar la versión ordenada de un arreglo, sin modificar nada más, podemos escribir:
+
+```{python}
+# Definimos una semilla aleatoria fija.
+rng = np.random.default_rng(10)
+
+# Creamos nuestro arreglo.
+u = rng.integers(low=1, high=20, size=10)
+
+# Y lo mostramos en pantalla.
+u
+```
+
+```{python}
+# Retornamos la versión ordenada del arreglo u.
+np.sort(u)
+```
+
+**<font color='darkmagenta'>Numpy</font>** también nos provee del método `sort()`, aplicable sobre cualquier arreglo, y que también permite ordenar sus elementos. Sin embargo, este método no retorna una copia del arreglo con sus elementos ordenados (como la función `np.sort()`), sino que modifica el arreglo respectivo, ordenando sus elementos:
+
+```{python}
+# Ordenamos el arreglo u mediante el método sort().
+u.sort()
+
+# Mostramos el arreglo ordenado.
+u
+```
+
+Con frecuencia, estamos interesados en determinar las posiciones relativas a los elementos de un arreglo que, de seleccionarlas, retornan el arreglo ordenado. Para ello, podemos utilizar la función `np.argsort()`:
+
+```{python}
+# Creamos el arreglo.
+v = rng.integers(low=1, high=10, size=10)
+
+# Y lo mostramos en pantalla.
+v
+```
+
+```{python}
+# Determinamos las posiciones de los elementos que permiten ordenar el arreglo.
+np.argsort(v)
+```
+
+```{python}
+# Estos índices nos permiten listar los elementos ordenadamente en nuestro arreglo.
+v[np.argsort(v)]
+```
+
+La función `np.sort()` también permite operar de forma agregada. Por lo tanto, es posible ordenar los elementos de un arreglo multidimensional conforme la dirección de cualquiera de sus ejes. Por ejemplo, conforme filas o columnas en un arreglo 2D:
+
+```{python}
+# El arreglo `M`.
+M
+```
+
+```{python}
+# Ordenamos los elementos que constituyen las columnas de M.
+np.sort(M, axis=0)
+```
+
+```{python}
+# Ordenamos los elementos que constituyen las filas de M.
+np.sort(M, axis=1)
+```
+
+Debemos tener en consideración que el método anterior asume que tanto las filas como las columnas de un arreglo son arreglos independientes. Por lo tanto, cualquier relación existente entre los elementos del arreglo original no se preserva al generar este tipo de ordenamientos.
+
+A veces no estamos interesados en ordenar un arreglo completamente, sino que simplemente queremos encontrar los `K` valores más pequeños en el mismo. **<font color='darkmagenta'>Numpy</font>** nos provee de la función `np.partition()`, la cual toma como argumentos un arreglo determinado y un número `K`. El resultado que retorna es un nuevo arreglo, con los `K` valores más pequeños situados a la izquierda de esta partición, y los demás elementos a la derecha de `K`, en un orden arbitrario:
+
+```{python}
+# La función np.partition() devuelve un arreglo cuyos primeros K elementos son los de menor magnitud
+# del arreglo original, sin un orden específico, mientras que el resto de los elementos permanecen
+# a la derecha de la partición.
+np.partition(v, 3)
+```
+
+Notemos que los primeros tres elementos en el arreglo resultante corresponden a los tres elementos más pequeños del arreglo original, mientras que las posiciones restantes contienen al resto de los elementos. Ambas particiones tienen un orden arbitrario en sus elementos respectivos.
+
+Similarmente al caso del ordenamiento clásico, también podemos particionar elementos conforme cualquier eje estructural de un arreglo:
+
+```{python}
+# Retornamos un arreglo cuyos dos primeros elementos, por columna, son los de menor magnitud.
+np.partition(M, 2, axis=0)
+```
+
+```{python}
+# Retornamos un arreglo cuyos dos primeros elementos, por fila, son los de menor magnitud.
+np.partition(M, 2, axis=1)
+```
+
+El resultado es un arreglo en el cual los primeros dos elementos de cada fila contienen a los elementos más pequeños en dicha fila, estando en las posiciones restantes el resto de los elementos de cada fila correspondiente, ambos en un orden arbitrario.
+
+Finalmente, de la misma forma que disponemos de la función `np.argsort()` para devolver los índices de los elementos ordenados de un arreglo, también contamos con la función `np.argpartition()`, la cual computa los índices que denotan las posiciones relativas a una partición. Veremos esto en detalle en el siguiente ejemplo.
+
+**Ejemplo 4.2 – El algoritmo de $K$ vecinos más cercanos:** Veamos rápidamente cómo utilizar la función `np.argsort()` conforme múltiples ejes para encontrar a los vecinos más cercanos de cada punto en un conjunto. Comenzaremos creando un conjunto aleatorio de 30 puntos en un plano, en un arreglo de geometría `(30, 2)`:
+
+```{python}
+# Definimos el arreglo que trabajaremos.
+P = rng.uniform(size=(30, 2))
+
+# Y lo mostramos en pantalla.
+P
+```
+
+Para tener una idea de cómo se ven estos puntos en el plano, podemos graficarlos rápidamente usando **<font color='darkmagenta'>Matplotlib</font>**. No ahondaremos en el gráfico demasiado, ya que más adelante abordaremos este tema en detalle. Sin embargo, el código es el siguiente:
+
+```{python}
+import matplotlib.pyplot as plt
+```
+
+```{python}
+# Seteamos algunas opciones para que nuestras figuras queden bonitas.
+plt.rcParams["figure.dpi"] = 90
+plt.style.use("bmh")
+```
+
+```{python}
+# Gráfico de nuestros puntos en el plano.
+fig, ax = plt.subplots(figsize=(9, 5))
+ax.scatter(P[:, 0], P[:, 1], color="firebrick")
+ax.set_xlabel(r"$X$", fontsize=12, labelpad=10)
+ax.set_ylabel(r"$Y$", fontsize=12, labelpad=15, rotation=0)
+plt.tight_layout()
+```
+
+Recordemos, de la geometría analítica, que para dos puntos $P_{1}=(x_{1},y_{1})$ y $P_{2}=(x_{2},y_{2})$, la distancia $d(P_{1},P_{2})$ puede calcularse como
+
+::: {.eq-scroll}
+$$
+d(P_{1},P_{2})=\Vert P_{1}-P_{2}\Vert={\displaystyle \sqrt{(x_{1}-x_{2})^{2}+( y_{1}-y_{2})^{2}}}
+\tag{4.1}
+$$
+:::
+
+El algoritmo de K-vecinos más cercanos corresponde a un procedimiento que asigna ciertos valores o características a un punto dependiendo de su distancia al resto de los puntos en un espacio determinado. Corresponde a uno de los modelos de clasificación más sencillos que podemos implementar.
+
+Dado que este algoritmo funciona en base a las distancias a fin de poder establecer qué tan cerca está un punto de otro, podemos construir una matriz de distancias cruzadas entre cada par de puntos. Si disponemos de $n$ puntos, tal matriz será de dimensión $n\times n$. De esta manera, para nuestro arreglo `P`, dicha matriz corresponderá a un arreglo de geometría `(30, 30)`, que podemos construir de la siguiente manera:
+
+```{python}
+# Construimos una matriz llamada dist, para almacenar las distancias que calcularemos.
+dist = np.zeros(shape=(30, 30))
+
+# Mediante un loop sencillo, calculamos estas distancias cuadradas.
+for i in range(P.shape[0]):
+    for j in range(P.shape[0]):
+        dist_ij = np.sum((P[i] - P[j])**2)
+        dist[i, j] = dist_ij
+```
+
+Sólo para hacer un doble chequeo de lo que estamos haciendo, deberíamos observar los valores en la diagonal de esta matriz. Tales valores corresponden a las distancias entre un punto consigo mismo y, por supuesto, éstas deben ser iguales a cero:
+
+```{python}
+# Doble check de nuestro cálculo.
+dist.diagonal()
+```
+
+¡Vamos súper bien! Aunque en `dist` hemos almacenado distancias cuadradas en vez de distancias Euclidianas exactas, esto no afecta el orden relativo entre vecinos y, por lo tanto, sigue siendo completamente válido para el problema de vecinos más cercanos.
+
+Con las distancias entre pares de puntos ya resueltas, podemos utilizar la función `np.argsort()` para ordenar los elementos por fila. Las columnas de más a la izquierda nos darán los índices de los vecinos más cercanos:
+
+```{python}
+# Determinamos las posiciones, en nuestra matriz de distancias, de los
+# puntos más cercanos a cada punto.
+nearest = np.argsort(dist, axis=1)
+
+# Mostramos estas posiciones en pantalla.
+print(nearest)
+```
+
+Notemos que la primera columna nos da los números de 0 a 29 en orden: esto es debido a que el vecino más cercano a cada punto es sí mismo, como cabría esperar. Si estamos simplemente interesados en los K-vecinos más cercanos, todo lo que necesitamos es particionar cada fila de manera tal que las `K + 1` distancias más pequeñas vengan primero, dejando el resto de las distancias llenando el resto de los espacios en el arreglo. Podemos lograr esto con la función `np.argpartition()`:
+
+```{python}
+# Buscamos los tres vecinos más cercanos a cada punto.
+K = 3
+nearest_partition = np.argpartition(dist, K + 1, axis=1)
+```
+
+A fin de visualizar esta red de vecinos más cercanos, grafiquemos rápidamente los puntos y las líneas que representan las conexiones de cada punto a sus tres vecinos más cercanos. No es el objetivo de esta sección el aprender a graficar, pero no está demás empezar a tener una noción de cómo hacerlo:
+
+```{python}
+# Inicializamos nuestra figura.
+fig, ax = plt.subplots(figsize=(9, 5))
+ax.scatter(P[:, 0], P[:, 1], color="firebrick")
+
+# Graficamos las conexiones a los tres vecinos más cercanos de cada punto.
+K = 3
+for i in range(P.shape[0]):
+    for j in nearest_partition[i, :K + 1]:
+        ax.plot(*zip(P[j], P[i]), color='k', linewidth=1, linestyle="--", alpha=0.4)
+
+ax.set_xlabel(r"$X$", fontsize=12, labelpad=10)
+ax.set_ylabel(r"$Y$", fontsize=12, labelpad=15, rotation=0)
+plt.tight_layout()
+```
+
+Cada punto en el gráfico tiene líneas que lo conectan a sus tres vecinos más cercanos. En un primer vistazo, puede parecer extraño que haya puntos con más de tres líneas saliendo de ellos. Esto ocurre porque `A` puede ser el vecino más cercano de `B`, pero eso no necesariamente significa que `B` sea el vecino más cercano de `A`. ◼︎
+
+## Reemplazo de los elementos de un arreglo
+
+Con frecuencia, estamos interesados en reemplazar los elementos de un arreglo en función de alguna condición en particular. Por ejemplo, si disponemos de un arreglo que contiene información relativa al rendimiento horario de un circuito de molienda en una planta concentradora, podríamos querer eliminar las entradas que estén por debajo de un umbral mínimo de tratamiento. Supongamos pues que un molino tiene un rendimiento promedio de 1800 tph, con una desviación de 650 tph y distribución normal:
+
+```{python}
+# Arreglo T, con 1000 horas de valores medios de tratamiento de 1800 tph, desviación de 650 tph
+# y distribución normal.
+T = rng.normal(loc=1800, scale=650, size=1000)
+```
+
+Supongamos que, por un lineamiento del área de metalurgia en esta planta, todo análisis que se realice relativo a la evolución del tratamiento de molienda no debe considerar rendimientos menores a 1200 tph. Una opción sería reemplazar tales valores por registros nulos, que indiquen a **<font color='darkmagenta'>Numpy</font>** que no hay valores en tales filas (por ejemplo, codificando estas entradas con `np.nan`). Podemos hacer ese reemplazo mediante la función `np.where()`:
+
+```{python}
+# Generamos el reemplazo requerido.
+T_corr = np.where(T < 1200, np.nan, T)
+```
+
+Vemos pues que la función `np.where()` toma tres inputs: la condición a revisar, el valor que debemos imputar en el arreglo para reemplazar las entradas que cumplan con esta condición, y los valores a imputar cuando tal condición no se cumple. En este caso, el uso de `np.nan` es natural porque `T` es un arreglo de punto flotante, por lo que puede representar sin problemas valores no numéricos de este tipo.
+
+Podemos graficar este arreglo para verificar que, en efecto, hemos reemplazado todos los valores menores que 1200 tph por entradas de tipo `nan`:
+
+```{python}
+fig, ax = plt.subplots(figsize=(9, 5))
+ax.hist(T, label="Arreglo `T` sin reemplazo", alpha=0.3)
+ax.hist(T_corr, label="Arreglo `T_corr` corregido", alpha=0.3)
+ax.legend(loc="best", frameon=True)
+ax.set_xlabel("Marcas de clase (tph)", fontsize=12, labelpad=10)
+ax.set_ylabel("Frecuencia observada", fontsize=12, labelpad=10)
+plt.tight_layout()
+```
+
+## Comentarios finales
+
+En este apunte dimos un paso importante desde la operatoria básica con arreglos hacia tareas mucho más cercanas al análisis de datos real. Vimos que, una vez que disponemos de un arreglo numérico, no sólo podemos calcular con él, sino también compararlo, consultar propiedades lógicas, filtrar subconjuntos, seleccionar posiciones específicas, ordenar sus elementos y reemplazar valores conforme reglas determinadas.
+
+Una de las ideas más importantes que deja este recorrido es que los arreglos de **<font color='darkmagenta'>Numpy</font>** no deben pensarse únicamente como contenedores de números, sino como estructuras sobre las cuales podemos formular criterios de decisión. Un operador de comparación genera una condición; una máscara convierte esa condición en un filtro; el *fancy indexing* transforma índices en reglas de selección; y funciones como `np.sort()`, `np.argsort()` o `np.where()` nos permiten reorganizar o corregir la información de manera muy expresiva.
+
+También conviene destacar que muchas de las herramientas revisadas aquí trabajan de manera especialmente poderosa cuando se combinan entre sí. Esa fue justamente la intención del ejemplo integrado: Mostrar que en un flujo real de trabajo no solemos usar comparación, *masking*, *slicing* o *fancy indexing* de manera aislada, sino encadenados, como parte de un mismo proceso de selección y depuración de datos.
+
+Con esto, cerramos una parte muy importante de la introducción a **<font color='darkmagenta'>Numpy</font>**. Ya contamos con una base suficiente para construir, transformar, filtrar, resumir y reorganizar arreglos con bastante soltura. A partir de aquí, el paso natural será utilizar estas herramientas en contextos cada vez más cercanos al análisis tabular, la visualización de datos y la construcción de modelos.

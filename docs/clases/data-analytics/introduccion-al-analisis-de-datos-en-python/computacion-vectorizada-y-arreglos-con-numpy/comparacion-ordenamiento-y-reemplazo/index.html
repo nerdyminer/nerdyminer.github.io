@@ -1,0 +1,1590 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.9.37">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+
+<title>Comparación, ordenamiento y reemplazos en arreglos – Cuaderno técnico</title>
+<style>
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="../../../../../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../../../../../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../../../../../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../../../../../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../../../../../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../../../../../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../../../../../">
+<script src="../../../../../site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="../../../../../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../../../../../site_libs/quarto-html/popper.min.js"></script>
+<script src="../../../../../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../../../../../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../../../../../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../../../../../site_libs/quarto-html/quarto-syntax-highlighting-7f8f88aac4f3542376d5c11b86a4c14d.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="../../../../../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../../../../../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../../../../../site_libs/bootstrap/bootstrap-3074b5700eb9e423e6e0e59c7eb85555.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+<style>html{ scroll-behavior: smooth; }</style>
+
+  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
+  <script defer="" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN" && texText && texText.data) {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
+
+</head>
+
+<body class="nav-fixed quarto-light">
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container mx-auto">
+    <a class="navbar-brand" href="../../../../../index.html">
+    <span class="navbar-title">Cuaderno técnico</span>
+    </a>
+  </div>
+            <div id="quarto-search" class="" title="Search"></div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" role="menu" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll me-auto">
+  <li class="nav-item">
+    <a class="nav-link" href="../../../../../index.html"> 
+<span class="menu-text">Inicio</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../../../../articulos/index.html"> 
+<span class="menu-text">Artículos</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../../../../apuntes/index.html"> 
+<span class="menu-text">Apuntes</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../../../../clases/index.html"> 
+<span class="menu-text">Clases</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../../../../proyectos/index.html"> 
+<span class="menu-text">Proyectos</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../../../../sobre-mi.html"> 
+<span class="menu-text">Sobre mí</span></a>
+  </li>  
+</ul>
+          </div> <!-- /navcollapse -->
+            <div class="quarto-navbar-tools">
+</div>
+      </div> <!-- /container-fluid -->
+    </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
+<!-- sidebar -->
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul>
+  <li><a href="#operadores-de-comparación" id="toc-operadores-de-comparación" class="nav-link active" data-scroll-target="#operadores-de-comparación">Operadores de comparación</a></li>
+  <li><a href="#funciones-con-resultado-booleano" id="toc-funciones-con-resultado-booleano" class="nav-link" data-scroll-target="#funciones-con-resultado-booleano">Funciones con resultado Booleano</a></li>
+  <li><a href="#operadores-booleanos" id="toc-operadores-booleanos" class="nav-link" data-scroll-target="#operadores-booleanos">Operadores Booleanos</a></li>
+  <li><a href="#masking" id="toc-masking" class="nav-link" data-scroll-target="#masking">Masking</a></li>
+  <li><a href="#fancy-indexing" id="toc-fancy-indexing" class="nav-link" data-scroll-target="#fancy-indexing">Fancy indexing</a></li>
+  <li><a href="#ordenamiento-de-arreglos" id="toc-ordenamiento-de-arreglos" class="nav-link" data-scroll-target="#ordenamiento-de-arreglos">Ordenamiento de arreglos</a></li>
+  <li><a href="#reemplazo-de-los-elementos-de-un-arreglo" id="toc-reemplazo-de-los-elementos-de-un-arreglo" class="nav-link" data-scroll-target="#reemplazo-de-los-elementos-de-un-arreglo">Reemplazo de los elementos de un arreglo</a></li>
+  <li><a href="#comentarios-finales" id="toc-comentarios-finales" class="nav-link" data-scroll-target="#comentarios-finales">Comentarios finales</a></li>
+  </ul>
+</nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title">Comparación, ordenamiento y reemplazos en arreglos</h1>
+<p class="subtitle lead">Introducción a los operadores lógicos y su importancia en el filtrado de datos</p>
+</div>
+
+
+
+<div class="quarto-title-meta">
+
+    
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<div class="back-to-section"><a href="../../../../../clases/data-analytics/introduccion-al-analisis-de-datos-en-python/computacion-vectorizada-y-arreglos-con-numpy/">← Volver a la sección</a></div>
+<div class="callout callout-style-default callout-important callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Important</span>Idea central
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>En este apunte estudiaremos cómo <strong><font color="darkmagenta">Numpy</font></strong> permite no sólo calcular con arreglos, sino también <strong>compararlos, filtrarlos, seleccionar subconjuntos de datos y reorganizar su contenido</strong>. A partir de operadores de comparación, funciones Booleanas, máscaras lógicas y esquemas más avanzados de indexación, veremos que los arreglos pueden usarse como estructuras dinámicas sobre las cuales es posible tomar decisiones de selección y transformación de manera vectorizada, expresiva y eficiente. Estas herramientas constituyen la base de gran parte del filtrado y preprocesamiento de datos en Python.</p>
+</div>
+</div>
+<section id="operadores-de-comparación" class="level2">
+<h2 class="anchored" data-anchor-id="operadores-de-comparación">Operadores de comparación</h2>
+<p>Cuando comenzamos a estudiar las operaciones aritméticas sobre arreglos de <strong><font color="darkmagenta">Numpy</font></strong>, introdujimos el conjunto de <strong>funciones universales</strong> (<code>ufuncs</code>). Vimos que el uso de <code>+</code>, <code>-</code>, <code>*</code>, <code>/</code> y otros operadores nos permitía generar operaciones elemento a elemento en los arreglos (siguiendo, por supuesto, las reglas de <em>broadcasting</em>). <strong><font color="darkmagenta">Numpy</font></strong> también tiene disponibles operadores de comparación, tales como <code>&lt;</code> (menor que) y <code>&gt;</code> (mayor que), los cuales operan igualmente elemento a elemento. El resultado de estos operadores de comparación es siempre un arreglo con valores de tipo Booleano.</p>
+<p>Veamos este tipo de operaciones mediante ejemplos de código:</p>
+<div id="cb60669a" class="cell" data-execution_count="1">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<div id="d11a0b5c" class="cell" data-execution_count="2">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Creamos un arreglo unidimensional (que llamamos x).</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>x <span class="op">=</span> np.arange(start<span class="op">=</span><span class="dv">1</span>, stop<span class="op">=</span><span class="dv">10</span>, step<span class="op">=</span><span class="dv">1</span>)</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Mostramos el arreglo en pantalla.</span></span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>x</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="2">
+<pre><code>array([1, 2, 3, 4, 5, 6, 7, 8, 9])</code></pre>
+</div>
+</div>
+<div id="2d717cbd" class="cell" data-execution_count="3">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Mayor que.</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>x <span class="op">&gt;</span> <span class="dv">3</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="3">
+<pre><code>array([False, False, False,  True,  True,  True,  True,  True,  True])</code></pre>
+</div>
+</div>
+<div id="8ece328c" class="cell" data-execution_count="4">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Menor que.</span></span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>x <span class="op">&lt;</span> <span class="dv">3</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="4">
+<pre><code>array([ True,  True, False, False, False, False, False, False, False])</code></pre>
+</div>
+</div>
+<div id="bd33b1cc" class="cell" data-execution_count="5">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Mayor o igual que.</span></span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>x <span class="op">&gt;=</span> <span class="dv">3</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="5">
+<pre><code>array([False, False,  True,  True,  True,  True,  True,  True,  True])</code></pre>
+</div>
+</div>
+<div id="4d42502d" class="cell" data-execution_count="6">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb10"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Menor o igual que.</span></span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>x <span class="op">&lt;=</span> <span class="dv">3</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="6">
+<pre><code>array([ True,  True,  True, False, False, False, False, False, False])</code></pre>
+</div>
+</div>
+<div id="64277df2" class="cell" data-execution_count="7">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb12"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="co"># No es igual a.</span></span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>x <span class="op">!=</span> <span class="dv">3</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="7">
+<pre><code>array([ True,  True, False,  True,  True,  True,  True,  True,  True])</code></pre>
+</div>
+</div>
+<div id="c1919626" class="cell" data-execution_count="8">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb14"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Es igual a.</span></span>
+<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a>x <span class="op">==</span> <span class="dv">3</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="8">
+<pre><code>array([False, False,  True, False, False, False, False, False, False])</code></pre>
+</div>
+</div>
+<p>Vemos pues que la aplicación de cualquier operador de comparación sobre un arreglo verifica la condición definida por dicho operador, elemento a elemento, y devuelve como respuesta un arreglo de la misma geometría que el original, cuyos elementos son Booleanos. Tales elementos denotan un valor cierto (<code>True</code>) si la condición efectivamente se cumple, y un valor falso (<code>False</code>) si no lo hace.</p>
+<p>También es posible realizar comparaciones elemento a elemento considerando dos arreglos, incluyendo, de esta manera, expresiones más compuestas:</p>
+<div id="ae72dad6" class="cell" data-execution_count="9">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb16"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Una expresión comparativa compuesta.</span></span>
+<span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a>(<span class="dv">2</span><span class="op">*</span>x) <span class="op">==</span> (x <span class="op">-</span> <span class="dv">2</span><span class="op">*</span>x <span class="op">+</span> x<span class="op">**</span><span class="dv">2</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="9">
+<pre><code>array([False, False,  True, False, False, False, False, False, False])</code></pre>
+</div>
+</div>
+<p>Tal y como en el caso de las operaciones aritméticas, y de las funciones trigonométricas, logarítmicas, etc., estos operadores de comparación pueden aplicarse en arreglos independientemente de su tamaño o número de dimensiones. Por ejemplo, en el caso de un arreglo bidimensional, podemos tener:</p>
+<div id="76a8b3db" class="cell" data-execution_count="10">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb18"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Generamos una semilla aleatoria fija.</span></span>
+<span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">42</span>)</span>
+<span id="cb18-3"><a href="#cb18-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-4"><a href="#cb18-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Construimos un arreglo bidimensional.</span></span>
+<span id="cb18-5"><a href="#cb18-5" aria-hidden="true" tabindex="-1"></a>M <span class="op">=</span> rng.integers(low<span class="op">=</span><span class="dv">1</span>, high<span class="op">=</span><span class="dv">10</span>, size<span class="op">=</span>(<span class="dv">4</span>, <span class="dv">4</span>))</span>
+<span id="cb18-6"><a href="#cb18-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-7"><a href="#cb18-7" aria-hidden="true" tabindex="-1"></a><span class="co"># Y lo mostramos en pantalla.</span></span>
+<span id="cb18-8"><a href="#cb18-8" aria-hidden="true" tabindex="-1"></a>M</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="10">
+<pre><code>array([[1, 7, 6, 4],
+       [4, 8, 1, 7],
+       [2, 1, 5, 9],
+       [7, 7, 7, 8]])</code></pre>
+</div>
+</div>
+<div id="88595520" class="cell" data-execution_count="11">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb20"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Los operadores de comparación pueden aplicarse sin problemas sobre este arreglo bidimensional.</span></span>
+<span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a>M <span class="op">&lt;=</span> <span class="dv">5</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="11">
+<pre><code>array([[ True, False, False,  True],
+       [ True, False,  True, False],
+       [ True,  True,  True, False],
+       [False, False, False, False]])</code></pre>
+</div>
+</div>
+<p>Vemos pues que el resultado de la operación <code>M &lt;= 5</code> es, como cabría esperar, un arreglo con elementos Booleanos, con la misma geometría del arreglo original.</p>
+</section>
+<section id="funciones-con-resultado-booleano" class="level2">
+<h2 class="anchored" data-anchor-id="funciones-con-resultado-booleano">Funciones con resultado Booleano</h2>
+<p>Dado un arreglo arbitrario, <strong><font color="darkmagenta">Numpy</font></strong> nos provee de una serie de funciones que nos permiten realizar consultas sobre la data almacenada en él, y cuyas salidas corresponden a arreglos con elementos Booleanos. Para ejemplificar su uso, trabajaremos con el arreglo bidimensional <code>M</code> que definimos previamente.</p>
+<p>Los valores Booleanos en <strong><font color="darkmagenta">Numpy</font></strong> representan siempre valores binarios, con la convención de que el valor <code>True</code> es igual a 1, y el valor <code>False</code> es igual a 0. De esta manera, los elementos de un arreglo Booleano siempre podrán sumarse, a fin de conocer cuántos de esos elementos cumplen con una determinada condición impuesta mediante algún operador de comparación.</p>
+<p>Un ejemplo sencillo sería consultar cuántos elementos de <code>M</code> cumplen con la condición <code>M &gt; 5</code>. Esto podemos hacerlo fácilmente usando la función <code>np.sum()</code>, aprovechando incluso que esta función permite construir agregaciones:</p>
+<div id="37b375f3" class="cell" data-execution_count="12">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb22"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Conteo de elementos del arreglo M que cumplen con la condición M &gt; 5.</span></span>
+<span id="cb22-2"><a href="#cb22-2" aria-hidden="true" tabindex="-1"></a>np.<span class="bu">sum</span>(M <span class="op">&gt;</span> <span class="dv">5</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="12">
+<pre><code>np.int64(9)</code></pre>
+</div>
+</div>
+<div id="78e548d9" class="cell" data-execution_count="13">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb24"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb24-1"><a href="#cb24-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Conteo de elementos del arreglo M que cumplen con la condición M &gt; 5, verificados en cada fila.</span></span>
+<span id="cb24-2"><a href="#cb24-2" aria-hidden="true" tabindex="-1"></a>np.<span class="bu">sum</span>(M <span class="op">&gt;</span> <span class="dv">5</span>, axis<span class="op">=</span><span class="dv">1</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="13">
+<pre><code>array([2, 2, 1, 4])</code></pre>
+</div>
+</div>
+<div id="88ab5ce8" class="cell" data-execution_count="14">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb26"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb26-1"><a href="#cb26-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Conteo de elementos del arreglo M que cumplen con la condición M &gt; 5, verificados en cada columna.</span></span>
+<span id="cb26-2"><a href="#cb26-2" aria-hidden="true" tabindex="-1"></a>np.<span class="bu">sum</span>(M <span class="op">&gt;</span> <span class="dv">5</span>, axis<span class="op">=</span><span class="dv">0</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="14">
+<pre><code>array([1, 3, 2, 3])</code></pre>
+</div>
+</div>
+<p>Naturalmente, podemos estar interesados en saber si alguno o todos los elementos de un determinado arreglo cumplen con alguna condición. Para ello, podemos utilizar las funciones <code>np.any()</code> o <code>np.all()</code>, respectivamente:</p>
+<div id="6b0cbf3a" class="cell" data-execution_count="15">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb28"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb28-1"><a href="#cb28-1" aria-hidden="true" tabindex="-1"></a><span class="co"># ¿Hay algún valor mayor que 8?</span></span>
+<span id="cb28-2"><a href="#cb28-2" aria-hidden="true" tabindex="-1"></a>np.<span class="bu">any</span>(M <span class="op">&gt;</span> <span class="dv">8</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="15">
+<pre><code>np.True_</code></pre>
+</div>
+</div>
+<div id="75d2e9ef" class="cell" data-execution_count="16">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb30"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb30-1"><a href="#cb30-1" aria-hidden="true" tabindex="-1"></a><span class="co"># ¿Hay algún valor menor que cero?</span></span>
+<span id="cb30-2"><a href="#cb30-2" aria-hidden="true" tabindex="-1"></a>np.<span class="bu">any</span>(M <span class="op">&lt;</span> <span class="dv">0</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="16">
+<pre><code>np.False_</code></pre>
+</div>
+</div>
+<div id="c4803fc2" class="cell" data-execution_count="17">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb32"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb32-1"><a href="#cb32-1" aria-hidden="true" tabindex="-1"></a><span class="co"># ¿Son todos los valores menores que 10?</span></span>
+<span id="cb32-2"><a href="#cb32-2" aria-hidden="true" tabindex="-1"></a>np.<span class="bu">all</span>(M <span class="op">&lt;</span> <span class="dv">10</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="17">
+<pre><code>np.True_</code></pre>
+</div>
+</div>
+<div id="5808fd0a" class="cell" data-execution_count="18">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb34"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb34-1"><a href="#cb34-1" aria-hidden="true" tabindex="-1"></a><span class="co"># ¿Son todos los valores iguales a 6?</span></span>
+<span id="cb34-2"><a href="#cb34-2" aria-hidden="true" tabindex="-1"></a>np.<span class="bu">all</span>(M <span class="op">==</span> <span class="dv">6</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="18">
+<pre><code>np.False_</code></pre>
+</div>
+</div>
+<div id="22fd1614" class="cell" data-execution_count="19">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb36"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb36-1"><a href="#cb36-1" aria-hidden="true" tabindex="-1"></a><span class="co"># ¿Son todos los valores en cada fila menores que 8?</span></span>
+<span id="cb36-2"><a href="#cb36-2" aria-hidden="true" tabindex="-1"></a>np.<span class="bu">all</span>(M <span class="op">&lt;</span> <span class="dv">8</span>, axis<span class="op">=</span><span class="dv">1</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="19">
+<pre><code>array([ True, False, False, False])</code></pre>
+</div>
+</div>
+<div id="5c0cc017" class="cell" data-execution_count="20">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb38"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb38-1"><a href="#cb38-1" aria-hidden="true" tabindex="-1"></a><span class="co"># ¿Hay algún valor en cada columna menor que 4?</span></span>
+<span id="cb38-2"><a href="#cb38-2" aria-hidden="true" tabindex="-1"></a>np.<span class="bu">any</span>(M <span class="op">&lt;</span> <span class="dv">4</span>, axis<span class="op">=</span><span class="dv">0</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="20">
+<pre><code>array([ True,  True,  True, False])</code></pre>
+</div>
+</div>
+</section>
+<section id="operadores-booleanos" class="level2">
+<h2 class="anchored" data-anchor-id="operadores-booleanos">Operadores Booleanos</h2>
+<p>Los operadores Booleanos permiten, mediante el uso de ciertos símbolos, conectar dos proposiciones o sentencias lógicas a fin de construir proposiciones compuestas cuyo resultado es algún valor de verdad (Booleano). <strong><font color="darkmagenta">Numpy</font></strong> nos provee de varias <code>ufuncs</code> que emulan el comportamiento de estos operadores lógicos mediante el correspondiente símbolo utilizado normalmente en Python para la ejecución de este tipo de operaciones. Tales símbolos son <code>&amp;</code>, <code>|</code>, <code>^</code> y <code>~</code>, los que se corresponden con las operaciones “AND”, “OR”, “XOR” y “NOT”. Las respectivas funciones universales de <strong><font color="darkmagenta">Numpy</font></strong> (elemento a elemento) que se corresponden con estos operadores son las que se muestran en la <a href="#tbl-booleans" class="quarto-xref">Table&nbsp;1</a>.</p>
+<div id="tbl-booleans" class="quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-float-tbl figure">
+<figcaption class="quarto-float-caption-top quarto-float-caption quarto-float-tbl" id="tbl-booleans-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Table&nbsp;1: Operadores Booleanos de <strong><font color="darkmagenta">Numpy</font></strong>
+</figcaption>
+<div aria-describedby="tbl-booleans-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Operador</th>
+<th><code>ufunc</code> equivalente</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>&amp;</code></td>
+<td><code>np.bitwise_and()</code></td>
+</tr>
+<tr class="even">
+<td><code>|</code></td>
+<td><code>np.bitwise_or()</code></td>
+</tr>
+<tr class="odd">
+<td><code>^</code></td>
+<td><code>np.bitwise_xor()</code></td>
+</tr>
+<tr class="even">
+<td><code>~</code></td>
+<td><code>np.bitwise_not()</code></td>
+</tr>
+</tbody>
+</table>
+</div>
+</figure>
+</div>
+<p>Veamos cómo trabajan estos operadores por medio de un ejemplo:</p>
+<div id="6a2fe2af" class="cell" data-execution_count="21">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb40"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb40-1"><a href="#cb40-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Construimos un arreglo que emula el histórico de rendimiento</span></span>
+<span id="cb40-2"><a href="#cb40-2" aria-hidden="true" tabindex="-1"></a><span class="co"># de un chancador primario durante los últimos 100 días.</span></span>
+<span id="cb40-3"><a href="#cb40-3" aria-hidden="true" tabindex="-1"></a>hist <span class="op">=</span> rng.normal(loc<span class="op">=</span><span class="dv">1250</span>, scale<span class="op">=</span><span class="dv">750</span>, size<span class="op">=</span><span class="dv">100</span>) <span class="op">+</span> <span class="dv">3600</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<div id="63b7be64" class="cell" data-execution_count="22">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb41"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb41-1"><a href="#cb41-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Realizamos algunas consultas relativas a esta data.</span></span>
+<span id="cb41-2"><a href="#cb41-2" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Número de días con procesamiento menor a 4000 tph = </span><span class="sc">{</span>np<span class="sc">.</span><span class="bu">sum</span>(hist <span class="op">&lt;</span> <span class="dv">4000</span>)<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb41-3"><a href="#cb41-3" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Número de días con procesamiento entre 4500 y 5000 tph = </span><span class="sc">{</span>np<span class="sc">.</span><span class="bu">sum</span>((hist <span class="op">&gt;=</span> <span class="dv">4500</span>) <span class="op">&amp;</span> (hist <span class="op">&lt;=</span> <span class="dv">5000</span>))<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb41-4"><a href="#cb41-4" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Número de días con procesamiento sobre 6000 tph o bajo 4000 tph = </span><span class="sc">{</span>np<span class="sc">.</span><span class="bu">sum</span>((hist <span class="op">&gt;</span> <span class="dv">6000</span>) <span class="op">|</span> (hist <span class="op">&lt;</span> <span class="dv">4000</span>))<span class="sc">}</span><span class="ss">"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Número de días con procesamiento menor a 4000 tph = 7
+Número de días con procesamiento entre 4500 y 5000 tph = 32
+Número de días con procesamiento sobre 6000 tph o bajo 4000 tph = 8</code></pre>
+</div>
+</div>
+<p>Notemos que, en el bloque de código anterior, los paréntesis cobran extrema importancia. Esto es debido a que éstos intervienen directamente en la jerarquización de la operación completa. Por lo tanto, en este ejemplo, primero resolvemos las comparaciones, y luego las conjugamos mediante el operador <code>&amp;</code>, o bien, las unimos mediante el operador <code>|</code>.</p>
+</section>
+<section id="masking" class="level2">
+<h2 class="anchored" data-anchor-id="masking">Masking</h2>
+<p>En los ejemplos anteriores, verificamos la construcción de agregaciones calculadas directamente sobre arreglos Booleanos. Una herramienta aún más poderosa en <strong><font color="darkmagenta">Numpy</font></strong> corresponde a la utilización de arreglos Booleanos como máscaras o filtros, a fin de seleccionar ciertos subconjuntos bien definidos de la data de nuestro interés. Este proceso se conoce como <em>masking</em>.</p>
+<p>Consideremos nuestro arreglo <code>M</code>, previamente construido, y supongamos que queremos obtener un sub-arreglo consistente de todos los elementos de <code>M</code> que son menores que 4. Para ello, procedemos enmascarando la condición de interés (<code>M &lt; 4</code>) entre corchetes. Luego tenemos:</p>
+<div id="563109c1" class="cell" data-execution_count="23">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb43"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb43-1"><a href="#cb43-1" aria-hidden="true" tabindex="-1"></a><span class="co"># El arreglo M.</span></span>
+<span id="cb43-2"><a href="#cb43-2" aria-hidden="true" tabindex="-1"></a>M</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="23">
+<pre><code>array([[1, 7, 6, 4],
+       [4, 8, 1, 7],
+       [2, 1, 5, 9],
+       [7, 7, 7, 8]])</code></pre>
+</div>
+</div>
+<div id="f315f892" class="cell" data-execution_count="24">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb45"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb45-1"><a href="#cb45-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Obtenemos un arreglo compuesto únicamente por los elementos de M que son menores que 4.</span></span>
+<span id="cb45-2"><a href="#cb45-2" aria-hidden="true" tabindex="-1"></a>M[M <span class="op">&lt;</span> <span class="dv">4</span>]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="24">
+<pre><code>array([1, 1, 2, 1])</code></pre>
+</div>
+</div>
+<p>La selección anterior sigue una lógica bastante sencilla: la condición <code>M &lt; 4</code> devuelve un arreglo con elementos Booleanos de las mismas dimensiones que el arreglo original <code>M</code>. Por lo tanto, al escribir <code>M[M &lt; 4]</code>, el corchete indica que la selección se realizará con respecto a las posiciones del arreglo <code>M &lt; 4</code> tales que su valor sea igual a <code>True</code>.</p>
+<p>El resultado de una selección mediante <em>masking</em> es siempre un arreglo unidimensional.</p>
+<p>También podemos combinar varias condiciones Booleanas a fin de obtener filtros más expresivos. Por ejemplo, si quisiéramos seleccionar los elementos de <code>M</code> que son mayores que 3 y menores que 8, podríamos escribir:</p>
+<div id="9de7bedb" class="cell" data-execution_count="25">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb47"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb47-1"><a href="#cb47-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Selección mediante una máscara compuesta.</span></span>
+<span id="cb47-2"><a href="#cb47-2" aria-hidden="true" tabindex="-1"></a>M[(M <span class="op">&gt;</span> <span class="dv">3</span>) <span class="op">&amp;</span> (M <span class="op">&lt;</span> <span class="dv">8</span>)]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="25">
+<pre><code>array([7, 6, 4, 4, 7, 5, 7, 7, 7])</code></pre>
+</div>
+</div>
+</section>
+<section id="fancy-indexing" class="level2">
+<h2 class="anchored" data-anchor-id="fancy-indexing">Fancy indexing</h2>
+<p>En las secciones previas, aprendimos a acceder y modificar porciones de arreglos mediante la implementación de un indexado sencillo (por ejemplo, <code>x[0]</code>), <em>slicing</em> (por ejemplo, <code>x[:5]</code>) y <em>masking</em> (por ejemplo, <code>x[x != 0]</code>). En esta subsección, echaremos un vistazo a otro estilo muy particular de indexación de arreglos, conocido en la práctica como <em>fancy indexing</em>. Este tipo de indexación es parecido al que ya aprendimos, pero esta vez indexamos conforme arreglos completos. Esto nos permite acceder rápidamente a y/o modificar subconjuntos de nuestros arreglos de mayor complejidad.</p>
+<p>Este tipo de indexación es conceptualmente simple. Consiste simplemente en pasar un arreglo de índices para acceder a múltiples elementos de un arreglo al mismo tiempo. Por ejemplo, consideremos el siguiente arreglo:</p>
+<div id="caec6a5b" class="cell" data-execution_count="26">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb49"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb49-1"><a href="#cb49-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Generamos una semilla aleatoria fija.</span></span>
+<span id="cb49-2"><a href="#cb49-2" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">42</span>)</span>
+<span id="cb49-3"><a href="#cb49-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb49-4"><a href="#cb49-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Creamos el arreglo `x`.</span></span>
+<span id="cb49-5"><a href="#cb49-5" aria-hidden="true" tabindex="-1"></a>x <span class="op">=</span> rng.integers(low<span class="op">=</span><span class="dv">1</span>, high<span class="op">=</span><span class="dv">100</span>, size<span class="op">=</span><span class="dv">20</span>)</span>
+<span id="cb49-6"><a href="#cb49-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb49-7"><a href="#cb49-7" aria-hidden="true" tabindex="-1"></a><span class="co"># Y lo mostramos en pantalla.</span></span>
+<span id="cb49-8"><a href="#cb49-8" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(x)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[ 9 77 65 44 43 86  9 70 20 10 53 97 73 76 72 78 51 13 84 45]</code></pre>
+</div>
+</div>
+<p>Supongamos que queremos acceder a tres diferentes elementos. Podríamos, dado aquello, hacer algo como esto:</p>
+<div id="0fa56016" class="cell" data-execution_count="27">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb51"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb51-1"><a href="#cb51-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Acceso a algunos elementos de `x`.</span></span>
+<span id="cb51-2"><a href="#cb51-2" aria-hidden="true" tabindex="-1"></a>[x[<span class="dv">13</span>], x[<span class="dv">7</span>], x[<span class="dv">18</span>]]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="27">
+<pre><code>[np.int64(76), np.int64(70), np.int64(84)]</code></pre>
+</div>
+</div>
+<p>Alternativamente, podemos también pasar un conjunto de índices para obtener el mismo resultado:</p>
+<div id="c29a9d05" class="cell" data-execution_count="28">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb53"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb53-1"><a href="#cb53-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Definimos las posiciones a escoger en una lista.</span></span>
+<span id="cb53-2"><a href="#cb53-2" aria-hidden="true" tabindex="-1"></a>indices <span class="op">=</span> [<span class="dv">13</span>, <span class="dv">7</span>, <span class="dv">18</span>]</span>
+<span id="cb53-3"><a href="#cb53-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb53-4"><a href="#cb53-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Y generamos la selección.</span></span>
+<span id="cb53-5"><a href="#cb53-5" aria-hidden="true" tabindex="-1"></a>x[indices]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="28">
+<pre><code>array([76, 70, 84])</code></pre>
+</div>
+</div>
+<p>Con este esquema de indexación, la geometría de los resultados refleja siempre la geometría de los arreglos que definen los índices, en vez de la geometría del arreglo indexado:</p>
+<div id="f67d48ab" class="cell" data-execution_count="29">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb55"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb55-1"><a href="#cb55-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Creamos un arreglo de índices.</span></span>
+<span id="cb55-2"><a href="#cb55-2" aria-hidden="true" tabindex="-1"></a>indices <span class="op">=</span> np.array([</span>
+<span id="cb55-3"><a href="#cb55-3" aria-hidden="true" tabindex="-1"></a>    [<span class="dv">13</span>, <span class="dv">7</span>],</span>
+<span id="cb55-4"><a href="#cb55-4" aria-hidden="true" tabindex="-1"></a>    [<span class="dv">18</span>, <span class="dv">2</span>]</span>
+<span id="cb55-5"><a href="#cb55-5" aria-hidden="true" tabindex="-1"></a>])</span>
+<span id="cb55-6"><a href="#cb55-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb55-7"><a href="#cb55-7" aria-hidden="true" tabindex="-1"></a><span class="co"># Y generamos la selección a partir del arreglo anterior.</span></span>
+<span id="cb55-8"><a href="#cb55-8" aria-hidden="true" tabindex="-1"></a>x[indices]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="29">
+<pre><code>array([[76, 70],
+       [84, 65]])</code></pre>
+</div>
+</div>
+<p>Este esquema de selección se conoce como <strong>fancy indexing</strong>: nos permite definir posiciones mediante reglas simples que se describen por medio de listas e incluso arreglos, para luego realizar selecciones de datos conforme dichas reglas y en las posiciones descritas por las geometrías de esas listas y/o arreglos.</p>
+<p>El esquema de <em>fancy indexing</em> también funciona en dimensiones múltiples. Consideremos el siguiente arreglo:</p>
+<div id="95c98c4a" class="cell" data-execution_count="30">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb57"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb57-1"><a href="#cb57-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Definimos un arreglo 2D de enteros.</span></span>
+<span id="cb57-2"><a href="#cb57-2" aria-hidden="true" tabindex="-1"></a>M <span class="op">=</span> rng.integers(low<span class="op">=</span><span class="dv">1</span>, high<span class="op">=</span><span class="dv">20</span>, size<span class="op">=</span>(<span class="dv">6</span>, <span class="dv">6</span>))</span>
+<span id="cb57-3"><a href="#cb57-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb57-4"><a href="#cb57-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Y lo mostramos en pantalla.</span></span>
+<span id="cb57-5"><a href="#cb57-5" aria-hidden="true" tabindex="-1"></a>M</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="30">
+<pre><code>array([[10,  8,  4, 18, 15, 13],
+       [ 8, 16, 11,  9,  9,  5],
+       [ 2, 11, 17,  2, 17, 16],
+       [ 6, 13,  4, 15, 14,  7],
+       [ 2, 19,  9, 17, 13, 15],
+       [15,  4,  7,  9, 10,  1]])</code></pre>
+</div>
+</div>
+<p>Como en el caso del indexado simple, el primer índice se refiere a las filas y el segundo a las columnas:</p>
+<div id="8362e07f" class="cell" data-execution_count="31">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb59"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb59-1"><a href="#cb59-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Definimos las posiciones a indexar por filas y columnas.</span></span>
+<span id="cb59-2"><a href="#cb59-2" aria-hidden="true" tabindex="-1"></a>row <span class="op">=</span> np.array([<span class="dv">0</span>, <span class="dv">2</span>, <span class="dv">4</span>])</span>
+<span id="cb59-3"><a href="#cb59-3" aria-hidden="true" tabindex="-1"></a>col <span class="op">=</span> np.array([<span class="dv">1</span>, <span class="dv">3</span>, <span class="dv">5</span>])</span>
+<span id="cb59-4"><a href="#cb59-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb59-5"><a href="#cb59-5" aria-hidden="true" tabindex="-1"></a><span class="co"># Y realizamos la selección.</span></span>
+<span id="cb59-6"><a href="#cb59-6" aria-hidden="true" tabindex="-1"></a>M[row, col]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="31">
+<pre><code>array([ 8,  2, 15])</code></pre>
+</div>
+</div>
+<p>Notemos que el primer valor en el resultado es <code>M[0, 1]</code>, el segundo es <code>M[2, 3]</code>, y el tercero es <code>M[4, 5]</code>. El pareo de índices en el <em>fancy indexing</em> sigue las mismas reglas verificadas cuando estudiamos el concepto de <em>broadcasting</em>. Siempre es importante recordar que, con el <em>fancy indexing</em>, el valor retornado por la operación de indexado refleja siempre la geometría de los índices transmitidos mediante <em>broadcasting</em>, en vez de la geometría del arreglo que indexamos.</p>
+<p>Vale la pena enfatizar un detalle importante: la operación <code>M[row, col]</code> <strong>no</strong> devuelve una submatriz rectangular, sino una selección pareada de posiciones. Si lo que quisiéramos fuera seleccionar el rectángulo definido por las filas <code>row</code> y las columnas <code>col</code>, podríamos usar <code>np.ix_()</code>:</p>
+<div id="72aafd40" class="cell" data-execution_count="32">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb61"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb61-1"><a href="#cb61-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Selección rectangular de filas y columnas.</span></span>
+<span id="cb61-2"><a href="#cb61-2" aria-hidden="true" tabindex="-1"></a>M[np.ix_(row, col)]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="32">
+<pre><code>array([[ 8, 18, 13],
+       [11,  2, 16],
+       [19, 17, 15]])</code></pre>
+</div>
+</div>
+<p><strong>Ejemplo 4.1 – Selección integrada:</strong> Cerraremos esta primera parte del apunte con un ejemplo un poco más elaborado, donde combinaremos varias de las herramientas revisadas hasta ahora: operadores de comparación, funciones Booleanas, <em>masking</em>, <em>slicing</em> y <em>fancy indexing</em>.</p>
+<p>Supongamos que el siguiente arreglo <code>P</code> representa información de 12 muestras de una campaña metalúrgica. Cada fila corresponde a una muestra, y las columnas representan, respectivamente:</p>
+<ol type="1">
+<li>Tratamiento de molienda (<code>tph</code>).</li>
+<li>Presión de alimentación en hidrociclones (<code>psi</code>).</li>
+<li>Porcentaje retenido en malla de control (<code>%</code>).</li>
+<li>Ley estimada de cobre (<code>% Cu</code>).</li>
+</ol>
+<div id="7810cffc" class="cell" data-execution_count="33">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb63"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb63-1"><a href="#cb63-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Construimos el arreglo P.</span></span>
+<span id="cb63-2"><a href="#cb63-2" aria-hidden="true" tabindex="-1"></a>P <span class="op">=</span> np.array([</span>
+<span id="cb63-3"><a href="#cb63-3" aria-hidden="true" tabindex="-1"></a>    [<span class="dv">5100</span>, <span class="fl">11.2</span>, <span class="fl">29.4</span>, <span class="fl">0.62</span>],</span>
+<span id="cb63-4"><a href="#cb63-4" aria-hidden="true" tabindex="-1"></a>    [<span class="dv">4800</span>, <span class="fl">10.8</span>, <span class="fl">31.1</span>, <span class="fl">0.58</span>],</span>
+<span id="cb63-5"><a href="#cb63-5" aria-hidden="true" tabindex="-1"></a>    [<span class="dv">5300</span>, <span class="fl">12.4</span>, <span class="fl">27.9</span>, <span class="fl">0.67</span>],</span>
+<span id="cb63-6"><a href="#cb63-6" aria-hidden="true" tabindex="-1"></a>    [<span class="dv">4550</span>,  <span class="fl">9.8</span>, <span class="fl">35.0</span>, <span class="fl">0.51</span>],</span>
+<span id="cb63-7"><a href="#cb63-7" aria-hidden="true" tabindex="-1"></a>    [<span class="dv">6100</span>, <span class="fl">13.1</span>, <span class="fl">24.8</span>, <span class="fl">0.73</span>],</span>
+<span id="cb63-8"><a href="#cb63-8" aria-hidden="true" tabindex="-1"></a>    [<span class="dv">5900</span>, <span class="fl">12.7</span>, <span class="fl">26.1</span>, <span class="fl">0.70</span>],</span>
+<span id="cb63-9"><a href="#cb63-9" aria-hidden="true" tabindex="-1"></a>    [<span class="dv">4200</span>,  <span class="fl">9.5</span>, <span class="fl">36.4</span>, <span class="fl">0.49</span>],</span>
+<span id="cb63-10"><a href="#cb63-10" aria-hidden="true" tabindex="-1"></a>    [<span class="dv">5050</span>, <span class="fl">11.0</span>, <span class="fl">30.2</span>, <span class="fl">0.61</span>],</span>
+<span id="cb63-11"><a href="#cb63-11" aria-hidden="true" tabindex="-1"></a>    [<span class="dv">5700</span>, <span class="fl">12.0</span>, <span class="fl">28.0</span>, <span class="fl">0.66</span>],</span>
+<span id="cb63-12"><a href="#cb63-12" aria-hidden="true" tabindex="-1"></a>    [<span class="dv">4450</span>, <span class="fl">10.1</span>, <span class="fl">34.1</span>, <span class="fl">0.53</span>],</span>
+<span id="cb63-13"><a href="#cb63-13" aria-hidden="true" tabindex="-1"></a>    [<span class="dv">6250</span>, <span class="fl">13.6</span>, <span class="fl">23.9</span>, <span class="fl">0.75</span>],</span>
+<span id="cb63-14"><a href="#cb63-14" aria-hidden="true" tabindex="-1"></a>    [<span class="dv">4950</span>, <span class="fl">10.7</span>, <span class="fl">31.0</span>, <span class="fl">0.59</span>],</span>
+<span id="cb63-15"><a href="#cb63-15" aria-hidden="true" tabindex="-1"></a>])</span>
+<span id="cb63-16"><a href="#cb63-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb63-17"><a href="#cb63-17" aria-hidden="true" tabindex="-1"></a><span class="co"># Mostramos el arreglo.</span></span>
+<span id="cb63-18"><a href="#cb63-18" aria-hidden="true" tabindex="-1"></a>P</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="33">
+<pre><code>array([[5.10e+03, 1.12e+01, 2.94e+01, 6.20e-01],
+       [4.80e+03, 1.08e+01, 3.11e+01, 5.80e-01],
+       [5.30e+03, 1.24e+01, 2.79e+01, 6.70e-01],
+       [4.55e+03, 9.80e+00, 3.50e+01, 5.10e-01],
+       [6.10e+03, 1.31e+01, 2.48e+01, 7.30e-01],
+       [5.90e+03, 1.27e+01, 2.61e+01, 7.00e-01],
+       [4.20e+03, 9.50e+00, 3.64e+01, 4.90e-01],
+       [5.05e+03, 1.10e+01, 3.02e+01, 6.10e-01],
+       [5.70e+03, 1.20e+01, 2.80e+01, 6.60e-01],
+       [4.45e+03, 1.01e+01, 3.41e+01, 5.30e-01],
+       [6.25e+03, 1.36e+01, 2.39e+01, 7.50e-01],
+       [4.95e+03, 1.07e+01, 3.10e+01, 5.90e-01]])</code></pre>
+</div>
+</div>
+<p>Podemos comenzar realizando algunas consultas Booleanas globales:</p>
+<div id="8245139b" class="cell" data-execution_count="34">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb65"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb65-1"><a href="#cb65-1" aria-hidden="true" tabindex="-1"></a><span class="co"># ¿Hay alguna muestra con tratamiento sobre 6000 tph?</span></span>
+<span id="cb65-2"><a href="#cb65-2" aria-hidden="true" tabindex="-1"></a>np.<span class="bu">any</span>(P[:, <span class="dv">0</span>] <span class="op">&gt;</span> <span class="dv">6000</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="34">
+<pre><code>np.True_</code></pre>
+</div>
+</div>
+<div id="d5e57f30" class="cell" data-execution_count="35">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb67"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb67-1"><a href="#cb67-1" aria-hidden="true" tabindex="-1"></a><span class="co"># ¿Son todas las muestras de ley superior a 0.45 % Cu?</span></span>
+<span id="cb67-2"><a href="#cb67-2" aria-hidden="true" tabindex="-1"></a>np.<span class="bu">all</span>(P[:, <span class="dv">3</span>] <span class="op">&gt;</span> <span class="fl">0.45</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="35">
+<pre><code>np.True_</code></pre>
+</div>
+</div>
+<p>Ahora supongamos que queremos filtrar únicamente las muestras que cumplan simultáneamente las siguientes condiciones:</p>
+<ul>
+<li>Tratamiento mayor o igual que 5000 tph.</li>
+<li>Presión mayor que 11 psi.</li>
+<li>Ley de cobre mayor o igual que 0.62 %.</li>
+</ul>
+<p>Podemos construir una máscara compuesta y aplicarla sobre el arreglo completo:</p>
+<div id="253cee7a" class="cell" data-execution_count="36">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb69"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb69-1"><a href="#cb69-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Construimos una máscara compuesta.</span></span>
+<span id="cb69-2"><a href="#cb69-2" aria-hidden="true" tabindex="-1"></a>mask <span class="op">=</span> (P[:, <span class="dv">0</span>] <span class="op">&gt;=</span> <span class="dv">5000</span>) <span class="op">&amp;</span> (P[:, <span class="dv">1</span>] <span class="op">&gt;</span> <span class="dv">11</span>) <span class="op">&amp;</span> (P[:, <span class="dv">3</span>] <span class="op">&gt;=</span> <span class="fl">0.62</span>)</span>
+<span id="cb69-3"><a href="#cb69-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb69-4"><a href="#cb69-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Aplicamos la máscara.</span></span>
+<span id="cb69-5"><a href="#cb69-5" aria-hidden="true" tabindex="-1"></a>P_filtrado <span class="op">=</span> P[mask]</span>
+<span id="cb69-6"><a href="#cb69-6" aria-hidden="true" tabindex="-1"></a>P_filtrado</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="36">
+<pre><code>array([[5.10e+03, 1.12e+01, 2.94e+01, 6.20e-01],
+       [5.30e+03, 1.24e+01, 2.79e+01, 6.70e-01],
+       [6.10e+03, 1.31e+01, 2.48e+01, 7.30e-01],
+       [5.90e+03, 1.27e+01, 2.61e+01, 7.00e-01],
+       [5.70e+03, 1.20e+01, 2.80e+01, 6.60e-01],
+       [6.25e+03, 1.36e+01, 2.39e+01, 7.50e-01]])</code></pre>
+</div>
+</div>
+<p>Notemos que el resultado es un subconjunto de filas del arreglo original <code>P</code>, es decir, aquellas muestras que cumplen simultáneamente con todas las condiciones impuestas.</p>
+<p>Si quisiéramos ahora quedarnos sólo con las columnas relativas al tratamiento y la ley de cobre dentro de ese subconjunto, podemos combinar el filtrado anterior con <em>fancy indexing</em> sobre columnas:</p>
+<div id="19741e78" class="cell" data-execution_count="37">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb71"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb71-1"><a href="#cb71-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Seleccionamos únicamente las columnas 0 y 3 del subconjunto filtrado.</span></span>
+<span id="cb71-2"><a href="#cb71-2" aria-hidden="true" tabindex="-1"></a>P_filtrado[:, [<span class="dv">0</span>, <span class="dv">3</span>]]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="37">
+<pre><code>array([[5.10e+03, 6.20e-01],
+       [5.30e+03, 6.70e-01],
+       [6.10e+03, 7.30e-01],
+       [5.90e+03, 7.00e-01],
+       [5.70e+03, 6.60e-01],
+       [6.25e+03, 7.50e-01]])</code></pre>
+</div>
+</div>
+<p>También podemos usar <em>slicing</em> para inspeccionar rápidamente un bloque rectangular del arreglo original. Por ejemplo, las primeras cinco muestras y las tres primeras variables:</p>
+<div id="54330c4f" class="cell" data-execution_count="38">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb73"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb73-1"><a href="#cb73-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Selección por slicing.</span></span>
+<span id="cb73-2"><a href="#cb73-2" aria-hidden="true" tabindex="-1"></a>P[:<span class="dv">5</span>, :<span class="dv">3</span>]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="38">
+<pre><code>array([[5100. ,   11.2,   29.4],
+       [4800. ,   10.8,   31.1],
+       [5300. ,   12.4,   27.9],
+       [4550. ,    9.8,   35. ],
+       [6100. ,   13.1,   24.8]])</code></pre>
+</div>
+</div>
+<p>Finalmente, podemos usar <em>fancy indexing</em> en ambos ejes para inspeccionar posiciones puntuales de interés. Supongamos que queremos revisar las muestras en las filas 0, 4, 8 y 10, pero sólo en las columnas asociadas a tratamiento y ley:</p>
+<div id="bf9d8831" class="cell" data-execution_count="39">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb75"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb75-1"><a href="#cb75-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Selección rectangular usando fancy indexing.</span></span>
+<span id="cb75-2"><a href="#cb75-2" aria-hidden="true" tabindex="-1"></a>filas <span class="op">=</span> np.array([<span class="dv">0</span>, <span class="dv">4</span>, <span class="dv">8</span>, <span class="dv">10</span>])</span>
+<span id="cb75-3"><a href="#cb75-3" aria-hidden="true" tabindex="-1"></a>columnas <span class="op">=</span> np.array([<span class="dv">0</span>, <span class="dv">3</span>])</span>
+<span id="cb75-4"><a href="#cb75-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb75-5"><a href="#cb75-5" aria-hidden="true" tabindex="-1"></a>P[np.ix_(filas, columnas)]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="39">
+<pre><code>array([[5.10e+03, 6.20e-01],
+       [6.10e+03, 7.30e-01],
+       [5.70e+03, 6.60e-01],
+       [6.25e+03, 7.50e-01]])</code></pre>
+</div>
+</div>
+<p>Este ejemplo resume bastante bien la lógica general de esta parte del curso: comparar valores, construir reglas Booleanas, filtrar mediante máscaras y luego seleccionar subconjuntos específicos de datos mediante distintos esquemas de indexación. En la práctica, una fracción muy importante del preprocesamiento de datos en Python consiste precisamente en encadenar este tipo de operaciones de manera clara y eficiente. ◼︎</p>
+</section>
+<section id="ordenamiento-de-arreglos" class="level2">
+<h2 class="anchored" data-anchor-id="ordenamiento-de-arreglos">Ordenamiento de arreglos</h2>
+<p>Hasta este punto, hemos considerado herramientas que nos sirven para acceder y manipular los datos almacenados en nuestros arreglos con <strong><font color="darkmagenta">Numpy</font></strong>. Procederemos ahora a cubrir algunas rutinas que nos permiten generar algún tipo de orden en los elementos que constituyen tales arreglos.</p>
+<p>A pesar de que Python tiene disponibles las funciones nativas <code>sort()</code> y <code>sorted()</code>, las cuales funcionan perfecto en objetos tales como listas, no las discutiremos en este curso debido a que la función <code>np.sort()</code> es mucho más eficiente que las alternativas nativas (en tiempo de ejecución). De esta manera, para retornar la versión ordenada de un arreglo, sin modificar nada más, podemos escribir:</p>
+<div id="ce001a17" class="cell" data-execution_count="40">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb77"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb77-1"><a href="#cb77-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Definimos una semilla aleatoria fija.</span></span>
+<span id="cb77-2"><a href="#cb77-2" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">10</span>)</span>
+<span id="cb77-3"><a href="#cb77-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb77-4"><a href="#cb77-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Creamos nuestro arreglo.</span></span>
+<span id="cb77-5"><a href="#cb77-5" aria-hidden="true" tabindex="-1"></a>u <span class="op">=</span> rng.integers(low<span class="op">=</span><span class="dv">1</span>, high<span class="op">=</span><span class="dv">20</span>, size<span class="op">=</span><span class="dv">10</span>)</span>
+<span id="cb77-6"><a href="#cb77-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb77-7"><a href="#cb77-7" aria-hidden="true" tabindex="-1"></a><span class="co"># Y lo mostramos en pantalla.</span></span>
+<span id="cb77-8"><a href="#cb77-8" aria-hidden="true" tabindex="-1"></a>u</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="40">
+<pre><code>array([15, 19,  6,  4, 16, 16, 10,  3, 16, 10])</code></pre>
+</div>
+</div>
+<div id="398c2631" class="cell" data-execution_count="41">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb79"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb79-1"><a href="#cb79-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Retornamos la versión ordenada del arreglo u.</span></span>
+<span id="cb79-2"><a href="#cb79-2" aria-hidden="true" tabindex="-1"></a>np.sort(u)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="41">
+<pre><code>array([ 3,  4,  6, 10, 10, 15, 16, 16, 16, 19])</code></pre>
+</div>
+</div>
+<p><strong><font color="darkmagenta">Numpy</font></strong> también nos provee del método <code>sort()</code>, aplicable sobre cualquier arreglo, y que también permite ordenar sus elementos. Sin embargo, este método no retorna una copia del arreglo con sus elementos ordenados (como la función <code>np.sort()</code>), sino que modifica el arreglo respectivo, ordenando sus elementos:</p>
+<div id="0d2ad14b" class="cell" data-execution_count="42">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb81"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb81-1"><a href="#cb81-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Ordenamos el arreglo u mediante el método sort().</span></span>
+<span id="cb81-2"><a href="#cb81-2" aria-hidden="true" tabindex="-1"></a>u.sort()</span>
+<span id="cb81-3"><a href="#cb81-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb81-4"><a href="#cb81-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Mostramos el arreglo ordenado.</span></span>
+<span id="cb81-5"><a href="#cb81-5" aria-hidden="true" tabindex="-1"></a>u</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="42">
+<pre><code>array([ 3,  4,  6, 10, 10, 15, 16, 16, 16, 19])</code></pre>
+</div>
+</div>
+<p>Con frecuencia, estamos interesados en determinar las posiciones relativas a los elementos de un arreglo que, de seleccionarlas, retornan el arreglo ordenado. Para ello, podemos utilizar la función <code>np.argsort()</code>:</p>
+<div id="ee26d3af" class="cell" data-execution_count="43">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb83"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb83-1"><a href="#cb83-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Creamos el arreglo.</span></span>
+<span id="cb83-2"><a href="#cb83-2" aria-hidden="true" tabindex="-1"></a>v <span class="op">=</span> rng.integers(low<span class="op">=</span><span class="dv">1</span>, high<span class="op">=</span><span class="dv">10</span>, size<span class="op">=</span><span class="dv">10</span>)</span>
+<span id="cb83-3"><a href="#cb83-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb83-4"><a href="#cb83-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Y lo mostramos en pantalla.</span></span>
+<span id="cb83-5"><a href="#cb83-5" aria-hidden="true" tabindex="-1"></a>v</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="43">
+<pre><code>array([2, 2, 4, 7, 4, 8, 1, 4, 5, 9])</code></pre>
+</div>
+</div>
+<div id="1903e06b" class="cell" data-execution_count="44">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb85"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb85-1"><a href="#cb85-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Determinamos las posiciones de los elementos que permiten ordenar el arreglo.</span></span>
+<span id="cb85-2"><a href="#cb85-2" aria-hidden="true" tabindex="-1"></a>np.argsort(v)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="44">
+<pre><code>array([6, 0, 1, 2, 4, 7, 8, 3, 5, 9])</code></pre>
+</div>
+</div>
+<div id="b47db7f0" class="cell" data-execution_count="45">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb87"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb87-1"><a href="#cb87-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Estos índices nos permiten listar los elementos ordenadamente en nuestro arreglo.</span></span>
+<span id="cb87-2"><a href="#cb87-2" aria-hidden="true" tabindex="-1"></a>v[np.argsort(v)]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="45">
+<pre><code>array([1, 2, 2, 4, 4, 4, 5, 7, 8, 9])</code></pre>
+</div>
+</div>
+<p>La función <code>np.sort()</code> también permite operar de forma agregada. Por lo tanto, es posible ordenar los elementos de un arreglo multidimensional conforme la dirección de cualquiera de sus ejes. Por ejemplo, conforme filas o columnas en un arreglo 2D:</p>
+<div id="6fb2c2d9" class="cell" data-execution_count="46">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb89"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb89-1"><a href="#cb89-1" aria-hidden="true" tabindex="-1"></a><span class="co"># El arreglo `M`.</span></span>
+<span id="cb89-2"><a href="#cb89-2" aria-hidden="true" tabindex="-1"></a>M</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="46">
+<pre><code>array([[10,  8,  4, 18, 15, 13],
+       [ 8, 16, 11,  9,  9,  5],
+       [ 2, 11, 17,  2, 17, 16],
+       [ 6, 13,  4, 15, 14,  7],
+       [ 2, 19,  9, 17, 13, 15],
+       [15,  4,  7,  9, 10,  1]])</code></pre>
+</div>
+</div>
+<div id="16185bce" class="cell" data-execution_count="47">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb91"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb91-1"><a href="#cb91-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Ordenamos los elementos que constituyen las columnas de M.</span></span>
+<span id="cb91-2"><a href="#cb91-2" aria-hidden="true" tabindex="-1"></a>np.sort(M, axis<span class="op">=</span><span class="dv">0</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="47">
+<pre><code>array([[ 2,  4,  4,  2,  9,  1],
+       [ 2,  8,  4,  9, 10,  5],
+       [ 6, 11,  7,  9, 13,  7],
+       [ 8, 13,  9, 15, 14, 13],
+       [10, 16, 11, 17, 15, 15],
+       [15, 19, 17, 18, 17, 16]])</code></pre>
+</div>
+</div>
+<div id="6f481348" class="cell" data-execution_count="48">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb93"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb93-1"><a href="#cb93-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Ordenamos los elementos que constituyen las filas de M.</span></span>
+<span id="cb93-2"><a href="#cb93-2" aria-hidden="true" tabindex="-1"></a>np.sort(M, axis<span class="op">=</span><span class="dv">1</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="48">
+<pre><code>array([[ 4,  8, 10, 13, 15, 18],
+       [ 5,  8,  9,  9, 11, 16],
+       [ 2,  2, 11, 16, 17, 17],
+       [ 4,  6,  7, 13, 14, 15],
+       [ 2,  9, 13, 15, 17, 19],
+       [ 1,  4,  7,  9, 10, 15]])</code></pre>
+</div>
+</div>
+<p>Debemos tener en consideración que el método anterior asume que tanto las filas como las columnas de un arreglo son arreglos independientes. Por lo tanto, cualquier relación existente entre los elementos del arreglo original no se preserva al generar este tipo de ordenamientos.</p>
+<p>A veces no estamos interesados en ordenar un arreglo completamente, sino que simplemente queremos encontrar los <code>K</code> valores más pequeños en el mismo. <strong><font color="darkmagenta">Numpy</font></strong> nos provee de la función <code>np.partition()</code>, la cual toma como argumentos un arreglo determinado y un número <code>K</code>. El resultado que retorna es un nuevo arreglo, con los <code>K</code> valores más pequeños situados a la izquierda de esta partición, y los demás elementos a la derecha de <code>K</code>, en un orden arbitrario:</p>
+<div id="ed16a4f1" class="cell" data-execution_count="49">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb95"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb95-1"><a href="#cb95-1" aria-hidden="true" tabindex="-1"></a><span class="co"># La función np.partition() devuelve un arreglo cuyos primeros K elementos son los de menor magnitud</span></span>
+<span id="cb95-2"><a href="#cb95-2" aria-hidden="true" tabindex="-1"></a><span class="co"># del arreglo original, sin un orden específico, mientras que el resto de los elementos permanecen</span></span>
+<span id="cb95-3"><a href="#cb95-3" aria-hidden="true" tabindex="-1"></a><span class="co"># a la derecha de la partición.</span></span>
+<span id="cb95-4"><a href="#cb95-4" aria-hidden="true" tabindex="-1"></a>np.partition(v, <span class="dv">3</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="49">
+<pre><code>array([1, 2, 2, 4, 4, 8, 7, 4, 5, 9])</code></pre>
+</div>
+</div>
+<p>Notemos que los primeros tres elementos en el arreglo resultante corresponden a los tres elementos más pequeños del arreglo original, mientras que las posiciones restantes contienen al resto de los elementos. Ambas particiones tienen un orden arbitrario en sus elementos respectivos.</p>
+<p>Similarmente al caso del ordenamiento clásico, también podemos particionar elementos conforme cualquier eje estructural de un arreglo:</p>
+<div id="e613d5b7" class="cell" data-execution_count="50">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb97"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb97-1"><a href="#cb97-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Retornamos un arreglo cuyos dos primeros elementos, por columna, son los de menor magnitud.</span></span>
+<span id="cb97-2"><a href="#cb97-2" aria-hidden="true" tabindex="-1"></a>np.partition(M, <span class="dv">2</span>, axis<span class="op">=</span><span class="dv">0</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="50">
+<pre><code>array([[ 2,  4,  4,  2,  9,  1],
+       [ 2,  8,  4,  9, 10,  5],
+       [ 6, 11,  7,  9, 13,  7],
+       [10, 13, 11, 15, 14, 16],
+       [ 8, 19,  9, 17, 17, 15],
+       [15, 16, 17, 18, 15, 13]])</code></pre>
+</div>
+</div>
+<div id="d8b662f0" class="cell" data-execution_count="51">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb99"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb99-1"><a href="#cb99-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Retornamos un arreglo cuyos dos primeros elementos, por fila, son los de menor magnitud.</span></span>
+<span id="cb99-2"><a href="#cb99-2" aria-hidden="true" tabindex="-1"></a>np.partition(M, <span class="dv">2</span>, axis<span class="op">=</span><span class="dv">1</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="51">
+<pre><code>array([[ 4,  8, 10, 18, 15, 13],
+       [ 5,  8,  9, 11,  9, 16],
+       [ 2,  2, 11, 17, 17, 16],
+       [ 4,  6,  7, 15, 14, 13],
+       [ 2,  9, 13, 17, 19, 15],
+       [ 1,  4,  7,  9, 10, 15]])</code></pre>
+</div>
+</div>
+<p>El resultado es un arreglo en el cual los primeros dos elementos de cada fila contienen a los elementos más pequeños en dicha fila, estando en las posiciones restantes el resto de los elementos de cada fila correspondiente, ambos en un orden arbitrario.</p>
+<p>Finalmente, de la misma forma que disponemos de la función <code>np.argsort()</code> para devolver los índices de los elementos ordenados de un arreglo, también contamos con la función <code>np.argpartition()</code>, la cual computa los índices que denotan las posiciones relativas a una partición. Veremos esto en detalle en el siguiente ejemplo.</p>
+<p><strong>Ejemplo 4.2 – El algoritmo de <span class="math inline">\(K\)</span> vecinos más cercanos:</strong> Veamos rápidamente cómo utilizar la función <code>np.argsort()</code> conforme múltiples ejes para encontrar a los vecinos más cercanos de cada punto en un conjunto. Comenzaremos creando un conjunto aleatorio de 30 puntos en un plano, en un arreglo de geometría <code>(30, 2)</code>:</p>
+<div id="228584bf" class="cell" data-execution_count="52">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb101"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb101-1"><a href="#cb101-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Definimos el arreglo que trabajaremos.</span></span>
+<span id="cb101-2"><a href="#cb101-2" aria-hidden="true" tabindex="-1"></a>P <span class="op">=</span> rng.uniform(size<span class="op">=</span>(<span class="dv">30</span>, <span class="dv">2</span>))</span>
+<span id="cb101-3"><a href="#cb101-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb101-4"><a href="#cb101-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Y lo mostramos en pantalla.</span></span>
+<span id="cb101-5"><a href="#cb101-5" aria-hidden="true" tabindex="-1"></a>P</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="52">
+<pre><code>array([[0.82533291, 0.33821531],
+       [0.57576055, 0.75330186],
+       [0.82710394, 0.93343847],
+       [0.14499469, 0.74558021],
+       [0.13935139, 0.90652876],
+       [0.22611443, 0.85323975],
+       [0.30631787, 0.96983037],
+       [0.51783421, 0.32247456],
+       [0.28243352, 0.605865  ],
+       [0.33376446, 0.67864877],
+       [0.15442507, 0.24977552],
+       [0.86989425, 0.60036782],
+       [0.26198306, 0.1494149 ],
+       [0.13678915, 0.24892094],
+       [0.38282467, 0.64907906],
+       [0.83756376, 0.77603195],
+       [0.33951558, 0.14856874],
+       [0.45701939, 0.43786436],
+       [0.57421759, 0.37326922],
+       [0.63382506, 0.11464436],
+       [0.23309047, 0.76724102],
+       [0.98712427, 0.80800108],
+       [0.84296564, 0.79568268],
+       [0.45684131, 0.73867068],
+       [0.57845499, 0.45073557],
+       [0.27102442, 0.86460315],
+       [0.06865567, 0.81673446],
+       [0.881835  , 0.42351639],
+       [0.83322931, 0.34101671],
+       [0.51979151, 0.54920645]])</code></pre>
+</div>
+</div>
+<p>Para tener una idea de cómo se ven estos puntos en el plano, podemos graficarlos rápidamente usando <strong><font color="darkmagenta">Matplotlib</font></strong>. No ahondaremos en el gráfico demasiado, ya que más adelante abordaremos este tema en detalle. Sin embargo, el código es el siguiente:</p>
+<div id="5ea72962" class="cell" data-execution_count="53">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb103"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb103-1"><a href="#cb103-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> matplotlib.pyplot <span class="im">as</span> plt</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<div id="3b92b5cd" class="cell" data-execution_count="54">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb104"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb104-1"><a href="#cb104-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Seteamos algunas opciones para que nuestras figuras queden bonitas.</span></span>
+<span id="cb104-2"><a href="#cb104-2" aria-hidden="true" tabindex="-1"></a>plt.rcParams[<span class="st">"figure.dpi"</span>] <span class="op">=</span> <span class="dv">90</span></span>
+<span id="cb104-3"><a href="#cb104-3" aria-hidden="true" tabindex="-1"></a>plt.style.use(<span class="st">"bmh"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<div id="c1b500fb" class="cell" data-execution_count="55">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb105"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb105-1"><a href="#cb105-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Gráfico de nuestros puntos en el plano.</span></span>
+<span id="cb105-2"><a href="#cb105-2" aria-hidden="true" tabindex="-1"></a>fig, ax <span class="op">=</span> plt.subplots(figsize<span class="op">=</span>(<span class="dv">9</span>, <span class="dv">5</span>))</span>
+<span id="cb105-3"><a href="#cb105-3" aria-hidden="true" tabindex="-1"></a>ax.scatter(P[:, <span class="dv">0</span>], P[:, <span class="dv">1</span>], color<span class="op">=</span><span class="st">"firebrick"</span>)</span>
+<span id="cb105-4"><a href="#cb105-4" aria-hidden="true" tabindex="-1"></a>ax.set_xlabel(<span class="vs">r"</span><span class="dv">$</span><span class="vs">X</span><span class="dv">$</span><span class="vs">"</span>, fontsize<span class="op">=</span><span class="dv">12</span>, labelpad<span class="op">=</span><span class="dv">10</span>)</span>
+<span id="cb105-5"><a href="#cb105-5" aria-hidden="true" tabindex="-1"></a>ax.set_ylabel(<span class="vs">r"</span><span class="dv">$</span><span class="vs">Y</span><span class="dv">$</span><span class="vs">"</span>, fontsize<span class="op">=</span><span class="dv">12</span>, labelpad<span class="op">=</span><span class="dv">15</span>, rotation<span class="op">=</span><span class="dv">0</span>)</span>
+<span id="cb105-6"><a href="#cb105-6" aria-hidden="true" tabindex="-1"></a>plt.tight_layout()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="index_files/figure-html/cell-56-output-1.png" width="800" height="439" class="figure-img"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>Recordemos, de la geometría analítica, que para dos puntos <span class="math inline">\(P_{1}=(x_{1},y_{1})\)</span> y <span class="math inline">\(P_{2}=(x_{2},y_{2})\)</span>, la distancia <span class="math inline">\(d(P_{1},P_{2})\)</span> puede calcularse como</p>
+<div class="eq-scroll">
+<p><span class="math display">\[
+d(P_{1},P_{2})=\Vert P_{1}-P_{2}\Vert={\displaystyle \sqrt{(x_{1}-x_{2})^{2}+( y_{1}-y_{2})^{2}}}
+\tag{4.1}
+\]</span></p>
+</div>
+<p>El algoritmo de K-vecinos más cercanos corresponde a un procedimiento que asigna ciertos valores o características a un punto dependiendo de su distancia al resto de los puntos en un espacio determinado. Corresponde a uno de los modelos de clasificación más sencillos que podemos implementar.</p>
+<p>Dado que este algoritmo funciona en base a las distancias a fin de poder establecer qué tan cerca está un punto de otro, podemos construir una matriz de distancias cruzadas entre cada par de puntos. Si disponemos de <span class="math inline">\(n\)</span> puntos, tal matriz será de dimensión <span class="math inline">\(n\times n\)</span>. De esta manera, para nuestro arreglo <code>P</code>, dicha matriz corresponderá a un arreglo de geometría <code>(30, 30)</code>, que podemos construir de la siguiente manera:</p>
+<div id="302caee7" class="cell" data-execution_count="56">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb106"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb106-1"><a href="#cb106-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Construimos una matriz llamada dist, para almacenar las distancias que calcularemos.</span></span>
+<span id="cb106-2"><a href="#cb106-2" aria-hidden="true" tabindex="-1"></a>dist <span class="op">=</span> np.zeros(shape<span class="op">=</span>(<span class="dv">30</span>, <span class="dv">30</span>))</span>
+<span id="cb106-3"><a href="#cb106-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb106-4"><a href="#cb106-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Mediante un loop sencillo, calculamos estas distancias cuadradas.</span></span>
+<span id="cb106-5"><a href="#cb106-5" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> i <span class="kw">in</span> <span class="bu">range</span>(P.shape[<span class="dv">0</span>]):</span>
+<span id="cb106-6"><a href="#cb106-6" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> j <span class="kw">in</span> <span class="bu">range</span>(P.shape[<span class="dv">0</span>]):</span>
+<span id="cb106-7"><a href="#cb106-7" aria-hidden="true" tabindex="-1"></a>        dist_ij <span class="op">=</span> np.<span class="bu">sum</span>((P[i] <span class="op">-</span> P[j])<span class="op">**</span><span class="dv">2</span>)</span>
+<span id="cb106-8"><a href="#cb106-8" aria-hidden="true" tabindex="-1"></a>        dist[i, j] <span class="op">=</span> dist_ij</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>Sólo para hacer un doble chequeo de lo que estamos haciendo, deberíamos observar los valores en la diagonal de esta matriz. Tales valores corresponden a las distancias entre un punto consigo mismo y, por supuesto, éstas deben ser iguales a cero:</p>
+<div id="a0803fe1" class="cell" data-execution_count="57">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb107"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb107-1"><a href="#cb107-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Doble check de nuestro cálculo.</span></span>
+<span id="cb107-2"><a href="#cb107-2" aria-hidden="true" tabindex="-1"></a>dist.diagonal()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="57">
+<pre><code>array([0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.,
+       0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.])</code></pre>
+</div>
+</div>
+<p>¡Vamos súper bien! Aunque en <code>dist</code> hemos almacenado distancias cuadradas en vez de distancias Euclidianas exactas, esto no afecta el orden relativo entre vecinos y, por lo tanto, sigue siendo completamente válido para el problema de vecinos más cercanos.</p>
+<p>Con las distancias entre pares de puntos ya resueltas, podemos utilizar la función <code>np.argsort()</code> para ordenar los elementos por fila. Las columnas de más a la izquierda nos darán los índices de los vecinos más cercanos:</p>
+<div id="5f015414" class="cell" data-execution_count="58">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb109"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb109-1"><a href="#cb109-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Determinamos las posiciones, en nuestra matriz de distancias, de los</span></span>
+<span id="cb109-2"><a href="#cb109-2" aria-hidden="true" tabindex="-1"></a><span class="co"># puntos más cercanos a cada punto.</span></span>
+<span id="cb109-3"><a href="#cb109-3" aria-hidden="true" tabindex="-1"></a>nearest <span class="op">=</span> np.argsort(dist, axis<span class="op">=</span><span class="dv">1</span>)</span>
+<span id="cb109-4"><a href="#cb109-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb109-5"><a href="#cb109-5" aria-hidden="true" tabindex="-1"></a><span class="co"># Mostramos estas posiciones en pantalla.</span></span>
+<span id="cb109-6"><a href="#cb109-6" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(nearest)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[[ 0 28 27 18 11 24 19  7 29 17 15 22  1 21 16 14 23 12  2  9  8 10 13 20
+  25  5  3  6  4 26]
+ [ 1 23 29 14  9 15 22 24  2 25  8 11 17 20  6  5 18 21  3  7 27  4  0 28
+  26 19 16 10 13 12]
+ [ 2 22 15 21  1 11 23 29 27  6 14 24  9 25 28  0  5 18 20 17  8  7  4  3
+  26 19 16 10 12 13]
+ [ 3 20 26  5  4 25  8  9 14  6 23 29  1 17 10 13 24  7 18 12 16 15 22  2
+  11  0 19 28 27 21]
+ [ 4  5 26 25  3 20  6  9  8 14 23  1 29 17 24 10 13 18  2  7 15 22 12 16
+  11 21 27  0 28 19]
+ [ 5 25 20  4  3  6 26  9  8 14 23  1 29 17 24 18  7  2 10 13 15 22 11 12
+  16 21 27  0 28 19]
+ [ 6 25  5  4 20 23  3 26  9 14  1  8 29  2 17 22 15 24 18 11  7 21 10 13
+  27  0 28 12 16 19]
+ [ 7 18 17 24 29 19 16  0 12 28 14  8 10 27 13  9 23  1 11 20 15  3 22 25
+   5 26 21  6  2  4]
+ [ 8  9 14 20  3 23 17 29  5 25 26  1  4 24  6  7 18 10 13 12 16 15 11 22
+  19  0 28 27  2 21]
+ [ 9 14  8 20 23 25  3  5 29  1 17  6 26  4 24 18  7 10 13 15 22 16 12 11
+   2  0 28 27 19 21]
+ [10 13 12 16 17  7  8 18 14  9 24 29  3 19 20 26 23  5 25  1  4  0 28  6
+  27 11 15 22  2 21]
+ [11 27 15 22 21 28  0 24  1  2 29 18 23 17  7 14 19  9  8 25 20  6  5 16
+   3 12  4 10 13 26]
+ [12 16 10 13  7 17 19 18 24  8 29 14  9  0 28  3 20 23 27  1 26  5 25 11
+   4  6 15 22  2 21]
+ [13 10 12 16 17  8  7 18 14  9 24 29  3 19 20 26 23  5 25  4  1  0 28  6
+  27 11 15 22  2 21]
+ [14  9  8 23 29 20  1 17 25  3  5 24  6 18  7  4 26 10 13 15 22 11 16 12
+   2  0 28 27 19 21]
+ [15 22 21  2 11  1 27 23 29 24 28  0 14 18 17  9  7  6 25  8 20  5 19  3
+   4 26 16 12 10 13]
+ [16 12 10 13  7 19 17 18 24 29  8 14  0 28  9 23 27 20  3  1 11  5 25 26
+   4 15 22  6  2 21]
+ [17 24 29  7 18 14  8  9 23 16  1 12 10 19 13  0 28 20 27  3 11 25  5 15
+  22 26  6  4  2 21]
+ [18  7 24 17 29  0 28 19 27 16 14 11  8  1 23 12  9 10 13 15 22 20  3 25
+   5 21  2  6 26  4]
+ [19  7 18  0 16 28 24 17 12 27 29 10 13 11 14  8  9  1 23 15 22 20 21  3
+  25  2  5 26  6  4]
+ [20  5  3 25  9  4  8 26 14  6 23  1 29 17 24 18 10 13  7 15 22  2 12 16
+  11  0 27 28 21 19]
+ [21 22 15  2 11 27  1 28  0 29 23 24 18 14 17  9  7  6 25  8 20  5 19  3
+   4 26 16 12 10 13]
+ [22 15  2 21 11  1 27 23 29 24 28  0 14 18  9 17  6  7 25  8 20  5  3  4
+  19 26 16 12 10 13]
+ [23 14  1  9 29  8 25 20  5  6 17  3 24  4 15 18 22 26  2  7 11 27 21  0
+  28 10 13 16 12 19]
+ [24 18 29 17  7  0 28 14  1 27 23 11  8  9 19 16 15 22 12 20 10 13 25  3
+   5 21  2  6 26  4]
+ [25  5 20  6  4  3  9 26 23 14  8  1 29 17 24  2 15 22 18  7 10 13 11 12
+  21 16 27  0 28 19]
+ [26  3  4  5 20 25  6  9  8 14 23  1 29 17 13 10 24  7 18 12 16  2 15 22
+  11  0 28 19 27 21]
+ [27 28  0 11 24 18 15 22  7 29 19 21 17  1  2 23 14  9 16  8 12 20 10 25
+  13  5  6  3  4 26]
+ [28  0 27 18 11 24 19  7 29 17 15 22  1 21 16 14 23  2 12  9  8 10 13 20
+  25  5  3  6  4 26]
+ [29 24 17 14 18 23  1  9  7  8 11 20  0 28 27 15 25 22  5  3 16 19  6 10
+  12 13  2  4 26 21]]</code></pre>
+</div>
+</div>
+<p>Notemos que la primera columna nos da los números de 0 a 29 en orden: esto es debido a que el vecino más cercano a cada punto es sí mismo, como cabría esperar. Si estamos simplemente interesados en los K-vecinos más cercanos, todo lo que necesitamos es particionar cada fila de manera tal que las <code>K + 1</code> distancias más pequeñas vengan primero, dejando el resto de las distancias llenando el resto de los espacios en el arreglo. Podemos lograr esto con la función <code>np.argpartition()</code>:</p>
+<div id="3baddad3" class="cell" data-execution_count="59">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb111"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb111-1"><a href="#cb111-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Buscamos los tres vecinos más cercanos a cada punto.</span></span>
+<span id="cb111-2"><a href="#cb111-2" aria-hidden="true" tabindex="-1"></a>K <span class="op">=</span> <span class="dv">3</span></span>
+<span id="cb111-3"><a href="#cb111-3" aria-hidden="true" tabindex="-1"></a>nearest_partition <span class="op">=</span> np.argpartition(dist, K <span class="op">+</span> <span class="dv">1</span>, axis<span class="op">=</span><span class="dv">1</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>A fin de visualizar esta red de vecinos más cercanos, grafiquemos rápidamente los puntos y las líneas que representan las conexiones de cada punto a sus tres vecinos más cercanos. No es el objetivo de esta sección el aprender a graficar, pero no está demás empezar a tener una noción de cómo hacerlo:</p>
+<div id="9a9e66e8" class="cell" data-execution_count="60">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb112"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb112-1"><a href="#cb112-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Inicializamos nuestra figura.</span></span>
+<span id="cb112-2"><a href="#cb112-2" aria-hidden="true" tabindex="-1"></a>fig, ax <span class="op">=</span> plt.subplots(figsize<span class="op">=</span>(<span class="dv">9</span>, <span class="dv">5</span>))</span>
+<span id="cb112-3"><a href="#cb112-3" aria-hidden="true" tabindex="-1"></a>ax.scatter(P[:, <span class="dv">0</span>], P[:, <span class="dv">1</span>], color<span class="op">=</span><span class="st">"firebrick"</span>)</span>
+<span id="cb112-4"><a href="#cb112-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb112-5"><a href="#cb112-5" aria-hidden="true" tabindex="-1"></a><span class="co"># Graficamos las conexiones a los tres vecinos más cercanos de cada punto.</span></span>
+<span id="cb112-6"><a href="#cb112-6" aria-hidden="true" tabindex="-1"></a>K <span class="op">=</span> <span class="dv">3</span></span>
+<span id="cb112-7"><a href="#cb112-7" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> i <span class="kw">in</span> <span class="bu">range</span>(P.shape[<span class="dv">0</span>]):</span>
+<span id="cb112-8"><a href="#cb112-8" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> j <span class="kw">in</span> nearest_partition[i, :K <span class="op">+</span> <span class="dv">1</span>]:</span>
+<span id="cb112-9"><a href="#cb112-9" aria-hidden="true" tabindex="-1"></a>        ax.plot(<span class="op">*</span><span class="bu">zip</span>(P[j], P[i]), color<span class="op">=</span><span class="st">'k'</span>, linewidth<span class="op">=</span><span class="dv">1</span>, linestyle<span class="op">=</span><span class="st">"--"</span>, alpha<span class="op">=</span><span class="fl">0.4</span>)</span>
+<span id="cb112-10"><a href="#cb112-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb112-11"><a href="#cb112-11" aria-hidden="true" tabindex="-1"></a>ax.set_xlabel(<span class="vs">r"</span><span class="dv">$</span><span class="vs">X</span><span class="dv">$</span><span class="vs">"</span>, fontsize<span class="op">=</span><span class="dv">12</span>, labelpad<span class="op">=</span><span class="dv">10</span>)</span>
+<span id="cb112-12"><a href="#cb112-12" aria-hidden="true" tabindex="-1"></a>ax.set_ylabel(<span class="vs">r"</span><span class="dv">$</span><span class="vs">Y</span><span class="dv">$</span><span class="vs">"</span>, fontsize<span class="op">=</span><span class="dv">12</span>, labelpad<span class="op">=</span><span class="dv">15</span>, rotation<span class="op">=</span><span class="dv">0</span>)</span>
+<span id="cb112-13"><a href="#cb112-13" aria-hidden="true" tabindex="-1"></a>plt.tight_layout()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="index_files/figure-html/cell-61-output-1.png" width="800" height="439" class="figure-img"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>Cada punto en el gráfico tiene líneas que lo conectan a sus tres vecinos más cercanos. En un primer vistazo, puede parecer extraño que haya puntos con más de tres líneas saliendo de ellos. Esto ocurre porque <code>A</code> puede ser el vecino más cercano de <code>B</code>, pero eso no necesariamente significa que <code>B</code> sea el vecino más cercano de <code>A</code>. ◼︎</p>
+</section>
+<section id="reemplazo-de-los-elementos-de-un-arreglo" class="level2">
+<h2 class="anchored" data-anchor-id="reemplazo-de-los-elementos-de-un-arreglo">Reemplazo de los elementos de un arreglo</h2>
+<p>Con frecuencia, estamos interesados en reemplazar los elementos de un arreglo en función de alguna condición en particular. Por ejemplo, si disponemos de un arreglo que contiene información relativa al rendimiento horario de un circuito de molienda en una planta concentradora, podríamos querer eliminar las entradas que estén por debajo de un umbral mínimo de tratamiento. Supongamos pues que un molino tiene un rendimiento promedio de 1800 tph, con una desviación de 650 tph y distribución normal:</p>
+<div id="8aa0df20" class="cell" data-execution_count="61">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb113"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb113-1"><a href="#cb113-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Arreglo T, con 1000 horas de valores medios de tratamiento de 1800 tph, desviación de 650 tph</span></span>
+<span id="cb113-2"><a href="#cb113-2" aria-hidden="true" tabindex="-1"></a><span class="co"># y distribución normal.</span></span>
+<span id="cb113-3"><a href="#cb113-3" aria-hidden="true" tabindex="-1"></a>T <span class="op">=</span> rng.normal(loc<span class="op">=</span><span class="dv">1800</span>, scale<span class="op">=</span><span class="dv">650</span>, size<span class="op">=</span><span class="dv">1000</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>Supongamos que, por un lineamiento del área de metalurgia en esta planta, todo análisis que se realice relativo a la evolución del tratamiento de molienda no debe considerar rendimientos menores a 1200 tph. Una opción sería reemplazar tales valores por registros nulos, que indiquen a <strong><font color="darkmagenta">Numpy</font></strong> que no hay valores en tales filas (por ejemplo, codificando estas entradas con <code>np.nan</code>). Podemos hacer ese reemplazo mediante la función <code>np.where()</code>:</p>
+<div id="051cec9a" class="cell" data-execution_count="62">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb114"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb114-1"><a href="#cb114-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Generamos el reemplazo requerido.</span></span>
+<span id="cb114-2"><a href="#cb114-2" aria-hidden="true" tabindex="-1"></a>T_corr <span class="op">=</span> np.where(T <span class="op">&lt;</span> <span class="dv">1200</span>, np.nan, T)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>Vemos pues que la función <code>np.where()</code> toma tres inputs: la condición a revisar, el valor que debemos imputar en el arreglo para reemplazar las entradas que cumplan con esta condición, y los valores a imputar cuando tal condición no se cumple. En este caso, el uso de <code>np.nan</code> es natural porque <code>T</code> es un arreglo de punto flotante, por lo que puede representar sin problemas valores no numéricos de este tipo.</p>
+<p>Podemos graficar este arreglo para verificar que, en efecto, hemos reemplazado todos los valores menores que 1200 tph por entradas de tipo <code>nan</code>:</p>
+<div id="dd6890df" class="cell" data-execution_count="63">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb115"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb115-1"><a href="#cb115-1" aria-hidden="true" tabindex="-1"></a>fig, ax <span class="op">=</span> plt.subplots(figsize<span class="op">=</span>(<span class="dv">9</span>, <span class="dv">5</span>))</span>
+<span id="cb115-2"><a href="#cb115-2" aria-hidden="true" tabindex="-1"></a>ax.hist(T, label<span class="op">=</span><span class="st">"Arreglo `T` sin reemplazo"</span>, alpha<span class="op">=</span><span class="fl">0.3</span>)</span>
+<span id="cb115-3"><a href="#cb115-3" aria-hidden="true" tabindex="-1"></a>ax.hist(T_corr, label<span class="op">=</span><span class="st">"Arreglo `T_corr` corregido"</span>, alpha<span class="op">=</span><span class="fl">0.3</span>)</span>
+<span id="cb115-4"><a href="#cb115-4" aria-hidden="true" tabindex="-1"></a>ax.legend(loc<span class="op">=</span><span class="st">"best"</span>, frameon<span class="op">=</span><span class="va">True</span>)</span>
+<span id="cb115-5"><a href="#cb115-5" aria-hidden="true" tabindex="-1"></a>ax.set_xlabel(<span class="st">"Marcas de clase (tph)"</span>, fontsize<span class="op">=</span><span class="dv">12</span>, labelpad<span class="op">=</span><span class="dv">10</span>)</span>
+<span id="cb115-6"><a href="#cb115-6" aria-hidden="true" tabindex="-1"></a>ax.set_ylabel(<span class="st">"Frecuencia observada"</span>, fontsize<span class="op">=</span><span class="dv">12</span>, labelpad<span class="op">=</span><span class="dv">10</span>)</span>
+<span id="cb115-7"><a href="#cb115-7" aria-hidden="true" tabindex="-1"></a>plt.tight_layout()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="index_files/figure-html/cell-64-output-1.png" width="800" height="439" class="figure-img"></p>
+</figure>
+</div>
+</div>
+</div>
+</section>
+<section id="comentarios-finales" class="level2">
+<h2 class="anchored" data-anchor-id="comentarios-finales">Comentarios finales</h2>
+<p>En este apunte dimos un paso importante desde la operatoria básica con arreglos hacia tareas mucho más cercanas al análisis de datos real. Vimos que, una vez que disponemos de un arreglo numérico, no sólo podemos calcular con él, sino también compararlo, consultar propiedades lógicas, filtrar subconjuntos, seleccionar posiciones específicas, ordenar sus elementos y reemplazar valores conforme reglas determinadas.</p>
+<p>Una de las ideas más importantes que deja este recorrido es que los arreglos de <strong><font color="darkmagenta">Numpy</font></strong> no deben pensarse únicamente como contenedores de números, sino como estructuras sobre las cuales podemos formular criterios de decisión. Un operador de comparación genera una condición; una máscara convierte esa condición en un filtro; el <em>fancy indexing</em> transforma índices en reglas de selección; y funciones como <code>np.sort()</code>, <code>np.argsort()</code> o <code>np.where()</code> nos permiten reorganizar o corregir la información de manera muy expresiva.</p>
+<p>También conviene destacar que muchas de las herramientas revisadas aquí trabajan de manera especialmente poderosa cuando se combinan entre sí. Esa fue justamente la intención del ejemplo integrado: Mostrar que en un flujo real de trabajo no solemos usar comparación, <em>masking</em>, <em>slicing</em> o <em>fancy indexing</em> de manera aislada, sino encadenados, como parte de un mismo proceso de selección y depuración de datos.</p>
+<p>Con esto, cerramos una parte muy importante de la introducción a <strong><font color="darkmagenta">Numpy</font></strong>. Ya contamos con una base suficiente para construir, transformar, filtrar, resumir y reorganizar arreglos con bastante soltura. A partir de aquí, el paso natural será utilizar estas herramientas en contextos cada vez más cercanos al análisis tabular, la visualización de datos y la construcción de modelos.</p>
+
+
+</section>
+
+</main> <!-- /main -->
+<div id="notes-prev-next" class="page-nav-links"></div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+  const notesOrder = [
+    {
+      section: "estructuras-lineales",
+      items: [
+        { title: "Espacios vectoriales", href: "/apuntes/estructuras-lineales/espacios-vectoriales/" },
+        { title: "Bases y dimensión", href: "/apuntes/estructuras-lineales/bases-y-dimension/" },
+        { title: "Transformaciones lineales", href: "/apuntes/estructuras-lineales/transformaciones-lineales/" },
+        { title: "Producto interno", href: "/apuntes/estructuras-lineales/producto-interno/" },
+        { title: "Determinantes y diagonalización", href: "/apuntes/estructuras-lineales/determinantes-y-diagonalizacion/" },
+        { title: "Introducción a las formas", href: "/apuntes/estructuras-lineales/introduccion-a-las-formas/" },
+        { title: "Descomposiciones matriciales", href: "/apuntes/estructuras-lineales/descomposiciones-matriciales/" }
+      ]
+    },
+    {
+      section: "calculo-incertidumbre-y-optimizacion",
+      items: [
+        { title: "Cálculo diferencial", href: "/apuntes/calculo-incertidumbre-y-optimizacion/calculo-diferencial/" },
+        { title: "Aplicaciones del cálculo diferencial", href: "/apuntes/calculo-incertidumbre-y-optimizacion/aplicaciones-del-calculo-diferencial/" },
+        { title: "Probabilidad elemental", href: "/apuntes/calculo-incertidumbre-y-optimizacion/probabilidad-clasica/" },
+        { title: "Cálculo de probabilidades", href: "/apuntes/calculo-incertidumbre-y-optimizacion/introduccion-al-calculo-de-probabilidades/" },
+        { title: "Distribuciones específicas de probabilidad", href: "/apuntes/calculo-incertidumbre-y-optimizacion/distribuciones-especificas-de-probabilidad/" },
+        { title: "Introducción a la teoría de optimización", href: "/apuntes/calculo-incertidumbre-y-optimizacion/introduccion-a-la-teoria-de-optimizacion/" },
+        { title: "Optimización de tipo \"black-box\"", href: "/apuntes/calculo-incertidumbre-y-optimizacion/optimizacion-de-tipo-black-box/" },
+        { title: "Optimización aplicada al aprendizaje automático", href: "/apuntes/calculo-incertidumbre-y-optimizacion/optimizacion-aplicada-al-aprendizaje-automatico/" }
+      ]
+    },
+    {
+      section: "grafos-e-informacion",
+      items: [
+        { title: "Teoría de grafos", href: "/apuntes/grafos-e-informacion/teoria-de-grafos/" },
+        { title: "Optimización de redes computacionales", href: "/apuntes/grafos-e-informacion/optimizacion-de-grafos/" },
+        { title: "Introducción a la teoría de la información", href: "/apuntes/grafos-e-informacion/introduccion-a-la-teoria-de-la-informacion/" },
+        { title: "Cadenas de Markov", href: "/apuntes/grafos-e-informacion/cadenas-de-markov/" }
+      ]
+    }
+  ];
+
+  function normalizePath(path) {
+    if (!path.endsWith("/")) path += "/";
+    path = path.replace(/index\.html\/?$/, "");
+    return path;
+  }
+
+  const currentPath = normalizePath(window.location.pathname);
+  const container = document.getElementById("notes-prev-next");
+
+  let previous = null;
+  let next = null;
+  let found = false;
+
+  for (const section of notesOrder) {
+    const items = section.items;
+    const index = items.findIndex(item => normalizePath(item.href) === currentPath);
+
+    if (index !== -1) {
+      found = true;
+      if (index > 0) previous = items[index - 1];
+      if (index < items.length - 1) next = items[index + 1];
+      break;
+    }
+  }
+
+  if (!found) {
+    container.style.display = "none";
+    return;
+  }
+
+  container.innerHTML = `
+    <div class="page-nav-prev">
+      ${previous ? `<a href="${previous.href}">← ${previous.title}</a>` : ``}
+    </div>
+    <div class="page-nav-next">
+      ${next ? `<a href="${next.href}">${next.title} →</a>` : ``}
+    </div>
+  `;
+});
+</script>
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp('/' + window.location.host + '/');
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+</div> <!-- /content -->
+<footer class="footer">
+  <div class="nav-footer">
+    <div class="nav-footer-left">
+<p>© René Quezada</p>
+</div>   
+    <div class="nav-footer-center">
+      &nbsp;
+    </div>
+    <div class="nav-footer-right">
+<p>Hecho con Quarto</p>
+</div>
+  </div>
+</footer>
+
+
+
+
+<script src="../../../../../site_libs/quarto-html/zenscroll-min.js"></script>
+</body></html>
