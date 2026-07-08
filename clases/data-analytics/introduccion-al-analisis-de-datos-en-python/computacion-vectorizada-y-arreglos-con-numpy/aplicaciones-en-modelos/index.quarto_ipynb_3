@@ -1,0 +1,1312 @@
+{
+  "cells": [
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "---\n",
+        "title: \"Aplicación de **<font color='darkmagenta'>Numpy</font>** en la construcción de modelos predictivos\"\n",
+        "subtitle: \"Cómo podemos apalancarnos de las capacidades de **<font color='darkmagenta'>Numpy</font>** para construir modelos predictivos de manera eficiente y elegante\"\n",
+        "section_href: \"/clases/data-analytics/introduccion-al-analisis-de-datos-en-python/computacion-vectorizada-y-arreglos-con-numpy/\"\n",
+        "toc: true\n",
+        "toc-depth: 3\n",
+        "page-layout: article\n",
+        "number-offset: 5\n",
+        "---\n",
+        "\n",
+        "::: {.callout-important}\n",
+        "## Idea central\n",
+        "\n",
+        "En este apunte exploraremos cómo **<font color='darkmagenta'>Numpy</font>** nos permite construir algunos modelos predictivos sencillos, pero fundamentales en la teoría del aprendizaje automático, como la **regresión lineal** y la **regresión logística**, de manera eficiente y conectando todos los conceptos vistos previamente con el lenguaje matemático inherente a estos modelos. Veremos cómo podemos aprovechar las capacidades de computación vectorizada de **<font color='darkmagenta'>Numpy</font>** para implementar estos modelos rápidamente, sin necesidad de recurrir a bucles explícitos en las partes centrales del cálculo.\n",
+        ":::\n",
+        "\n",
+        "## Regresión lineal con **<font color='darkmagenta'>Numpy</font>**\n",
+        "\n",
+        "En cualquier carrera de ingeniería, siempre habrá una asignatura dedicada a la estimación de parámetros (o, al menos, ese es el *esperado*). Y entre los contenidos a revisar, casi siempre aparecerá el **modelo de regresión lineal**, el cual corresponde a un método ampliamente utilizado para encontrar una relación de tipo lineal entre una variable dependiente (o de *respuesta*) y una o más variables independientes (o *explicativas*). Dicho modelo es sencillo, relativamente poco costoso de computar y capaz de abordar muchísimos problemas cotidianos, incluso en ámbitos ingenieriles aparentemente más complejos. Asimismo, corresponde a una de las puertas de entrada naturales a los algoritmos de aprendizaje supervisado, que constituyen un pilar fundamental de la teoría del aprendizaje automático o *machine learning*.\n",
+        "\n",
+        "En su forma más simple, donde sólo disponemos de una variable independiente, el modelo de regresión lineal puede describirse mediante una combinación lineal del tipo $y = w_{0} + w_{1}x$. Es decir, una función lineal de la **variable de entrada** $x$, donde $w_{0}$ y $w_{1}$ son los llamados **parámetros** del modelo.\n",
+        "\n",
+        "### Conceptos preliminares\n",
+        "\n",
+        "De forma más general, un modelo lineal realiza una predicción mediante el cálculo de una suma ponderada de las variables de entrada que nos interesan en términos de los parámetros del modelo, más un término constante conocido como **parámetro de sesgo**, que podemos escribir como\n",
+        "\n",
+        "::: {.eq-scroll}\n",
+        "$$\n",
+        "\\hat{y} = w_{0} + \\sum_{j=1}^{n} w_{j} x_{j}\n",
+        "\\tag{5.1}\n",
+        "$$\n",
+        ":::\n",
+        "\n",
+        "Donde,\n",
+        "\n",
+        "- $\\hat{y}$ es el valor predicho o estimado.\n",
+        "- $n$ es el número de variables del modelo.\n",
+        "- $x_{j}$ es el valor de la $j$-ésima variable.\n",
+        "- $w_{j}$ es el $j$-ésimo parámetro del modelo.\n",
+        "- $w_{0}$ es el parámetro de sesgo del modelo.\n",
+        "\n",
+        "En términos geométricos, la implementación de un modelo de regresión equivale a encontrar el mejor *hiperplano* que se ajuste a los puntos que representan la correspondencia entre los valores de la(s) variable(s) independiente(s) y la correspondiente variable dependiente. En el caso unidimensional, esto se traduce en encontrar la mejor línea recta que se ajuste a los puntos en un plano cartesiano. Tal proceso de ajuste se ilustra en el gráfico construido en el siguiente bloque de código para el caso unidimensional:"
+      ],
+      "id": "c5390451"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "import numpy as np"
+      ],
+      "id": "b6baa352",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Usaremos la librería **<font color='darkmagenta'>TQDM</font>** para mostrar una barra de progreso durante el proceso de ajuste del modelo, lo cual es especialmente útil cuando trabajamos con conjuntos de datos grandes o con modelos más complejos que requieren un mayor número de iteraciones para converger:"
+      ],
+      "id": "ac7f1eec"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "from tqdm import tqdm"
+      ],
+      "id": "7636eecd",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "A continuación, generaremos un conjunto de datos sintético para ilustrar el proceso de ajuste de un modelo de regresión lineal. Este conjunto de datos consistirá en una variable independiente $x$ y una variable dependiente $y$, donde $y$ se genera a partir de una relación lineal con $x$ más un término de ruido aleatorio para simular la variabilidad presente en datos reales:"
+      ],
+      "id": "44caacc6"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Semilla aleatoria fija.\n",
+        "rng = np.random.default_rng(42)\n",
+        "\n",
+        "# Creamos nuestro conjunto de datos sintético.\n",
+        "X_real = np.linspace(start=0, stop=16, num=50)\n",
+        "a_real, b_real = -50.1, 2200.0\n",
+        "Y_real = a_real * X_real + b_real\n",
+        "\n",
+        "# Agregamos algo de ruido Gaussiano.\n",
+        "w1 = rng.normal(loc=180, scale=80, size=50)\n",
+        "w2 = rng.normal(loc=140, scale=100, size=50)\n",
+        "Y_noise = Y_real + w1 - w2"
+      ],
+      "id": "5bc3abde",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Luego, graficaremos estos puntos usando la librería **<font color='darkmagenta'>Matplotlib</font>**. Nos ahorraremos algunos detalles en la construcción del gráfico, ya que **<font color='darkmagenta'>Matplotlib</font>** tendrá su propia sección de clases dedicada, pero lo importante es que podamos visualizar la relación entre $x$ e $y$ antes de ajustar el modelo de regresión lineal:"
+      ],
+      "id": "2e209d53"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "import matplotlib.pyplot as plt"
+      ],
+      "id": "c18fb6e6",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Setting de estilo.\n",
+        "plt.rcParams[\"figure.dpi\"] = 90\n",
+        "plt.style.use(\"bmh\")"
+      ],
+      "id": "7bfcf7d4",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "#| label: fig-aplicaciones-en-modelos-01\n",
+        "#| fig-cap: Modelo de regresión lineal.\n",
+        "fig, ax = plt.subplots(figsize=(9, 5))\n",
+        "ax.scatter(X_real, Y_noise, color=\"dodgerblue\", marker=\"x\", label=\"Datos observados\")\n",
+        "ax.plot(X_real, Y_real, \"--k\", label=\"Relación lineal subyacente\")\n",
+        "ax.set_xlabel(r\"$X$\", fontsize=12, labelpad=10)\n",
+        "ax.set_ylabel(r\"$Y$\", fontsize=12, labelpad=15, rotation=0)\n",
+        "ax.set_title(\"Modelo de regresión lineal\", fontsize=14, fontweight=\"bold\", pad=10)\n",
+        "ax.legend(loc=\"best\", frameon=True)\n",
+        "plt.tight_layout()"
+      ],
+      "id": "fig-aplicaciones-en-modelos-01",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Ya que mencionamos el nombre —famoso, por cierto— de *machine learning*, es bueno que establezcamos algo de contexto y entendamos un poco qué queremos decir con dicho nombre. En términos generales, *machine learning* hace referencia a una serie de algoritmos que son capaces de aprender patrones a partir de los datos, sin necesidad de que nosotros intervengamos directamente en dicho proceso más allá del *setting* de ciertos valores de configuración del algoritmo, conocidos como **hiperparámetros**.\n",
+        "\n",
+        "En el caso del modelo de regresión lineal, algunos hiperparámetros típicos pueden ser la tasa de aprendizaje del algoritmo de optimización, el número máximo de iteraciones, la tolerancia de convergencia o la decisión de incluir o no un intercepto. En cambio, los valores de los coeficientes del modelo y del parámetro de sesgo no son hiperparámetros, sino **parámetros** que deben ser aprendidos por el algoritmo.\n",
+        "\n",
+        "Otro elemento importante en los algoritmos de *machine learning* corresponde a la llamada **función de costo o de pérdida**, que es una función que permite mapear el desempeño del modelo resultante a un número real que da cuenta de la calidad de dicho modelo. La función de costo es importante porque se trata de una guía absoluta que controla el ajuste de los parámetros propios del modelo a fin de lograr el mejor ajuste posible.\n",
+        "\n",
+        "Finalmente, es bueno tener en consideración que siempre es una buena idea particionar nuestro conjunto de datos en tres diferentes subconjuntos, cada uno de los cuales sirve a un propósito bien determinado:\n",
+        "\n",
+        "- **Conjunto de entrenamiento:** consistente en los datos a utilizar para el ajuste del modelo.\n",
+        "- **Conjunto de validación:** data apartada para testear diferentes combinaciones posibles de hiperparámetros.\n",
+        "- **Conjunto de prueba:** data utilizada para evaluar la calidad global del modelo en términos de su desempeño sobre datos nuevos.\n",
+        "\n",
+        "Es importante considerar que estos subconjuntos se muestrean siempre de manera independiente, de forma tal que los procesos previamente comentados no interfieran entre sí.\n",
+        "\n",
+        "Como dijimos previamente, a fin de poder estimar la calidad de nuestro modelo, necesitamos de una función de costo, la cual nos permitirá guiar el proceso de ajuste de sus parámetros. En el caso del modelo de regresión lineal, es común utilizar como función de costo al **error cuadrático medio (MSE)**, el cual mide las diferencias al cuadrado entre los valores predichos por el modelo y los valores reales de la variable de respuesta. Para un total de $m$ observaciones, consideremos la variable de respuesta $\\mathbf{y}\\in \\mathbb{R}^{m}$ y los valores predichos $\\hat{\\mathbf{y}}\\in \\mathbb{R}^{m}$. El error cuadrático medio del modelo cuyas predicciones se agrupan en el vector $\\hat{\\mathbf{y}}$ se define como\n",
+        "\n",
+        "::: {.eq-scroll}\n",
+        "$$\n",
+        "\\mathrm{MSE}(\\mathbf{y}, \\hat{\\mathbf{y}}) = \\frac{1}{m}\\sum_{i=1}^{m}(\\hat{y}_{i}-y_{i})^{2}\n",
+        "\\tag{5.2}\n",
+        "$$\n",
+        ":::\n",
+        "\n",
+        "Podemos expandir la ecuación (5.2) reemplazando la estimación $\\hat{\\mathbf{y}}$ por el modelo de regresión lineal establecido previamente, el cual podemos escribir en forma compacta como sigue:\n",
+        "\n",
+        "::: {.eq-scroll}\n",
+        "$$\n",
+        "\\hat{\\mathbf{y}} =\\mathbf{X} \\mathbf{w} +b\\; ;\\qquad \\mathbf{X} =\\left( \\begin{matrix}x_{11}&x_{12}&\\cdots&x_{1n}\\\\ x_{21}&x_{22}&\\cdots&x_{2n}\\\\ \\vdots&\\vdots&\\ddots&\\vdots\\\\ x_{m1}&x_{m2}&\\cdots&x_{mn}\\end{matrix} \\right) \\in \\mathbb{R}^{m\\times n}\n",
+        "\\tag{5.3}\n",
+        "$$\n",
+        ":::\n",
+        "\n",
+        "Donde,\n",
+        "\n",
+        "- $\\mathbf{w} = (w_{1}, ..., w_{n})^{\\top}\\in \\mathbb{R}^{n}$ es el vector que agrupa a todos los parámetros del modelo.\n",
+        "- $\\mathbf{X} = \\{x_{ij}\\}\\in \\mathbb{R}^{m \\times n}$ es la matriz que agrupa a las $m$ observaciones de las $n$ variables.\n",
+        "- $b = w_{0}$ es el parámetro de sesgo del modelo.\n",
+        "\n",
+        "Por lo tanto, reemplazando (5.3) en (5.2), obtenemos la siguiente expresión para nuestra función de costo:\n",
+        "\n",
+        "::: {.eq-scroll}\n",
+        "$$\n",
+        "\\mathrm{MSE}(\\mathbf{y}, \\mathbf{X}, \\mathbf{w}, b)\n",
+        "=\n",
+        "\\frac{1}{m}\\sum_{i=1}^{m}\n",
+        "\\left(\n",
+        "y_{i} - (\\mathbf{w}^{\\top}\\mathbf{x}_{i} + b)\n",
+        "\\right)^{2}\n",
+        "\\tag{5.4}\n",
+        "$$\n",
+        ":::\n",
+        "\n",
+        "El problema de ajustar el modelo a nuestra data corresponde, por tanto, a un problema de optimización, puesto que es equivalente a minimizar el valor del error cuadrático medio, dados los parámetros escogidos para el modelo y la información de entrada.\n",
+        "\n",
+        "En términos algebraicos, el problema de minimización de la función (5.4) tiene una solución cerrada, que corresponde a la solución de un sistema lineal de ecuaciones conocido como **ecuaciones normales**. Este método suele ser algo costoso en comparación con otros procedimientos iterativos más comunes en computación científica y que, además, tienen la ventaja de ser escalables. Uno de estos procedimientos corresponde al **algoritmo de gradiente descendente (GD)**.\n",
+        "\n",
+        "El algoritmo de GD utiliza los parámetros del modelo ($\\mathbf{w}$ y $b$) para, a partir de valores iniciales de tales parámetros, actualizarlos conforme un procedimiento que depende del cálculo de las derivadas de la función de costo con respecto a dichos parámetros. Tales derivadas se agrupan en una estructura conocida como **gradiente** de la función de costo y que, en nuestro ejemplo, corresponde a\n",
+        "\n",
+        "::: {.eq-scroll}\n",
+        "$$\n",
+        "\\frac{\\partial}{\\partial \\mathbf{w}}\n",
+        "\\mathrm{MSE}(\\mathbf{y}, \\mathbf{X}, \\mathbf{w}, b)\n",
+        "=\n",
+        "-\\frac{2}{m}\\sum_{i=1}^{m}\n",
+        "\\left(\n",
+        "y_{i}-(\\mathbf{w}^{\\top}\\mathbf{x}_{i}+b)\n",
+        "\\right)\\mathbf{x}_{i}\n",
+        "\\tag{5.5}\n",
+        "$$\n",
+        ":::\n",
+        "\n",
+        "::: {.eq-scroll}\n",
+        "$$\n",
+        "\\frac{\\partial}{\\partial b}\n",
+        "\\mathrm{MSE}(\\mathbf{y}, \\mathbf{X}, \\mathbf{w}, b)\n",
+        "=\n",
+        "-\\frac{2}{m}\\sum_{i=1}^{m}\n",
+        "\\left(\n",
+        "y_{i}-(\\mathbf{w}^{\\top}\\mathbf{x}_{i}+b)\n",
+        "\\right)\n",
+        "\\tag{5.6}\n",
+        "$$\n",
+        ":::\n",
+        "\n",
+        "Recordemos, del [cálculo diferencial](/apuntes/calculo-incertidumbre-y-optimizacion/calculo-diferencial/), que el gradiente de una función siempre apunta en la dirección de máxima pendiente positiva. En términos geométricos, esto significa que, si imaginamos que la función de costo describe una superficie, el gradiente de dicha función en un punto arbitrario apunta siempre en la dirección de mayor pendiente relativa a ese punto, en dirección ascendente.\n",
+        "\n",
+        "El algoritmo de gradiente descendente utiliza este principio geométrico para optimizar funciones de costo mediante un proceso iterativo sencillo, donde siempre, a partir de una posición determinada sobre esta superficie, nos movemos en la dirección de máxima pendiente, pero en sentido descendente, invirtiendo el signo del gradiente. El tamaño del paso que damos es un factor del gradiente correspondiente, donde dicho factor, denotado como $\\alpha$, es llamado **tasa de aprendizaje** del algoritmo. Por lo tanto, el proceso de actualización de parámetros propio de este algoritmo se escribe como\n",
+        "\n",
+        "::: {.eq-scroll}\n",
+        "$$\n",
+        "\\begin{array}{l}\\mathbf{w}_{k+1} =\\mathbf{w}_{k} -\\alpha \\dfrac{\\partial}{\\partial \\mathbf{w}_{k}} \\mathrm{MSE} \\left( \\mathbf{y} ,\\mathbf{X} ,\\mathbf{w}_{k} ,b_{k} \\right)\\\\ b_{k+1}=b_{k}-\\alpha \\dfrac{\\partial}{\\partial b_{k}} \\mathrm{MSE} \\left( \\mathbf{y} ,\\mathbf{X} ,\\mathbf{w}_{k} ,b_{k} \\right)\\end{array}\n",
+        "\\tag{5.7}\n",
+        "$$\n",
+        ":::\n",
+        "\n",
+        "Donde $\\mathbf{w}_{k+1}$ y $b_{k+1}$ son los valores actualizados de los parámetros del modelo en la iteración $k+1$. Por supuesto, el criterio de detención natural del algoritmo guarda relación con la magnitud del gradiente o con la diferencia relativa entre los parámetros en iteraciones sucesivas. Dado un valor de **tolerancia**, si el algoritmo llega a una zona donde las actualizaciones son suficientemente pequeñas, éste se detendrá.\n",
+        "\n",
+        "Afortunadamente, existen ciertas condiciones matemáticas que garantizan que la solución óptima encontrada por este algoritmo sea global, y que guardan relación con la función de costo propiamente tal. En el caso del modelo de regresión lineal con MSE, dicha función es convexa, lo que simplifica enormemente el problema.\n",
+        "\n",
+        "En la @fig-graddesc se observa un esquema animado del procedimiento realizado por el algoritmo de gradiente descendente a fin de hallar el mínimo global de una función.\n",
+        "\n",
+        "![Esquema de aplicación del algoritmo de gradiente descendente sobre una función convexa](images/fig_5_1.gif){#fig-graddesc fig-align=\"center\" width=\"100%\"}\n",
+        "\n",
+        "### Implementación\n",
+        "\n",
+        "Vamos a construir una implementación sencilla del modelo de regresión lineal, aprovechando el procedimiento iterativo provisto por el algoritmo de gradiente descendente, utilizando para ello todo lo que hemos aprendido en **<font color='darkmagenta'>Numpy</font>** y, por supuesto, de los fundamentos de Python. Intentaremos asegurar que nuestro procedimiento sea escalable; vale decir, que pueda aplicarse a cualquier tipo de problema que cumpla con la estructura típica requerida por el modelo de regresión lineal, siendo independiente del número de variables y/o observaciones, dependiendo únicamente de los hiperparámetros que deseemos fijar: número de iteraciones, tolerancia y tasa de aprendizaje.\n",
+        "\n",
+        "Partiremos considerando el hecho de que, en el procedimiento que hemos descrito para el algoritmo de gradiente descendente, hay un total de $n + 1$ parámetros para $n$ variables en el modelo. Por esa razón, resulta conveniente incorporar el parámetro de sesgo dentro del mismo vector de parámetros, añadiendo una columna de unos al inicio de la matriz de diseño $\\mathbf{X}$.\n",
+        "\n",
+        "Consideremos, para efectos de crear algunos datos sintéticos, una nueva semilla aleatoria fija:"
+      ],
+      "id": "869f6478"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Generamos una semilla aleatoria fija, para asegurar la reproducibilidad\n",
+        "# de nuestros resultados.\n",
+        "rng = np.random.default_rng(42)"
+      ],
+      "id": "14ec182b",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Ahora construiremos una función para ajustar un modelo de regresión lineal a un conjunto de $n$ variables agrupadas en un arreglo bidimensional, considerando los hiperparámetros de tolerancia, tasa de aprendizaje y número de iteraciones como argumentos por defecto:"
+      ],
+      "id": "60bdbe98"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Creamos una función que replique el algoritmo de gradiente descendente.\n",
+        "def fit_linear_regression(\n",
+        "    X: np.ndarray,\n",
+        "    y: np.ndarray,\n",
+        "    iterations: int = 100,\n",
+        "    tolerance: float = 1e-5,\n",
+        "    learning_rate: float = 0.5,\n",
+        "    random_state: int = 42,\n",
+        ") -> np.ndarray:\n",
+        "    '''\n",
+        "    Una función sencilla que permite ajustar un modelo de regresión lineal a un conjunto\n",
+        "    de datos de dimensión arbitraria, considerando como método de ajuste un procedimiento\n",
+        "    iterativo basado en el algoritmo de gradiente descendente, inicializando aleatoriamente\n",
+        "    los parámetros del modelo.\n",
+        "    '''\n",
+        "    rng = np.random.default_rng(random_state)\n",
+        "    y = y.reshape(-1, 1)\n",
+        "    X = np.concatenate([np.ones((X.shape[0], 1)), X], axis=1)\n",
+        "    w = rng.random(size=(X.shape[1], 1))\n",
+        "\n",
+        "    for i in tqdm(range(iterations), desc=\"Generando ajuste de parámetros\"):\n",
+        "        y_pred = X @ w\n",
+        "        loss = np.mean((y_pred - y) ** 2)\n",
+        "\n",
+        "        if np.isinf(loss) or np.isnan(loss):\n",
+        "            break\n",
+        "\n",
+        "        gradient = 2 * X.T @ (y_pred - y) / X.shape[0]\n",
+        "        w -= gradient * learning_rate\n",
+        "\n",
+        "        if np.linalg.norm(gradient) < tolerance:\n",
+        "            break\n",
+        "\n",
+        "    return w"
+      ],
+      "id": "11586bbc",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "La función anterior define entonces el proceso de ajuste de un modelo de regresión lineal, potenciado por el algoritmo de gradiente descendente, dado un conjunto de datos de entrada representado por un arreglo bidimensional de `m` filas y `n` columnas, y un conjunto de datos de respuesta. El procedimiento retorna el arreglo `w`, que está conformado por el parámetro de sesgo y los coeficientes del modelo de regresión lineal.\n",
+        "\n",
+        "A fin de poder separar nuestro conjunto de datos entre conjuntos de entrenamiento y de prueba, seguiremos un procedimiento sencillo. Mezclaremos todos los elementos del dataset de manera aleatoria, intentando mantener la reproducibilidad de dicha mezcla. Para ello, usaremos un generador explícito de permutaciones:"
+      ],
+      "id": "74785653"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Creamos una función para separar nuestro dataset.\n",
+        "def split_dataset(\n",
+        "    X: np.ndarray,\n",
+        "    y: np.ndarray,\n",
+        "    proportion: float,\n",
+        "    random_state: int,\n",
+        ") -> tuple:\n",
+        "    '''\n",
+        "    Una función que separa un dataset en un conjunto de entrenamiento y un conjunto\n",
+        "    de prueba, sin considerar el orden temporal de los elementos que lo constituyen.\n",
+        "    Esta función debe usarse solamente cuando el conjunto de datos con el cual queremos\n",
+        "    trabajar no requiere preservar orden ni estructura temporal.\n",
+        "    '''\n",
+        "    rng = np.random.default_rng(random_state)\n",
+        "    dataset = np.concatenate([X, y.reshape(-1, 1)], axis=1)\n",
+        "    perm = rng.permutation(dataset.shape[0])\n",
+        "    dataset = dataset[perm]\n",
+        "    train_size = int(len(dataset) * proportion)\n",
+        "    train_set = dataset[:train_size, :]\n",
+        "    test_set = dataset[train_size:, :]\n",
+        "    X_train, X_test = train_set[:, :-1], test_set[:, :-1]\n",
+        "    y_train, y_test = train_set[:, -1], test_set[:, -1]\n",
+        "    return X_train, X_test, y_train.reshape(-1, 1), y_test.reshape(-1, 1)"
+      ],
+      "id": "4b3f6d0a",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Ya estamos listos para implementar nuestro modelo. Para ello, crearemos algo de data de entrada usando una semilla aleatoria fija. La variable de respuesta la calcularemos directamente a partir de la data de entrada usando una relación lineal, de manera que conoceremos de antemano los coeficientes a los cuales debiésemos aproximarnos con nuestro modelo. Sin embargo, añadiremos algo de ruido a la variable de respuesta, a fin de dificultar un poco el proceso de ajuste y testear la capacidad del modelo de llegar a parámetros razonables:"
+      ],
+      "id": "e7bd1bd2"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Generamos datos aleatorios.\n",
+        "X = rng.random(size=(250, 2))\n",
+        "y = X @ np.array([[2.5], [0.5]]) + rng.normal(loc=0, scale=0.5, size=(250, 1))"
+      ],
+      "id": "2b6afc03",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "En el siguiente bloque de código construimos la visualización de nuestro conjunto de datos:"
+      ],
+      "id": "c5d854eb"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "#| label: fig-aplicaciones-en-modelos-02\n",
+        "#| fig-cap: Relación entre $x_{1}$ e $y$.\n",
+        "# Visualización del conjunto de datos en los planos (x1, y) y (x2, y).\n",
+        "fig, ax = plt.subplots(2, 1, figsize=(9, 8))\n",
+        "\n",
+        "ax[0].scatter(X[:, 0], y, color=\"dodgerblue\", marker=\"x\", label=\"Datos observados\")\n",
+        "ax[0].set_xlabel(r\"$x_{1}$\", fontsize=14, labelpad=10)\n",
+        "ax[0].set_ylabel(r\"$y$\", fontsize=14, labelpad=15, rotation=0)\n",
+        "ax[0].set_title(\"Relación entre $x_{1}$ e $y$\", fontsize=14, fontweight=\"bold\", pad=10)\n",
+        "ax[0].legend(loc=\"best\", frameon=True)\n",
+        "\n",
+        "ax[1].scatter(X[:, 1], y, color=\"dodgerblue\", marker=\"x\", label=\"Datos observados\")\n",
+        "ax[1].set_xlabel(r\"$x_{2}$\", fontsize=14, labelpad=10)\n",
+        "ax[1].set_ylabel(r\"$y$\", fontsize=14, labelpad=15, rotation=0)\n",
+        "ax[1].set_title(\"Relación entre $x_{2}$ e $y$\", fontsize=14, fontweight=\"bold\", pad=10)\n",
+        "ax[1].legend(loc=\"best\", frameon=True)\n",
+        "\n",
+        "plt.tight_layout()"
+      ],
+      "id": "fig-aplicaciones-en-modelos-02",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Podemos observar la dispersión entre las variables que se agrupan en el arreglo `X` y la variable de respuesta `y`. Notemos que, en el bloque de código anterior, hemos definido que $\\mathbf{y} = 2.5\\mathbf{x}_{1} + 0.5\\mathbf{x}_{2} + \\mathrm{ruido}$. Por lo tanto, las variables `X` e `y` sí tienen una relación lineal aproximada y un modelo de regresión lineal debiese retornar parámetros cercanos a $w_{1}=2.5$ y $w_{2}=0.5$, más un parámetro de sesgo que debiese ser aproximadamente igual a la media del ruido Gaussiano añadido a `y`, es decir, un valor cercano a cero.\n",
+        "\n",
+        "Separamos nuestra data en conjuntos de entrenamiento y de prueba:"
+      ],
+      "id": "ab928dcc"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Separamos en conjunto de entrenamiento y conjunto de prueba.\n",
+        "X_train, X_test, y_train, y_test = split_dataset(\n",
+        "    X=X, y=y, proportion=0.8, random_state=42,\n",
+        ")"
+      ],
+      "id": "f5ab1d5a",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Ahora replicamos el gráfico anterior, a fin de observar la localización de los puntos correspondientes a cada conjunto de datos:"
+      ],
+      "id": "be0ea73b"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "#| label: fig-aplicaciones-en-modelos-03\n",
+        "#| fig-cap: Relación entre $x_{1}$ e $y$.\n",
+        "# Visualización del conjunto de datos en los planos (x1, y) y (x2, y).\n",
+        "# Separación entre datos de entrenamiento y de prueba.\n",
+        "fig, ax = plt.subplots(2, 1, figsize=(9, 8))\n",
+        "\n",
+        "ax[0].scatter(X_train[:, 0], y_train, color=\"dodgerblue\", marker=\"x\", label=\"Datos de entrenamiento\")\n",
+        "ax[0].scatter(X_test[:, 0], y_test, color=\"orangered\", marker=\"x\", label=\"Datos de prueba\")\n",
+        "ax[0].set_xlabel(r\"$x_{1}$\", fontsize=14, labelpad=10)\n",
+        "ax[0].set_ylabel(r\"$y$\", fontsize=14, labelpad=15, rotation=0)\n",
+        "ax[0].set_title(\"Relación entre $x_{1}$ e $y$\", fontsize=14, fontweight=\"bold\", pad=10)\n",
+        "ax[0].legend(loc=\"best\", frameon=True)\n",
+        "\n",
+        "ax[1].scatter(X_train[:, 1], y_train, color=\"dodgerblue\", marker=\"x\", label=\"Datos de entrenamiento\")\n",
+        "ax[1].scatter(X_test[:, 1], y_test, color=\"orangered\", marker=\"x\", label=\"Datos de prueba\")\n",
+        "ax[1].set_xlabel(r\"$x_{2}$\", fontsize=14, labelpad=10)\n",
+        "ax[1].set_ylabel(r\"$y$\", fontsize=14, labelpad=15, rotation=0)\n",
+        "ax[1].set_title(\"Relación entre $x_{2}$ e $y$\", fontsize=14, fontweight=\"bold\", pad=10)\n",
+        "ax[1].legend(loc=\"best\", frameon=True)\n",
+        "\n",
+        "plt.tight_layout()"
+      ],
+      "id": "fig-aplicaciones-en-modelos-03",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "A continuación, aplicaremos nuestra función `fit_linear_regression()` para ajustar un modelo de regresión lineal a este conjunto de datos:"
+      ],
+      "id": "000a3a79"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Ajustamos un modelo de regresión lineal a esta data.\n",
+        "weights = fit_linear_regression(\n",
+        "    X_train, y_train, iterations=100, tolerance=1e-5, learning_rate=0.5\n",
+        ")\n",
+        "\n",
+        "# Mostramos en pantalla los parámetros del modelo.\n",
+        "weights"
+      ],
+      "id": "9153b19c",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Vemos que nuestro modelo ha estimado parámetros cercanos a los valores reales subyacentes. El parámetro de sesgo estimado por el modelo debiese ser pequeño, mientras que los coeficientes asociados a las variables debiesen aproximarse razonablemente a los valores 2.5 y 0.5, respectivamente.\n",
+        "\n",
+        "Para estimar la calidad del modelo, es necesario entender el contexto de aplicación del mismo. No entraremos en detalles en este tópico ahora mismo, pero sí podemos decir que una métrica popular corresponde al coeficiente $r$-cuadrado, que determina la proporción de variabilidad de la variable de respuesta explicada por la(s) variable(s) independiente(s). Este coeficiente puede calcularse rápidamente como\n",
+        "\n",
+        "::: {.eq-scroll}\n",
+        "$$\n",
+        "r^{2}=1-\\frac{SS_{\\mathrm{res}}}{SS_{\\mathrm{tot}}}\n",
+        "\\; ; \\;\n",
+        "SS_{\\mathrm{res}}=\\sum_{i=1}^{m}(y_{i}-\\hat{y}_{i})^{2}\n",
+        "\\; \\wedge \\;\n",
+        "SS_{\\mathrm{tot}}=\\sum_{i=1}^{m}(y_{i}-\\bar{y})^{2}\n",
+        "\\tag{5.8}\n",
+        "$$\n",
+        ":::\n",
+        "\n",
+        "En las ecuaciones anteriores, $SS_{\\mathrm{res}}$ es una cantidad conocida como suma cuadrada de los residuos del modelo. Corresponde a la suma de los términos de error resultantes de las diferencias al cuadrado entre los valores reales y los valores predichos por el modelo. Por otro lado, $SS_{\\mathrm{tot}}$ es la suma total de cuadrados del modelo, consistente en las diferencias al cuadrado entre cada valor observado y la media de todos esos valores.\n",
+        "\n",
+        "La fórmula anterior es fácilmente replicable en **<font color='darkmagenta'>Numpy</font>**:"
+      ],
+      "id": "1b102d0e"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Una función para calcular el r-cuadrado.\n",
+        "def squared_r(y_real: np.ndarray, y_pred: np.ndarray) -> float:\n",
+        "    '''\n",
+        "    Una función que, dados dos arreglos que representan los valores reales de una variable\n",
+        "    de respuesta y valores predichos para la misma mediante un modelo arbitrario, calcula\n",
+        "    el coeficiente r-cuadrado.\n",
+        "    '''\n",
+        "    SS_res = np.sum((y_real - y_pred) ** 2)\n",
+        "    SS_tot = np.sum((y_real - np.mean(y_real)) ** 2)\n",
+        "    score = 1 - SS_res / SS_tot\n",
+        "    return score"
+      ],
+      "id": "fe3afcee",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Usamos esta función para calcular el valor de $r^{2}$:"
+      ],
+      "id": "46c4d3df"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Obtenemos predicciones para nuestros datos.\n",
+        "y_train_pred = X_train @ weights[1:] + weights[0]\n",
+        "y_test_pred = X_test @ weights[1:] + weights[0]\n",
+        "\n",
+        "# Desempeño del modelo en datos de entrenamiento.\n",
+        "r2_train = squared_r(y_train, y_train_pred)\n",
+        "r2_test = squared_r(y_test, y_test_pred)\n",
+        "\n",
+        "# Imprimimos en pantalla estos valores.\n",
+        "print(f\"r^2 sobre datos de entrenamiento = {r2_train}\")\n",
+        "print(f\"r^2 sobre datos de prueba = {r2_test}\")"
+      ],
+      "id": "14f3a7d6",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Los valores obtenidos para el coeficiente $r$-cuadrado deberían ser razonablemente buenos, considerando que hemos añadido una cantidad significativa de ruido a la variable de respuesta, lo que dificulta el proceso de ajuste del modelo. Sin embargo, es importante considerar que el valor de $r^{2}$ no es una métrica absoluta de desempeño, sino que debe ser interpretada en el contexto del problema que estamos abordando.\n",
+        "\n",
+        "No está demás decir que, si bien nuestro código es perfectamente escalable a cualquier número de variables, debemos tener en consideración que:\n",
+        "\n",
+        "- La data que hemos trabajado merece el apelativo de *data de juguete* (*toy dataset*), debido a que la hemos generado precisamente para la ocasión. En el mundo real, los conjuntos de datos a los que nos veremos enfrentados tendrán diferentes unidades variable a variable, registros sin datos, datos anómalos (*outliers*), entre otras posibles características que harán de su manipulación algo mucho más importante que simplemente construir un modelo.\n",
+        "- En general, los modelos de regresión lineal son sensibles a las magnitudes de los datos. Por lo tanto, siempre es un buen procedimiento escalar nuestro conjunto de datos antes de proceder a construir modelos que se ajusten a ellos. Esto lo podemos hacer mediante procedimientos tales como normalización o estandarización, que ya revisamos [al estudiar el concepto de broadcasting](/clases/data-analytics/introduccion-al-analisis-de-datos-en-python/computacion-vectorizada-y-arreglos-con-numpy/broadcasting-y-agregacion/).\n",
+        "\n",
+        "## Modelo de regresión logística binaria\n",
+        "\n",
+        "Vamos a finalizar esta sección comentando uno de los modelos más ingeniosos para la resolución de un tipo de problema muy conocido en *machine learning* como **problema de clasificación binaria**. Este problema es similar al problema típico de regresión: disponemos de una serie de variables independientes que constituyen información de entrada para modelar una variable de respuesta determinada, con la diferencia de que dicha variable de respuesta es binaria. Es decir, toma únicamente dos valores, típicamente codificados como $1$ o $0$, los que suelen representar datos de tipo categórico tales como “éxito” o “fracaso”, “verdadero” o “falso”, “fallo” o “no fallo”, u otra combinación conveniente para nuestro problema.\n",
+        "\n",
+        "### Conceptos preliminares\n",
+        "\n",
+        "Uno de los supuestos subyacentes al modelo de regresión lineal establece que la variable de respuesta que deseamos estimar tiene una distribución aproximadamente normal. Por supuesto, éste no es el caso para variables de respuesta binarias, ya que toman únicamente dos valores. Por lo tanto, el modelo de regresión lineal no es adecuado para resolver este tipo de problemas. Y es aquí donde se hace patente la necesidad de disponer de algún modelo que sea capaz de hacer este trabajo. El símil del modelo de regresión lineal para problemas de clasificación binaria corresponde al llamado **modelo de regresión logística binaria (RLB)**.\n",
+        "\n",
+        "En la @fig-binary2d se observa un conjunto de datos en $\\mathbb{R}^{2}$ que ilustra un problema de clasificación. Todos los puntos de color verde son aquellos tales que $y_{i}=0$, mientras que aquellos de color gris son tales que $y_{i}=1$, para todo $i$; $1\\leq i\\leq m$, donde $m$ es el número de observaciones que conforma la data.\n",
+        "\n",
+        "![Problema bidimensional de clasificación binaria](images/fig_5_4.png){#fig-binary2d fig-align=\"center\" width=\"100%\"}\n",
+        "\n",
+        "Sea pues $\\mathbf{X} \\in \\mathbb{R}^{m\times n}$ una matriz que representa un conjunto de $n$ variables independientes con $m$ observaciones para cada una de ellas. Sea $\\mathbf{y} \\in \\mathbb{R}^{m}$ una variable de respuesta binaria, la cual hemos codificado de tal forma que ésta puede tomar uno de dos valores, 0 o 1, los que representan convenciones inherentes al problema en cuestión. Consideremos la función $\\phi :\\mathbb{R} \\longrightarrow (0,1)$, definida como\n",
+        "\n",
+        "::: {.eq-scroll}\n",
+        "$$\n",
+        "\\phi(u) = \\frac{1}{1+\\exp(-u)}\n",
+        "\\tag{5.9}\n",
+        "$$\n",
+        ":::\n",
+        "\n",
+        "La función $\\phi$ así definida se conoce como **función logística o sigmoide**. Esta función tiene la particularidad de que su dominio es todo el conjunto $\\mathbb{R}$, pero su recorrido es el intervalo $(0, 1)$. De esta manera, la función logística puede interpretarse como una función que transforma un valor real arbitrario en una cantidad que puede leerse como probabilidad. ¿Y por qué nos interesa esto? Porque, en un problema de clasificación, estamos interesados en estimar una de dos cosas —o ambas—: la clase $\\hat{y}$ o bien la probabilidad de que $y=1$, lo que denotamos como $P(y=1)$.\n",
+        "\n",
+        "En la @fig-logistic se observa el gráfico de la función logística.\n",
+        "\n",
+        "![La función logística](images/fig_5_5.png){#fig-logistic fig-align=\"center\" width=\"800\"}\n",
+        "\n",
+        "En el modelo de regresión logística binaria también estamos interesados en estimar un conjunto de parámetros, que denotamos como $\\mathbf{w}$, de manera tal que la combinación lineal representada por $\\mathbf{w}^{\\top}\\mathbf{x}_{i}+b$ minimice una función de costo determinada, utilizando como base el algoritmo de gradiente descendente. Sin embargo, una de las grandes diferencias con el caso del modelo de regresión lineal es que la función a estimar corresponde a una transformación de esa combinación lineal conforme la función logística. Es decir, para una observación $\\mathbf{x}_{i}$,\n",
+        "\n",
+        "::: {.eq-scroll}\n",
+        "$$\n",
+        "\\phi(\\mathbf{w}^{\\top}\\mathbf{x}_{i}+b)\n",
+        "=\n",
+        "\\frac{1}{1+\\exp[-(\\mathbf{w}^{\\top}\\mathbf{x}_{i}+b)]}\n",
+        "\\tag{5.10}\n",
+        "$$\n",
+        ":::\n",
+        "\n",
+        "La otra gran diferencia con respecto al modelo de regresión lineal corresponde a la función de costo a utilizar para el proceso de búsqueda de parámetros mediante el algoritmo de gradiente descendente. Dados $\\mathbf{x}_{i}$ y $y_{i}$, escribimos $p_{i}=p(\\mathbf{x}_{i})$ para denotar la probabilidad de que $y_{i}$ sea igual a $1$, y $1-p_{i}$ para denotar la probabilidad de que $y_{i}$ sea igual a $0$, para $1\\leq i\\leq m$. Queremos encontrar los valores de $b$ y $\\mathbf{w}$ que mejor se ajusten a nuestra data en términos de la distribución de probabilidad representada por la función logística (5.10). Por lo cual, el valor de la función de costo para la $i$-ésima observación será\n",
+        "\n",
+        "::: {.eq-scroll}\n",
+        "$$\n",
+        "\\mathcal{L}(p_{i}) =\n",
+        "\\begin{cases}\n",
+        "-\\log(p_{i}) & ; \\text{si } y_{i}=1\\\n",
+        "-\\log(1-p_{i}) & ; \\text{si } y_{i}=0\n",
+        "\\end{cases}\n",
+        "\\tag{5.11}\n",
+        "$$\n",
+        ":::\n",
+        "\n",
+        "Dada la naturaleza binaria de la variable de respuesta, podemos expresar la función de costo para una única instancia como\n",
+        "\n",
+        "::: {.eq-scroll}\n",
+        "$$\n",
+        "\\mathcal{L}(p_{i})=-y_{i}\\log(p_{i})-(1-y_{i})\\log(1-p_{i})\n",
+        "\\tag{5.12}\n",
+        "$$\n",
+        ":::\n",
+        "\n",
+        "Esta expresión es formalmente conocida como **función de entropía cruzada binaria**. La suma de todos los valores de esta función se conoce como log-verosimilitud negativa promedio, y su valor mínimo se alcanza para el mejor valor de los parámetros $\\mathbf{w}$ y $b$. Equivalentemente, podemos maximizar la verosimilitud logarítmica:\n",
+        "\n",
+        "::: {.eq-scroll}\n",
+        "$$\n",
+        "\\mathcal{L}\n",
+        "=\n",
+        "\\sum_{i=1}^{m}\n",
+        "\\left(\n",
+        "y_{i}\\log(p_{i}) + (1-y_{i})\\log(1-p_{i})\n",
+        "\\right)\n",
+        "\\tag{5.13}\n",
+        "$$\n",
+        ":::\n",
+        "\n",
+        "Recordemos la función logística: las probabilidades anteriores pueden expresarse como la salida de una función de este tipo, cuyo argumento es la combinación lineal $\\mathbf{w}^{\\top}\\mathbf{x}_{i}+b$. Reemplazando en la ecuación anterior, obtenemos la función de costo a utilizar por el modelo de regresión logística binaria:\n",
+        "\n",
+        "::: {.eq-scroll}\n",
+        "$$\n",
+        "\\mathcal{L}(\\mathbf{y}, \\mathbf{w}, b)\n",
+        "=\n",
+        "\\sum_{i=1}^{m}\n",
+        "\\left(\n",
+        "y_{i}\\log[\\phi(\\mathbf{w}^{\\top}\\mathbf{x}_{i}+b)]\n",
+        "+\n",
+        "(1-y_{i})\\log[1-\\phi(\\mathbf{w}^{\\top}\\mathbf{x}_{i}+b)]\n",
+        "\\right)\n",
+        "\\tag{5.14}\n",
+        "$$\n",
+        ":::\n",
+        "\n",
+        "El procedimiento de minimización de esta función de costo por medio del algoritmo de gradiente descendente involucra igualmente calcular las derivadas parciales de $\\mathcal{L}$ con respecto a los parámetros $\\mathbf{w}$ y $b$. Sin embargo, previo a entrar en detalles en este cálculo, notemos que la derivada de la función logística $\\phi$ puede calcularse como\n",
+        "\n",
+        "::: {.eq-scroll}\n",
+        "$$\n",
+        "\\phi^{\\prime}(u)\n",
+        "=\n",
+        "\\frac{\\exp(-u)}{(1+\\exp(-u))^{2}}\n",
+        "\\tag{5.15}\n",
+        "$$\n",
+        ":::\n",
+        "\n",
+        "Aplicando algo de álgebra, obtenemos\n",
+        "\n",
+        "::: {.eq-scroll}\n",
+        "$$\n",
+        "\\phi^{\\prime}(u)\n",
+        "=\n",
+        "\\phi(u)\\left(1-\\phi(u)\n",
+        "\\right)\n",
+        "\\tag{5.16}\n",
+        "$$\n",
+        ":::\n",
+        "\n",
+        "Por lo tanto, la derivada de la función logística puede expresarse en términos de la propia función logística. Tomando en consideración este importante resultado, podemos calcular rápidamente las derivadas parciales de $\\mathcal{L}$ como\n",
+        "\n",
+        "::: {.eq-scroll}\n",
+        "$$\n",
+        "\\frac{\\partial \\mathcal{L}}{\\partial \\mathbf{w}}\n",
+        "=\n",
+        "\\sum_{i=1}^{m}\n",
+        "\\mathbf{x}_{i}\n",
+        "\\left(\n",
+        "y_{i}-\\phi(\\mathbf{w}^{\\top}\\mathbf{x}_{i}+b)\n",
+        "\\right)\n",
+        "\\tag{5.17}\n",
+        "$$\n",
+        ":::\n",
+        "\n",
+        "Siguiendo un procedimiento similar, encontramos que\n",
+        "\n",
+        "::: {.eq-scroll}\n",
+        "$$\n",
+        "\\frac{\\partial \\mathcal{L}}{\\partial b}\n",
+        "=\n",
+        "\\sum_{i=1}^{m}\n",
+        "\\left(\n",
+        "y_{i}-\\phi(\\mathbf{w}^{\\top}\\mathbf{x}_{i}+b)\n",
+        "\\right)\n",
+        "\\tag{5.18}\n",
+        "$$\n",
+        ":::\n",
+        "\n",
+        "Así que el procedimiento de ajuste por medio del algoritmo de gradiente descendente puede escribirse de la misma forma que para el caso del modelo de regresión lineal:\n",
+        "\n",
+        "::: {.eq-scroll}\n",
+        "$$\n",
+        "\\begin{array}{lll}\n",
+        "\\mathbf{w}_{k+1} &=& \\mathbf{w}_{k} - \\alpha \\dfrac{\\partial \\mathcal{L}}{\\partial \\mathbf{w}_{k}}\\\n",
+        "b_{k+1} &=& b_{k} - \\alpha \\dfrac{\\partial \\mathcal{L}}{\\partial b_{k}}\n",
+        "\\end{array}\n",
+        "\\tag{5.19}\n",
+        "$$\n",
+        ":::\n",
+        "\n",
+        "Y ya estamos listos para construir nuestra implementación en **<font color='darkmagenta'>Numpy</font>**.\n",
+        "\n",
+        "### Implementación\n",
+        "\n",
+        "Considerando las soluciones presentadas previamente para el caso de la estimación de parámetros en el modelo de regresión logística, construiremos una implementación en **<font color='darkmagenta'>Numpy</font>** siguiendo un enfoque lo más similar posible a los cálculos simbólicos desarrollados con anterioridad.\n",
+        "\n",
+        "En primer lugar, definimos la función logística como sigue:"
+      ],
+      "id": "146b217b"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "def sigmoid(x: np.ndarray) -> np.ndarray:\n",
+        "    '''\n",
+        "    Una función para transformar cualquier arreglo conforme una función\n",
+        "    logística (sigmoide).\n",
+        "    '''\n",
+        "    phi = 1 / (1 + np.exp(-x))\n",
+        "    return phi"
+      ],
+      "id": "f6c8e318",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Luego hacemos lo mismo para el caso de la función de costo (log-loss):"
+      ],
+      "id": "22ecbae8"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "def log_loss(y: np.ndarray, y_pred: np.ndarray) -> float:\n",
+        "    '''\n",
+        "    Una función para calcular la entropía cruzada binaria promedio.\n",
+        "    '''\n",
+        "    eps = 1e-12\n",
+        "    y_pred = np.clip(y_pred, eps, 1 - eps)\n",
+        "    loss = -np.mean(y * np.log(y_pred) + (1 - y) * np.log(1 - y_pred))\n",
+        "    return loss"
+      ],
+      "id": "efd3ed7a",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Ahora construiremos una función para ajustar un modelo de regresión logística binaria a un conjunto de $n$ variables agrupadas en un arreglo bidimensional, considerando los hiperparámetros de tolerancia, tasa de aprendizaje y número de iteraciones como argumentos por defecto:"
+      ],
+      "id": "d0e139a8"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "def fit_logistic_regression(\n",
+        "    X: np.ndarray,\n",
+        "    y: np.ndarray,\n",
+        "    iterations: int = 10000,\n",
+        "    tolerance: float = 1e-5,\n",
+        "    learning_rate: float = 0.01,\n",
+        ") -> np.ndarray:\n",
+        "    '''\n",
+        "    Una función sencilla que permite ajustar un modelo de regresión logística binaria a un\n",
+        "    conjunto de datos de dimensión arbitraria, considerando como método de ajuste un procedimiento\n",
+        "    iterativo basado en el algoritmo de gradiente descendente, inicializando en cero los parámetros\n",
+        "    del modelo.\n",
+        "    '''\n",
+        "    X = np.hstack((np.ones((X.shape[0], 1)), X))\n",
+        "    y = y.ravel()\n",
+        "    w = np.zeros(X.shape[1])\n",
+        "    cost = float('inf')\n",
+        "\n",
+        "    for i in tqdm(range(iterations), desc=\"Generando ajuste de parámetros\"):\n",
+        "        z = np.dot(X, w)\n",
+        "        y_pred = sigmoid(z)\n",
+        "        cost_new = log_loss(y, y_pred)\n",
+        "\n",
+        "        if abs(cost - cost_new) < tolerance:\n",
+        "            break\n",
+        "\n",
+        "        cost = cost_new\n",
+        "        gradient = np.dot(X.T, (y_pred - y)) / y.size\n",
+        "        w -= learning_rate * gradient\n",
+        "\n",
+        "    return w"
+      ],
+      "id": "6fffb223",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "El bloque de código anterior nos debería bastar para ajustar un modelo de regresión logística binaria a cualquier conjunto de datos tal que la variable de respuesta correspondiente sea, efectivamente, de tipo binaria.\n",
+        "\n",
+        "A fin de poder construir nuestro modelo, vamos a necesitar algunos datos para probar nuestro código a nivel procedimental. Para ello, haremos uso de la librería **<font color='darkmagenta'>Scikit-Learn</font>** (cuyo nombre a nivel de módulo es `sklearn`). Esta librería es utilizada masivamente para la construcción de modelos de *machine learning* de todo tipo. Puntualmente, nosotros usaremos el submódulo `sklearn.datasets`, a fin de poder crear un conjunto de datos apto para probar nuestro modelo, usando la función `sklearn.datasets.make_blobs()`.\n",
+        "\n",
+        "La librería **<font color='darkmagenta'>Scikit-Learn</font>** puede instalarse fácilmente usando el gestor de paquetes `pip` como:\n",
+        "\n",
+        "```bash\n",
+        "pip install scikit-learn\n",
+        "```\n",
+        "\n",
+        "Y ahora sí, construimos nuestro conjunto de datos:"
+      ],
+      "id": "719da81a"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "from sklearn.datasets import make_blobs"
+      ],
+      "id": "3ce10c64",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Creamos nuestro dataset.\n",
+        "X, y = make_blobs(n_samples=1000, centers=2, n_features=2, center_box=(0, 9), random_state=7)"
+      ],
+      "id": "80b0828a",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "La función `make_blobs()` toma varios argumentos. En nuestro caso, usamos `n_samples` para definir el total de observaciones que constituirán nuestro conjunto de datos; `centers` para definir el número de centroides respecto de los cuales se acumulan estos datos; y `n_features` para definir el total de variables independientes que conformarán este conjunto de datos. Por lo tanto, disponemos de un conjunto compuesto por tres variables: dos independientes (digamos $x_{1}$ y $x_{2}$) y una variable de respuesta binaria (digamos $\\mathbf{y}$) que queremos estimar mediante nuestro modelo.\n",
+        "\n",
+        "De la misma forma en que lo hicimos con nuestro modelo de regresión lineal, separaremos esta data en conjuntos de entrenamiento y de prueba. Sin embargo, en esta oportunidad, este proceso de separación es un tanto diferente. Debido a que `y` es un arreglo que contiene datos binarios, debemos garantizar que tanto el conjunto de entrenamiento como el de prueba preserven la proporción de 1s y 0s que existe en el conjunto de datos original:"
+      ],
+      "id": "702af7af"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Proporción de 1s sobre los datos totales.\n",
+        "y[y == 1].shape[0] / y.shape[0]"
+      ],
+      "id": "95c5bab5",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Este tipo de procedimiento es esencial en el desarrollo de cualquier modelo de clasificación, y se conoce como muestreo estratificado.\n",
+        "\n",
+        "La función de muestreo estratificado se describe a continuación:"
+      ],
+      "id": "f9819f30"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Una función para construir un muestreo estratificado.\n",
+        "def stratified_split(X, y, test_size=0.2, random_state=42):\n",
+        "    '''\n",
+        "    Una función que separa un dataset en un conjunto de entrenamiento y un conjunto\n",
+        "    de prueba, considerando un muestreo estratificado.\n",
+        "    '''\n",
+        "    pos_idx = np.where(y == 1)[0]\n",
+        "    neg_idx = np.where(y == 0)[0]\n",
+        "    n_pos_test = int(test_size * pos_idx.shape[0])\n",
+        "    n_neg_test = int(test_size * neg_idx.shape[0])\n",
+        "    rng = np.random.default_rng(random_state)\n",
+        "    rng.shuffle(pos_idx)\n",
+        "    rng.shuffle(neg_idx)\n",
+        "    pos_idx_train, pos_idx_test = pos_idx[n_pos_test:], pos_idx[:n_pos_test]\n",
+        "    neg_idx_train, neg_idx_test = neg_idx[n_neg_test:], neg_idx[:n_neg_test]\n",
+        "    idx_train = np.concatenate((pos_idx_train, neg_idx_train))\n",
+        "    idx_test = np.concatenate((pos_idx_test, neg_idx_test))\n",
+        "    rng.shuffle(idx_train)\n",
+        "    rng.shuffle(idx_test)\n",
+        "    X_train, X_test = X[idx_train], X[idx_test]\n",
+        "    y_train, y_test = y[idx_train], y[idx_test]\n",
+        "    return X_train, X_test, y_train, y_test"
+      ],
+      "id": "b4120674",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Previo a separar nuestro conjunto de datos, debemos enfatizar que, debido a que el modelo de regresión logística binaria es un **modelo lineal generalizado**, también es sensible a los órdenes de magnitud de las variables que lo constituyen, como ocurre con el modelo de regresión lineal. Por lo tanto, necesitamos escalar dicho conjunto de datos.\n",
+        "\n",
+        "Notemos que este procedimiento no lo hicimos en el caso anterior al ajustar un modelo de regresión lineal, debido a que la data la generamos a partir de muestreo uniforme y, por tanto, las variables independientes ya tenían órdenes de magnitud similares.\n",
+        "\n",
+        "El escalamiento lo haremos mediante un proceso de **estandarización z-score**. Por lo tanto, construimos una función para ello:"
+      ],
+      "id": "656cba4a"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Una función para escalar nuestros datos.\n",
+        "def standard_scaler(X: np.ndarray) -> np.ndarray:\n",
+        "    '''\n",
+        "    Una función para escalar un conjunto de variables independientes mediante un proceso\n",
+        "    de estandarización z-score.\n",
+        "    '''\n",
+        "    return (X - X.mean(axis=0)) / X.std(axis=0)"
+      ],
+      "id": "18983de9",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Definidas las funciones de escalamiento y de muestreo estratificado, procedemos a utilizarlas para escalar y separar nuestro conjunto en datos de entrenamiento y de prueba:"
+      ],
+      "id": "9c9d21c8"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Escalamiento de nuestra data.\n",
+        "X_scaled = standard_scaler(X)\n",
+        "\n",
+        "# Separación de nuestro conjunto de datos.\n",
+        "X_train, X_test, y_train, y_test = stratified_split(X_scaled, y)"
+      ],
+      "id": "740a9737",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Vemos que la proporción de 1s y 0s, efectivamente, se preserva en estos datos:"
+      ],
+      "id": "dd0461c0"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Proporción de 1s sobre los datos de entrenamiento.\n",
+        "y_train[y_train == 1].shape[0] / y_train.shape[0]"
+      ],
+      "id": "ba955d54",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Proporción de 1s sobre los datos de prueba.\n",
+        "y_test[y_test == 1].shape[0] / y_test.shape[0]"
+      ],
+      "id": "5e20e97f",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Ahora realizamos el proceso de ajuste para construir nuestro modelo sobre los datos de entrenamiento:"
+      ],
+      "id": "cdf48826"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Ajuste de modelo de regresión logística binaria.\n",
+        "w = fit_logistic_regression(X_train, y_train)\n",
+        "w"
+      ],
+      "id": "aba419de",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Vemos que, a partir del procedimiento anterior, el modelo de regresión logística binaria que hemos construido queda completamente determinado por un vector de parámetros `w`, el cual incluye el parámetro de sesgo como primer elemento.\n",
+        "\n",
+        "Sólo resta responder una importante pregunta: *¿Qué tan bueno es nuestro modelo?* Y para ello, es importante saber qué se entiende por buen modelo en un problema de clasificación, y los contextos que definen el buen uso de ciertas métricas de desempeño para este tipo de modelos.\n",
+        "\n",
+        "Una forma gráfica de entender el desempeño de un modelo de clasificación, cuando el número de variables independientes es 2, es mediante la construcción de una **frontera de decisión**. Tal frontera corresponde a la curva que separa las distintas clases que caracterizan a los puntos en cuestión en un problema de clasificación. Para el caso del modelo de regresión logística binaria, esta frontera siempre es lineal, y tiene por ecuación a $\\mathbf{w}^{\top}\\mathbf{x}+b=0$.\n",
+        "\n",
+        "Tal frontera se muestra en el gráfico de la @fig-boundary. Observamos que ésta es, en efecto, una recta que separa las clases $y_{i}=1$ e $y_{i}=0$ en el conjunto de datos completo.\n",
+        "\n",
+        "![Fontera de decisión estimada por nuestro modelo](images/fig_5_6.png){#fig-boundary fig-align=\"center\" width=\"100%\"}\n",
+        "\n",
+        "En términos más formales, sea $Y$ la variable aleatoria que representa los posibles valores que puede tomar la variable de respuesta, lo que implica que $Y=\\{0,1\\}$. El modelo estima la probabilidad $P(Y=1)$. Es justo, por tanto, preguntarnos cuál es el mínimo valor de la probabilidad $P(Y=1)$ para el cual podemos asumir, con un nivel de confianza razonable, que, efectivamente, $Y=1$. Parece justo establecer que ese valor debería ser $P(Y=1)=0.5$, que denota que es igualmente probable que $Y=1$ o $Y=0$. Dicha probabilidad se conoce, en la práctica, como valor umbral de clasificación (*cut-off*).\n",
+        "\n",
+        "Por lo tanto, podemos escribir\n",
+        "\n",
+        "::: {.eq-scroll}\n",
+        "$$\n",
+        "\\hat{Y} =\n",
+        "\\begin{cases}\n",
+        "1 & ; \\ \\text{si } P(Y=1) > 0.5\\\\\n",
+        "0 & ; \\ \\text{si } P(Y=1) \\leq 0.5\n",
+        "\\end{cases}\n",
+        "\\tag{5.22}\n",
+        "$$\n",
+        ":::\n",
+        "\n",
+        "Donde $\\hat{Y}$ es la clase estimada por el modelo. Al respecto, podemos definir los siguientes conjuntos relativos a las probabilidades estimadas por el mismo:\n",
+        "\n",
+        "- Los **verdaderos positivos** son aquellos valores tales que $\\hat{Y}=Y=1$.\n",
+        "- Los **verdaderos negativos** son aquellos valores tales que $\\hat{Y}=Y=0$.\n",
+        "- Los **falsos positivos** son aquellos valores tales que $\\hat{Y}=1$ e $Y=0$.\n",
+        "- Los **falsos negativos** son aquellos valores tales que $\\hat{Y}=0$ e $Y=1$.\n",
+        "\n",
+        "Los valores anteriormente establecidos pueden disponerse en el cuadro ilustrado en la @tbl-cmatrix, conocido como matriz de confusión.\n",
+        "\n",
+        ": Matriz de confusión para un problema binario {#tbl-cmatrix}\n",
+        "\n",
+        "|                      |                   | **CONDICIÓN REAL** |                    |\n",
+        "|----------------------|-------------------|--------------------|--------------------|\n",
+        "|                      | **Población total** | $Y=1$            | $Y=0$              |\n",
+        "| **CONDICIÓN ESTIMADA** | $\\hat{Y}=1$      | Verdaderos positivos | Falsos positivos |\n",
+        "|                      | $\\hat{Y}=0$       | Falsos negativos   | Verdaderos negativos |\n",
+        "\n",
+        "Vemos pues que disponemos de, por lo menos, dos métricas de desempeño importantes en un problema de clasificación binaria: primero, podemos hacer énfasis en la fracción de verdaderos positivos del modelo en relación a la cantidad total de observaciones que, efectivamente, pertenecen a la clase positiva. Dicha tasa se conoce como **sensibilidad** del modelo.\n",
+        "\n",
+        "La sensibilidad de un modelo de clasificación binaria puede calcularse, por tanto, mediante la fórmula\n",
+        "\n",
+        "::: {.eq-scroll}\n",
+        "$$\n",
+        "R=\n",
+        "\\frac{V_{P}}{V_{P}+F_{N}}\n",
+        "\\tag{5.23}\n",
+        "$$\n",
+        ":::\n",
+        "\n",
+        "Naturalmente, podemos también determinar la proporción de aciertos del modelo en relación a las observaciones que pertenecen a la clase negativa, usando para ello la fracción de verdaderos negativos. Este valor se conoce como **especificidad** del modelo, y permite entender su precisión desde la perspectiva de la clase negativa. Es posible calcularlo usando la fórmula\n",
+        "\n",
+        "::: {.eq-scroll}\n",
+        "$$\n",
+        "S=\n",
+        "\\frac{V_{N}}{V_{N}+F_{P}}\n",
+        "\\tag{5.24}\n",
+        "$$\n",
+        ":::\n",
+        "\n",
+        "Ambas métricas pueden calcularse rápidamente disponiendo ya de la matriz de confusión. Una implementación en **<font color='darkmagenta'>Numpy</font>** de dicha matriz se puede lograr mediante la siguiente función:"
+      ],
+      "id": "58e87d9e"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "def confusion_matrix(y_true: np.ndarray, y_pred: np.ndarray) -> np.ndarray:\n",
+        "    '''\n",
+        "    Una función que permite obtener rápidamente la matriz de confusión, dados un arreglo que\n",
+        "    contiene las clases reales observadas para una variable de respuesta determinada, y un\n",
+        "    arreglo que contiene las clases estimadas por un modelo.\n",
+        "    '''\n",
+        "    true_positives = np.sum((y_true == 1) & (y_pred == 1))\n",
+        "    true_negatives = np.sum((y_true == 0) & (y_pred == 0))\n",
+        "    false_positives = np.sum((y_true == 0) & (y_pred == 1))\n",
+        "    false_negatives = np.sum((y_true == 1) & (y_pred == 0))\n",
+        "\n",
+        "    return np.array([\n",
+        "        [true_positives, false_positives],\n",
+        "        [false_negatives, true_negatives]\n",
+        "    ])"
+      ],
+      "id": "0ba810e2",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Ya sólo nos resta definir una función que permita obtener las clases predichas por nuestro modelo. Una opción es la siguiente:"
+      ],
+      "id": "d9807edb"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Una función para obtener estimaciones mediante nuestro modelo.\n",
+        "def predict(\n",
+        "    X: np.ndarray,\n",
+        "    theta: np.ndarray,\n",
+        "    output: str = \"class\"\n",
+        ") -> np.ndarray:\n",
+        "    '''\n",
+        "    Una función que permite obtener predicciones de nuestro modelo de regresión logística\n",
+        "    binaria.\n",
+        "    '''\n",
+        "    X = np.hstack((np.ones((X.shape[0], 1)), X))\n",
+        "    z = np.dot(X, theta)\n",
+        "    y_pred = sigmoid(z)\n",
+        "\n",
+        "    if output == \"class\":\n",
+        "        y_pred = np.where(y_pred > 0.5, 1, 0)\n",
+        "        return y_pred\n",
+        "    else:\n",
+        "        return y_pred"
+      ],
+      "id": "fc8271a8",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Usamos la función anterior, por tanto, para determinar las clases estimadas por el modelo conforme nuestros datos de entrenamiento y de prueba:"
+      ],
+      "id": "bb783260"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Obtenemos las estimaciones del modelo.\n",
+        "y_train_pred = predict(X_train, w, output=\"class\")\n",
+        "y_test_pred = predict(X_test, w, output=\"class\")"
+      ],
+      "id": "b0fe8cdc",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "De este modo, ahora calculamos las matrices de confusión para los datos de entrenamiento y de prueba:"
+      ],
+      "id": "fd59d1b8"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Calculamos la matriz de confusión asociada a nuestras estimaciones.\n",
+        "cm_train = confusion_matrix(y_train, y_train_pred)\n",
+        "cm_test = confusion_matrix(y_test, y_test_pred)\n",
+        "\n",
+        "# Matriz de confusión para los datos de entrenamiento.\n",
+        "cm_train"
+      ],
+      "id": "c2c2957d",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Matriz de confusión para los datos de prueba.\n",
+        "cm_test"
+      ],
+      "id": "3b43838f",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Con las matrices de confusión ya determinadas, es sencillo calcular tanto la sensibilidad como la especificidad para nuestro modelo en ambos conjuntos de datos:"
+      ],
+      "id": "32c938fa"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Sensibilidad.\n",
+        "r_train = cm_train[0, 0] / (cm_train[0, 0] + cm_train[1, 0])\n",
+        "r_test = cm_test[0, 0] / (cm_test[0, 0] + cm_test[1, 0])\n",
+        "\n",
+        "# Especificidad.\n",
+        "s_train = cm_train[1, 1] / (cm_train[1, 1] + cm_train[0, 1])\n",
+        "s_test = cm_test[1, 1] / (cm_test[1, 1] + cm_test[0, 1])"
+      ],
+      "id": "5e77f04b",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "print(f\"Sensibilidad en datos de entrenamiento = {100*np.around(r_train, 4)}%\")\n",
+        "print(f\"Especificidad en datos de entrenamiento = {100*np.around(s_train, 4)}%\")\n",
+        "print(f\"Sensibilidad en datos de prueba = {100*np.around(r_test, 4)}%\")\n",
+        "print(f\"Especificidad en datos de prueba = {100*np.around(s_test, 4)}%\")"
+      ],
+      "id": "0894eb1c",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Vemos pues que nuestro modelo puede alcanzar indicadores de desempeño muy altos sobre este conjunto de datos, lo que es realmente muy bueno.\n",
+        "\n",
+        "Es muy importante señalar que estos valores de rendimiento para un modelo de clasificación no son muy comunes. La razón de haber obtenido indicadores tan buenos para nuestro modelo no estriba en su complejidad, sino en los datos que fueron imputados al mismo. Tales datos provienen de un generador de *datasets* apto para testear modelos de clasificación, razón por la cual nuestro conjunto de datos no representó mayor dificultad para modelarlo. En el mundo real, esto no será así. Los datos que encontraremos a nivel industrial requerirán un tratamiento cuidadoso y mucho más extensivo a fin de poder disponer de un *dataset* de la calidad del que usamos en este último ejemplo.\n",
+        "\n",
+        "## Comentarios finales\n",
+        "\n",
+        "En este apunte dimos un paso especialmente importante: Utilizamos **<font color='darkmagenta'>Numpy</font>** no sólo para construir y manipular arreglos, sino también para implementar modelos predictivos completos a partir de sus ecuaciones fundamentales. En ese sentido, el objetivo principal del texto no ha sido competir con librerías especializadas, sino mostrar que detrás de muchos modelos clásicos de aprendizaje automático existe una estructura algebraica y computacional que puede expresarse con operaciones vectorizadas relativamente simples.\n",
+        "\n",
+        "Tanto en el caso de la regresión lineal como en el de la regresión logística binaria, vimos que los ingredientes esenciales del modelamiento son siempre los mismos: Una representación matricial de los datos, una función de costo adecuada, un conjunto de parámetros que deben ajustarse y un procedimiento iterativo de optimización. El verdadero aporte de **<font color='darkmagenta'>Numpy</font>** en este contexto es que permite traducir toda esa estructura matemática a código de manera limpia, compacta y eficiente.\n",
+        "\n",
+        "También conviene subrayar que las implementaciones desarrolladas aquí tienen un fuerte valor pedagógico. En la práctica profesional, lo más habitual será recurrir a librerías consolidadas como **<font color='darkmagenta'>Scikit-Learn</font>**, las cuales ofrecen implementaciones mucho más robustas, testeadas y eficientes. Sin embargo, construir estos modelos manualmente es una excelente forma de entender qué están haciendo realmente esas librerías por debajo, qué rol juega cada hiperparámetro y cómo se articulan la estadística, el álgebra lineal y la optimización en un mismo procedimiento.\n",
+        "\n",
+        "Con esto, cerramos una etapa muy natural dentro de la introducción a **<font color='darkmagenta'>Numpy</font>**. Ya no sólo sabemos crear arreglos, transformarlos, filtrarlos u operar con ellos. Ahora también podemos utilizarlos como base para desarrollar algoritmos predictivos completos. Ese salto es conceptual y técnicamente muy importante, porque prepara el camino para lo que viene después: trabajar con estructuras Tabulares más complejas, con librerías especializadas en modelamiento y, eventualmente, con algoritmos mucho más sofisticados dentro del ecosistema del aprendizaje automático."
+      ],
+      "id": "dafb4672"
+    }
+  ],
+  "metadata": {
+    "kernelspec": {
+      "name": "python3",
+      "language": "python",
+      "display_name": "Python 3 (ipykernel)",
+      "path": "/Users/fquezadac/.local/share/virtualenvs/nerdyminer.github.io-TiwzloiM/share/jupyter/kernels/python3"
+    }
+  },
+  "nbformat": 4,
+  "nbformat_minor": 5
+}

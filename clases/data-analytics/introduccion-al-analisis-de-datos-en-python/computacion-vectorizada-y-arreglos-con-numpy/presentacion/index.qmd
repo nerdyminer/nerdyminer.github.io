@@ -1,0 +1,2215 @@
+---
+title: "Computación Vectorizada y Arreglos con NumPy"
+subtitle: "Del dato al modelo — el lenguaje del cómputo numérico en Python"
+author: "René Quezada C."
+institute: "Análisis de Datos · Ingeniería Civil en Minería"
+format:
+  revealjs:
+    theme: white
+    slide-number: true
+    show-slide-number: all
+    footer: "Análisis de Datos con Python · 4° año ICM"
+    transition: slide
+    width: 1280
+    height: 720
+    margin: 0.06
+    highlight-style: github
+    code-overflow: wrap
+    code-block-height: 340px
+    title-slide-attributes:
+      data-background-color: "#16213e"
+    css: styles.css
+execute:
+  eval: false
+  echo: true
+---
+
+# {background-color="#16213e"}
+
+::: {.agenda-section}
+
+## Agenda
+
+:::: {.columns}
+::: {.column width="50%"}
+
+**Módulo 1 — El arreglo**
+
+- El `ndarray` y su geometría
+- Rutinas de creación
+- Tipos de datos y números aleatorios
+- Indexación, slicing y redimensionamiento
+
+**Módulo 2 — Operatoria vectorizada**
+
+- Por qué los bucles son lentos: las `ufuncs`
+- Aritmética de arreglos
+- Funciones matemáticas
+:::
+::: {.column width="50%"}
+
+**Módulo 3 — Broadcasting y agregación**
+
+- Reglas de broadcasting
+- Operaciones de agregación por eje
+
+**Módulo 4 — Filtrado y selección**
+
+- Comparación booleana y masking
+- Fancy indexing
+- Ordenamiento y reemplazo
+
+**Módulo 5 — Modelamiento predictivo**
+
+- Regresión lineal con NumPy
+- Regresión logística binaria con NumPy
+:::
+::::
+
+:::
+
+---
+
+# Módulo 1 {background-color="#0f3460"}
+
+## El arreglo · Geometría · Creación · Tipos · Indexación
+
+---
+
+## NumPy es la base de todo el ecosistema científico de Python
+
+::: {.callout-important}
+**Numerical Python (NumPy)** introduce el `ndarray`: una estructura de datos para representar vectores, matrices y tensores, ejecutar operaciones vectorizadas con gran eficiencia y servir de fundamento al ecosistema completo de ciencia de datos en Python.
+:::
+
+:::: {.columns}
+::: {.column width="55%"}
+
+**Librerías construidas sobre NumPy:**
+
+| Librería | Propósito |
+|---|---|
+| **Pandas** | Análisis tabular |
+| **Matplotlib** | Visualización |
+| **SciPy** | Computación científica |
+| **Scikit-Learn** | Machine Learning |
+| **PyTorch / TensorFlow** | Deep Learning |
+
+> Entender NumPy no es un detalle — es construir el vocabulario mínimo del análisis moderno de datos en Python.
+
+:::
+::: {.column width="45%"}
+
+**Instalación e importación:**
+
+```bash
+pip install numpy
+```
+
+```python
+import numpy as np
+```
+
+El alias `np` es convención universal. Toda la librería se accede como `np.<función>`.
+
+**¿Por qué un alias?**
+Porque usaremos NumPy *constantemente* — el alias hace el código legible y reduce la carga cognitiva.
+
+:::
+::::
+
+---
+
+## El `ndarray`: una grilla de valores con geometría bien definida
+
+:::: {.columns}
+::: {.column width="50%"}
+
+El arreglo es el elemento central de NumPy. Corresponde a una **grilla de valores** con:
+
+- Un único tipo de dato (todos `float64`, o todos `int32`, etc.)
+- Una **geometría** determinada por sus ejes
+- Soporte nativo para operaciones vectorizadas
+
+**Los arreglos representan objetos matemáticos familiares:**
+
+| Dimensiones | Objeto | Geometría |
+|---|---|---|
+| 1D | Vector | `(n,)` |
+| 2D | Matriz | `(n, d)` |
+| 3D | Tensor orden 3 | `(k, n, d)` |
+
+> NumPy no se limita a 3D. Un arreglo puede tener $n$ dimensiones.
+
+:::
+::: {.column width="50%"}
+
+```python
+# Vector: arreglo 1D
+x = np.array([-1, 1, 5, -8, 2])
+# shape: (5,)
+
+# Matriz fila: arreglo 2D
+u = np.array([[-1, 1, 5, -8, 2]])
+# shape: (1, 5)
+
+# Matriz columna: arreglo 2D
+w = np.array([[-1], [1], [5], [-8], [2]])
+# shape: (5, 1)
+
+# Matriz: arreglo 2D
+A = np.array([
+    [-2,  1, -7,  6],
+    [ 1,  3,  1, -4],
+    [-5, -5,  0,  4],
+    [-9,  2, -8,  9]
+])
+# shape: (4, 4)
+```
+
+::: {.callout-warning}
+**Un arreglo 1D no es una matriz fila.** Son objetos distintos con reglas distintas. `(5,)` ≠ `(1, 5)`.
+:::
+
+:::
+::::
+
+---
+
+## Tensores de orden 3: matrices apiladas en una tercera dimensión
+
+:::: {.columns}
+::: {.column width="52%"}
+
+Un tensor de orden 3 puede imaginarse como un **conjunto de matrices de igual dimensión apiladas** unas sobre otras.
+
+Su geometría queda determinada por tres parámetros:
+
+$$\mathbf{T} = \{t_{ijk}\} \in \mathbb{R}^{k \times n \times d}$$
+
+donde $k$ = número de apilamientos (sub-arreglos), $n$ = filas, $d$ = columnas.
+
+**Para acceder a un elemento:**
+- Primer índice → sub-arreglo
+- Segundo índice → fila dentro del sub-arreglo
+- Tercer índice → columna dentro del sub-arreglo
+
+:::
+::: {.column width="48%"}
+
+```python
+T = np.array([
+    [                        # Sub-arreglo 0
+        [ 2, -1, -1,  4, -5],
+        [ 0, -3,  3, -2, -7],
+        [-1,  1,  6, -9,  1],
+        [-8, -8,  1, -1,  6],
+    ],
+    [                        # Sub-arreglo 1
+        [ 5, -5,  1, -1,  3],
+        [-4,  9,  8,  1,  0],
+        [ 0, -1, -5, -7,  2],
+        [ 5, -7, -6, -8,  1],
+    ],
+])
+# shape: (2, 4, 5)
+
+# Acceso al elemento t_{1,1,2} = -5
+T[1, 1, 2]  # → -5
+```
+
+> Aplicación minera: una serie temporal de matrices de correlación entre variables de proceso puede representarse como un tensor `(T, n_vars, n_vars)`.
+
+:::
+::::
+
+---
+
+## Los ejes de un arreglo: el sistema de referencia interno de NumPy
+
+::: {.callout-important}
+**Idea clave:** Los ejes (`axis`) son las *direcciones* a lo largo de las cuales NumPy opera. El eje `0` recorre las filas; el eje `1` recorre las columnas. Toda operación de agregación depende de este concepto.
+:::
+
+:::: {.columns}
+::: {.column width="50%"}
+
+**En un arreglo 2D (matriz):**
+
+```
+         axis=1 →
+         ┌─────────────┐
+axis=0   │  a  b  c  d │
+  ↓      │  e  f  g  h │
+         │  i  j  k  l │
+         └─────────────┘
+```
+
+- `A.sum(axis=1)` → suma *por filas* (colapsa columnas)
+- `A.sum(axis=0)` → suma *por columnas* (colapsa filas)
+
+:::
+::: {.column width="50%"}
+
+```python
+A = np.array([
+    [-2, 1, -7, 6],
+    [ 1, 3,  1,-4],
+    [-5,-5,  0, 4],
+    [-9, 2, -8, 9]
+])
+
+# Suma a lo largo del eje 1 (por filas)
+A.sum(axis=1)   # → [-2, 1, -6, -6]
+
+# Suma a lo largo del eje 0 (por columnas)
+A.sum(axis=0)   # → [-15, 1, -14, 15]
+
+# Concatenación de dos arreglos compatibles
+B = np.array([[-1, 4, 5, -8], [0, -5, 6, -9]])
+np.concatenate([A, B], axis=0)  # une filas
+```
+
+::: {.callout-tip}
+Forma intuitiva de pensar el argumento `axis`: *"Aplastar el arreglo en la dirección del eje especificado."*
+:::
+
+:::
+::::
+
+---
+
+## Atributos de un arreglo: todo lo que necesitamos saber sobre su estructura
+
+:::: {.columns}
+::: {.column width="55%"}
+
+Todo `ndarray` expone atributos que describen su estructura sin necesidad de inspección manual:
+
+| Atributo | Descripción |
+|---|---|
+| `.ndim` | Número de dimensiones |
+| `.shape` | Geometría `(filas, columnas, ...)` |
+| `.size` | Total de elementos |
+| `.dtype` | Tipo de dato |
+| `.itemsize` | Bytes por elemento |
+| `.nbytes` | Bytes totales (`size × itemsize`) |
+
+:::
+::: {.column width="45%"}
+
+```python
+rng = np.random.default_rng(seed=42)
+x2 = rng.integers(0, 10, size=(3, 4))
+
+print(x2.ndim)      # 2
+print(x2.shape)     # (3, 4)
+print(x2.size)      # 12
+print(x2.dtype)     # int64
+print(x2.itemsize)  # 8  (bytes)
+print(x2.nbytes)    # 96 (= 12 × 8)
+```
+
+> **Regla:** `nbytes = size × itemsize`
+
+:::
+::::
+
+---
+
+## Rutinas de creación: construir arreglos sin ingresar cada valor manualmente
+
+:::: {.columns}
+::: {.column width="50%"}
+
+**Arreglos constantes:**
+
+```python
+np.zeros(8)               # 1D: 8 ceros
+np.zeros((5, 4))          # 2D: 5×4 de ceros
+np.zeros((2, 5, 4))       # 3D tensor de ceros
+np.zeros((5, 4), dtype=int)
+
+np.ones((4, 6), dtype=int)  # Matriz de unos
+
+np.full((5, 5), fill_value=9)  # Llena con 9
+```
+
+**Matrices diagonales:**
+
+```python
+# Diagonal reducida: 1s en diagonal k
+np.eye(N=5, M=6, k=0)
+np.eye(N=4, M=8, k=1)   # k>0 → diagonal superior
+
+# Matriz identidad cuadrada
+np.identity(n=6)
+```
+
+:::
+::: {.column width="50%"}
+
+**Rangos e intervalos:**
+
+```python
+# Rango con paso explícito
+np.arange(start=1, stop=20, step=2)
+# → [1, 3, 5, 7, ..., 19]
+
+# Rango decreciente
+np.arange(start=100, stop=0, step=-10)
+# → [100, 90, 80, ..., 10]
+
+# Intervalo con número de puntos fijo
+np.linspace(start=0, stop=1, num=5)
+# → [0.0, 0.25, 0.5, 0.75, 1.0]
+# (incluye el extremo final)
+```
+
+::: {.callout-warning}
+`arange` **no incluye** el valor `stop`. `linspace` **sí lo incluye**. Error frecuente de principiantes.
+:::
+
+:::
+::::
+
+---
+
+## Grillas multidimensionales con `meshgrid`: evaluar funciones de varias variables
+
+:::: {.columns}
+::: {.column width="55%"}
+
+`np.meshgrid()` construye el producto cartesiano de dos intervalos, generando una grilla rectangular sobre la cual podemos evaluar cualquier función de dos variables.
+
+```python
+x = np.linspace(-3, 3, 100)
+y = np.linspace(-3, 3, 100)
+
+X, Y = np.meshgrid(x, y, indexing="ij")
+# X.shape = (100, 100)
+# Y.shape = (100, 100)
+
+# Evaluar f(x,y) = exp(-(x² + y²))
+Z = np.exp(-(X**2 + Y**2))
+```
+
+**`indexing="ij"`** → el primer arreglo se replica conforme el eje 0, el segundo conforme el eje 1.
+
+:::
+::: {.column width="45%"}
+
+**Aplicación en minería:**
+
+Evaluar la función de variograma experimental $\gamma(h_x, h_y)$ sobre una grilla regular de rezagos:
+
+```python
+hx = np.linspace(0, 500, 50)  # m
+hy = np.linspace(0, 500, 50)  # m
+
+HX, HY = np.meshgrid(hx, hy, indexing="ij")
+H = np.sqrt(HX**2 + HY**2)   # rezago total
+
+# Variograma esférico
+a, C0 = 200, 0.8
+gamma = np.where(
+    H < a,
+    C0 * (1.5*(H/a) - 0.5*(H/a)**3),
+    C0
+)
+```
+
+:::
+::::
+
+---
+
+## Tipos de datos en NumPy: precisión numérica con control total
+
+:::: {.columns}
+::: {.column width="55%"}
+
+NumPy provee tipos nativos heredados de C, con control explícito sobre la precisión y el consumo de memoria:
+
+| Tipo | Rango / Descripción |
+|---|---|
+| `bool` | `True` / `False` |
+| `int8` | −128 a 127 |
+| `int32` | −2.1 × 10⁹ a 2.1 × 10⁹ |
+| `int64` | −9.2 × 10¹⁸ a 9.2 × 10¹⁸ |
+| `uint32` | 0 a 4.3 × 10⁹ |
+| `float32` | Precisión simple (~7 dígitos) |
+| `float64` | Precisión doble (~15 dígitos) ✓ |
+| `complex128` | Dos `float64` |
+
+:::
+::: {.column width="45%"}
+
+**En práctica:**
+
+```python
+# Tipo por defecto al crear arreglos numéricos
+np.zeros(5)              # float64
+np.zeros(5, dtype=int)   # int64
+
+# Tipo por defecto en arange con enteros
+np.arange(5)             # int64
+
+# Cambio de tipo (casting)
+A = np.array([1.7, 2.9, 3.1])
+A.astype(int)  # → [1, 2, 3] (trunca)
+```
+
+::: {.callout-warning}
+Si se inserta un `float` en un arreglo `int`, NumPy **trunca silenciosamente** el valor. No lanza excepción.
+:::
+
+:::
+::::
+
+---
+
+## Generación de números pseudoaleatorios: reproducibilidad garantizada por la semilla
+
+:::: {.columns}
+::: {.column width="50%"}
+
+Los números generados son *pseudoaleatorios*: controlados por una semilla que asegura **reproducibilidad total** de los experimentos.
+
+```python
+rng = np.random.default_rng(seed=42)
+# rng es un objeto Generator
+
+# Uniforme en [0, 1)
+rng.random(size=(3, 3))
+
+# Normal con media y desviación especificada
+rng.normal(loc=0, scale=1, size=(3, 3))
+
+# Enteros aleatorios
+rng.integers(low=0, high=10, size=(4, 4))
+```
+
+**Misma semilla → mismo resultado siempre.** Esencial en ciencia de datos reproducible.
+
+:::
+::: {.column width="50%"}
+
+**Distribuciones relevantes para minería:**
+
+```python
+# Distribución de Poisson
+# Modela: conteo de eventos en un intervalo
+# (fallas en un equipo por mes)
+rng.poisson(lam=2.5, size=(4, 4))
+
+# Distribución Beta
+# Modela: proporciones y porcentajes (recuperación)
+# También usada en tiempos PERT (ruta crítica)
+rng.beta(a=2.0, b=5.0, size=(4, 4))
+
+# Distribución Normal multivariante
+# Modela: leyes y atributos correlacionados
+mean = [0.45, 0.12]   # Cu%, Mo%
+cov = [[0.01, 0.002], [0.002, 0.001]]
+rng.multivariate_normal(mean, cov, size=100)
+```
+
+:::
+::::
+
+---
+
+## Indexación: acceder y modificar elementos individuales de un arreglo
+
+:::: {.columns}
+::: {.column width="50%"}
+
+Python indexa desde `0`. Los índices negativos cuentan desde el final.
+
+```python
+x1 = np.array([5, 2, 8, 1, 9, 4])
+
+x1[0]   # → 5    (primer elemento)
+x1[2]   # → 8    (tercer elemento)
+x1[-1]  # → 4    (último elemento)
+x1[-2]  # → 9    (penúltimo)
+```
+
+**Arreglos bidimensionales:**
+
+```python
+x2 = np.array([[3, 7, 1], [4, 0, 9]])
+
+x2[0, 1]   # → 7   (fila 0, col 1)
+x2[1, 2]   # → 9   (fila 1, col 2)
+x2[-1, -1] # → 9   (última fila, última col)
+```
+
+**Modificación en sitio:**
+
+```python
+x2[1, 0] = 99   # modifica el arreglo original
+```
+
+:::
+::: {.column width="50%"}
+
+**Arreglos tridimensionales:**
+
+```python
+T = rng.integers(0, 10, size=(3, 4, 5))
+
+T[0]        # sub-arreglo completo (4×5)
+T[0, 1, 2]  # elemento en (sub=0, fila=1, col=2)
+T[2, -1, 0] # sub=2, última fila, col=0
+```
+
+::: {.callout-warning}
+**Arreglos de tipo fijo:** Si insertas un `float` en un arreglo `int`, el valor se trunca **sin aviso**:
+
+```python
+x = np.array([1, 2, 3, 4, 5])  # int64
+x[2] = 3.99   # → se guarda 3, no 4
+print(x)      # [1, 2, 3, 4, 5]
+```
+
+A diferencia de las listas de Python, los arreglos tienen tipo fijo.
+:::
+
+:::
+::::
+
+---
+
+## Slicing: acceso eficiente a sub-arreglos completos
+
+:::: {.columns}
+::: {.column width="50%"}
+
+Sintaxis: `x[inicio:final:paso]`
+
+- Valores por defecto: `inicio=0`, `final=tamaño`, `paso=1`
+- El índice `final` **no se incluye**
+
+```python
+x = np.arange(10)
+# → [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+
+x[:5]       # → [0, 1, 2, 3, 4]
+x[5:]       # → [5, 6, 7, 8, 9]
+x[4:7]      # → [4, 5, 6]
+x[::2]      # → [0, 2, 4, 6, 8] (cada 2)
+x[1::2]     # → [1, 3, 5, 7, 9]
+x[::-1]     # → [9, 8, 7, 6, 5, 4, 3, 2, 1, 0]
+```
+
+**En arreglos 2D:**
+
+```python
+x2[:2, :3]   # filas 0-1, columnas 0-2
+x2[:3, ::2]  # filas 0-2, columnas pares
+x2[:, 1]     # TODA la columna 1
+x2[1, :]     # TODA la fila 1
+```
+
+:::
+::: {.column width="50%"}
+
+::: {.callout-important}
+**Los slices son VISTAS, no copias.**
+
+Modificar el sub-arreglo modifica el original:
+
+```python
+x2 = np.array([[1, 2, 3], [4, 5, 6]])
+sub = x2[:1, :2]   # vista de x2
+
+sub[0, 0] = 99     # modifica x2 también!
+print(x2)          # [[99, 2, 3], [4, 5, 6]]
+```
+
+**Para obtener una copia independiente:**
+```python
+sub = x2[:1, :2].copy()
+```
+
+**¿Por qué este diseño?** Para poder trabajar con fragmentos de datasets enormes sin duplicar memoria.
+:::
+
+:::
+::::
+
+---
+
+## Redimensionamiento: transformar la geometría sin copiar datos
+
+:::: {.columns}
+::: {.column width="50%"}
+
+**Transposición** (intercambia ejes 1 y 2):
+
+```python
+A = np.array([[1, 2, 3], [4, 5, 6]])
+# shape: (2, 3)
+
+A.T  # shape: (3, 2)
+# [[1, 4],
+#  [2, 5],
+#  [3, 6]]
+```
+
+**Aplanamiento** (→ 1D):
+
+```python
+A.ravel()
+# → [1, 2, 3, 4, 5, 6]  shape: (6,)
+```
+
+**Remodelamiento** (conserva `size`):
+
+```python
+A.reshape(3, 2)   # (3×2 = 6 ✓)
+A.reshape(6, -1)  # NumPy infiere dim faltante
+A.reshape(-1, 2)  # también válido
+```
+
+:::
+::: {.column width="50%"}
+
+**Unión de arreglos:**
+
+```python
+a = np.ones((4, 4))
+b = np.ones((2, 4))
+
+np.concatenate([a, b], axis=0)  # apila filas
+np.vstack([a, b])               # equivalente
+np.hstack([a, a])               # apila columnas
+np.dstack([a, a])               # aumenta eje 2
+```
+
+**División de arreglos:**
+
+```python
+p = np.linspace(1, 10, 10)
+p1, p2, p3 = np.split(p, [3, 7])
+# p1: posiciones 0-2
+# p2: posiciones 3-6
+# p3: posiciones 7-9
+
+B = np.ones((6, 6))
+B_top, B_bot = np.vsplit(B, [3])  # corta en fila 3
+B_left, B_right = np.hsplit(B, [3])  # corta en col 3
+```
+
+:::
+::::
+
+---
+
+## I/O: cargar y guardar arreglos desde y hacia disco
+
+:::: {.columns}
+::: {.column width="50%"}
+
+**Lectura de texto:**
+
+```python
+# Archivo limpio, valores separados por espacios
+A = np.loadtxt("datos.txt")
+
+# Archivo CSV (delimitador coma)
+A = np.loadtxt("datos.csv", delimiter=",")
+
+# Lectura flexible (tolera valores faltantes)
+X = np.genfromtxt(
+    "mediciones.csv",
+    delimiter=",",
+    skip_header=1,
+    filling_values=-999  # reemplaza NaN
+)
+
+# Leer columnas específicas
+X = np.loadtxt("datos.csv",
+               delimiter=",",
+               usecols=(0, 2))
+```
+
+:::
+::: {.column width="50%"}
+
+**Escritura de texto:**
+
+```python
+# Guardar como CSV
+np.savetxt("salida.csv", A,
+           delimiter=",",
+           fmt="%.2f")   # 2 decimales
+```
+
+**Formato binario nativo (más eficiente):**
+
+```python
+# Guardar: preserva geometría y dtype
+np.save("mi_arreglo.npy", A)
+
+# Cargar: recupera exactamente el arreglo
+B = np.load("mi_arreglo.npy")
+```
+
+::: {.callout-tip}
+**Regla de uso en la práctica:**
+
+- Datos limpios, regulares → `loadtxt`
+- Datos con cabeceras o NaN → `genfromtxt`
+- Resultados intermedios → `save/load` (`.npy`)
+- Datos con tipos mixtos, nombres → **Pandas**
+:::
+
+:::
+::::
+
+---
+
+# Módulo 2 {background-color="#0f3460"}
+
+## Operatoria Vectorizada · ufuncs · Aritmética · Funciones matemáticas
+
+---
+
+## El cuello de botella oculto: los bucles en Python son lentos por diseño
+
+:::: {.columns}
+::: {.column width="55%"}
+
+**CPython** revisa dinámicamente el tipo de cada objeto en cada ciclo de un bucle. Para un millón de operaciones, eso implica un millón de despachos de función innecesarios.
+
+```python
+def compute_neg_exp(values):
+    output = np.empty(len(values))
+    for i in range(len(values)):
+        output[i] = 2**(-values[i])  # ← tipo chequeado
+    return output                    #   en cada ciclo
+
+huge = rng.normal(5, 2, size=1_000_000)
+
+%timeit compute_neg_exp(huge)
+# → ~500 ms por ejecución
+
+%timeit 2**(-huge)
+# → ~3 ms por ejecución
+```
+
+:::
+::: {.column width="45%"}
+
+::: {.callout-important}
+**Vectorizar = ×100 más rápido**
+
+La operación `2**(-huge)` sobre un arreglo de 1 millón de elementos es **~150× más rápida** que el bucle equivalente.
+
+La razón: NumPy delega el cálculo a rutinas compiladas en C, evitando el despacho dinámico de Python.
+
+:::
+
+**Regla práctica:**
+
+> Si puedes escribirlo como una operación sobre un arreglo completo, **nunca uses un bucle**.
+
+:::
+::::
+
+---
+
+## ufuncs: operaciones vectorizadas sobre arreglos completos
+
+:::: {.columns}
+::: {.column width="50%"}
+
+Las **funciones universales** (`ufuncs`) son el núcleo de NumPy. Operan elemento a elemento, siguiendo las reglas de broadcasting, y están implementadas en C.
+
+**Las cuatro operaciones aritméticas:**
+
+```python
+x = np.array([-1, 0, 9, 5, -4, 5])
+
+x + 5     # → [ 4,  5, 14, 10,  1, 10]
+x - 5     # → [-6, -5,  4,  0, -9,  0]
+x * 2     # → [-2,  0, 18, 10, -8, 10]
+x / 2     # → [-0.5, 0, 4.5, 2.5, -2, 2.5]
+x // 2    # → [-1,  0,  4,  2, -2,  2] (cociente)
+x % 2     # → [ 1,  0,  1,  1,  0,  1] (módulo)
+-x        # → [ 1,  0, -9, -5,  4, -5] (negación)
+x ** 2    # → [ 1,  0, 81, 25, 16, 25]
+```
+
+:::
+::: {.column width="50%"}
+
+**Operaciones entre arreglos:**
+
+```python
+a = np.array([0, -1, 8, -2, 5])
+b = np.array([-6, -9, 0, 1, -2])
+
+# Suma (operación interna del espacio vectorial)
+a + b   # → [-6, -10, 8, -1, 3]
+
+# Producto por escalar
+2 * a   # → [0, -2, 16, -4, 10]
+```
+
+**Mezcla de ufuncs:**
+
+```python
+# Las ufuncs respetan la jerarquía aritmética
+-(0.5*x + 1) ** 2
+
+# Expresión equivalente a:
+# -((0.5x + 1)²) para cada elemento
+```
+
+::: {.callout-tip}
+Toda ufunc devuelve un nuevo arreglo. El original **no se modifica** a menos que uses asignación explícita.
+:::
+
+:::
+::::
+
+---
+
+## Producto de Hadamard ≠ Producto matricial: una distinción crítica
+
+::: {.callout-important}
+**El operador `*` en NumPy es siempre el producto de Hadamard (componente a componente), NO el producto matricial.** Confundir ambos produce resultados silenciosamente incorrectos.
+:::
+
+:::: {.columns}
+::: {.column width="50%"}
+
+**Producto de Hadamard** $\mathbf{A} \odot \mathbf{B}$:
+
+$$\mathbf{A} \odot \mathbf{B} = \{a_{ij} \cdot b_{ij}\} \in \mathbb{R}^{m \times n}$$
+
+Requiere: misma geometría.
+
+```python
+A = np.array([[1, 2], [3, 4]])
+B = np.array([[5, 6], [7, 8]])
+
+A * B  # [[5, 12], [21, 32]]
+# → componente a componente
+```
+
+**Producto interno de vectores** $\mathbf{a} \cdot \mathbf{b}$:
+
+$$\mathbf{a} \cdot \mathbf{b} = \sum_{i=1}^{n} a_i b_i \in \mathbb{R}$$
+
+```python
+a, b = np.array([1,2,3]), np.array([4,5,6])
+np.dot(a, b)   # → 32 (escalar)
+```
+
+:::
+::: {.column width="50%"}
+
+**Producto matricial** $\mathbf{C} = \mathbf{A}\mathbf{B}$:
+
+$$c_{ij} = \sum_{s=1}^{n} a_{is} b_{sj}$$
+
+Requiere: columnas de A = filas de B.
+
+```python
+A = np.array([[1, 2, 3], [3, 2, 1]])  # (2×3)
+B = np.array([[0, 2], [1,-1], [0, 1]])  # (3×2)
+
+# Usando np.matmul()
+np.matmul(A, B)  # → (2×2)
+
+# Operador @ (más conciso — preferido)
+A @ B            # → (2×2) — idéntico
+B @ A            # → (3×3) — no conmutativo!
+
+# Equivalencia con np.dot() para 2D
+np.allclose(A @ B, np.dot(A, B))  # True
+```
+
+::: {.callout-warning}
+$\mathbf{AB} \neq \mathbf{BA}$ en general. El producto matricial **no es conmutativo**.
+:::
+
+:::
+::::
+
+---
+
+## Norma, valor absoluto y álgebra lineal básica
+
+:::: {.columns}
+::: {.column width="50%"}
+
+**Valor absoluto** (componente a componente):
+
+```python
+A = np.array([[-1, -6, 7], [5, -3, -4]])
+np.abs(A)  # → [[1, 6, 7], [5, 3, 4]]
+
+# Con números complejos → calcula módulo
+# |z| = √(a² + b²)
+Z = np.array([2-3j, 4+1j])
+np.abs(Z)  # → [√13, √17]
+```
+
+**Norma Euclidiana** (norma $\ell_2$):
+
+$$\|\mathbf{x}\|_2 = \sqrt{\sum_{i=1}^n x_i^2} = \sqrt{\mathbf{x}^\top \mathbf{x}}$$
+
+```python
+x = np.array([1, -1, 4, -8, 0, -2])
+np.linalg.norm(x)
+# → √(1+1+16+64+0+4) = √86 ≈ 9.27
+```
+
+:::
+::: {.column width="50%"}
+
+**Módulo `np.linalg`: álgebra lineal en NumPy**
+
+```python
+# Norma (por defecto: norma-2)
+np.linalg.norm(x)
+np.linalg.norm(A, axis=0)  # norma por columna
+
+# Determinante
+np.linalg.det(A)
+
+# Valores y vectores propios
+vals, vecs = np.linalg.eig(A)
+
+# Descomposición SVD
+U, S, Vt = np.linalg.svd(A)
+
+# Resolución de sistema lineal Ax = b
+x = np.linalg.solve(A, b)
+
+# Pseudoinversa (mínimos cuadrados)
+A_pinv = np.linalg.pinv(A)
+```
+
+> **Aplicación:** resolver sistemas de ecuaciones de balance de masa, ajuste por mínimos cuadrados.
+
+:::
+::::
+
+---
+
+## Funciones matemáticas: trigonometría, logaritmos y exponenciales
+
+:::: {.columns}
+::: {.column width="50%"}
+
+**Funciones trigonométricas:**
+
+```python
+theta = np.linspace(0, np.pi, 4)
+# → [0, π/3, 2π/3, π]
+
+np.sin(theta)    # seno
+np.cos(theta)    # coseno
+np.tan(theta)    # tangente
+
+np.arcsin([-1, 0, 1])   # inversa seno
+np.arccos([-1, 0, 1])   # inversa coseno
+np.arctan([-1, 0, 1])   # inversa tangente
+
+# Conversión de unidades angulares
+np.rad2deg(theta)   # radianes → grados
+np.deg2rad(theta)   # grados → radianes
+```
+
+*Importante:* los resultados son aproximaciones de punto flotante. `sin(π)` no es exactamente `0`.
+
+:::
+::: {.column width="50%"}
+
+**Funciones exponenciales y logarítmicas:**
+
+```python
+x = [1, 2, 3, 4, 5]
+
+# Exponenciales
+np.exp(x)        # e^x
+np.exp2(x)       # 2^x
+np.power(3, x)   # 3^x
+np.sqrt(x)       # √x
+
+# Logaritmos
+np.log(x)        # ln(x) — base natural
+np.log2(x)       # log₂(x)
+np.log10(x)      # log₁₀(x)
+
+# Versiones numéricamente estables
+# (para valores muy pequeños de x)
+x_small = [0, 0.001, 0.01, 0.1]
+np.expm1(x_small)  # exp(x) - 1  (≈ x para x≪1)
+np.log1p(x_small)  # ln(1 + x)   (≈ x para x≪1)
+```
+
+> `expm1` y `log1p` evitan pérdida de precisión cuando el argumento está cerca de cero.
+
+:::
+::::
+
+---
+
+# Módulo 3 {background-color="#0f3460"}
+
+## Broadcasting · Agregación · Patrones vectorizados
+
+---
+
+## Broadcasting: operar con arreglos de distinta geometría sin copias manuales
+
+::: {.callout-important}
+**Broadcasting** es el mecanismo por el cual NumPy puede operar con arreglos de distintas formas, *extendiendo virtualmente* las dimensiones de tamaño 1. No hay copia real en memoria — la eficiencia se mantiene.
+:::
+
+:::: {.columns}
+::: {.column width="50%"}
+
+**Caso 1: arreglo + escalar**
+
+```python
+a = np.array([1.0, 3.0, 5.0, 7.0])
+a + 2.0   # → [3.0, 5.0, 7.0, 9.0]
+```
+El escalar `2.0` se *extiende virtualmente* a `[2.0, 2.0, 2.0, 2.0]`.
+
+**Caso 2: matriz + vector 1D**
+
+```python
+M = np.eye(4)           # (4, 4)
+a = np.array([1,2,3,4]) # (4,)
+
+M + a
+# a se extiende como si fuera (4, 4)
+# replicando la fila sobre cada fila de M
+```
+
+:::
+::: {.column width="50%"}
+
+**Caso 3: columna + fila (outer operation)**
+
+```python
+u = np.ones(shape=(1, 3))   # (1, 3)
+v = np.ones(shape=(3, 1))   # (3, 1)
+
+u + v
+# u se extiende → (3, 3)
+# v se extiende → (3, 3)
+# resultado:    (3, 3) de doses
+```
+
+**Cálculo vectorial sin meshgrid:**
+
+```python
+X = np.linspace(-1, 1, 100).reshape(-1, 1)
+Y = np.linspace(-1, 1, 100).reshape(1, -1)
+# X: (100, 1)   Y: (1, 100)
+
+Z = np.arcsinh(X**2 + Y**2)
+# Z: (100, 100) gracias al broadcasting
+```
+
+:::
+::::
+
+---
+
+## Las tres reglas del broadcasting: leer de derecha a izquierda
+
+:::: {.columns}
+::: {.column width="55%"}
+
+NumPy compara las geometrías **dimensión a dimensión, desde la derecha**. Una operación es compatible si para cada par de dimensiones:
+
+1. Son iguales, **o**
+2. Una de ellas es `1`
+
+**Procedimiento mental:**
+
+1. Igualar el número de dimensiones (agregar `1`s a la izquierda)
+2. Comparar de derecha a izquierda
+3. Extender las dimensiones con `1`
+
+:::
+::: {.column width="45%"}
+
+```python
+# ✓ Compatible
+M = np.ones((2, 3))   # (2, 3)
+a = np.arange(3)      # (3,) → se lee como (1, 3)
+# comparando: (2,3) vs (1,3) → OK → resultado (2,3)
+
+# ✓ Compatible — ambos se extienden
+a = np.arange(3).reshape(3, 1)  # (3, 1)
+b = np.arange(3)                # (1, 3)
+a + b   # resultado: (3, 3)
+
+# ✗ INCOMPATIBLE
+M = np.ones((3, 2))   # (3, 2)
+a = np.arange(3)      # (1, 3)
+# última dim: 2 vs 3 — ninguna es 1 → ERROR
+try:
+    M + a
+except ValueError as e:
+    print(e)
+```
+
+:::
+::::
+
+---
+
+## Aplicación del broadcasting: estandarización z-score de datos de proceso
+
+:::: {.columns}
+::: {.column width="55%"}
+
+En análisis de proceso minero, variables como tratamiento (tph), presión (psi) y tamaño de producto (%) viven en escalas muy distintas. La **estandarización z-score** las homogeneiza:
+
+$$Z_j = \frac{X_j - \bar{X}_j}{s_j}$$
+
+El resultado tiene media 0 y desviación estándar 1 para cada variable. **Indispensable antes de ajustar modelos.**
+
+```python
+# Matriz T: 10 muestras × 3 variables
+# [tratamiento (tph), presión (psi), %pasante]
+T = np.vstack([t, p, g]).T  # shape: (10, 3)
+
+# Media y std por columna (axis=0)
+media = T.mean(axis=0)  # shape: (3,)
+std   = T.std(axis=0)   # shape: (3,)
+
+# Broadcasting: (10,3) - (3,) → automático
+Z = (T - media) / std   # shape: (10, 3)
+```
+
+:::
+::: {.column width="45%"}
+
+```python
+# Verificación
+Z.mean(axis=0)
+# → [~0, ~0, ~0]   (medias nulas)
+
+Z.std(axis=0)
+# → [1.0, 1.0, 1.0] (desv. unitarias)
+```
+
+::: {.callout-warning}
+**La estandarización no normaliza la distribución.** Sólo cambia la escala. Una variable sesgada seguirá sesgada después del z-score.
+
+Para normalizar la forma, se necesitan transformaciones adicionales (Box-Cox, log).
+:::
+
+> La estandarización también puede escribirse como función reutilizable:
+> ```python
+> def standard_scaler(X):
+>     return (X - X.mean(axis=0)) / X.std(axis=0)
+> ```
+
+:::
+::::
+
+---
+
+## Operaciones de agregación: resumir información a lo largo de un eje
+
+:::: {.columns}
+::: {.column width="50%"}
+
+Las agregaciones colapsan un eje del arreglo produciendo un resultado de menor dimensión:
+
+```python
+rng = np.random.default_rng(8)
+A = rng.integers(1, 10, size=(5, 10))
+
+# Sumas
+A.sum()         # escalar: suma total
+A.sum(axis=1)   # shape (5,): suma por fila
+A.sum(axis=0)   # shape (10,): suma por columna
+
+# Productos
+A.prod(axis=1)
+
+# Suma acumulada (no colapsa el eje)
+A.cumsum(axis=1)  # misma shape que A
+
+# Estadísticas
+A.mean(axis=0)    # media por columna
+A.std(axis=0)     # desv. est. por columna
+A.var(axis=1)     # varianza por fila
+```
+
+:::
+::: {.column width="50%"}
+
+**Mínimos, máximos y sus posiciones:**
+
+```python
+A.min(axis=1)     # mínimo por fila
+A.max(axis=0)     # máximo por columna
+
+A.argmin(axis=1)  # posición del mínimo por fila
+A.argmax(axis=0)  # posición del máximo por col
+```
+
+**Tabla de funciones de agregación:**
+
+| Función | Versión robusta a NaN |
+|---|---|
+| `np.sum()` | `np.nansum()` |
+| `np.mean()` | `np.nanmean()` |
+| `np.std()` | `np.nanstd()` |
+| `np.min() / .max()` | `np.nanmin() / .nanmax()` |
+| `np.median()` | `np.nanmedian()` |
+| `np.argmin() / .argmax()` | `np.nanargmin() / .nanargmax()` |
+
+> Las versiones `nan*` ignoran los `np.nan` en el cálculo. Esenciales con datos reales que tienen faltantes.
+
+:::
+::::
+
+---
+
+# Módulo 4 {background-color="#0f3460"}
+
+## Comparación · Masking · Fancy Indexing · Ordenamiento · Reemplazo
+
+---
+
+## Operadores de comparación: arreglos booleanos como resultado
+
+:::: {.columns}
+::: {.column width="50%"}
+
+Los operadores de comparación son ufuncs que retornan arreglos booleanos de la misma geometría:
+
+```python
+x = np.arange(1, 10)
+# → [1, 2, 3, 4, 5, 6, 7, 8, 9]
+
+x > 3    # [F, F, F, T, T, T, T, T, T]
+x < 3    # [T, T, F, F, F, F, F, F, F]
+x >= 3   # [F, F, T, T, T, T, T, T, T]
+x <= 3   # [T, T, T, F, F, F, F, F, F]
+x == 3   # [F, F, T, F, F, F, F, F, F]
+x != 3   # [T, T, F, T, T, T, T, T, T]
+```
+
+**Funcionan igual en arreglos 2D:**
+
+```python
+M = rng.integers(1, 10, size=(4, 4))
+M <= 5   # arreglo booleano (4, 4)
+```
+
+:::
+::: {.column width="50%"}
+
+**Consultas con funciones booleanas:**
+
+```python
+# Los booleanos en NumPy:  True=1, False=0
+
+# Contar elementos que cumplen condición
+np.sum(M > 5)           # total
+np.sum(M > 5, axis=1)   # por fila
+np.sum(M > 5, axis=0)   # por columna
+
+# ¿Alguno cumple la condición?
+np.any(M > 8)     # → True o False
+np.any(M < 0)     # → False (no hay negativos)
+
+# ¿Todos cumplen?
+np.all(M < 10)    # → True
+np.all(M == 6)    # → False
+np.all(M < 8, axis=1)  # por fila
+```
+
+:::
+::::
+
+---
+
+## Operadores lógicos: combinar condiciones booleanas
+
+:::: {.columns}
+::: {.column width="55%"}
+
+NumPy provee ufuncs booleanas elemento a elemento. Los símbolos en Python estándar (`and`, `or`, `not`) **no funcionan** sobre arreglos NumPy — se deben usar los operadores binarios:
+
+| Operador | ufunc equivalente | Significado |
+|---|---|---|
+| `&` | `np.bitwise_and()` | AND lógico |
+| `\|` | `np.bitwise_or()` | OR lógico |
+| `^` | `np.bitwise_xor()` | XOR lógico |
+| `~` | `np.bitwise_not()` | NOT lógico |
+
+::: {.callout-warning}
+Los **paréntesis son obligatorios** al combinar condiciones. La precedencia de los operadores bitwise difiere de `and`/`or`.
+:::
+
+:::
+::: {.column width="45%"}
+
+**Ejemplo — análisis de histórico de un chancador:**
+
+```python
+# 100 días de datos (tph): µ=4850, σ=750
+hist = rng.normal(1250, 750, 100) + 3600
+
+# ¿Cuántos días procesaron < 4000 tph?
+np.sum(hist < 4000)
+
+# ¿Días entre 4500 y 5000 tph?
+np.sum((hist >= 4500) & (hist <= 5000))
+
+# ¿Días con rendimiento extremo?
+np.sum((hist > 6000) | (hist < 4000))
+
+# ¿Días fuera del rango operacional normal?
+np.sum(~((hist >= 4000) & (hist <= 5500)))
+```
+
+:::
+::::
+
+---
+
+## Masking: filtrar subconjuntos de datos mediante condiciones booleanas
+
+::: {.callout-important}
+**Masking** = usar un arreglo booleano como índice para seleccionar elementos que cumplen una condición. Es la herramienta central del preprocesamiento vectorizado.
+:::
+
+:::: {.columns}
+::: {.column width="50%"}
+
+**Sintaxis básica:**
+
+```python
+M = rng.integers(1, 10, size=(4, 4))
+
+# Selección simple
+M[M < 4]       # todos los menores que 4
+# resultado: arreglo 1D (siempre 1D)
+
+# Máscara compuesta
+M[(M > 3) & (M < 8)]
+```
+
+**La lógica detrás:**
+
+```python
+mask = M < 4   # arreglo booleano (4, 4)
+M[mask]        # selecciona donde mask es True
+```
+
+:::
+::: {.column width="50%"}
+
+**Ejemplo integrado — campaña metalúrgica:**
+
+```python
+# P: 12 muestras × 4 variables
+# cols: [tph, psi, %malla, %Cu]
+P = np.array([
+    [5100, 11.2, 29.4, 0.62],
+    [4800, 10.8, 31.1, 0.58],
+    ...
+])
+
+# Filtrar: tph≥5000, psi>11, Cu≥0.62%
+mask = (
+    (P[:, 0] >= 5000) &
+    (P[:, 1] >  11.0) &
+    (P[:, 3] >= 0.62)
+)
+P_filtrado = P[mask]   # filas que cumplen todo
+
+# Solo columnas tph y %Cu del resultado
+P_filtrado[:, [0, 3]]
+```
+
+:::
+::::
+
+---
+
+## Fancy indexing: seleccionar posiciones arbitrarias con arreglos de índices
+
+:::: {.columns}
+::: {.column width="50%"}
+
+*Fancy indexing* = pasar un arreglo de índices para seleccionar múltiples posiciones en una sola operación:
+
+```python
+x = rng.integers(1, 100, size=20)
+
+# Indexado simple: uno a la vez
+[x[13], x[7], x[18]]   # lista Python
+
+# Fancy indexing: todos a la vez
+indices = [13, 7, 18]
+x[indices]             # arreglo NumPy
+```
+
+**La geometría del resultado = geometría de los índices:**
+
+```python
+indices = np.array([[13, 7], [18, 2]])
+x[indices]
+# resultado: arreglo (2, 2)
+# x[[13,7],[18,2]] no hace esto
+```
+
+:::
+::: {.column width="50%"}
+
+**Fancy indexing en 2D:**
+
+```python
+M = rng.integers(1, 20, size=(6, 6))
+
+row = np.array([0, 2, 4])
+col = np.array([1, 3, 5])
+
+# Pareado: selecciona (0,1), (2,3), (4,5)
+M[row, col]   # shape: (3,) — NO es submatriz
+
+# Para submatriz rectangular usa np.ix_()
+M[np.ix_(row, col)]  # shape: (3, 3)
+```
+
+**Combinando todo:**
+
+```python
+# 1. Máscara para filtrar filas
+mask = (P[:, 0] >= 5000) & (P[:, 3] >= 0.62)
+P_sub = P[mask]
+
+# 2. Fancy indexing para columnas específicas
+filas   = np.array([0, 4, 8, 10])
+columnas = np.array([0, 3])
+P[np.ix_(filas, columnas)]
+```
+
+:::
+::::
+
+---
+
+## Ordenamiento: np.sort, np.argsort, np.partition
+
+:::: {.columns}
+::: {.column width="50%"}
+
+**Ordenamiento completo:**
+
+```python
+u = rng.integers(1, 20, size=10)
+
+# Retorna copia ordenada (no modifica u)
+np.sort(u)
+
+# Modifica u en sitio
+u.sort()
+
+# Índices que ordenarían el arreglo
+idx = np.argsort(u)
+u[idx]   # ← equivalente a np.sort(u)
+```
+
+**Ordenamiento por eje en 2D:**
+
+```python
+np.sort(M, axis=0)  # ordena cada columna
+np.sort(M, axis=1)  # ordena cada fila
+```
+
+::: {.callout-warning}
+El ordenamiento por eje trata filas y columnas como independientes. **No preserva relaciones entre columnas** (equivalente a ordenar cada variable por separado).
+:::
+
+:::
+::: {.column width="50%"}
+
+**Particionamiento (sin ordenar todo):**
+
+```python
+# np.partition(arr, K): los K menores van
+# al inicio; el resto queda a la derecha
+# (ambas partes en orden arbitrario)
+np.partition(u, 3)
+# los 3 primeros ← mínimos (sin orden)
+
+# Por eje:
+np.partition(M, 2, axis=0)
+np.partition(M, 2, axis=1)
+```
+
+**Aplicación — K vecinos más cercanos:**
+
+```python
+# Matriz de distancias (30×30)
+dist = np.zeros((30, 30))
+for i in range(30):
+    for j in range(30):
+        dist[i,j] = np.sum((P[i]-P[j])**2)
+
+K = 3
+# Índices de los K vecinos más cercanos
+nearest = np.argpartition(dist, K+1, axis=1)
+nearest[:, 1:K+1]  # excluye al punto mismo
+```
+
+:::
+::::
+
+---
+
+## Reemplazo condicional con `np.where`: limpiar datos con una sola línea
+
+:::: {.columns}
+::: {.column width="55%"}
+
+`np.where(condición, valor_si_true, valor_si_false)` aplica una decisión binaria elemento a elemento, produciendo un arreglo nuevo:
+
+```python
+# 1000 horas de tratamiento (µ=1800 tph, σ=650)
+T = rng.normal(1800, 650, 1000)
+
+# Política metalúrgica: no considerar < 1200 tph
+# Codificar como NaN (dato ausente)
+T_corr = np.where(T < 1200, np.nan, T)
+```
+
+:::
+::: {.column width="45%"}
+
+**Usos frecuentes:**
+
+```python
+# Reemplazar outliers por la mediana
+mediana = np.nanmedian(T)
+T_clean = np.where(
+    (T < 1200) | (T > 5000),
+    mediana, T
+)
+
+# Codificar variable binaria
+T_alto = np.where(T >= 2000, 1, 0)
+
+# Clip (recorte en rango)
+T_clip = np.where(T < 0, 0, np.where(T > 100, 100, T))
+# equivalente más directo:
+T_clip = np.clip(T, 0, 100)
+```
+
+::: {.callout-tip}
+`np.clip(arr, a_min, a_max)` es la forma idiomática de recortar un arreglo entre dos límites.
+:::
+
+:::
+::::
+
+---
+
+# Módulo 5 {background-color="#0f3460"}
+
+## NumPy como base del modelamiento predictivo
+
+---
+
+## NumPy permite implementar modelos desde sus ecuaciones fundamentales
+
+::: {.callout-important}
+El objetivo de este módulo no es reemplazar Scikit-Learn. Es mostrar que detrás de todo modelo clásico existe una estructura algebraica expresable con operaciones vectorizadas simples. Entender esa estructura hace mejores ingenieros de datos.
+:::
+
+:::: {.columns}
+::: {.column width="50%"}
+
+**Los ingredientes de cualquier modelo supervisado:**
+
+1. **Representación matricial** de los datos: $\mathbf{X} \in \mathbb{R}^{m \times n}$
+2. **Función de costo** que mide la calidad del ajuste
+3. **Parámetros** $\mathbf{w}$ que deben aprenderse
+4. **Algoritmo de optimización** para minimizar el costo
+
+**NumPy provee:**
+- El arreglo como representación nativa de $\mathbf{X}$ y $\mathbf{y}$
+- El producto matricial `@` para predicciones
+- Las ufuncs para funciones de costo
+- La velocidad necesaria para iterar
+
+:::
+::: {.column width="50%"}
+
+**Dos modelos que estudiaremos:**
+
+| Modelo | Tipo | Función de costo |
+|---|---|---|
+| Regresión Lineal | Regresión | MSE |
+| Regresión Logística | Clasificación | Log-loss |
+
+Ambos se ajustan mediante el mismo algoritmo: **gradiente descendente**.
+
+**¿Cuándo aplicarlos en minería?**
+
+- Regresión lineal: predicción de recuperación, ley de producto, KPIs de planta
+- Regresión logística: detección de fallas (falla/no falla), clasificación litológica binaria
+
+:::
+::::
+
+---
+
+## Regresión Lineal: el modelo y su función de costo
+
+:::: {.columns}
+::: {.column width="52%"}
+
+**El modelo:**
+
+$$\hat{y} = w_0 + \sum_{j=1}^{n} w_j x_j = \mathbf{X}\mathbf{w} + b$$
+
+En forma matricial:
+
+$$\hat{\mathbf{y}} = \mathbf{X}\mathbf{w} + b \;;\quad \mathbf{X} \in \mathbb{R}^{m \times n}, \; \mathbf{w} \in \mathbb{R}^n$$
+
+**Función de costo — Error Cuadrático Medio (MSE):**
+
+$$\mathrm{MSE}(\mathbf{y}, \mathbf{X}, \mathbf{w}, b) = \frac{1}{m}\sum_{i=1}^m \left(y_i - (\mathbf{w}^\top \mathbf{x}_i + b)\right)^2$$
+
+Ajustar el modelo = **minimizar el MSE** respecto a $\mathbf{w}$ y $b$.
+
+:::
+::: {.column width="48%"}
+
+**Gradiente del MSE:**
+
+$$\frac{\partial \mathrm{MSE}}{\partial \mathbf{w}} = -\frac{2}{m}\sum_{i=1}^m \left(y_i - \hat{y}_i\right)\mathbf{x}_i$$
+
+$$\frac{\partial \mathrm{MSE}}{\partial b} = -\frac{2}{m}\sum_{i=1}^m \left(y_i - \hat{y}_i\right)$$
+
+**Algoritmo de Gradiente Descendente:**
+
+$$\mathbf{w}_{k+1} = \mathbf{w}_k - \alpha \frac{\partial \mathrm{MSE}}{\partial \mathbf{w}_k}$$
+
+$$b_{k+1} = b_k - \alpha \frac{\partial \mathrm{MSE}}{\partial b_k}$$
+
+donde $\alpha$ es la **tasa de aprendizaje** (hiperparámetro).
+
+:::
+::::
+
+---
+
+## Implementación de Regresión Lineal con NumPy
+
+:::: {.columns}
+::: {.column width="55%"}
+
+```python
+from tqdm import tqdm
+
+def fit_linear_regression(
+    X, y,
+    iterations=100,
+    tolerance=1e-5,
+    learning_rate=0.5,
+    random_state=42,
+):
+    rng = np.random.default_rng(random_state)
+    y   = y.reshape(-1, 1)
+    # Incorporar sesgo: agregar columna de 1s
+    X   = np.concatenate(
+              [np.ones((X.shape[0], 1)), X], axis=1
+          )
+    w   = rng.random(size=(X.shape[1], 1))
+
+    for _ in tqdm(range(iterations)):
+        y_pred   = X @ w            # predicciones
+        loss     = np.mean((y_pred - y)**2)
+
+        if np.isinf(loss) or np.isnan(loss):
+            break
+
+        gradient = 2 * X.T @ (y_pred - y) / X.shape[0]
+        w       -= gradient * learning_rate
+
+        if np.linalg.norm(gradient) < tolerance:
+            break
+
+    return w
+```
+
+:::
+::: {.column width="45%"}
+
+**Nota de diseño:**
+
+Incorporar el sesgo $b$ como primera columna de $\mathbf{X}$ (columna de unos) simplifica el cálculo: el modelo pasa a ser simplemente $\hat{\mathbf{y}} = \mathbf{X}\mathbf{w}$, con $w_0 = b$.
+
+**Uso:**
+
+```python
+rng = np.random.default_rng(42)
+X = rng.random(size=(250, 2))
+y = X @ np.array([[2.5], [0.5]]) \
+      + rng.normal(0, 0.5, (250, 1))
+
+# Separar train/test
+X_train, X_test, y_train, y_test = \
+    split_dataset(X, y, 0.8, 42)
+
+# Ajustar modelo
+w = fit_linear_regression(
+    X_train, y_train,
+    iterations=100,
+    learning_rate=0.5
+)
+# w ≈ [~0, ~2.5, ~0.5]
+```
+
+:::
+::::
+
+---
+
+## Evaluación de la Regresión Lineal: el coeficiente R²
+
+:::: {.columns}
+::: {.column width="55%"}
+
+$$r^2 = 1 - \frac{SS_{\mathrm{res}}}{SS_{\mathrm{tot}}} \;;\quad SS_{\mathrm{res}} = \sum_i (y_i - \hat{y}_i)^2, \quad SS_{\mathrm{tot}} = \sum_i (y_i - \bar{y})^2$$
+
+**Interpretación:** fracción de la variabilidad de $y$ explicada por el modelo. $r^2 = 1$ → ajuste perfecto. $r^2 = 0$ → el modelo no explica nada más que la media.
+
+```python
+def squared_r(y_real, y_pred):
+    SS_res = np.sum((y_real - y_pred)**2)
+    SS_tot = np.sum((y_real - np.mean(y_real))**2)
+    return 1 - SS_res / SS_tot
+
+y_train_pred = X_train @ w[1:] + w[0]
+y_test_pred  = X_test  @ w[1:] + w[0]
+
+print(squared_r(y_train, y_train_pred))
+print(squared_r(y_test,  y_test_pred))
+```
+
+:::
+::: {.column width="45%"}
+
+::: {.callout-warning}
+**Advertencias sobre datos reales:**
+
+1. **Escalar antes de ajustar.** Variables en distintas unidades (tph, psi, %) sesgan el gradiente. Aplicar siempre z-score.
+
+2. **Outliers distorsionan el MSE.** El MSE es cuadrático: un valor extremo tiene peso desproporcionado.
+
+3. **$r^2$ no es suficiente.** Un $r^2$ alto no implica que el modelo sea útil. Puede haber sobreajuste, autocorrelación en residuos, o relación no lineal.
+
+4. **Los datos reales tienen NaN**, leyes extremas, registros duplicados. La limpieza no es opcional.
+:::
+
+:::
+::::
+
+---
+
+## Regresión Logística Binaria: clasificar cuando la respuesta es 0 o 1
+
+:::: {.columns}
+::: {.column width="55%"}
+
+**El problema:** la variable de respuesta es binaria ($y \in \{0, 1\}$). Un modelo lineal puede predecir valores fuera de $[0,1]$ — no tiene sentido como probabilidad.
+
+**La solución: la función logística (sigmoide)**
+
+$$\phi(u) = \frac{1}{1 + e^{-u}} \in (0, 1)$$
+
+- $\phi(\cdot)$ mapea cualquier número real a $(0, 1)$
+- Puede leerse como **probabilidad** de que $y = 1$
+- La predicción del modelo: $\hat{p}_i = \phi(\mathbf{w}^\top \mathbf{x}_i + b)$
+
+**Función de costo — Entropía cruzada binaria:**
+
+$$\mathcal{L} = -\frac{1}{m}\sum_{i=1}^m \left[ y_i \log \hat{p}_i + (1-y_i)\log(1-\hat{p}_i) \right]$$
+
+:::
+::: {.column width="45%"}
+
+**Derivada de la sigmoide:**
+
+$$\phi'(u) = \phi(u)(1 - \phi(u))$$
+
+*Esta propiedad simplifica enormemente el cálculo del gradiente.*
+
+**Gradiente del costo:**
+
+$$\frac{\partial \mathcal{L}}{\partial \mathbf{w}} = \frac{1}{m} \mathbf{X}^\top (\hat{\mathbf{p}} - \mathbf{y})$$
+
+$$\frac{\partial \mathcal{L}}{\partial b} = \frac{1}{m} \sum_i (\hat{p}_i - y_i)$$
+
+> Mismo algoritmo de gradiente descendente que en regresión lineal. El único cambio es la función de predicción y la función de costo.
+
+:::
+::::
+
+---
+
+## Implementación de Regresión Logística Binaria con NumPy
+
+:::: {.columns}
+::: {.column width="55%"}
+
+```python
+def sigmoid(x):
+    return 1 / (1 + np.exp(-x))
+
+def log_loss(y, y_pred):
+    eps    = 1e-12
+    y_pred = np.clip(y_pred, eps, 1 - eps)
+    return -np.mean(
+        y * np.log(y_pred) +
+        (1 - y) * np.log(1 - y_pred)
+    )
+
+def fit_logistic_regression(
+    X, y, iterations=10000,
+    tolerance=1e-5, learning_rate=0.01
+):
+    X    = np.hstack((np.ones((X.shape[0], 1)), X))
+    y    = y.ravel()
+    w    = np.zeros(X.shape[1])
+    cost = float('inf')
+
+    for _ in tqdm(range(iterations)):
+        z       = np.dot(X, w)
+        y_pred  = sigmoid(z)
+        cost_new = log_loss(y, y_pred)
+
+        if abs(cost - cost_new) < tolerance:
+            break
+
+        cost     = cost_new
+        gradient = np.dot(X.T, (y_pred - y)) / y.size
+        w       -= learning_rate * gradient
+
+    return w
+```
+
+:::
+::: {.column width="45%"}
+
+**Pasos previos al ajuste:**
+
+```python
+# 1. Generar datos (make_blobs)
+from sklearn.datasets import make_blobs
+X, y = make_blobs(
+    n_samples=1000, centers=2,
+    n_features=2, random_state=7
+)
+
+# 2. Estandarizar (OBLIGATORIO)
+X_scaled = standard_scaler(X)
+
+# 3. Split estratificado
+# (preservar proporción 0/1 en train y test)
+X_train, X_test, y_train, y_test = \
+    stratified_split(X_scaled, y)
+
+# 4. Ajustar modelo
+w = fit_logistic_regression(X_train, y_train)
+```
+
+::: {.callout-warning}
+La regresión logística es un modelo lineal generalizado. Es **sensible a las magnitudes** de las variables. Siempre estandarizar antes de ajustar.
+:::
+
+:::
+::::
+
+---
+
+## Evaluación de la Regresión Logística: la matriz de confusión
+
+:::: {.columns}
+::: {.column width="55%"}
+
+**Umbral de clasificación:** predecir $\hat{Y}=1$ si $\hat{p} > 0.5$.
+
+**Matriz de confusión:**
+
+|  | Real $Y=1$ | Real $Y=0$ |
+|---|---|---|
+| **Pred $\hat{Y}=1$** | TP (verdadero positivo) | FP (falso positivo) |
+| **Pred $\hat{Y}=0$** | FN (falso negativo) | TN (verdadero negativo) |
+
+**Métricas:**
+
+$$\text{Sensibilidad (Recall)} = \frac{VP}{VP + FN}$$
+
+$$\text{Especificidad} = \frac{VN}{VN + FP}$$
+
+:::
+::: {.column width="45%"}
+
+```python
+def confusion_matrix(y_true, y_pred):
+    VP = np.sum((y_true==1) & (y_pred==1))
+    VN = np.sum((y_true==0) & (y_pred==0))
+    FP = np.sum((y_true==0) & (y_pred==1))
+    FN = np.sum((y_true==1) & (y_pred==0))
+    return np.array([[VP, FP], [FN, VN]])
+
+def predict(X, theta):
+    X      = np.hstack((np.ones((X.shape[0],1)), X))
+    z      = np.dot(X, theta)
+    y_pred = sigmoid(z)
+    return np.where(y_pred > 0.5, 1, 0)
+
+# Métricas
+cm = confusion_matrix(y_test, predict(X_test, w))
+sensibilidad  = cm[0,0] / (cm[0,0] + cm[1,0])
+especificidad = cm[1,1] / (cm[1,1] + cm[0,1])
+```
+
+::: {.callout-tip}
+En un problema de detección de fallas, la sensibilidad mide cuántas fallas reales detecta el modelo. Sacrificar especificidad por sensibilidad puede ser la decisión correcta.
+:::
+
+:::
+::::
+
+---
+
+## Muestreo estratificado: preservar la proporción de clases al dividir los datos
+
+:::: {.columns}
+::: {.column width="55%"}
+
+Cuando la variable de respuesta es binaria, la partición aleatoria simple puede generar un conjunto de prueba desequilibrado. El **muestreo estratificado** garantiza que la proporción de 1s y 0s se preserve en ambos conjuntos.
+
+```python
+def stratified_split(X, y,
+                     test_size=0.2,
+                     random_state=42):
+    pos_idx = np.where(y == 1)[0]
+    neg_idx = np.where(y == 0)[0]
+
+    n_pos_test = int(test_size * len(pos_idx))
+    n_neg_test = int(test_size * len(neg_idx))
+
+    rng = np.random.default_rng(random_state)
+    rng.shuffle(pos_idx)
+    rng.shuffle(neg_idx)
+
+    idx_train = np.concatenate([
+        pos_idx[n_pos_test:],
+        neg_idx[n_neg_test:]
+    ])
+    idx_test = np.concatenate([
+        pos_idx[:n_pos_test],
+        neg_idx[:n_neg_test]
+    ])
+    rng.shuffle(idx_train)
+    rng.shuffle(idx_test)
+
+    return X[idx_train], X[idx_test], \
+           y[idx_train], y[idx_test]
+```
+
+:::
+::: {.column width="45%"}
+
+**Verificación:**
+
+```python
+# Proporción original de 1s
+y[y == 1].shape[0] / y.shape[0]
+# → 0.50
+
+# Debe preservarse en train y test
+y_train[y_train==1].shape[0] / len(y_train)
+# → ~0.50
+
+y_test[y_test==1].shape[0] / len(y_test)
+# → ~0.50
+```
+
+::: {.callout-warning}
+**¿Por qué importa esto?** Si el 95% de las muestras son `0` y el modelo predice siempre `0`, tiene 95% de exactitud (accuracy) pero nunca detecta una falla. El muestreo estratificado y las métricas por clase (sensibilidad/especificidad) evitan esta trampa.
+:::
+
+:::
+::::
+
+---
+
+# Cierre {background-color="#16213e"}
+
+---
+
+## NumPy como base de todo lo que viene: el vocabulario mínimo del análisis de datos
+
+:::: {.columns}
+::: {.column width="50%"}
+
+**Lo que aprendimos:**
+
+| Módulo | Habilidades adquiridas |
+|---|---|
+| **Arreglo** | Crear, indexar, transformar, guardar |
+| **Operatoria** | ufuncs, aritmética vectorizada, álgebra lineal |
+| **Broadcasting** | Extender cálculos entre geometrías distintas |
+| **Agregación** | Resumir información por eje |
+| **Filtrado** | Comparación, masking, fancy indexing |
+| **Modelos** | Regresión lineal y logística desde cero |
+
+:::
+::: {.column width="50%"}
+
+**El ecosistema que viene:**
+
+```
+NumPy (arreglos + vectorización)
+    │
+    ├─► Pandas (tablas con nombres y tipos mixtos)
+    │
+    ├─► Matplotlib (visualización)
+    │
+    ├─► SciPy (computación científica)
+    │
+    ├─► Scikit-Learn (modelos de ML)
+    │
+    └─► PyTorch / JAX (deep learning)
+```
+
+> Dominar NumPy no es dominar *una* librería. Es dominar la *lógica* sobre la cual todo el stack científico de Python está construido.
+
+:::
+::::
+
+---
+
+## Resumen de operaciones clave — hoja de referencia rápida
+
+:::: {.columns}
+::: {.column width="33%"}
+
+**Creación:**
+```python
+np.array([1, 2, 3])
+np.zeros((m, n))
+np.ones((m, n))
+np.eye(n)
+np.arange(start, stop, step)
+np.linspace(start, stop, num)
+rng.normal(loc, scale, size)
+```
+
+**Atributos:**
+```python
+A.shape, A.ndim, A.size
+A.dtype, A.nbytes
+```
+
+**Reshape:**
+```python
+A.reshape(m, n)
+A.ravel()
+A.T
+```
+
+:::
+::: {.column width="33%"}
+
+**Operatoria:**
+```python
+a + b, a - b       # suma, resta
+a * b              # Hadamard
+A @ B              # matricial
+np.dot(a, b)       # producto interno
+np.linalg.norm(x)  # norma-2
+np.abs(A)          # valor absoluto
+np.exp, np.log
+np.sin, np.cos
+```
+
+**Agregación:**
+```python
+A.sum(axis=0)
+A.mean(axis=1)
+A.std(axis=0)
+A.max(), A.argmax()
+np.nanmean(A)
+```
+
+:::
+::: {.column width="33%"}
+
+**Filtrado:**
+```python
+x > 3              # booleano
+np.any(x > 3)
+np.all(x > 3)
+x[(x>3) & (x<8)]  # masking
+x[[0,4,7]]         # fancy idx
+M[np.ix_(rows,cols)]
+np.where(cond,a,b)
+np.clip(x, lo, hi)
+```
+
+**Ordenamiento:**
+```python
+np.sort(x)
+np.argsort(x)
+np.partition(x, K)
+```
+
+**I/O:**
+```python
+np.loadtxt("f.csv")
+np.save("f.npy", A)
+np.load("f.npy")
+```
+
+:::
+::::
+
+---
+
+## {background-color="#16213e"}
+
+::: {style="text-align: center; color: white; padding-top: 200px;"}
+
+### Gracias
+
+**Recursos:**
+
+Notas de clase completas disponibles en el blog del curso
+
+`numpy.org/doc` — Documentación oficial NumPy
+
+**Próxima sesión:** Análisis tabular con Pandas
+
+:::

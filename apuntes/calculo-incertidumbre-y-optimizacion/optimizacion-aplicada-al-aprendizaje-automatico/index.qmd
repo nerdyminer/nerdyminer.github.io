@@ -3,8 +3,9 @@ title: "Optimización aplicada a machine learning"
 subtitle: "Gradiente descendente, variantes estocásticas y programación lineal y cuadrática"
 section_href: "/apuntes/calculo-incertidumbre-y-optimizacion/"
 toc: true
-toc-depth: 4
+toc-depth: 3
 page-layout: article
+number-offset: 8
 ---
 
 ::: {.callout-important}
@@ -112,7 +113,7 @@ sym.init_printing()
 # Parámetros gráficos generales.
 plt.rcParams["figure.dpi"] = 90
 sns.set_theme()
-plt.style.use("bmh")
+plt.style.use("seaborn-v0_8-white")
 ```
 
 ```{python}
@@ -162,6 +163,8 @@ Z = f_eval(x_1=X1, x_2=X2)
 ```
 
 ```{python}
+#| label: fig-optimizacion-aplicada-al-aprendizaje-automatico-01
+#| fig-cap: "Curvas de contorno de la función objetivo usada para ilustrar el funcionamiento del algoritmo de gradiente descendente."
 # Construimos el gráfico de f.
 fig, ax = plt.subplots(figsize=(9, 6))
 
@@ -238,6 +241,8 @@ n_iters, x_sol, trajectory = gradient_descent(df=df_eval, x0=x0)
 ```
 
 ```{python}
+#| label: fig-optimizacion-aplicada-al-aprendizaje-automatico-02
+#| fig-cap: "Trayectoria del algoritmo de gradiente descendente sobre las curvas de contorno de la función objetivo."
 # Construimos el gráfico de f.
 fig, ax = plt.subplots(figsize=(9, 6))
 
@@ -506,6 +511,8 @@ Z = f_eval(X1, X2)
 ```
 
 ```{python}
+#| label: fig-optimizacion-aplicada-al-aprendizaje-automatico-03
+#| fig-cap: "Comparación de trayaectorias de los algoritmos de GD normal y con momentum sobre la función objetivo."
 # Construimos el gráfico de f y comparamos ambas trayectorias.
 fig, ax = plt.subplots(figsize=(9, 6))
 
@@ -675,10 +682,11 @@ Y = 2 + 3*X + rng.normal(loc=0, scale=1, size=100)
 ```
 
 ```{python}
+#| label: fig-optimizacion-aplicada-al-aprendizaje-automatico-04
+#| fig-cap: "Conjunto de datos de ejemplo."
 # Graficamos nuestro conjunto de datos recién creado.
 fig, ax = plt.subplots(figsize=(9, 5))
 ax.scatter(x=X, y=Y, color="firebrick")
-ax.set_title("Conjunto de datos de ejemplo", fontsize=13, fontweight="bold", pad=10)
 ax.set_xlabel(r"$x$", fontsize=12, labelpad=10)
 ax.set_ylabel(r"$y$", fontsize=12, labelpad=15, rotation=0)
 plt.tight_layout()
@@ -740,11 +748,12 @@ Y_pred_bgd = x_biased @ w_bgd
 ```
 
 ```{python}
+#| label: fig-optimizacion-aplicada-al-aprendizaje-automatico-05
+#| fig-cap: "Modelo de regresión construido a partir del algoritmo BGD."
 # Graficamos el modelo construido mediante el algoritmo BGD junto a los datos.
 fig, ax = plt.subplots(figsize=(9, 5))
 ax.scatter(x=X, y=Y, color="firebrick", label="Conjunto de datos")
 ax.plot(x_range.reshape(-1,), Y_pred_bgd.reshape(-1,), color="navy", label=r"Modelo: $y=w_{0}+w_{1}x$")
-ax.set_title("Modelo conforme algoritmo BGD", fontsize=13, fontweight="bold", pad=10)
 ax.set_xlabel(r"$x$", fontsize=12, labelpad=10)
 ax.set_ylabel(r"$y$", fontsize=12, labelpad=15, rotation=0)
 ax.legend(loc="upper left", fontsize=10, frameon=True)
@@ -754,19 +763,38 @@ plt.tight_layout()
 La trayectoria del algoritmo BGD puede visualizarse para algunos valores obtenidos de $\mathbf{w}$, tomando como base el arreglo `path_bgd`. Debido a que nuestra implementación consta de 3000 iteraciones, no será práctico visualizar esta trayectoria en su totalidad, pero el gráfico que construiremos bastará para observar la convergencia del algoritmo. En efecto:
 
 ```{python}
-# Creamos la figura y graficamos los puntos a partir de los cuales entrenamos el modelo.
+#| label: fig-optimizacion-aplicada-al-aprendizaje-automatico-06
+#| fig-cap: "Convergencia del algoritmo BGD."
+# Creamos la figura y graficamos los puntos a partir de los cuales
+# entrenamos el modelo.
 fig, ax = plt.subplots(figsize=(9, 5))
-ax.scatter(x=X, y=Y, color="firebrick", label="Conjunto de datos")
+ax.scatter(
+    x=X,
+    y=Y,
+    color="firebrick",
+    label="Conjunto de datos",
+)
 
-# Mediante un loop sencillo, obtenemos algunas valores de `w` para la trayectoria completa
-# del algoritmo.
+# Mediante un loop sencillo, obtenemos algunas valores de `w` para
+# la trayectoria completa del algoritmo.
 for k in range(0, len(path_bgd), 100):
     Y_pred_k = x_biased @ path_bgd[k]
-    ax.plot(x_range.reshape(-1,), Y_pred_k.reshape(-1,), color="navy", alpha=0.15)
+    ax.plot(
+        x_range.reshape(-1,),
+        Y_pred_k.reshape(-1,),
+        color="navy",
+        alpha=0.15,
+    )
 
 # Completamos el gráfico.
-ax.plot(x_range.reshape(-1,), Y_pred_bgd.reshape(-1,), color="navy", label=r"Modelo: $y=w_{0}+w_{1}x$")
-ax.set_title("Convergencia del algoritmo BGD", fontsize=13, fontweight="bold", pad=10)
+ax.plot(
+    x_range.reshape(-1,),
+    Y_pred_bgd.reshape(-1,),
+    color="navy",
+    label=r"Modelo: $y=w_{0}+w_{1}x$"
+)
+
+# Etiquetamos el gráfico.
 ax.set_xlabel(r"$x$", fontsize=12, labelpad=10)
 ax.set_ylabel(r"$y$", fontsize=12, labelpad=15, rotation=0)
 ax.legend(loc="upper left", fontsize=10, frameon=True)
@@ -846,12 +874,33 @@ Y_pred_sgd = x_biased @ w_sgd
 ```
 
 ```{python}
+#| label: fig-optimizacion-aplicada-al-aprendizaje-automatico-07
+#| fig-cap: "Modelos construidos a partir de los algoritmos SGD y BGD."
 # Graficamos el modelo construido mediante el algoritmo SGD junto a los datos.
 fig, ax = plt.subplots(figsize=(9, 5))
-ax.scatter(x=X, y=Y, color="firebrick", label="Conjunto de datos")
-ax.plot(x_range, Y_pred_bgd.reshape(-1,), color="navy", label=r"Modelo vía BGD", alpha=0.6)
-ax.plot(x_range, Y_pred_sgd.reshape(-1,), color="teal", label=r"Modelo vía SGD", alpha=0.6)
-ax.set_title("Modelos conforme algoritmos SGD y BGD", fontsize=13, fontweight="bold", pad=10)
+ax.scatter(
+    x=X,
+    y=Y,
+    color="firebrick",
+    label="Conjunto de datos",
+)
+
+ax.plot(
+    x_range,
+    Y_pred_bgd.reshape(-1,),
+    color="navy",
+    label=r"Modelo vía BGD",
+    alpha=0.6,
+)
+
+ax.plot(
+    x_range,
+    Y_pred_sgd.reshape(-1,),
+    color="teal",
+    label=r"Modelo vía SGD",
+    alpha=0.6,
+)
+
 ax.set_xlabel(r"$x$", fontsize=12, labelpad=10)
 ax.set_ylabel(r"$y$", fontsize=12, labelpad=15, rotation=0)
 ax.legend(loc="upper left", fontsize=10, frameon=True)
@@ -916,13 +965,41 @@ Y_pred_mbgd = x_biased @ w_mbgd
 ```
 
 ```{python}
+#| label: fig-optimizacion-aplicada-al-aprendizaje-automatico-08
+#| fig-cap: "Modelos construidos a partir de los algoritmos SGD, BGD y MBGD."
 # Graficamos el modelo construido mediante el algoritmo MBGD junto a los datos.
 fig, ax = plt.subplots(figsize=(9, 5))
-ax.scatter(x=X, y=Y, color="firebrick", label="Conjunto de datos")
-ax.plot(x_range, Y_pred_bgd.reshape(-1,), color="navy", label=r"Modelo vía BGD", alpha=0.6)
-ax.plot(x_range, Y_pred_sgd.reshape(-1,), color="teal", label=r"Modelo vía SGD", alpha=0.6)
-ax.plot(x_range, Y_pred_mbgd.reshape(-1,), color="dodgerblue", label=r"Modelo vía MBGD", alpha=0.6)
-ax.set_title("Modelos conforme algoritmos SGD, BGD y MBGD", fontsize=13, fontweight="bold", pad=10)
+ax.scatter(
+    x=X,
+    y=Y,
+    color="firebrick",
+    label="Conjunto de datos",
+)
+
+ax.plot(
+    x_range,
+    Y_pred_bgd.reshape(-1,),
+    color="navy",
+    label=r"Modelo vía BGD",
+    alpha=0.6,
+)
+
+ax.plot(
+    x_range,
+    Y_pred_sgd.reshape(-1,),
+    color="teal",
+    label=r"Modelo vía SGD",
+    alpha=0.6,
+)
+
+ax.plot(
+    x_range,
+    Y_pred_mbgd.reshape(-1,),
+    color="dodgerblue",
+    label=r"Modelo vía MBGD",
+    alpha=0.6,
+)
+
 ax.set_xlabel(r"$x$", fontsize=12, labelpad=10)
 ax.set_ylabel(r"$y$", fontsize=12, labelpad=15, rotation=0)
 ax.legend(loc="upper left", fontsize=10, frameon=True)
@@ -941,22 +1018,54 @@ path_mbgd = np.array(path_mbgd)
 ```
 
 ```{python}
+#| label: fig-optimizacion-aplicada-al-aprendizaje-automatico-09
+#| fig-cap: "Trayectorias de las distintas variantes del algoritmo de gradiente descendente en el espacio de parámetros."
 # Visualizamos en un gráficos las trayectorias paramétricas de los algoritmos.
 fig, ax = plt.subplots(figsize=(9, 5))
-ax.plot(path_bgd[:, 0], path_bgd[:, 1], marker="^", color="navy", linestyle="-", alpha=0.6, label="BGD")
-ax.plot(path_sgd[:, 0], path_sgd[:, 1], marker="o", color="firebrick", linestyle="-", alpha=0.6, label="SGD")
-ax.plot(path_mbgd[:, 0], path_mbgd[:, 1], marker="+", color="gold", linestyle="-", alpha=0.6, label="MBGD")
+ax.plot(
+    path_bgd[:, 0],
+    path_bgd[:, 1],
+    marker="^",
+    color="navy",
+    linestyle="-",
+    alpha=0.6,
+    label="BGD",
+)
+
+ax.plot(
+    path_sgd[:, 0],
+    path_sgd[:, 1],
+    marker="o",
+    color="firebrick",
+    linestyle="-",
+    alpha=0.6,
+    label="SGD",
+)
+
+ax.plot(
+    path_mbgd[:, 0],
+    path_mbgd[:, 1],
+    marker="+",
+    color="gold",
+    linestyle="-",
+    alpha=0.6,
+    label="MBGD",
+)
+
 ax.set_xlabel(r"$w_{0}$", fontsize=12, labelpad=10)
 ax.set_ylabel(r"$w_{1}$", fontsize=12, rotation=0, labelpad=15)
 
-ax.set_title(
-    "Trayectorias de los algoritmos de GD en el espacio de parámetros",
-    fontsize=13, fontweight="bold", pad=10
-)
-
 ax.annotate(
-    "Solución óptima", xy=(2, 3), xytext=(1, 2.5), xycoords='data',
-    fontsize=12, bbox=dict(boxstyle="round4,pad=.5", fc="0.9", color="black"),
+    "Solución óptima",
+    xy=(2, 3),
+    xytext=(1, 2.5),
+    xycoords='data',
+    fontsize=12,
+    bbox=dict(
+        boxstyle="round4,pad=.5",
+        fc="0.9",
+        color="black",
+    ),
     arrowprops=dict(
         arrowstyle="->", 
         connectionstyle="angle,angleA=0,angleB=80,rad=20",
@@ -1136,6 +1245,8 @@ Phi_adagrad = np.column_stack([
 Visualicemos los datos simulados en tres dimensiones. Para que la figura sea legible, graficaremos una muestra aleatoria de puntos:
 
 ```{python}
+#| label: fig-optimizacion-aplicada-al-aprendizaje-automatico-10
+#| fig-cap: "Datos simulados desde un paraboloide hiperbólico."
 # Seleccionamos una muestra de puntos para visualización.
 sample_idx = rng_adagrad.choice(m, size=450, replace=False)
 
@@ -1150,13 +1261,6 @@ ax.scatter(
     alpha=0.55,
     color="firebrick",
     label="Datos simulados con ruido"
-)
-
-ax.set_title(
-    "Datos simulados desde un paraboloide hiperbólico",
-    fontsize=13,
-    fontweight="bold",
-    pad=10
 )
 
 ax.set_xlabel(r"$x_1$", fontsize=12, labelpad=10)
@@ -1311,19 +1415,14 @@ print(f"w2 = {w_ols[2, 0]:.4f}")
 Podemos observar también la evolución de la función de pérdida durante el entrenamiento:
 
 ```{python}
+#| label: fig-optimizacion-aplicada-al-aprendizaje-automatico-11
+#| fig-cap: "Evolución de la función de pérdida durante el entrenamiento con AdaGrad."
 fig, ax = plt.subplots(figsize=(9, 5))
 
 ax.plot(
     hist_adagrad["loss_path"],
-    color="navy",
+    color="dodgerblue",
     linewidth=2.5
-)
-
-ax.set_title(
-    "Evolución de la función de pérdida durante el entrenamiento con AdaGrad",
-    fontsize=13,
-    fontweight="bold",
-    pad=10
 )
 
 ax.set_xlabel("Iteración almacenada", fontsize=12, labelpad=10)
@@ -1334,6 +1433,8 @@ plt.tight_layout()
 También podemos visualizar cómo AdaGrad modifica las tasas de aprendizaje efectivas por parámetro. Esto es precisamente lo que distingue al método del algoritmo GD estándar:
 
 ```{python}
+#| label: fig-optimizacion-aplicada-al-aprendizaje-automatico-12
+#| fig-cap: "Tasas de aprendizaje efectivas modificadas por el algoritmo AdaGrad."
 fig, ax = plt.subplots(figsize=(9, 5))
 
 ax.plot(
@@ -1354,13 +1455,6 @@ ax.plot(
     label=r"$\eta^{eff}_{w_2}$"
 )
 
-ax.set_title(
-    "Tasas de aprendizaje efectivas en AdaGrad",
-    fontsize=13,
-    fontweight="bold",
-    pad=10
-)
-
 ax.set_xlabel("Iteración almacenada", fontsize=12, labelpad=10)
 ax.set_ylabel(r"$\gamma^{eff}$", fontsize=12, labelpad=15, rotation=0)
 ax.legend(loc="upper right", fontsize=10, frameon=True)
@@ -1370,6 +1464,8 @@ plt.tight_layout()
 Finalmente, graficamos la superficie ajustada por *AdaGrad* junto a los datos simulados:
 
 ```{python}
+#| label: fig-optimizacion-aplicada-al-aprendizaje-automatico-13
+#| fig-cap: "Reconstrucción del paraboloide hiperbólico mediante el uso del algoritmo AdaGrad."
 # Grilla para visualizar la superficie ajustada.
 x1_grid = np.linspace(-2.0, 2.0, 90)
 x2_grid = np.linspace(-2.0, 2.0, 90)
@@ -1404,13 +1500,6 @@ surf = ax.plot_surface(
     cmap="cool",
     alpha=0.65,
     edgecolor="none"
-)
-
-ax.set_title(
-    "Reconstrucción del paraboloide hiperbólico mediante AdaGrad",
-    fontsize=13,
-    fontweight="bold",
-    pad=10
 )
 
 ax.set_xlabel(r"$x_1$", fontsize=12, labelpad=10)
@@ -1674,19 +1763,14 @@ print(f"w2 = {w_ols_rmsprop[2, 0]:.4f}")
 Visualizamos ahora la evolución de la función de pérdida:
 
 ```{python}
+#| label: fig-optimizacion-aplicada-al-aprendizaje-automatico-14
+#| fig-cap: "Evolución de la función de pérdida durante el entrenamiento con RMSProp."
 fig, ax = plt.subplots(figsize=(9, 5))
 
 ax.plot(
     hist_rmsprop["loss_path"],
-    color="navy",
+    color="dodgerblue",
     linewidth=2.5
-)
-
-ax.set_title(
-    "Evolución de la pérdida durante el entrenamiento con RMSProp",
-    fontsize=13,
-    fontweight="bold",
-    pad=10
 )
 
 ax.set_xlabel("Iteración almacenada", fontsize=12, labelpad=10)
@@ -1697,6 +1781,8 @@ plt.tight_layout()
 A diferencia de *AdaGrad*, las tasas efectivas de *RMSProp* no necesariamente decrecen de manera monótona. Esto se debe a que el acumulador de gradientes cuadrados se actualiza como un promedio móvil exponencial, no como una suma histórica total:
 
 ```{python}
+#| label: fig-optimizacion-aplicada-al-aprendizaje-automatico-15
+#| fig-cap: "Tasas de aprendizaje efectivas en RMSProp."
 fig, ax = plt.subplots(figsize=(9, 5))
 
 ax.plot(
@@ -1733,6 +1819,8 @@ plt.tight_layout()
 Finalmente, graficamos la superficie ajustada por RMSProp junto a los datos simulados:
 
 ```{python}
+#| label: fig-optimizacion-aplicada-al-aprendizaje-automatico-16
+#| fig-cap: "Reconstrucción del paraboloide hiperbólico por medio del algoritmo RMSProp."
 # Grilla para visualizar la superficie ajustada.
 x1_grid = np.linspace(-2.0, 2.0, 90)
 x2_grid = np.linspace(-2.0, 2.0, 90)
@@ -1746,7 +1834,9 @@ Y_hat_grid_rmsprop = (
 )
 
 # Muestra de puntos para visualización.
-sample_idx_rmsprop = rng_rmsprop.choice(len(y_rmsprop), size=450, replace=False)
+sample_idx_rmsprop = rng_rmsprop.choice(
+    len(y_rmsprop), size=450, replace=False,
+)
 
 fig = plt.figure(figsize=(10, 7))
 ax = fig.add_subplot(111, projection="3d")
@@ -1770,13 +1860,6 @@ surf = ax.plot_surface(
     cmap="cool",
     alpha=0.65,
     edgecolor="none"
-)
-
-ax.set_title(
-    "Reconstrucción del paraboloide hiperbólico mediante RMSProp",
-    fontsize=13,
-    fontweight="bold",
-    pad=10
 )
 
 ax.set_xlabel(r"$x_1$", fontsize=12, labelpad=10)
@@ -2072,19 +2155,14 @@ print(f"w2 = {w_ols_adam[2, 0]:.4f}")
 Visualizamos ahora la evolución de la función de pérdida conforme la progresión del entrenamiento:
 
 ```{python}
+#| label: fig-optimizacion-aplicada-al-aprendizaje-automatico-17
+#| fig-cap: "Evolución de la función de pérdida durante el entrenamiento con el algoritmo Adam."
 fig, ax = plt.subplots(figsize=(9, 5))
 
 ax.plot(
     hist_adam["loss_path"],
-    color="navy",
+    color="dodgerblue",
     linewidth=2.5
-)
-
-ax.set_title(
-    "Evolución de la pérdida durante el entrenamiento con Adam",
-    fontsize=13,
-    fontweight="bold",
-    pad=10
 )
 
 ax.set_xlabel("Iteración almacenada", fontsize=12, labelpad=10)
@@ -2095,6 +2173,8 @@ plt.tight_layout()
 Podemos visualizar también las tasas efectivas de aprendizaje. En Adam, estas tasas dependen del segundo momento corregido $\widehat{\mathbf{v}}{k}$, mientras que la dirección de actualización depende del primer momento corregido $\widehat{\mathbf{m}}{k}$:
 
 ```{python}
+#| label: fig-optimizacion-aplicada-al-aprendizaje-automatico-18
+#| fig-cap: "Tasas de aprendizaje efectivas para el algoritmo Adam."
 fig, ax = plt.subplots(figsize=(9, 5))
 
 ax.plot(
@@ -2115,13 +2195,6 @@ ax.plot(
     label=r"$\gamma^{eff}_{w_2}$"
 )
 
-ax.set_title(
-    "Tasas de aprendizaje efectivas en Adam",
-    fontsize=13,
-    fontweight="bold",
-    pad=10
-)
-
 ax.set_xlabel("Iteración almacenada", fontsize=12, labelpad=10)
 ax.set_ylabel(r"$\gamma^{eff}$", fontsize=12, labelpad=15, rotation=0)
 ax.legend(loc="upper right", fontsize=10, frameon=True)
@@ -2131,6 +2204,8 @@ plt.tight_layout()
 Para observar el componente de moméntum del método, grafiquemos la evolución del primer momento corregido:
 
 ```{python}
+#| label: fig-optimizacion-aplicada-al-aprendizaje-automatico-19
+#| fig-cap: "Primer momento corregido en el algoritmo Adam."
 fig, ax = plt.subplots(figsize=(9, 5))
 
 ax.plot(
@@ -2149,13 +2224,6 @@ ax.plot(
     hist_adam["mhat_path"][:, 2],
     linewidth=2,
     label=r"$\widehat{m}_{w_2}$"
-)
-
-ax.set_title(
-    "Primer momento corregido en Adam",
-    fontsize=13,
-    fontweight="bold",
-    pad=10
 )
 
 ax.set_xlabel("Iteración almacenada", fontsize=12, labelpad=10)
@@ -2184,6 +2252,8 @@ sample_idx_adam = rng_adam.choice(len(y_adam), size=450, replace=False)
 ```
 
 ```{python}
+#| label: fig-optimizacion-aplicada-al-aprendizaje-automatico-20
+#| fig-cap: "Reconstrucción del paraboloide hiperbólico mediante el algoritmo Adam."
 # Visualización del paraboloide reconstruido.
 fig = plt.figure(figsize=(10, 7))
 ax = fig.add_subplot(111, projection="3d")
@@ -2207,13 +2277,6 @@ surf = ax.plot_surface(
     cmap="cool",
     alpha=0.65,
     edgecolor="none"
-)
-
-ax.set_title(
-    "Reconstrucción del paraboloide hiperbólico mediante Adam",
-    fontsize=13,
-    fontweight="bold",
-    pad=10
 )
 
 ax.set_xlabel(r"$x_1$", fontsize=12, labelpad=10)
@@ -2457,19 +2520,14 @@ print(f"w2 = {w_ols_nag[2, 0]:.4f}")
 A continuación, graficamos el valor de la función de pérdida a medida que progresa el entrenamiento:
 
 ```{python}
+#| label: fig-optimizacion-aplicada-al-aprendizaje-automatico-21
+#| fig-cap: "Evolución de la función de pérdida durante el entrenamiento con el algoritmo de Nesterov."
 fig, ax = plt.subplots(figsize=(9, 5))
 
 ax.plot(
     hist_nag["loss_path"],
-    color="navy",
+    color="dodgerblue",
     linewidth=2.5
-)
-
-ax.set_title(
-    "Evolución de la pérdida durante el entrenamiento con Nesterov",
-    fontsize=13,
-    fontweight="bold",
-    pad=10
 )
 
 ax.set_xlabel("Iteración almacenada", fontsize=12, labelpad=10)
@@ -2480,19 +2538,14 @@ plt.tight_layout()
 Podemos observar también la evolución de la norma Euclidiana de la velocidad. Esta magnitud permite visualizar cómo el término inercial domina al comienzo del entrenamiento y luego se reduce progresivamente a medida que el algoritmo se acerca al mínimo:
 
 ```{python}
+#| label: fig-optimizacion-aplicada-al-aprendizaje-automatico-22
+#| fig-cap: "Norma de la velocidad durante el entrenamiento con el algoritmo de Nesterov."
 fig, ax = plt.subplots(figsize=(9, 5))
 
 ax.plot(
     hist_nag["velocity_norm_path"],
-    color="darkred",
+    color="firebrick",
     linewidth=2.5
-)
-
-ax.set_title(
-    "Norma de la velocidad durante el entrenamiento con Nesterov",
-    fontsize=13,
-    fontweight="bold",
-    pad=10
 )
 
 ax.set_xlabel("Iteración almacenada", fontsize=12, labelpad=10)
@@ -2503,6 +2556,8 @@ plt.tight_layout()
 Finalmente, graficamos la superficie reconstruida por Nesterov junto a los datos simulados:
 
 ```{python}
+#| label: fig-optimizacion-aplicada-al-aprendizaje-automatico-23
+#| fig-cap: "Reconstrucción del paraboloide hiperbólico por medio del algoritmo de Nesterov."
 # Grilla para visualizar la superficie ajustada.
 x1_grid = np.linspace(-2.0, 2.0, 90)
 x2_grid = np.linspace(-2.0, 2.0, 90)
@@ -2566,6 +2621,7 @@ El algoritmo de gradiente acelerado de Nesterov logra reconstruir correctamente 
 En este sentido, NAG puede entenderse como un método que conserva la velocidad acumulada del moméntum, pero con una mirada predictiva que suele mejorar la estabilidad del descenso. Esta idea de anticipación es una de las razones por las cuales el gradiente acelerado de Nesterov ocupa un lugar central en la teoría moderna de optimización de primer orden. ◼︎
 
 ## Optimización de funciones convexas
+
 Recordemos, de nuestro [apunte dedicado a la teoría de la optimización](/apuntes/calculo-incertidumbre-y-optimizacion/introduccion-a-la-teoria-de-optimizacion/), que un problema general de optimización tiene la forma
 
 ::: {.eq-scroll}
@@ -2687,15 +2743,29 @@ line = build_line(u_arr, H2, H1, 0.8, 0.2)
 ```
 
 ```{python}
+#| label: fig-optimizacion-aplicada-al-aprendizaje-automatico-24
+#| fig-cap: "La entropía es una función cóncava."
 # Construimos nuestro gráfico final.
 fig, ax = plt.subplots(figsize=(9, 5))
+ax.plot(
+    u_arr,
+    H_eval(u=u_arr),
+    color="firebrick",
+    label="Entropía",
+)
 
-ax.plot(u_arr, H_eval(u=u_arr), color="indianred", label="Entropía")
-ax.plot(u_arr, line, color="navy", linestyle="--", label=r"Recta entre $u_{1}$ y $u_{2}$")
+ax.plot(
+    u_arr,
+    line,
+    color="dodgerblue",
+    linestyle="--",
+    label=r"Recta entre $u_{1}$ y $u_{2}$",
+)
+
 ax.scatter(x=0.2, y=H_eval(0.2), color="k")
 ax.scatter(x=0.8, y=H_eval(0.8), color="k")
 
-ax.set_title("La entropía es una función cóncava", fontsize=14, fontweight="bold", pad=10)
+# Etiquetamos el gráfico.
 ax.legend(loc="lower center", fontsize=10, frameon=True)
 ax.set_xlabel(r"$u$", fontsize=12, labelpad=10)
 ax.set_ylabel(r"$H(u)$", fontsize=12, labelpad=24, rotation=0);
@@ -2868,30 +2938,51 @@ expressions = [
 ```
 
 ```{python}
+#| label: fig-optimizacion-aplicada-al-aprendizaje-automatico-25
+#| fig-cap: "Espacio de soluciones factibles del programa lineal."
 # Graficamos el espacio de soluciones factibles del problema.
 fig, ax = plt.subplots(figsize=(9, 7))
-p = ax.contourf(X1, X2, Z, levels=20, cmap="cool", alpha=0.3)
+p = ax.contourf(
+    X1,
+    X2,
+    Z,
+    levels=20,
+    cmap="cool",
+    alpha=0.3,
+)
 
 for i, ri in enumerate(constraints):
     ax.plot(x1_range, ri, label=expressions[i])
 
-upper_bound = np.minimum(np.minimum(r1, r3), np.minimum(r1, r5)) # Cota superior del ESF.
-lower_bound = np.maximum(r2, r4) # Cota inferior del ESF.
+# Cota superior del ESF.
+upper_bound = np.minimum(
+    np.minimum(r1, r3), np.minimum(r1, r5),
+)
+
+# Cota inferior del ESF.
+lower_bound = np.maximum(r2, r4)
 ax.fill_between(
-    x1_range, upper_bound, lower_bound,
+    x1_range,
+    upper_bound,
+    lower_bound,
     where=upper_bound > lower_bound,
     color="gray",
     alpha=0.6,
 )
 
 cb = plt.colorbar(p)
-cb.set_label(r"Valor de $f(\mathbf{x})$", fontsize=12, labelpad=10)
+cb.set_label(
+    r"Valor de $f(\mathbf{x})$",
+    fontsize=12,
+    labelpad=10,
+)
+
 ax.legend(loc="upper right", fontsize=12, frameon=True)
 ax.set_xlabel(r"$x_{1}$", fontsize=14, labelpad=10)
 ax.set_ylabel(r"$x_{2}$", fontsize=14, labelpad=20, rotation=0)
 ax.set_xlim(0, 16)
 ax.set_ylim(0, 12)
-ax.set_title("Espacio de soluciones factibles del PL", fontsize=15, fontweight="bold", pad=10)
+
 plt.tight_layout()
 ```
 
@@ -3185,6 +3276,8 @@ y_margin = np.hstack([
 Visualizamos el problema antes de resolverlo:
 
 ```{python}
+#| label: fig-optimizacion-aplicada-al-aprendizaje-automatico-26
+#| fig-cap: "Un conjunto de datos linealmente separable."
 fig, ax = plt.subplots(figsize=(9, 6))
 
 ax.scatter(
@@ -3199,13 +3292,6 @@ ax.scatter(
     X_margin[y_margin == 1, 1],
     color="navy",
     label=r"Clase $+1$"
-)
-
-ax.set_title(
-    "Conjunto de datos linealmente separable",
-    fontsize=13,
-    fontweight="bold",
-    pad=10
 )
 
 ax.set_xlabel(r"$x_1$", fontsize=12, labelpad=10)
@@ -3328,6 +3414,8 @@ x2_margin_neg = separating_line(x1_plot, w_star, b_star, level=-1.0)
 ```
 
 ```{python}
+#| label: fig-optimizacion-aplicada-al-aprendizaje-automatico-27
+#| fig-cap: "Separación lineal de margen máximo vía programación cuadrática."
 # Visualizamos la solución del problema.
 fig, ax = plt.subplots(figsize=(9, 6))
 
@@ -3385,13 +3473,7 @@ ax.plot(
     label=r"$\mathbf{w}^{\top}\mathbf{x}+b=-1$"
 )
 
-ax.set_title(
-    "Separación lineal de margen máximo vía programa cuadrático",
-    fontsize=13,
-    fontweight="bold",
-    pad=10
-)
-
+# Etiquetas y leyenda.
 ax.set_xlabel(r"$x_1$", fontsize=12, labelpad=10)
 ax.set_ylabel(r"$x_2$", fontsize=12, labelpad=15, rotation=0)
 ax.legend(loc="best", fontsize=9, frameon=True)
@@ -3410,7 +3492,7 @@ Además, el ejemplo ilustra muy bien la lógica de **<font color='darkmagenta'>C
 
 En este caso, **<font color='darkmagenta'>CVXPY</font>** reconoce que la función objetivo es cuadrática (y, por extensión, convexa) y que las restricciones son lineales, por lo que el problema cumple las reglas necesarias para ser resuelto como un PC. Más adelante, cuando abordemos en detalle las máquinas de soporte vectorial, veremos que esta misma estructura constituye el corazón matemático de uno de los modelos de aprendizaje supervisado más importantes del aprendizaje automático. ◼︎
 
-### Función conjugada convexa.
+### Función conjugada convexa
 
 Para finalizar este apunte, introduciremos una construcción fundamental en el análisis de funciones convexas y optimización: La noción de **función conjugada convexa**. Esta herramienta permite transformar una función convexa en otra función convexa definida en un espacio dual. Aunque la idea puede parecer abstracta al principio, su importancia es enorme. Aparece en teoría de dualidad, en regularización, en las condiciones KKT, en problemas de margen máximo y en muchas formulaciones modernas de *machine learning*.
 
@@ -3522,6 +3604,8 @@ f_star_true = f_quad_star(y_grid)
 ```
 
 ```{python}
+#| label: fig-optimizacion-aplicada-al-aprendizaje-automatico-28
+#| fig-cap: "Conjugada convexa de una función cuadrática."
 # Visualizamos el resultado anterior.
 fig, ax = plt.subplots(figsize=(9, 6))
 
@@ -3540,13 +3624,6 @@ ax.plot(
     linestyle="--",
     linewidth=2.0,
     label=r"Conjugada analítica: $f^{\star}(y)=y^2/2$"
-)
-
-ax.set_title(
-    "Conjugada convexa de una función cuadrática",
-    fontsize=13,
-    fontweight="bold",
-    pad=10
 )
 
 ax.set_xlabel(r"$y$", fontsize=12, labelpad=10)
@@ -3742,6 +3819,8 @@ y_grid = np.linspace(start=-3, stop=3, num=400)
 ```
 
 ```{python}
+#| label: fig-optimizacion-aplicada-al-aprendizaje-automatico-29
+#| fig-cap: "Conjugada de $f(x)=\\alpha x^2/2$ para distintos valores de $\\alpha$."
 # Visualizamos la conjugada de nuestra función.
 fig, ax = plt.subplots(figsize=(9, 6))
 
@@ -3752,13 +3831,6 @@ for alpha_k in alpha_values:
         linewidth=2,
         label=rf"$\alpha={alpha_k}$"
     )
-
-ax.set_title(
-    r"Conjugada de $f(x)=\alpha x^2/2$",
-    fontsize=13,
-    fontweight="bold",
-    pad=10
-)
 
 ax.set_xlabel(r"$y$", fontsize=12, labelpad=10)
 ax.set_ylabel(r"$f^{\star}(y)$", fontsize=12, labelpad=15, rotation=0)

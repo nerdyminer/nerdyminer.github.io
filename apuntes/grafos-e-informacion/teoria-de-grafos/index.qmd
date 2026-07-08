@@ -5,6 +5,7 @@ section_href: "/apuntes/grafos-e-informacion/"
 toc: true
 toc-depth: 3
 page-layout: article
+number-offset: 1
 ---
 
 ::: {.callout-important}
@@ -19,7 +20,7 @@ Los grafos, también conocidos como redes, son protagonistas de muchísimas apli
 
 Esta apunte pretende actuar como un "repaso" (entre comillas porque esto no es tan común en muchas carreras de ingeniería... ¡como la mía!) que está estructurado de manera tal que, en un comienzo, introducirá los elementos básicos relativos a los grafos o redes y sus representaciones mediante matrices de adyacencia, para luego describir las propiedades de estas matrices y concluir algunos resultados importantes en relación a su descomposición diagonal. Luego nos adentraremos un poco en la teoría de clustering con base en el uso de grafos, haciendo uso intensivo de herramientas desarrolladas en las secciones dedicadas al álgebra lineal. Finalmente, discutiremos algunos aspectos relativos a algoritmos de ranking y grafos con conectividad limitada, dándonos algo de tiempo de revisar brevemente algunas aplicaciones orientadas a los algoritmos de aprendizaje.
 
-## Elementos básicos de un grafo.
+## Elementos básicos de un grafo
 
 ### Definición de grafo
 
@@ -238,6 +239,8 @@ La matriz anterior debe leerse fila por fila. Por ejemplo, la primera fila tiene
 Podemos visualizar esta matriz como un mapa de calor:
 
 ```{python}
+#| label: fig-teoria-de-grafos-01
+#| fig-cap: "Matriz de adyacencia de un grafo dirigido no ponderado."
 # Viualizamos nuestra matriz de manera directa.
 fig, ax = plt.subplots(figsize=(7, 6))
 
@@ -250,12 +253,6 @@ ax.set_yticklabels(V)
 
 ax.set_xlabel("Nodo destino", fontsize=12, labelpad=10)
 ax.set_ylabel("Nodo origen", fontsize=12, labelpad=10)
-ax.set_title(
-    "Matriz de adyacencia de un grafo dirigido no ponderado",
-    fontsize=13,
-    fontweight="bold",
-    pad=10
-)
 
 # Agregamos los valores sobre cada celda.
 for i in range(len(V)):
@@ -283,6 +280,8 @@ from matplotlib.patches import FancyArrowPatch
 ```
 
 ```{python}
+#| label: fig-teoria-de-grafos-02
+#| fig-cap: "Grafo dirigido asociado a la matriz de adyacencia."
 # Posiciones de los nodos sobre una circunferencia.
 theta = np.linspace(0, 2*np.pi, len(V), endpoint=False)
 
@@ -341,13 +340,6 @@ for node in V:
         zorder=4
     )
 
-ax.set_title(
-    "Grafo dirigido asociado a la matriz de adyacencia",
-    fontsize=13,
-    fontweight="bold",
-    pad=10
-)
-
 ax.set_aspect("equal")
 ax.axis("off")
 plt.tight_layout()
@@ -355,7 +347,7 @@ plt.tight_layout()
 
 Este ejemplo muestra la correspondencia directa entre el grafo y su matriz de adyacencia. Cada flecha del dibujo aparece como un valor igual a $1$ en la matriz. En cambio, cada par de nodos sin conexión dirigida se representa mediante un $0$. ◼︎
 
-### Grados de entrada y salida desde la matriz de adyacencia.
+### Grados de entrada y salida desde la matriz de adyacencia
 
 Una ventaja importante de la representación matricial es que varias propiedades topológicas del grafo pueden calcularse mediante operaciones algebraicas simples.
 
@@ -462,6 +454,8 @@ W_df
 Ahora visualizamos la matriz ponderada:
 
 ```{python}
+#| label: fig-teoria-de-grafos-03
+#| fig-cap: "Matriz de adyacencia ponderada."
 # Generamos la visualización.
 fig, ax = plt.subplots(figsize=(9, 6))
 
@@ -474,12 +468,6 @@ ax.set_yticklabels(V)
 
 ax.set_xlabel("Nodo destino", fontsize=12, labelpad=10)
 ax.set_ylabel("Nodo origen", fontsize=12, labelpad=10)
-ax.set_title(
-    "Matriz de adyacencia ponderada",
-    fontsize=13,
-    fontweight="bold",
-    pad=10
-)
 
 for i in range(len(V)):
     for j in range(len(V)):
@@ -776,6 +764,8 @@ W_pf_df
 Construiremos ahora una visualización de esta matriz:
 
 ```{python}
+#| label: fig-teoria-de-grafos-04
+#| fig-cap: "Matriz de adyacencia ponderada no negativa."
 # Graficamos nustra matriz.
 fig, ax = plt.subplots(figsize=(9, 6))
 
@@ -788,12 +778,6 @@ ax.set_yticklabels(V_pf)
 
 ax.set_xlabel("Nodo destino", fontsize=12, labelpad=10)
 ax.set_ylabel("Nodo origen", fontsize=12, labelpad=10)
-ax.set_title(
-    "Matriz de adyacencia ponderada no negativa",
-    fontsize=13,
-    fontweight="bold",
-    pad=10
-)
 
 for i in range(len(V_pf)):
     for j in range(len(V_pf)):
@@ -888,6 +872,8 @@ Ambos autovectores tienen entradas positivas, tal como predice el teorema. Sin e
 Podemos visualizar estos valores:
 
 ```{python}
+#| label: fig-teoria-de-grafos-05
+#| fig-cap: "Autovectores de Perron normalizados."
 # Construimos una visualización para los autovalores de Perron.
 fig, ax = plt.subplots(figsize=(9, 6))
 
@@ -911,13 +897,6 @@ ax.bar(
 ax.set_xticks(x_pos)
 ax.set_xticklabels(V_pf)
 
-ax.set_title(
-    "Autovectores de Perron normalizados",
-    fontsize=13,
-    fontweight="bold",
-    pad=10
-)
-
 ax.set_xlabel("Nodo", fontsize=12, labelpad=10)
 ax.set_ylabel("Valor normalizado", fontsize=12, labelpad=10)
 ax.legend(loc="best", fontsize=10, frameon=True)
@@ -928,6 +907,8 @@ plt.tight_layout()
 Veamos ahora la ubicación de los autovalores en el plano complejo. El teorema nos dice que el radio espectral corresponde al autovalor dominante en módulo:
 
 ```{python}
+#| label: fig-teoria-de-grafos-06
+#| fig-cap: "Autovalores de la matriz de adyacencia ponderada."
 fig, ax = plt.subplots(figsize=(9, 7))
 
 ax.scatter(
@@ -952,14 +933,6 @@ ax.plot(
 
 ax.axhline(0, color="black", linewidth=0.8)
 ax.axvline(0, color="black", linewidth=0.8)
-
-ax.set_title(
-    "Autovalores de la matriz de adyacencia ponderada",
-    fontsize=13,
-    fontweight="bold",
-    pad=10
-)
-
 ax.set_xlabel(r"$\mathrm{Re}(\lambda)$", fontsize=12, labelpad=10)
 ax.set_ylabel(r"$\mathrm{Im}(\lambda)$", fontsize=12, labelpad=10)
 ax.set_aspect("equal", adjustable="box")
@@ -992,6 +965,8 @@ trajectory = np.array(trajectory)
 ```
 
 ```{python}
+#| label: fig-teoria-de-grafos-07
+#| fig-cap: "Convergencia iterativa hacia el autovector izquierdo de Perron."
 # Mostramos la convergencia del autovector izquierdo de Perron.
 fig, ax = plt.subplots(figsize=(9, 5))
 
@@ -999,15 +974,9 @@ for j, node in enumerate(V_pf):
     ax.plot(
         trajectory[:, j],
         linewidth=2,
+        color=plt.cm.cool(j / len(V_pf)),
         label=f"Nodo {node}"
     )
-
-ax.set_title(
-    "Convergencia iterativa hacia el autovector izquierdo de Perron",
-    fontsize=13,
-    fontweight="bold",
-    pad=10
-)
 
 ax.set_xlabel("Iteración", fontsize=12, labelpad=10)
 ax.set_ylabel("Score normalizado", fontsize=12, labelpad=10)
@@ -1413,6 +1382,8 @@ y_true_spec = np.hstack([
 ```
 
 ```{python}
+#| label: fig-teoria-de-grafos-08
+#| fig-cap: "Datos originales: Dos grupos no linealmente separables."
 # Visualización de los datos originales.
 fig, ax = plt.subplots(figsize=(9, 6))
 
@@ -1424,13 +1395,6 @@ ax.scatter(
     s=24,
     edgecolor="black",
     linewidth=0.2
-)
-
-ax.set_title(
-    "Datos originales: Dos grupos no linealmente separables",
-    fontsize=13,
-    fontweight="bold",
-    pad=10
 )
 
 ax.set_xlabel(r"$x_1$", fontsize=12, labelpad=10)
@@ -1544,6 +1508,8 @@ labels_spec, centers_spec = simple_kmeans(Y_spec, k=2, n_iter=100, seed=42)
 Visualizamos ahora el encaje espectral y la partición obtenida:
 
 ```{python}
+#| label: fig-teoria-de-grafos-09
+#| fig-cap: "Encaje espectral construido con autovectores derechos."
 # Graficamos el encaje espectral.
 fig, ax = plt.subplots(figsize=(9, 6))
 
@@ -1557,19 +1523,14 @@ ax.scatter(
     linewidth=0.2
 )
 
-ax.set_title(
-    "Encaje espectral construido con autovectores derechos",
-    fontsize=13,
-    fontweight="bold",
-    pad=10
-)
-
 ax.set_xlabel(r"$u_1$", fontsize=12, labelpad=10)
 ax.set_ylabel(r"$u_2$", fontsize=12, labelpad=10)
 plt.tight_layout()
 ```
 
 ```{python}
+#| label: fig-teoria-de-grafos-10
+#| fig-cap: "Clusters recuperados mediante un procedimiento de clustering espectral."
 fig, ax = plt.subplots(figsize=(7, 6))
 
 ax.scatter(
@@ -1580,13 +1541,6 @@ ax.scatter(
     s=24,
     edgecolor="black",
     linewidth=0.2
-)
-
-ax.set_title(
-    "Clusters recuperados mediante clustering espectral",
-    fontsize=13,
-    fontweight="bold",
-    pad=10
 )
 
 ax.set_xlabel(r"$x_1$", fontsize=12, labelpad=10)
@@ -1935,6 +1889,8 @@ A_pr_df
 Usaremos una representación sencilla con **<font color='darkmagenta'>Matplotlib</font>** para visualizar esta red:
 
 ```{python}
+#| label: fig-teoria-de-grafos-11
+#| fig-cap: "Grafo dirigido de páginas web para nuestro ejercicio de PageRank."
 # Definimos posiciones circulares para los nodos.
 theta_pr = np.linspace(0, 2*np.pi, len(V_pr), endpoint=False)
 
@@ -1990,13 +1946,6 @@ for node in V_pr:
         fontweight="bold",
         zorder=4
     )
-
-ax.set_title(
-    "Grafo dirigido de páginas web",
-    fontsize=13,
-    fontweight="bold",
-    pad=10
-)
 
 ax.set_aspect("equal")
 ax.axis("off")
@@ -2142,19 +2091,15 @@ pagerank_df
 Podemos, además, visualizar los resultados de *PageRank*:
 
 ```{python}
+#| label: fig-teoria-de-grafos-12
+#| fig-cap: "Ranking de páginas web estimado a partir de la implementación del algoritmo de PageRank."
 # Visualizamos los niveles de `PageRank` para cada nodo.
 fig, ax = plt.subplots(figsize=(9, 5))
 
 ax.bar(
     pagerank_df["Página"],
-    pagerank_df["PageRank por autovector izquierdo"]
-)
-
-ax.set_title(
-    "Ranking de páginas según PageRank",
-    fontsize=13,
-    fontweight="bold",
-    pad=10
+    pagerank_df["PageRank por autovector izquierdo"],
+    color="dodgerblue",
 )
 
 ax.set_xlabel("Página", fontsize=12, labelpad=10)
@@ -2167,6 +2112,8 @@ plt.tight_layout()
 Y también podemos observar cómo converge la iteración de potencias hacia una **distribución de estado estable**:
 
 ```{python}
+#| label: fig-teoria-de-grafos-13
+#| fig-cap: "Convergencia iterativa del vector `PageRank`."
 # Visualización de la transición hacia un estado estable.
 fig, ax = plt.subplots(figsize=(9, 5))
 
@@ -2174,15 +2121,9 @@ for j, node in enumerate(V_pr):
     ax.plot(
         pagerank_trajectory[:, j],
         linewidth=2,
+        color=plt.cm.cool(j / len(V_pr)),
         label=page_names[node]
     )
-
-ax.set_title(
-    "Convergencia iterativa del vector `PageRank`",
-    fontsize=13,
-    fontweight="bold",
-    pad=10
-)
 
 ax.set_xlabel("Iteración", fontsize=12, labelpad=10)
 ax.set_ylabel("Probabilidad estacionaria", fontsize=12, labelpad=10)
@@ -2278,6 +2219,8 @@ prestige_df
 Visualizamos nuestros resultados:
 
 ```{python}
+#| label: fig-teoria-de-grafos-14
+#| fig-cap: "Comparación entre distintas medidas de importancia."
 # Construimos un gráfico para visualizar las medidas de importancia.
 fig, ax = plt.subplots(figsize=(9, 5))
 
@@ -2307,13 +2250,6 @@ ax.bar(
 
 ax.set_xticks(x_pos)
 ax.set_xticklabels(prestige_df["Página"], rotation=45)
-
-ax.set_title(
-    "Comparación entre medidas de prestigio",
-    fontsize=13,
-    fontweight="bold",
-    pad=10
-)
 
 ax.set_xlabel("Página", fontsize=12, labelpad=10)
 ax.set_ylabel("Score normalizado", fontsize=12, labelpad=10)
@@ -2517,6 +2453,8 @@ hidden_rank_df
 Visualicemos los principales enlaces candidatos:
 
 ```{python}
+#| label: fig-teoria-de-grafos-15
+#| fig-cap: "Principales enlaces candidatos conforme el algoritmo de `PageRank` personalizado."
 # Número de enlaces a mostrar.
 top_k_links = 10
 
@@ -2534,14 +2472,7 @@ fig, ax = plt.subplots(figsize=(9, 5))
 ax.bar(
     top_links_df["par"],
     top_links_df["score_ppr"],
-    color="firebrick",
-)
-
-ax.set_title(
-    "Principales enlaces candidatos según PageRank personalizado",
-    fontsize=13,
-    fontweight="bold",
-    pad=10
+    color="dodgerblue",
 )
 
 ax.set_xlabel("Enlace candidato", fontsize=12, labelpad=10)
@@ -2554,6 +2485,8 @@ plt.tight_layout()
 Finalmente, dibujemos el grafo observado y destaquemos los enlaces mejor rankeados. Usaremos líneas segmentadas para indicar enlaces predichos:
 
 ```{python}
+#| label: fig-teoria-de-grafos-16
+#| fig-cap: "Grafo observado y enlaces predichos conforme la implementación de `PageRank` personalizado."
 # Tomamos los tres enlaces candidatos con mayor score.
 predicted_edges_top = [
     (int(row["origen"]), int(row["destino"]))
@@ -2627,13 +2560,6 @@ for node in V_pr:
         fontweight="bold",
         zorder=4
     )
-
-ax.set_title(
-    "Grafo observado y enlaces predichos con PageRank personalizado",
-    fontsize=13,
-    fontweight="bold",
-    pad=10
-)
 
 ax.text(
     -1.35,
@@ -2819,6 +2745,8 @@ L_und_red = D_und_red - A_und_red
 ```
 
 ```{python}
+#| label: fig-teoria-de-grafos-17
+#| fig-cap: "Ejemplo de matriz de adyacencia de un grafo no dirigido desconectado."
 # Visualizamos la matriz de adyacencia.
 fig, ax = plt.subplots(figsize=(7, 6))
 
@@ -2831,12 +2759,6 @@ ax.set_yticklabels(V_und_red)
 
 ax.set_xlabel("Nodo destino", fontsize=12, labelpad=10)
 ax.set_ylabel("Nodo origen", fontsize=12, labelpad=10)
-ax.set_title(
-    "Matriz de adyacencia de un grafo no dirigido desconectado",
-    fontsize=13,
-    fontweight="bold",
-    pad=10
-)
 
 for i in range(len(V_und_red)):
     for j in range(len(V_und_red)):
@@ -2905,6 +2827,8 @@ Es importante notar que los autovectores retornados por `np.linalg.eigh()` no ne
 Podemos visualizar el grafo para comprobar su desconexión:
 
 ```{python}
+#| label: fig-teoria-de-grafos-18
+#| fig-cap: "Grafo no dirigido con tres componentes conectadas."
 # Posiciones manuales para visualizar las tres componentes.
 pos_und_red = {
     1: np.array([-2.4,  0.6]),
@@ -2973,13 +2897,6 @@ for node in V_und_red:
         fontweight="bold",
         zorder=4
     )
-
-ax.set_title(
-    "Grafo no dirigido con tres componentes conectadas",
-    fontsize=13,
-    fontweight="bold",
-    pad=10
-)
 
 #ax.set_aspect("equal")
 ax.axis("off")
@@ -3109,6 +3026,8 @@ A_dir_red_df
 ```
 
 ```{python}
+#| label: fig-teoria-de-grafos-19
+#| fig-cap: "Ejemplo de matriz de adyacencia de un grafo dirigido reducible."
 # Visualizamos la matriz.
 fig, ax = plt.subplots(figsize=(7, 6))
 
@@ -3121,12 +3040,6 @@ ax.set_yticklabels(V_dir_red)
 
 ax.set_xlabel("Nodo destino", fontsize=12, labelpad=10)
 ax.set_ylabel("Nodo origen", fontsize=12, labelpad=10)
-ax.set_title(
-    "Matriz de adyacencia de un grafo dirigido reducible",
-    fontsize=13,
-    fontweight="bold",
-    pad=10
-)
 
 for i in range(len(V_dir_red)):
     for j in range(len(V_dir_red)):
@@ -3246,6 +3159,8 @@ Este resultado ilustra el problema principal de las matrices reducibles en grafo
 Podemos visualizar la estructura del grafo:
 
 ```{python}
+#| label: fig-teoria-de-grafos-20
+#| fig-cap: "Ejemplo de grafo dirigido reducible con dos componentes terminales."
 # Posiciones manuales para visualizar componentes.
 pos_dir_red = {
     1: np.array([-3.0,  0.5]),
@@ -3322,13 +3237,6 @@ for node in V_dir_red:
         zorder=4
     )
 
-ax.set_title(
-    "Grafo dirigido reducible con dos componentes terminales",
-    fontsize=13,
-    fontweight="bold",
-    pad=10
-)
-
 ax.text(
     -3.35,
     -0.55,
@@ -3393,18 +3301,14 @@ pagerank_red_df
 ```
 
 ```{python}
+#| label: fig-teoria-de-grafos-21
+#| fig-cap: "Distribución estacionaria regularizada en un grafo dirigido reducible."
 fig, ax = plt.subplots(figsize=(9, 5))
 
 ax.bar(
     pagerank_red_df["Nodo"].astype(str),
-    pagerank_red_df["PageRank regularizado"]
-)
-
-ax.set_title(
-    "Distribución estacionaria regularizada en un grafo dirigido reducible",
-    fontsize=13,
-    fontweight="bold",
-    pad=10
+    pagerank_red_df["PageRank regularizado"],
+    color="dodgerblue",
 )
 
 ax.set_xlabel("Nodo", fontsize=12, labelpad=10)

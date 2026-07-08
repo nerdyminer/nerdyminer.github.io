@@ -3,8 +3,9 @@ title: "Optimización de tipo black-box"
 subtitle: "Búsqueda sin derivadas, complejidad combinatoria y explosión factorial"
 section_href: "/apuntes/calculo-incertidumbre-y-optimizacion/"
 toc: true
-toc-depth: 4
+toc-depth: 3
 page-layout: article
+number-offset: 7
 ---
 
 ::: {.callout-important}
@@ -13,7 +14,7 @@ page-layout: article
 En optimización *black-box*, la función objetivo se conoce sólo a través de evaluaciones puntuales. No contamos, en general, con gradientes, Hessianas ni una estructura analítica aprovechable. En este contexto, el **problema del agente viajero** (*Traveling Salesperson Problem*, **TSP**) constituye uno de los ejemplos más emblemáticos y desafiantes, pues combina una función objetivo simple de evaluar con un espacio de búsqueda combinatorial que crece de manera explosiva.
 :::
 
-## Introducción.
+## Introducción
 
 En varios problemas reales de optimización, la función objetivo no se presenta por medio de una expresión analítica cómoda, diferenciable y bien estructurada, como ocurre en muchos ejemplos clásicos de cálculo diferencial. En lugar de ello, sólo podemos consultar su valor para ciertos puntos del dominio, como si se tratara de una verdadera **caja negra**. En ese escenario, la función objetivo puede ser costosa de evaluar, puede depender de simulaciones, de un procedimiento experimental o incluso de una rutina computacional cuyo comportamiento interno desconocemos por completo.
 
@@ -30,7 +31,7 @@ donde $f$ es una función objetivo que sólo podemos evaluar, mientras que $\mat
 
 Uno de los problemas más representativos dentro de esta familia es el **problema del agente viajero**, conocido universalmente por su sigla inglesa **TSP**. Nos ocuparemos de describirlo en detalle, ya que será esencial para ilustrar algunos métodos numéricos que estudiaremos a continuación.
 
-## El problema del agente viajero.
+## El problema del agente viajero
 
 El TSP puede formularse de manera muy simple. Dado un conjunto de $n$ ciudades, y una distancia conocida entre cada par de ellas, buscamos una ruta cerrada que:
 
@@ -124,6 +125,8 @@ best_tour, best_length
 ```
 
 ```{python}
+#| label: fig-optimizacion-de-tipo-black-box-01
+#| fig-cap: "Ejemplo de un TSP sencillo de 9 ciudades y su solución óptima."
 # Visualización del grafo completo y de la ruta óptima.
 fig, ax = plt.subplots(1, 2, figsize=(9, 5.5))
 
@@ -179,7 +182,7 @@ plt.tight_layout()
 
 La figura anterior permite apreciar claramente la naturaleza combinatorial del problema. El grafo completo contiene todas las conexiones posibles entre ciudades, pero una solución factible del TSP corresponde sólo a un **ciclo Hamiltoniano**: Una ruta cerrada que visita exactamente una vez cada ciudad. Para una instancia pequeña, una búsqueda exhaustiva puede encontrar la mejor ruta. Sin embargo, este enfoque deja de ser realista cuando el número de ciudades aumenta.
 
-## Complejidad combinatoria del TSP.
+## Complejidad combinatoria del TSP
 
 Para entender la dificultad real del TSP, conviene contar cuántas rutas distintas habría que evaluar si intentáramos resolver el problema por fuerza bruta. Supongamos, por simplicidad, que el TSP es simétrico; es decir, que $d_{ij}=d_{ji}$. Si además fijamos la ciudad inicial para eliminar duplicidades por rotación, entonces el número de rutas distintas viene dado por
 
@@ -236,6 +239,8 @@ df
 ```
 
 ```{python}
+#| label: fig-optimizacion-de-tipo-black-box-02
+#| fig-cap: "Crecimiento del espacio de búsqueda."
 # Curvas de crecimiento del número de rutas y del tiempo de enumeración.
 ns_full = np.arange(3, 21)
 counts_full = np.array([symmetric_tsp_tours(int(n)) for n in ns_full], dtype=float)
@@ -268,7 +273,7 @@ Los resultados anteriores muestran con claridad que la dificultad del TSP no se 
 
 Desde el punto de vista de complejidad computacional, el TSP pertenece a la familia de los problemas más difíciles de la optimización combinatorial. Más precisamente, su versión de optimización es un problema **NP-hard**, mientras que su versión de decisión es **NP-complete**. Ello explica por qué, en la práctica, los enfoques exactos sólo funcionan para tamaños pequeños o moderados, o bien requieren técnicas muy sofisticadas.
 
-## Algoritmos evolutivos.
+## Algoritmos evolutivos
 
 Una vez que aceptamos que, en un problema de optimización de tipo *black-box*, la función objetivo puede ser costosa de evaluar, no diferenciable, ruidosa o definida sobre espacios discretos muy grandes, surge una pregunta natural: ¿Cómo buscar buenas soluciones cuando no contamos con gradientes ni con una estructura analítica que podamos explotar directamente?
 
@@ -285,7 +290,7 @@ De esta manera, la población *“evoluciona”* progresivamente hacia regiones 
 
 Aunque la inspiración biológica ayuda a entender la intuición general del método, conviene no exagerar la analogía. Un algoritmo evolutivo no pretende modelar fielmente un proceso biológico real. Más bien, toma algunas ideas abstractas de la evolución natural y las convierte en mecanismos computacionales para explorar espacios de búsqueda complejos. Esto lo veremos en detalle al estudiar algunos ejemplos.
 
-### Componentes básicos.
+### Componentes básicos
 
 Aunque existen muchas variantes de algoritmos evolutivos, la gran mayoría comparte una misma estructura conceptual. Más aún, una forma muy útil de entender estas técnicas consiste en descomponerlas en una serie de **componentes fundamentales**, cada uno de los cuales cumple una función específica dentro del proceso de búsqueda.
 
@@ -293,7 +298,7 @@ La idea general sigue siendo la misma: Mantenemos una población de soluciones, 
 
 A continuación presentaremos estos componentes de manera ordenada.
 
-#### Representación de los individuos.
+#### Representación de los individuos
 
 Todo algoritmo evolutivo necesita, antes que cualquier otra cosa, una forma de **codificar** las soluciones candidatas del problema. Esta codificación recibe habitualmente el nombre de **genotipo**, mientras que la solución efectiva que representa puede interpretarse como el **fenotipo** correspondiente. Estos son términos adoptados directivamente desde la biología.
 
@@ -323,7 +328,7 @@ ya que una ruta es justamente un ordenamiento de las ciudades.
 
 No toda representación es adecuada para todo problema. Una buena representación debe facilitar, al mismo tiempo, tres cosas: La generación de individuos factibles, la aplicación de operadores de variación razonables y la interpretación de la calidad de las soluciones.
 
-#### Población inicial.
+#### Población inicial
 
 Una vez definida la representación, el algoritmo debe construir una primera colección de soluciones candidatas. Esta colección recibe el nombre de **población inicial**, y cumple un papel similar al de las soluciones iniciales en estrategias de búsqueda más clásicas.
 
@@ -342,7 +347,7 @@ La población inicial, denotada por $P^{(0)}$, suele generarse aleatoriamente. E
 
 El tamaño de la población es un parámetro importante. Si la población es demasiado pequeña, la diversidad desaparece rápidamente y el algoritmo corre el riesgo de estancarse en soluciones relativamente pobres en calidad. Si es demasiado grande, el costo computacional de cada generación puede volverse innecesariamente alto.
 
-#### Función de aptitud.
+#### Función de aptitud
 
 Una vez generados los individuos, debemos evaluar qué tan buenos son. Para ello, el algoritmo utiliza una función de evaluación llamada **función de aptitud** o **fitness**.
 
@@ -363,7 +368,7 @@ En problemas restringidos, la evaluación de la aptitud puede requerir además a
 
 Este punto es particularmente importante en optimización combinatorial, donde generar individuos inválidos puede ser muy frecuente si los operadores no están bien diseñados.
 
-#### Selección.
+#### Selección
 
 Una vez evaluada la población, el algoritmo debe decidir qué individuos tendrán mayor influencia en la generación siguiente. Ese proceso se denomina **selección**.
 
@@ -380,7 +385,7 @@ Entre los mecanismos de selección más comunes se encuentran los siguientes:
 
 La selección por torneo es especialmente popular porque es simple, eficiente y permite controlar fácilmente la presión selectiva por medio del tamaño del torneo.
 
-#### Variación: Mutación y recombinación.
+#### Variación: Mutación y recombinación
 
 La selección por sí sola no basta. Si sólo seleccionáramos repetidamente a los mejores individuos sin introducir cambios, la población se volvería rápidamente homogénea y el algoritmo dejaría de explorar nuevas soluciones en un espacio de búsqueda. Por eso son necesarios los llamados **operadores de variación**.
 
@@ -418,7 +423,7 @@ En representaciones binarias, mutar suele significar invertir uno o varios bits 
 
 La mutación cumple un papel especialmente importante en los algoritmos evolutivos, porque evita que éstos dependan exclusivamente del material genético ya presente en la población. Sin mutación, un algoritmo podría perder capacidad de innovación y quedarse atrapado en una región demasiado pequeña del espacio de búsqueda.
 
-#### Generación de descendencia.
+#### Generación de descendencia
 
 La aplicación repetida de los operadores de selección y variación permite generar una nueva colección de individuos, llamada **descendencia**.
 
@@ -442,7 +447,7 @@ donde $M$ es el número de descendientes generados en la generación $t$.
 
 Dependiendo del algoritmo, $M$ puede coincidir con el tamaño de la población $N$, o ser distinto de él.
 
-#### Reemplazo y supervivencia.
+#### Reemplazo y supervivencia
 
 Una vez construida la descendencia, el algoritmo debe decidir cómo formar la nueva población. Este paso se conoce como **reemplazo** o **supervivencia**.
 
@@ -457,7 +462,7 @@ Existen varias estrategias de reemplazo. Entre las más habituales están:
 
 El reemplazo determina el equilibrio entre exploración y explotación. Un reemplazo muy agresivo puede destruir soluciones valiosas demasiado pronto. Un reemplazo demasiado conservador puede frenar la aparición de nuevas soluciones interesantes.
 
-#### Diversidad poblacional.
+#### Diversidad poblacional
 
 Aunque muchas veces no aparece como un componente separado en la descripción más básica del algoritmo, la **diversidad** de la población es un aspecto crucial de todo método evolutivo. Si todos los individuos de la población se parecen demasiado entre sí, el algoritmo corre el riesgo de caer en una **convergencia prematura**. En ese caso, la población se concentra demasiado rápido alrededor de una región del espacio de búsqueda que puede no contener la mejor solución global.
 
@@ -465,7 +470,7 @@ Por esta razón, muchos algoritmos incorporan mecanismos explícitos o implícit
 
 La diversidad no es un lujo adicional, sino un componente esencial del comportamiento global del algoritmo.
 
-#### Hiperparámetros del algoritmo.
+#### Hiperparámetros del algoritmo
 
 Todo algoritmo evolutivo posee una serie de **hiperparámetros** cuyo ajuste influye fuertemente en su desempeño. Entre los más importantes se encuentran:
 
@@ -479,7 +484,7 @@ Todo algoritmo evolutivo posee una serie de **hiperparámetros** cuyo ajuste inf
 
 En términos prácticos, la elección de estos parámetros es parte integral del diseño del algoritmo. No existe una configuración universal óptima para todos los problemas, y por ello la calibración de estos métodos suele requerir experiencia, experimentación o estrategias adaptativas.
 
-#### Condición de término.
+#### Condición de término
 
 Por último, todo algoritmo evolutivo necesita una regla que indique cuándo detener la búsqueda.
 
@@ -495,7 +500,7 @@ Entre los criterios de término más frecuentes están:
 
 En problemas de optimización de tipo *black-box*, donde las evaluaciones pueden ser costosas, es especialmente habitual usar como criterio principal el número total de evaluaciones de la función objetivo.
 
-### Estructura general.
+### Estructura general
 
 Una vez descritos todos sus componentes, podemos condensar la lógica general de un algoritmo evolutivo en el siguiente esquema.
 
@@ -555,6 +560,8 @@ dist_matrix = np.linalg.norm(
 A continuación, visualizaremos la localización espacial de las ciudades en el plano:
 
 ```{python}
+#| label: fig-optimizacion-de-tipo-black-box-03
+#| fig-cap: "Instancia euclidiana del TSP con 60 ciudades."
 # Gráfico que muestra la ubicación de las ciudades.
 fig, ax = plt.subplots(figsize=(9, 6))
 
@@ -562,11 +569,6 @@ ax.scatter(coords[:, 0], coords[:, 1], s=65, color="firebrick", zorder=10)
 
 for i, lab in enumerate(labels):
     ax.text(coords[i, 0] + 1.2, coords[i, 1] + 1.2, lab, fontsize=10)
-
-ax.set_title(
-    "Instancia euclidiana del TSP con 60 ciudades",
-    fontsize=13, fontweight="bold", pad=10,
-)
 
 ax.set_xlabel(r"$x$", fontsize=12, labelpad=10)
 ax.set_ylabel(r"$y$", fontsize=12, labelpad=10)
@@ -861,6 +863,8 @@ def plot_tour(ax, coords, route, color="crimson", linewidth=2.5, alpha=1.0, line
 ```
 
 ```{python}
+#| label: fig-optimizacion-de-tipo-black-box-04
+#| fig-cap: "La mejor ruta encontrada por el algoritmo."
 # Graficamos la mejor ruta encontrada por el algoritmo.
 fig, ax = plt.subplots(figsize=(9, 7))
 
@@ -886,6 +890,8 @@ Aunque no podemos garantizar que esta ruta sea la óptima global, sí podemos ob
 También es útil observar cómo evoluciona la mejor longitud encontrada a medida que avanzan las generaciones:
 
 ```{python}
+#| label: fig-optimizacion-de-tipo-black-box-05
+#| fig-cap: "Convergencia del algoritmo evolutivo."
 # Visualizamos la convergencia del algoritmo evolutivo.
 fig, ax = plt.subplots(figsize=(9, 5))
 
@@ -902,10 +908,6 @@ ax.plot(
     label="Mejor ruta acumulada"
 )
 
-ax.set_title(
-    "Convergencia del algoritmo evolutivo",
-    fontsize=13, fontweight="bold", pad=10,
-)
 ax.set_xlabel("Generación", fontsize=12, labelpad=10)
 ax.set_ylabel("Longitud de la ruta", fontsize=12, labelpad=10)
 ax.legend(frameon=True, fontsize=9)
@@ -1002,13 +1004,13 @@ m.save(gif_path, writer=PillowWriter(fps=10))
 plt.close(fig)
 ```
 
-![](media/tsp_evolutivo_n20.gif){fig-align="center" width="100%"}
+![Progresión del algoritmo evolutivo y su convergencia a una solución del TSP.](media/tsp_evolutivo_n20.gif){fig-align="center" width="100%"}
 
 La animación anterior muestra con bastante claridad el comportamiento general del algoritmo. Durante las primeras generaciones, las mejores rutas cambian de manera importante, reflejando una etapa dominante de exploración. Más adelante, las modificaciones se vuelven progresivamente menores y la población converge hacia una región más estable del espacio de búsqueda, lo que sugiere una transición natural hacia explotación local.
 
 Este ejemplo introductorio es suficiente para ilustrar dos ideas fundamentales. Primero, que el TSP puede atacarse eficazmente mediante algoritmos evolutivos incluso cuando no disponemos de gradientes ni de una estructura analítica favorable. Segundo, que el éxito del método depende fuertemente de la representación elegida y del diseño de sus operadores de selección, recombinación y mutación. En lo que sigue, refinaremos estas ideas y estudiaremos con mayor detalle operadores específicamente diseñados para problemas combinatoriales de rutas. ◼︎
 
-### Algoritmo de evolución diferencial.
+### Algoritmo de evolución diferencial
 
 El algoritmo de **evolución diferencial** (DE, del inglés *differential evolution*) corresponde a una metaheurística que permite determinar el mínimo global de una función objetivo por medio del mejoramiento por etapas de un conjunto de soluciones candidatas, sin realizar ningún tipo de supuesto (o muy pocos) con respecto al problema subyacente, y sobre un espacio de búsqueda arbitrariamente grande. Se trata de uno de los algoritmos evolutivos más poderosos que existen.
 
@@ -1068,6 +1070,8 @@ Z = ackley_2d(X, Y)
 ```
 
 ```{python}
+#| label: fig-optimizacion-de-tipo-black-box-07
+#| fig-cap: "Función de Ackley en el espacio."
 # Graficamos la superficie resultante de esta función.
 fig = plt.figure(figsize=(9, 6))
 ax = plt.axes(projection='3d')
@@ -1075,22 +1079,18 @@ ax.plot_surface(X, Y, Z, rstride=5, cstride=5, edgecolor="k", cmap='cool')
 ax.set_xlabel(r"$x$", fontsize=12, labelpad=10)
 ax.set_ylabel(r"$y$", fontsize=12, labelpad=10)
 ax.set_zlabel(r"$z$", fontsize=12, labelpad=10)
-ax.set_title(
-    'Función de Ackley', fontsize=14, fontweight="bold", pad=10,
-)
 ax.view_init(35, 20)
 plt.tight_layout()
 ```
 
 ```{python}
+#| label: fig-optimizacion-de-tipo-black-box-08
+#| fig-cap: "Función de Ackley proyectada en el plano."
 # Y creamos un gráfico de contorno completo para visualizar este mínimo global en 2D.
-fig, ax = plt.subplots(figsize=(10, 7))
+fig, ax = plt.subplots(figsize=(9, 7))
 p = ax.contourf(X, Y, Z, levels=20, cmap='cool')
 ax.set_xlabel(r"$x$", fontsize=12, labelpad=10)
 ax.set_ylabel(r"$y$", fontsize=12, labelpad=10, rotation=0)
-ax.set_title(
-    'Función de Ackley', fontsize=14, fontweight="bold", pad=10
-)
 cb = plt.colorbar(p)
 cb.set_label("Valor de z", fontsize=12, labelpad=10)
 plt.tight_layout()
@@ -1250,6 +1250,8 @@ Vemos pues que nuestra implementación del algoritmo de evolución diferencial h
 Para entender la potencia del algoritmo y de la implementación que hemos diseñado, vamos a mostrar la progresión del proceso de búsqueda del óptimo del mismo considerando los casos $n=\left\{ 3, 6, 9, 12\right\}$ para la función de Ackley, aprovechando que la función que hemos construido una implementación que retorna un generador:
 
 ```{python}
+#| label: fig-optimizacion-de-tipo-black-box-09
+#| fig-cap: "Convergencia del algoritmo de evolución diferencial para distintas dimensiones de la función de Ackley."
 # Graficamos la progresión de nuestro algoritmo considerando los casos para los cuales la
 # función de Ackley se define sobre un dominio de 8, 16, 32 y 64 dimensiones. El espacio de
 # búsqueda es, nuevamente, `-5 < xi < 5`.
@@ -1398,7 +1400,7 @@ cross_points = np.random.rand(dimensions) < crossp
 cross_points
 ```
 
-Todas las posiciones que cumplen con un valor Booleano `True` son las que reemplazaremos por las mutaciones correspondientes. Para realizar este reemplazo, utilizamos la función `np.where()` de *<font color='darkmagenta'>Numpy</font>**:
+Todas las posiciones que cumplen con un valor Booleano `True` son las que reemplazaremos por las mutaciones correspondientes. Para realizar este reemplazo, utilizamos la función `np.where()` de **<font color='darkmagenta'>Numpy</font>**:
 
 ```{python}
 # Creamos un vector de ensayo.
@@ -1511,6 +1513,8 @@ labels_3d = [f"C{i+1}" for i in range(n_cities)]
 Visualicemos primero la distribución geométrica de las ciudades en el espacio:
 
 ```{python}
+#| label: fig-optimizacion-de-tipo-black-box-10
+#| fig-cap: "Realización tridimensional del TSP."
 # Visualización de las ciudades en el espacio.
 fig = plt.figure(figsize=(9, 7))
 ax = fig.add_subplot(111, projection="3d")
@@ -1531,10 +1535,6 @@ for i, lab in enumerate(labels_3d):
         fontsize=9
     )
 
-ax.set_title(
-    "Instancia tridimensional del TSP",
-    fontsize=14, fontweight="bold", pad=10
-)
 ax.set_xlabel(r"$x$", fontsize=12, labelpad=10)
 ax.set_ylabel(r"$y$", fontsize=12, labelpad=10)
 ax.set_zlabel(r"$z$", fontsize=12, labelpad=10)
@@ -1614,6 +1614,8 @@ def plot_3d_route(ax, route, coords, color="crimson", linewidth=2.2):
 ```
 
 ```{python}
+#| label: fig-optimizacion-de-tipo-black-box-11
+#| fig-cap: "Solución encontrada para el TSP en 3D por medio del algoritmo de evolución diferencial."
 # Visualización de la mejor ruta encontrada.
 fig = plt.figure(figsize=(9, 7))
 ax = fig.add_subplot(111, projection="3d")
@@ -1652,6 +1654,8 @@ plt.tight_layout()
 A fin de apreciar mejor la estructura espacial de la solución, también es útil comparar la mejor ruta encontrada con la nube original de ciudades en una visualización lado a lado:
 
 ```{python}
+#| label: fig-optimizacion-de-tipo-black-box-12
+#| fig-cap: "Comparación entre la realización original y la solución encontrada."
 # Comparación entre la instancia original y la solución encontrada.
 fig = plt.figure(figsize=(14, 6))
 
@@ -1711,7 +1715,7 @@ Este ejemplo muestra que, aunque la implementación de `diff_ev()` fue concebida
 
 Por supuesto, esta estrategia no es necesariamente la más eficiente para instancias grandes del TSP, y tampoco aprovecha operadores especializados sobre permutaciones como los que aparecen en algoritmos genéticos diseñados específicamente para rutas. Sin embargo, ilustra muy bien la flexibilidad del algoritmo de evolución diferencial y, al mismo tiempo, la importancia de la representación elegida para un problema de optimización de tipo *black-box*. ◼︎
 
-## Algoritmos de inteligencia por enjambre.
+## Algoritmos de inteligencia por enjambre
 
 Del mismo modo en que los algoritmos evolutivos se inspiran en mecanismos de selección, recombinación y mutación observados en la evolución biológica, existe otra gran familia de metaheurísticas aptas para problemas de tipo *black-box* inspirada en el comportamiento colectivo de sistemas naturales descentralizados, denominados formalmente como **algoritmos de inteligencia por enjambre**.
 
@@ -1719,7 +1723,7 @@ La idea fundamental detrás de estos métodos es profundamente distinta de la qu
 
 Esta observación es importante: Un sistema de enjambre no requiere, en general, ni una noción de reproducción ni una dinámica generacional fuerte. Lo que caracteriza a estos algoritmos es más bien la existencia de una población de agentes relativamente simples, cada uno de los cuales sigue reglas locales de movimiento o actualización. A partir de estas reglas locales emerge, de manera global, un comportamiento de búsqueda altamente sofisticado.
 
-### Esquema general.
+### Esquema general
 
 En la naturaleza, muchos sistemas colectivos exhiben conductas sorprendentemente complejas sin depender de un control centralizado. Colonias de hormigas, bandadas de aves, cardúmenes de peces, enjambres de abejas y grupos de luciérnagas son capaces de coordinarse, adaptarse a cambios del entorno y resolver problemas de exploración o supervivencia mediante reglas locales extremadamente simples (que resultan en la ejecución de proezas importantes, como podemos observar en [este video](https://www.youtube.com/watch?v=bgN5OqLzfBo)). La inteligencia del sistema no reside en un individuo aislado, sino en la **interacción colectiva** entre todos ellos.
 
@@ -1744,11 +1748,11 @@ Aunque tanto los algoritmos evolutivos como los algoritmos de inteligencia por e
 
 Por supuesto, en la práctica existen zonas en las que ambos mundos se superponen, e incluso hay algoritmos híbridos. Sin embargo, esta distinción conceptual es útil para organizar la teoría inherente a ambos tipos de heurística.
 
-### Componentes básicos.
+### Componentes básicos
 
 A pesar de la enorme diversidad de algoritmos inspirados en enjambres, la mayoría comparte una arquitectura bastante reconocible, a modo de *blueprint*. En términos generales, casi todo algoritmo de este tipo requiere los siguientes componentes.
 
-#### Representación de los agentes.
+#### Representación de los agentes
 
 Cada agente del enjambre debe representar una solución candidata del problema de optimización. Dependiendo del dominio del problema, esta representación puede adoptar distintas formas, tales como un vector real en $\mathbb{R}^{n}$, una secuencia discreta, una permutación, una trayectoria o una estructura combinatorial más compleja. Esto motiva la siguiente definición.
 
@@ -1758,7 +1762,7 @@ Por ejemplo, en el caso del **algoritmo de optimización por enjambre de partíc
 
 En cambio, en el caso del **algoritmo de optimización por colonia de hormigas** (o **ACO**, del inglés *ant colony optimization*), una “hormiga” construye una solución paso a paso, y el estado relevante del algoritmo incluye, además de la solución parcial que va construyendo, una *matriz de feromonas* compartida por toda la colonia.
 
-#### Población o enjambre.
+#### Población o enjambre
 
 Al igual que en los algoritmos evolutivos, los métodos de inteligencia por enjambre trabajan con múltiples soluciones al mismo tiempo. Esto da sentido a la siguiente definición.
 
@@ -1777,13 +1781,13 @@ donde cada $s_{i}^{(t)}$ denota el estado del agente $i$ en dicho instante.
 
 La elección del tamaño del enjambre es un hiperparámetro fundamental. Un enjambre demasiado pequeño puede explorar de manera pobre el espacio de búsqueda de un problema de interés, mientras que uno demasiado grande puede generar costos computacionales innecesarios.
 
-#### Función objetivo y evaluación.
+#### Función objetivo y evaluación
 
 Cada agente representa, directa o indirectamente, una solución candidata al problema. Por ello, el algoritmo requiere evaluar la calidad de esa solución usando la función objetivo. Sea pues $f:\mathcal{X}\to \mathbb{R}$ la función objetivo que deseamos minimizar. Cada vez que un agente se mueve, construye o actualiza una solución, debemos evaluar el valor de $f$ sobre dicha solución para determinar si el cambio ha sido favorable.
 
 En algunos algoritmos, como PSO, esta evaluación se hace directamente sobre la posición actual del agente. En otros, como ACO, la evaluación se realiza sobre la solución completa construida por cada hormiga al final de una iteración.
 
-#### Regla de movimiento o actualización.
+#### Regla de movimiento o actualización
 
 Este es, probablemente, el componente más distintivo de la inteligencia por enjambre.
 
@@ -1808,7 +1812,7 @@ La forma concreta de $\Phi$ depende completamente del método considerado. Algun
 - Perturbaciones aleatorias moduladas por intensidad o visibilidad.
 - Combinaciones entre información social y memoria individual.
 
-#### Comunicación e intercambio de información.
+#### Comunicación e intercambio de información
 
 La inteligencia por enjambre no surge simplemente por tener muchos agentes, sino por la forma en que éstos **comparten información**. Existen dos mecanismos generales de comunicación.
 
@@ -1821,7 +1825,7 @@ El ejemplo más célebre es ACO. Allí, las hormigas depositan feromonas sobre l
 
 La estigmergia es conceptualmente muy importante, porque muestra que la cooperación no requiere necesariamente un intercambio directo de mensajes entre agentes.
 
-#### Memoria individual y memoria colectiva.
+#### Memoria individual y memoria colectiva
 
 Muchos algoritmos de enjambre incorporan alguna forma de memoria. Esta memoria puede ser individual o colectiva.
 
@@ -1830,7 +1834,7 @@ Muchos algoritmos de enjambre incorporan alguna forma de memoria. Esta memoria p
 
 La combinación de ambas formas de memoria suele ser uno de los factores que permite equilibrar **exploración** y **explotación**.
 
-#### Exploración y explotación.
+#### Exploración y explotación
 
 Como en casi toda heurística de búsqueda, los algoritmos de inteligencia por enjambre deben resolver un trade-off relativamente delicado entre dos objetivos opuestos: **Exploración**, que corresponde al hecho de recorrer regiones nuevas del espacio de búsqueda, y **explotación**, que corresponde a la refinación de soluciones prometedoras ya detectadas.
 
@@ -1838,7 +1842,7 @@ Naturalmente, si el algoritmo explora demasiado, puede tardar excesivamente en r
 
 En muchos algoritmos de enjambre, este equilibrio se controla mediante hiperparámetros tales como intensidad del ruido aleatorio (inherente a los datos disponibles), peso de la memoria social, evaporación de feromonas, tamaño del vecindario o mecanismos adaptativos de actualización.
 
-#### Criterio de término.
+#### Criterio de término
 
 Finalmente, como en cualquier método iterativo, el algoritmo requiere una condición de detención.
 
@@ -1852,7 +1856,7 @@ Entre los criterios más habituales se encuentran:
 - La convergencia del enjambre a una región muy pequeña del espacio.
 - El tiempo máximo de ejecución (denominado **paciencia** del algoritmo).
 
-### Clasificación general.
+### Clasificación general
 
 La familia de métodos de inteligencia por enjambre es amplia y diversa. Existen varias formas razonables de clasificarla, y es usual presentar al menos dos de ellas: Una clasificación basada en el **mecanismo de interacción** de sus agentes, y otra basada en la **metáfora natural** que inspira al algoritmo. Para efectos prácticos, nos interesa la primera de éstas, que se asocia a la naturaleza estructural del algoritmo en cuestión. Al respecto, los algoritmos de inteligencia por enjambre pueden agruparse en dos grandes clases:
 
@@ -1860,7 +1864,7 @@ La familia de métodos de inteligencia por enjambre es amplia y diversa. Existen
 
 - **Algoritmos basados en estigmergia:** En esta segunda clase, los agentes no interactúan de manera explícita entre sí, sino por medio de un entorno compartido que guarda información sobre la historia de la búsqueda. Aquí la memoria colectiva está distribuida en una estructura externa. Por ejemplo, una *matriz de feromonas*, que codifica de manera acumulativa la experiencia del enjambre. El ejemplo clásico de este tipo de heurísticas es la optimización por colonia de hormigas, y reusltan especialmente adecuados para la resolución de problemas combinatoriales.
 
-### Estructura general.
+### Estructura general
 
 Podemos resumir la lógica general de estos algoritmos mediante el siguiente esquema.
 
@@ -1879,7 +1883,7 @@ Al finalizar, devolver la mejor solución encontrada por el enjambre durante tod
 
 Este esquema pone de manifiesto que la inteligencia por enjambre no se basa en selección y recombinación generacional, sino en la evolución dinámica del estado de una población que coopera para llegar a la mejor solución posible.
 
-### Optimización por enjambre de partículas (PSO).
+### Optimización por enjambre de partículas (PSO)
 
 El **algoritmo de optimización por enjambre de partículas** (o simplemente **PSO**) corresponde a una de esas raras herramientas modernas que son cómicamente sencillas, pero capaces de generar resultados increíblemente potentes. Desarrollado en 1995 por los investigadores norteamericanos James Kennedy y Russell Eberhart, el algoritmo PSO corresponde a una rutina de optimización inspirada, al igual que el algoritmo de evolución diferencial, en conceptos de naturaleza biológica relativos al comportamiento de las bandadas de pájaros o de los cardúmenes de peces. Es especialmente eficaz en problemas definidos sobre dominios continuos, aunque existen adaptaciones para espacios discretos y combinatoriales.
 
@@ -2127,6 +2131,8 @@ gbest_path = np.array(result["history_gbest_positions"])
 ```
 
 ```{python}
+#| label: fig-optimizacion-de-tipo-black-box-13
+#| fig-cap: "Trayectoria del mejor punto global en PSO."
 # Visualización de la trayectoria del mejor punto global.
 fig, ax = plt.subplots(figsize=(8, 6))
 
@@ -2164,10 +2170,6 @@ ax.scatter(
 )
 
 # Elementos estéticos.
-ax.set_title(
-    "Trayectoria del mejor punto global en PSO",
-    fontsize=14, fontweight="bold", pad=10
-)
 ax.set_xlabel(r"$x$", fontsize=12, labelpad=10)
 ax.set_ylabel(r"$y$", fontsize=12, labelpad=10)
 cb = plt.colorbar(p)
@@ -2181,6 +2183,8 @@ Este gráfico muestra cómo el mejor punto global del enjambre va desplazándose
 También resulta interesante visualizar la evolución del valor óptimo encontrado por el algoritmo a lo largo de las iteraciones, a modo de curva de convergencia:
 
 ```{python}
+#| label: fig-optimizacion-de-tipo-black-box-14
+#| fig-cap: "Convergencia del algoritmo PSO sobre la función de Ackley."
 # Curva de convergencia del algoritmo PSO.
 fig, ax = plt.subplots(figsize=(9, 5))
 ax.plot(
@@ -2189,10 +2193,6 @@ ax.plot(
     linewidth=2.2
 )
 
-ax.set_title(
-    "Convergencia del algoritmo PSO sobre la función de Ackley",
-    fontsize=14, fontweight="bold", pad=10
-)
 ax.set_xlabel("Número de iteraciones", fontsize=12, labelpad=10)
 ax.set_ylabel(r"Mejor valor encontrado de $f(x,y)$", fontsize=12, labelpad=10)
 plt.tight_layout()
@@ -2282,7 +2282,7 @@ m.save(gif_path, writer=PillowWriter(fps=8))
 plt.close(fig)
 ```
 
-![](media/pso_ackley_2d.gif){fig-align="center" width="100%"}
+![Evolución de la trayectoria del mejor punto global en PSO sobre la función de Ackley.](media/pso_ackley_2d.gif){fig-align="center" width="100%"}
 
 La animación anterior permite ver con claridad el mecanismo esencial del algoritmo PSO. Durante las primeras iteraciones, las partículas exploran distintas regiones del espacio de búsqueda. Luego, a medida que la memoria social del enjambre se fortalece, la población comienza a concentrarse en el entorno del mejor punto global encontrado, refinando progresivamente la solución hasta converger hacia el mínimo global de la función de Ackley.
 
@@ -2327,6 +2327,8 @@ Z = eggholder_2d(X, Y)
 ```
 
 ```{python}
+#| label: fig-optimizacion-de-tipo-black-box-16
+#| fig-cap: "La superficie conocida como la \"caja de huevos\" en 3D."
 # Graficamos la superficie resultante de esta función.
 fig = plt.figure(figsize=(9, 6))
 ax = plt.axes(projection='3d')
@@ -2334,18 +2336,16 @@ ax.plot_surface(X, Y, Z, rstride=5, cstride=5, edgecolor="k", cmap='cool')
 ax.set_xlabel(r"$x$", fontsize=12, labelpad=10)
 ax.set_ylabel(r"$y$", fontsize=12, labelpad=10)
 ax.set_zlabel(r"$z$", fontsize=12, labelpad=10)
-ax.set_title(
-    'La "caja" de huevos en 3D', fontsize=14, fontweight="bold", pad=10,
-)
 ax.view_init(35, 20)
 plt.tight_layout()
 ```
 
 ```{python}
+#| label: fig-optimizacion-de-tipo-black-box-17
+#| fig-cap: "La 'caja de huevos' proyectada en 2D."
 # Visualización 2D de la 'caja de huevos'.
 fig, ax = plt.subplots(figsize=(9, 6))
 p = ax.contourf(X, Y, Z, levels=60, cmap="cool")
-ax.set_title("La 'caja de huevos' en 2D", fontsize=14, fontweight="bold", pad=10)
 ax.set_xlabel(r"$x$", fontsize=12, labelpad=10)
 ax.set_ylabel(r"$y$", fontsize=12, labelpad=10)
 cb = plt.colorbar(p)
@@ -2383,6 +2383,8 @@ gbest_path = np.array(result["history_gbest_positions"])
 ```
 
 ```{python}
+#| label: fig-optimizacion-de-tipo-black-box-18
+#| fig-cap: "Trayectoria del algoritmo PSO en la 'caja de huevos'."
 # Visualización de la trayectoria del mejor punto global.
 fig, ax = plt.subplots(figsize=(9, 6))
 
@@ -2393,7 +2395,7 @@ ax.plot(
     color="black",
     linewidth=1.8,
     alpha=0.85,
-    label="Trayectoria del mejor global"
+    label="Trayectoria del mejor punto global"
 )
 
 ax.scatter(
@@ -2416,10 +2418,6 @@ ax.scatter(
     label="Final"
 )
 
-ax.set_title(
-    "Trayectoria del mejor punto global en PSO",
-    fontsize=14, fontweight="bold", pad=10
-)
 ax.set_xlabel(r"$x$", fontsize=12, labelpad=10)
 ax.set_ylabel(r"$y$", fontsize=12, labelpad=10)
 cb = plt.colorbar(p)
@@ -2431,6 +2429,8 @@ plt.tight_layout()
 También construimos la curva de convergencia del algoritmo, a fin de verificar el número aproximado de iteraciones necesarias para llegar a la solución óptima de nuestro problema:
 
 ```{python}
+#| label: fig-optimizacion-de-tipo-black-box-19
+#| fig-cap: "Convergencia del algoritmo PSO sobre la 'caja de huevos."
 # Curva de convergencia del algoritmo PSO.
 fig, ax = plt.subplots(figsize=(9, 5))
 ax.plot(
@@ -2439,10 +2439,6 @@ ax.plot(
     linewidth=2.2
 )
 
-ax.set_title(
-    "Convergencia del algoritmo PSO sobre la 'caja de huevos",
-    fontsize=14, fontweight="bold", pad=10
-)
 ax.set_xlabel("Número de iteraciones", fontsize=12, labelpad=10)
 ax.set_ylabel(r"Mejor valor encontrado de $f(x,y)$", fontsize=12, labelpad=10)
 plt.tight_layout()
@@ -2532,11 +2528,11 @@ m.save(gif_path, writer=PillowWriter(fps=8))
 plt.close(fig)
 ```
 
-![](media/pso_eggholder_2d.gif){fig-align="center" width="100%"}
+![Trayaectoria del algoritmo PSO sobre la "caja de huevos"](media/pso_eggholder_2d.gif){fig-align="center" width="100%"}
 
 La animación anterior permite observar con mucho más detalle el carácter exploratorio del algoritmo PSO. A diferencia de lo que ocurría con la función de Ackley, cuya solución era alcanzada demasiado rápido para poder apreciar una trayectoria rica, en la función de tipo "caja de huevos", el enjambre recorre una geografía mucho más accidentada y multimodal. Esto hace visible la competencia entre los efectos de la inercia, la memoria individual y la influencia social del enjambre, que en conjunto conducen progresivamente a una región cercana al mínimo global. ◼︎
 
-### Optimización por colonia de hormigas (ACO).
+### Optimización por colonia de hormigas (ACO)
 
 El **algoritmo de optimización por colonia de hormigas** (o simplemente **ACO**, del inglés *Ant Colony Optimization*) corresponde a una metaheurística inspirada en el comportamiento colectivo de las colonias de hormigas al momento de buscar alimento. A diferencia de algoritmos como PSO o evolución diferencial, que fueron concebidos principalmente para dominios continuos, ACO fue diseñado desde el comienzo pensando en **problemas combinatoriales** y, en particular, en problemas que pueden representarse naturalmente sobre un **grafo**. Por esta razón, ACO es una de las herramientas más importantes dentro de la teoría de optimización *black-box* para problemas como el TSP, el problema de asignación, el ruteo de vehículos y otros problemas de planificación sobre redes (por ejemplo, el problema de asignación de camiones a palas en minas a cielo abierto).
 
@@ -2759,6 +2755,8 @@ D = np.linalg.norm(coords[:, None, :] - coords[None, :, :], axis=2)
 ```
 
 ```{python}
+#| label: fig-optimizacion-de-tipo-black-box-21
+#| fig-cap: "Instancia tridimensional del TSP con 60 ciudades en 3 clusters."
 # Generamos una visualización de nuestro TSP.
 fig = plt.figure(figsize=(9, 7))
 ax = fig.add_subplot(111, projection="3d")
@@ -3013,6 +3011,8 @@ print("Primeras 15 ciudades de la ruta:", best_route[:15])
 Visualicemos ahora la mejor solución encontrada por la colonia:
 
 ```{python}
+#| label: fig-optimizacion-de-tipo-black-box-22
+#| fig-cap: "Solución enconrada para el TSP con ciudades agrupadas en clusters por medio del algoritmo ACO."
 # Construimos un gráfico para mostrar la mejor ruta.
 fig = plt.figure(figsize=(10, 7))
 ax = fig.add_subplot(111, projection="3d")
@@ -3043,6 +3043,8 @@ plt.tight_layout()
 Finalmente, visualicemos la curva de convergencia del algoritmo. Como antes, distinguiremos entre la mejor solución encontrada en cada iteración y la mejor solución acumulada globalmente a lo largo del proceso:
 
 ```{python}
+#| label: fig-optimizacion-de-tipo-black-box-23
+#| fig-cap: "Convergencia del algoritmo ACO."
 # Curva de convergencia del algoritmo ACO.
 fig, ax = plt.subplots(figsize=(9, 6))
 
@@ -3060,10 +3062,6 @@ ax.plot(
     label="Mejor solución acumulada"
 )
 
-ax.set_title(
-    "Convergencia del algoritmo ACO",
-    fontsize=14, fontweight="bold", pad=10,
-)
 ax.set_xlabel("Número de iteraciones", fontsize=12, labelpad=10)
 ax.set_ylabel("Longitud de la ruta", fontsize=12, labelpad=10)
 ax.legend(loc="best")
@@ -3074,7 +3072,7 @@ Podemos observar que el algoritmo ACO logra explotar de forma muy natural la est
 
 Este ejemplo muestra con claridad por qué ACO resulta especialmente adecuado para problemas combinatoriales sobre grafos. A diferencia de PSO, que se formula de manera más natural en dominios continuos, ACO permite construir soluciones discretas paso a paso, incorporando de forma muy elegante tanto la memoria colectiva del sistema como información heurística local del problema. ◼︎
 
-## Heurísticas probabilísticas generales de búsqueda.
+## Heurísticas probabilísticas generales de búsqueda
 
 Hasta este punto hemos estudiado varias familias importantes de metaheurísticas *black-box*. Por un lado, revisamos algoritmos evolutivos, donde la búsqueda emerge del mejoramiento progresivo de una población de soluciones candidatas. Por otro lado, analizamos métodos de inteligencia por enjambre, donde la mejora aparece como consecuencia del comportamiento colectivo de agentes simples que cooperan o comparten información.
 
@@ -3082,7 +3080,7 @@ Existe, sin embargo, una tercera familia de métodos que merece un lugar propio 
 
 La idea central detrás de estas heurísticas es extremadamente poderosa. En vez de movernos siempre hacia soluciones mejores, permitimos ocasionalmente aceptar soluciones peores con cierta probabilidad cuidadosamente controlada. Esta simple modificación cambia radicalmente la naturaleza de la búsqueda, porque hace posible escapar de mínimos locales y recorrer el espacio de búsqueda de una manera mucho más flexible que la que permiten los métodos puramente voraces.
 
-### Idea general.
+### Idea general
 
 Sea $\mathcal{X}$ un espacio de búsqueda arbitrario en un dominio determinado (potencialmente de alta dimensión) y sea $f:\mathcal{X}\longrightarrow \mathbb{R}$ una función objetivo que deseamos minimizar. En muchas situaciones, un procedimiento de búsqueda local clásico opera del siguiente modo: Partiendo de una solución actual $\mathbf{x}\in \mathcal{X}$, genera una solución vecina $\mathbf{y}\in \mathcal{N}(\mathbf{x})$, donde $\mathcal{N}(\mathbf{x})$ representa un entorno o vecindario de $\mathbf{x}$, y luego la acepta solamente si se verifica que $f(\mathbf{y})\leq f(\mathbf{x})$.
 
@@ -3111,11 +3109,11 @@ Esto permite describir el flujo general del algoritmo como una sucesión de esta
 
 En términos intuitivos, el algoritmo recorre el espacio de búsqueda como una caminata aleatoria sesgada. Decimos "sesgada", porque favorece naturalmente las soluciones de mejor calidad; y "aleatoria", porque conserva una componente de exploración que le permite desviarse ocasionalmente de una trayectoria puramente descendente.
 
-### Componentes básicos de una heurística probabilística de búsqueda.
+### Componentes básicos de una heurística probabilística de búsqueda
 
 Aunque existen muchas variantes, la mayoría de estas metaheurísticas puede describirse por medio de los siguientes componentes.
 
-#### Solución actual.
+#### Solución actual
 
 La búsqueda se organiza típicamente en torno a una única solución candidata $\mathbf{x}_{t}\in \mathcal{X}$, la cual se actualiza iterativamente.
 
@@ -3123,7 +3121,7 @@ La búsqueda se organiza típicamente en torno a una única solución candidata 
 
 A diferencia de algoritmos como PSO o evolución diferencial, aquí no trabajamos necesariamente con una población completa. El foco está puesto en la evolución de una trayectoria única en el espacio de búsqueda.
 
-#### Estructura del vecindario.
+#### Estructura del vecindario
 
 Toda heurística de búsqueda local necesita definir qué significa “moverse” desde una solución dada. Esto requiere una noción de vecindario.
 
@@ -3137,7 +3135,7 @@ La forma concreta de $\mathcal{N}(\mathbf{x})$ depende completamente del tipo de
 
 La **calidad del vecindario** es crucial. Si es demasiado pequeño, la búsqueda puede resultar muy lenta o muy local. Si es demasiado grande, las propuestas pueden ser poco informativas o costosas de evaluar.
 
-#### Mecanismo de perturbación.
+#### Mecanismo de perturbación
 
 Una vez definido el vecindario, el algoritmo necesita una regla concreta para generar un candidato $\mathbf{y}\in \mathcal{N}(\mathbf{x})$.
 
@@ -3147,7 +3145,7 @@ En términos abstractos, podemos escribir $\mathbf{y}=\Psi(\mathbf{x},\xi)$, don
 
 La perturbación es el mecanismo que le da **movilidad** al algoritmo. Si las perturbaciones son muy pequeñas, la búsqueda puede volverse demasiado conservadora. Si son excesivamente grandes, la trayectoria puede perder la estructura local que resulta útil para la explotación.
 
-#### Criterio de aceptación.
+#### Criterio de aceptación
 
 Este es el corazón conceptual de estas heurísticas. Una vez generado un candidato $\mathbf{y}$, el algoritmo decide si reemplaza o no a la solución actual $\mathbf{x}$.
 
@@ -3169,20 +3167,20 @@ Entonces:
 
 Esta posibilidad de aceptar soluciones peores es precisamente lo que distingue a estas heurísticas de una búsqueda local puramente voraz.
 
-#### Parámetro de control térmico o análogo.
+#### Parámetro de control térmico o análogo
 
 En muchos de estos métodos aparece un parámetro que regula la tolerancia del algoritmo frente a movimientos desfavorables. En el caso de aplicaciones específicas, como el **algoritmo de recocido simulado**, este parámetro se denomina **temperatura**.
 
 En general, podemos pensar en un parámetro $T>0$ que controla cuán “exploratoria” es la búsqueda: Si $T$ es alta, el algoritmo acepta con mayor facilidad soluciones peores, y si $T$ es baja, el algoritmo se vuelve más selectivo y actúa casi como una búsqueda local descendente.
 
-#### Programa de enfriamiento o *schedule*.
+#### Programa de enfriamiento o *schedule*
 
 Cuando el parámetro de control cambia con el tiempo, es necesario establecer una regla de actualización.
 **<font color='blue'>Definición 7.19 – Programa de control:</font>** El **programa de control** es la regla mediante la cual el parámetro principal de aceptación probabilística evoluciona a lo largo de las iteraciones.
 
 Por ejemplo, en aplicaciones específicas como el algoritmo de recocido simulado, esto corresponde a una secuencia $T_{0},T_{1},T_{2},\dots$, que suele satisfacer la condición $T_{t+1}\leq T_{t}$. La forma concreta de este programa influye decisivamente en el equilibrio entre exploración y explotación.
 
-#### Mejor solución encontrada.
+#### Mejor solución encontrada
 
 Aunque la solución actual puede empeorar temporalmente, el algoritmo suele llevar registro de la mejor solución global encontrada hasta el momento. Si denotamos por $\mathbf{x}_{t}$ la solución actual en la iteración $t$, entonces la mejor solución global observada hasta ese instante será
 
@@ -3195,7 +3193,7 @@ $$
 
 Esta distinción entre **solución actual** y **mejor solución histórica** es muy importante en estas metaheurísticas.
 
-### Algoritmo de recocido simulado.
+### Algoritmo de recocido simulado
 
 Dentro del conjunto de las heurísticas probabilísticas generales de búsqueda, el **algoritmo de recocido simulado** (en inglés, *simulated annealing*, SA) ocupa un lugar especialmente importante. Se trata de una de las metaheurísticas más influyentes de toda la teoría de optimización de tipo *black-box*, tanto por su simplicidad conceptual como por la profundidad de su fundamento probabilístico. Su variante moderna, conocida como **recocido dual** (en inglés, *dual annealing*, DA), puede entenderse como una extensión más sofisticada de esa misma idea, orientada a mejorar la capacidad exploratoria del algoritmo y su desempeño práctico en **paisajes de optimización** muy complejos.
 
@@ -3323,7 +3321,7 @@ Esto vuelve al recocido simulado especialmente atractivo para funciones con much
 
 Entre las principales **ventajas** del algoritmo de recocido simulado, destacan su gran simplicidad conceptual, su flexibilidad para dominios continuos, discretos y combinatoriales, su capacidad natural de escapar de mínimos locales, y sus requerimientos analíticos mínimos sobre la función objetivo. Sin embargo, vale la pena mencionar que no se trata en absoluto de una heurística perfecta, ya que posee una fuerte dependencia del programa de enfriamiento que definamos, es altamente sensible a la elección del vecindario, escala mal con las dimensiones del problema de interés y posee una menor riqueza exploratoria que las metaheurísticas poblacionales, al trabajar esencialmente sobre una sola trayectoria.
 
-### Algoritmo de recocido dual.
+### Algoritmo de recocido dual
 
 Aunque el algoritmo de recocido simulado es súper elegante, su desempeño práctico puede verse limitado cuando el **paisaje de optimización** es extremadamente "rugoso" o cuando el espacio de búsqueda es muy grande. En tales casos, una sola trayectoria local, incluso con aceptación probabilística, puede no ser suficiente para explorar eficazmente regiones distantes del espacio. Esto motiva variantes más sofisticadas. Una de las más importantes es el **recocido dual**.
 
@@ -4066,17 +4064,13 @@ plan_int[["unidad", "material", "destino", "camiones_promedio", "camiones_entero
 ```
 
 ```{python}
+#| label: fig-optimizacion-de-tipo-black-box-24
+#| fig-cap: "Asignación entera sugerida de camiones por unidad de carguío."
 # Construimos un gráfico sencillo para mostrar la asignación.
 fig, ax = plt.subplots(figsize=(9, 5))
 
 p = ax.bar(plan_int["unidad"], plan_int["camiones_enteros"], color="deepskyblue", alpha=0.7)
 ax.bar_label(p, label_type='edge')
-
-ax.set_title(
-    "Asignación entera sugerida de camiones por unidad de carguío",
-    fontsize=13, fontweight="bold", pad=10
-)
-
 ax.set_xlabel("Unidad de carguío", fontsize=12, labelpad=10)
 ax.set_ylabel("Número de camiones", fontsize=12, labelpad=10)
 plt.tight_layout()
@@ -4110,7 +4104,7 @@ La diferencia fundamental es que el TSP es un problema de secuenciación de una 
 
 En consecuencia, mientras el TSP es un problema típicamente más puro de ruta, el presente problema mezcla elementos de ruteo, asignación, colas, balance de recursos y planificación operativa. Por eso resulta un excelente caso de uso para metaheurísticas globales como `dual_annealing()`, especialmente cuando queremos construir un modelo flexible sin derivadas y con varios componentes penalizados dentro de una sola función objetivo. ◼︎
 
-## Comentarios finales.
+## Comentarios finales
 
 A lo largo de este apunte (que sí, es extremadamente intenso) hemos desarrollado una primera visión integral de la teoría de optimización, entendida no sólo como un conjunto de algoritmos para “buscar mínimos”, sino como un lenguaje matemático general para formular problemas de decisión, modelar restricciones y caracterizar rigurosamente el concepto de solución óptima. Esta perspectiva es especialmente relevante en machine learning, donde el ajuste de parámetros, la minimización de funciones de pérdida y la incorporación de restricciones operacionales aparecen de manera transversal.
 

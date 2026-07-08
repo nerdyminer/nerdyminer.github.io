@@ -1,0 +1,1239 @@
+{
+  "cells": [
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "---\n",
+        "title: \"Comparación, ordenamiento y reemplazos en arreglos\"\n",
+        "subtitle: \"Introducción a los operadores lógicos y su importancia en el filtrado de datos\"\n",
+        "section_href: \"/clases/data-analytics/introduccion-al-analisis-de-datos-en-python/computacion-vectorizada-y-arreglos-con-numpy/\"\n",
+        "toc: true\n",
+        "toc-depth: 3\n",
+        "page-layout: article\n",
+        "number-offset: 3\n",
+        "---\n",
+        "\n",
+        "::: {.callout-important}\n",
+        "## Idea central\n",
+        "\n",
+        "En este apunte estudiaremos cómo **<font color='darkmagenta'>Numpy</font>** permite no sólo calcular con arreglos, sino también **compararlos, filtrarlos, seleccionar subconjuntos de datos y reorganizar su contenido**. A partir de operadores de comparación, funciones Booleanas, máscaras lógicas y esquemas más avanzados de indexación, veremos que los arreglos pueden usarse como estructuras dinámicas sobre las cuales es posible tomar decisiones de selección y transformación de manera vectorizada, expresiva y eficiente. Estas herramientas constituyen la base de gran parte del filtrado y preprocesamiento de datos en Python.\n",
+        ":::\n",
+        "\n",
+        "## Operadores de comparación\n",
+        "\n",
+        "Cuando comenzamos a estudiar las operaciones aritméticas sobre arreglos de **<font color='darkmagenta'>Numpy</font>**, introdujimos el conjunto de **funciones universales** (`ufuncs`). Vimos que el uso de `+`, `-`, `*`, `/` y otros operadores nos permitía generar operaciones elemento a elemento en los arreglos (siguiendo, por supuesto, las reglas de *broadcasting*). **<font color='darkmagenta'>Numpy</font>** también tiene disponibles operadores de comparación, tales como `<` (menor que) y `>` (mayor que), los cuales operan igualmente elemento a elemento. El resultado de estos operadores de comparación es siempre un arreglo con valores de tipo Booleano.\n",
+        "\n",
+        "Veamos este tipo de operaciones mediante ejemplos de código:"
+      ],
+      "id": "5ba8b2d7"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "import numpy as np"
+      ],
+      "id": "954da64b",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Creamos un arreglo unidimensional (que llamamos x).\n",
+        "x = np.arange(start=1, stop=10, step=1)\n",
+        "\n",
+        "# Mostramos el arreglo en pantalla.\n",
+        "x"
+      ],
+      "id": "dae56ad6",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Mayor que.\n",
+        "x > 3"
+      ],
+      "id": "f3971eef",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Menor que.\n",
+        "x < 3"
+      ],
+      "id": "88ff83bb",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Mayor o igual que.\n",
+        "x >= 3"
+      ],
+      "id": "907e1291",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Menor o igual que.\n",
+        "x <= 3"
+      ],
+      "id": "8db24785",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# No es igual a.\n",
+        "x != 3"
+      ],
+      "id": "e7692296",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Es igual a.\n",
+        "x == 3"
+      ],
+      "id": "df253354",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Vemos pues que la aplicación de cualquier operador de comparación sobre un arreglo verifica la condición definida por dicho operador, elemento a elemento, y devuelve como respuesta un arreglo de la misma geometría que el original, cuyos elementos son Booleanos. Tales elementos denotan un valor cierto (`True`) si la condición efectivamente se cumple, y un valor falso (`False`) si no lo hace.\n",
+        "\n",
+        "También es posible realizar comparaciones elemento a elemento considerando dos arreglos, incluyendo, de esta manera, expresiones más compuestas:"
+      ],
+      "id": "f46dde89"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Una expresión comparativa compuesta.\n",
+        "(2*x) == (x - 2*x + x**2)"
+      ],
+      "id": "60145a2e",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Tal y como en el caso de las operaciones aritméticas, y de las funciones trigonométricas, logarítmicas, etc., estos operadores de comparación pueden aplicarse en arreglos independientemente de su tamaño o número de dimensiones. Por ejemplo, en el caso de un arreglo bidimensional, podemos tener:"
+      ],
+      "id": "7400b1c0"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Generamos una semilla aleatoria fija.\n",
+        "rng = np.random.default_rng(42)\n",
+        "\n",
+        "# Construimos un arreglo bidimensional.\n",
+        "M = rng.integers(low=1, high=10, size=(4, 4))\n",
+        "\n",
+        "# Y lo mostramos en pantalla.\n",
+        "M"
+      ],
+      "id": "397c8eaf",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Los operadores de comparación pueden aplicarse sin problemas sobre este arreglo bidimensional.\n",
+        "M <= 5"
+      ],
+      "id": "59dd4ae9",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Vemos pues que el resultado de la operación `M <= 5` es, como cabría esperar, un arreglo con elementos Booleanos, con la misma geometría del arreglo original.\n",
+        "\n",
+        "## Funciones con resultado Booleano\n",
+        "\n",
+        "Dado un arreglo arbitrario, **<font color='darkmagenta'>Numpy</font>** nos provee de una serie de funciones que nos permiten realizar consultas sobre la data almacenada en él, y cuyas salidas corresponden a arreglos con elementos Booleanos. Para ejemplificar su uso, trabajaremos con el arreglo bidimensional `M` que definimos previamente.\n",
+        "\n",
+        "Los valores Booleanos en **<font color='darkmagenta'>Numpy</font>** representan siempre valores binarios, con la convención de que el valor `True` es igual a 1, y el valor `False` es igual a 0. De esta manera, los elementos de un arreglo Booleano siempre podrán sumarse, a fin de conocer cuántos de esos elementos cumplen con una determinada condición impuesta mediante algún operador de comparación.\n",
+        "\n",
+        "Un ejemplo sencillo sería consultar cuántos elementos de `M` cumplen con la condición `M > 5`. Esto podemos hacerlo fácilmente usando la función `np.sum()`, aprovechando incluso que esta función permite construir agregaciones:"
+      ],
+      "id": "9b471edc"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Conteo de elementos del arreglo M que cumplen con la condición M > 5.\n",
+        "np.sum(M > 5)"
+      ],
+      "id": "bf4a218d",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Conteo de elementos del arreglo M que cumplen con la condición M > 5, verificados en cada fila.\n",
+        "np.sum(M > 5, axis=1)"
+      ],
+      "id": "efffa39a",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Conteo de elementos del arreglo M que cumplen con la condición M > 5, verificados en cada columna.\n",
+        "np.sum(M > 5, axis=0)"
+      ],
+      "id": "cefad501",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Naturalmente, podemos estar interesados en saber si alguno o todos los elementos de un determinado arreglo cumplen con alguna condición. Para ello, podemos utilizar las funciones `np.any()` o `np.all()`, respectivamente:"
+      ],
+      "id": "8875f6d3"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# ¿Hay algún valor mayor que 8?\n",
+        "np.any(M > 8)"
+      ],
+      "id": "fa412740",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# ¿Hay algún valor menor que cero?\n",
+        "np.any(M < 0)"
+      ],
+      "id": "d8007bfd",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# ¿Son todos los valores menores que 10?\n",
+        "np.all(M < 10)"
+      ],
+      "id": "8dae01fe",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# ¿Son todos los valores iguales a 6?\n",
+        "np.all(M == 6)"
+      ],
+      "id": "58d229f6",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# ¿Son todos los valores en cada fila menores que 8?\n",
+        "np.all(M < 8, axis=1)"
+      ],
+      "id": "7079cdfc",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# ¿Hay algún valor en cada columna menor que 4?\n",
+        "np.any(M < 4, axis=0)"
+      ],
+      "id": "1c8169b3",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "## Operadores Booleanos\n",
+        "\n",
+        "Los operadores Booleanos permiten, mediante el uso de ciertos símbolos, conectar dos proposiciones o sentencias lógicas a fin de construir proposiciones compuestas cuyo resultado es algún valor de verdad (Booleano). **<font color='darkmagenta'>Numpy</font>** nos provee de varias `ufuncs` que emulan el comportamiento de estos operadores lógicos mediante el correspondiente símbolo utilizado normalmente en Python para la ejecución de este tipo de operaciones. Tales símbolos son `&`, `|`, `^` y `~`, los que se corresponden con las operaciones “AND”, “OR”, “XOR” y “NOT”. Las respectivas funciones universales de **<font color='darkmagenta'>Numpy</font>** (elemento a elemento) que se corresponden con estos operadores son las que se muestran en la @tbl-booleans.\n",
+        "\n",
+        ": Operadores Booleanos de **<font color='darkmagenta'>Numpy</font>** {#tbl-booleans}\n",
+        "\n",
+        "| Operador | `ufunc` equivalente |\n",
+        "| -------- | ------------------- |\n",
+        "| `&`      | `np.bitwise_and()`  |\n",
+        "| `|`      | `np.bitwise_or()`   |\n",
+        "| `^`      | `np.bitwise_xor()`  |\n",
+        "| `~`      | `np.bitwise_not()`  |\n",
+        "\n",
+        "Veamos cómo trabajan estos operadores por medio de un ejemplo:"
+      ],
+      "id": "a48a61d1"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Construimos un arreglo que emula el histórico de rendimiento\n",
+        "# de un chancador primario durante los últimos 100 días.\n",
+        "hist = rng.normal(loc=1250, scale=750, size=100) + 3600"
+      ],
+      "id": "9558d1db",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Realizamos algunas consultas relativas a esta data.\n",
+        "print(f\"Número de días con procesamiento menor a 4000 tph = {np.sum(hist < 4000)}\")\n",
+        "print(f\"Número de días con procesamiento entre 4500 y 5000 tph = {np.sum((hist >= 4500) & (hist <= 5000))}\")\n",
+        "print(f\"Número de días con procesamiento sobre 6000 tph o bajo 4000 tph = {np.sum((hist > 6000) | (hist < 4000))}\")"
+      ],
+      "id": "d87c9739",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Notemos que, en el bloque de código anterior, los paréntesis cobran extrema importancia. Esto es debido a que éstos intervienen directamente en la jerarquización de la operación completa. Por lo tanto, en este ejemplo, primero resolvemos las comparaciones, y luego las conjugamos mediante el operador `&`, o bien, las unimos mediante el operador `|`.\n",
+        "\n",
+        "## Masking\n",
+        "\n",
+        "En los ejemplos anteriores, verificamos la construcción de agregaciones calculadas directamente sobre arreglos Booleanos. Una herramienta aún más poderosa en **<font color='darkmagenta'>Numpy</font>** corresponde a la utilización de arreglos Booleanos como máscaras o filtros, a fin de seleccionar ciertos subconjuntos bien definidos de la data de nuestro interés. Este proceso se conoce como *masking*.\n",
+        "\n",
+        "Consideremos nuestro arreglo `M`, previamente construido, y supongamos que queremos obtener un sub-arreglo consistente de todos los elementos de `M` que son menores que 4. Para ello, procedemos enmascarando la condición de interés (`M < 4`) entre corchetes. Luego tenemos:"
+      ],
+      "id": "c3f3328b"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# El arreglo M.\n",
+        "M"
+      ],
+      "id": "8f1a4e59",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Obtenemos un arreglo compuesto únicamente por los elementos de M que son menores que 4.\n",
+        "M[M < 4]"
+      ],
+      "id": "3fc4fcb7",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "La selección anterior sigue una lógica bastante sencilla: la condición `M < 4` devuelve un arreglo con elementos Booleanos de las mismas dimensiones que el arreglo original `M`. Por lo tanto, al escribir `M[M < 4]`, el corchete indica que la selección se realizará con respecto a las posiciones del arreglo `M < 4` tales que su valor sea igual a `True`.\n",
+        "\n",
+        "El resultado de una selección mediante *masking* es siempre un arreglo unidimensional.\n",
+        "\n",
+        "También podemos combinar varias condiciones Booleanas a fin de obtener filtros más expresivos. Por ejemplo, si quisiéramos seleccionar los elementos de `M` que son mayores que 3 y menores que 8, podríamos escribir:"
+      ],
+      "id": "1e1307a3"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Selección mediante una máscara compuesta.\n",
+        "M[(M > 3) & (M < 8)]"
+      ],
+      "id": "aeb5a3a0",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "## Fancy indexing\n",
+        "\n",
+        "En las secciones previas, aprendimos a acceder y modificar porciones de arreglos mediante la implementación de un indexado sencillo (por ejemplo, `x[0]`), *slicing* (por ejemplo, `x[:5]`) y *masking* (por ejemplo, `x[x != 0]`). En esta subsección, echaremos un vistazo a otro estilo muy particular de indexación de arreglos, conocido en la práctica como *fancy indexing*. Este tipo de indexación es parecido al que ya aprendimos, pero esta vez indexamos conforme arreglos completos. Esto nos permite acceder rápidamente a y/o modificar subconjuntos de nuestros arreglos de mayor complejidad.\n",
+        "\n",
+        "Este tipo de indexación es conceptualmente simple. Consiste simplemente en pasar un arreglo de índices para acceder a múltiples elementos de un arreglo al mismo tiempo. Por ejemplo, consideremos el siguiente arreglo:"
+      ],
+      "id": "4266e39f"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Generamos una semilla aleatoria fija.\n",
+        "rng = np.random.default_rng(42)\n",
+        "\n",
+        "# Creamos el arreglo `x`.\n",
+        "x = rng.integers(low=1, high=100, size=20)\n",
+        "\n",
+        "# Y lo mostramos en pantalla.\n",
+        "print(x)"
+      ],
+      "id": "b5de5a50",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Supongamos que queremos acceder a tres diferentes elementos. Podríamos, dado aquello, hacer algo como esto:"
+      ],
+      "id": "a3a01440"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Acceso a algunos elementos de `x`.\n",
+        "[x[13], x[7], x[18]]"
+      ],
+      "id": "b96ff6d0",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Alternativamente, podemos también pasar un conjunto de índices para obtener el mismo resultado:"
+      ],
+      "id": "c12d42d2"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Definimos las posiciones a escoger en una lista.\n",
+        "indices = [13, 7, 18]\n",
+        "\n",
+        "# Y generamos la selección.\n",
+        "x[indices]"
+      ],
+      "id": "577efea6",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Con este esquema de indexación, la geometría de los resultados refleja siempre la geometría de los arreglos que definen los índices, en vez de la geometría del arreglo indexado:"
+      ],
+      "id": "853e0baf"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Creamos un arreglo de índices.\n",
+        "indices = np.array([\n",
+        "    [13, 7],\n",
+        "    [18, 2]\n",
+        "])\n",
+        "\n",
+        "# Y generamos la selección a partir del arreglo anterior.\n",
+        "x[indices]"
+      ],
+      "id": "816800c8",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Este esquema de selección se conoce como **fancy indexing**: nos permite definir posiciones mediante reglas simples que se describen por medio de listas e incluso arreglos, para luego realizar selecciones de datos conforme dichas reglas y en las posiciones descritas por las geometrías de esas listas y/o arreglos.\n",
+        "\n",
+        "El esquema de *fancy indexing* también funciona en dimensiones múltiples. Consideremos el siguiente arreglo:"
+      ],
+      "id": "50cf4daf"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Definimos un arreglo 2D de enteros.\n",
+        "M = rng.integers(low=1, high=20, size=(6, 6))\n",
+        "\n",
+        "# Y lo mostramos en pantalla.\n",
+        "M"
+      ],
+      "id": "ad52cec6",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Como en el caso del indexado simple, el primer índice se refiere a las filas y el segundo a las columnas:"
+      ],
+      "id": "f50399e8"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Definimos las posiciones a indexar por filas y columnas.\n",
+        "row = np.array([0, 2, 4])\n",
+        "col = np.array([1, 3, 5])\n",
+        "\n",
+        "# Y realizamos la selección.\n",
+        "M[row, col]"
+      ],
+      "id": "ad947f7f",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Notemos que el primer valor en el resultado es `M[0, 1]`, el segundo es `M[2, 3]`, y el tercero es `M[4, 5]`. El pareo de índices en el *fancy indexing* sigue las mismas reglas verificadas cuando estudiamos el concepto de *broadcasting*. Siempre es importante recordar que, con el *fancy indexing*, el valor retornado por la operación de indexado refleja siempre la geometría de los índices transmitidos mediante *broadcasting*, en vez de la geometría del arreglo que indexamos.\n",
+        "\n",
+        "Vale la pena enfatizar un detalle importante: la operación `M[row, col]` **no** devuelve una submatriz rectangular, sino una selección pareada de posiciones. Si lo que quisiéramos fuera seleccionar el rectángulo definido por las filas `row` y las columnas `col`, podríamos usar `np.ix_()`:"
+      ],
+      "id": "416d090d"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Selección rectangular de filas y columnas.\n",
+        "M[np.ix_(row, col)]"
+      ],
+      "id": "8fb50cf8",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "**Ejemplo 4.1 – Selección integrada:** Cerraremos esta primera parte del apunte con un ejemplo un poco más elaborado, donde combinaremos varias de las herramientas revisadas hasta ahora: operadores de comparación, funciones Booleanas, *masking*, *slicing* y *fancy indexing*.\n",
+        "\n",
+        "Supongamos que el siguiente arreglo `P` representa información de 12 muestras de una campaña metalúrgica. Cada fila corresponde a una muestra, y las columnas representan, respectivamente:\n",
+        "\n",
+        "1. Tratamiento de molienda (`tph`).\n",
+        "2. Presión de alimentación en hidrociclones (`psi`).\n",
+        "3. Porcentaje retenido en malla de control (`%`).\n",
+        "4. Ley estimada de cobre (`% Cu`)."
+      ],
+      "id": "a299b7f2"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Construimos el arreglo P.\n",
+        "P = np.array([\n",
+        "    [5100, 11.2, 29.4, 0.62],\n",
+        "    [4800, 10.8, 31.1, 0.58],\n",
+        "    [5300, 12.4, 27.9, 0.67],\n",
+        "    [4550,  9.8, 35.0, 0.51],\n",
+        "    [6100, 13.1, 24.8, 0.73],\n",
+        "    [5900, 12.7, 26.1, 0.70],\n",
+        "    [4200,  9.5, 36.4, 0.49],\n",
+        "    [5050, 11.0, 30.2, 0.61],\n",
+        "    [5700, 12.0, 28.0, 0.66],\n",
+        "    [4450, 10.1, 34.1, 0.53],\n",
+        "    [6250, 13.6, 23.9, 0.75],\n",
+        "    [4950, 10.7, 31.0, 0.59],\n",
+        "])\n",
+        "\n",
+        "# Mostramos el arreglo.\n",
+        "P"
+      ],
+      "id": "7907a0af",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Podemos comenzar realizando algunas consultas Booleanas globales:"
+      ],
+      "id": "ed784ed3"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# ¿Hay alguna muestra con tratamiento sobre 6000 tph?\n",
+        "np.any(P[:, 0] > 6000)"
+      ],
+      "id": "cc4a49f6",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# ¿Son todas las muestras de ley superior a 0.45 % Cu?\n",
+        "np.all(P[:, 3] > 0.45)"
+      ],
+      "id": "e48e441f",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Ahora supongamos que queremos filtrar únicamente las muestras que cumplan simultáneamente las siguientes condiciones:\n",
+        "\n",
+        "- Tratamiento mayor o igual que 5000 tph.\n",
+        "- Presión mayor que 11 psi.\n",
+        "- Ley de cobre mayor o igual que 0.62 %.\n",
+        "\n",
+        "Podemos construir una máscara compuesta y aplicarla sobre el arreglo completo:"
+      ],
+      "id": "079ddbe7"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Construimos una máscara compuesta.\n",
+        "mask = (P[:, 0] >= 5000) & (P[:, 1] > 11) & (P[:, 3] >= 0.62)\n",
+        "\n",
+        "# Aplicamos la máscara.\n",
+        "P_filtrado = P[mask]\n",
+        "P_filtrado"
+      ],
+      "id": "a690f1f2",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Notemos que el resultado es un subconjunto de filas del arreglo original `P`, es decir, aquellas muestras que cumplen simultáneamente con todas las condiciones impuestas.\n",
+        "\n",
+        "Si quisiéramos ahora quedarnos sólo con las columnas relativas al tratamiento y la ley de cobre dentro de ese subconjunto, podemos combinar el filtrado anterior con *fancy indexing* sobre columnas:"
+      ],
+      "id": "e08f5765"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Seleccionamos únicamente las columnas 0 y 3 del subconjunto filtrado.\n",
+        "P_filtrado[:, [0, 3]]"
+      ],
+      "id": "f5a9a6a4",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "También podemos usar *slicing* para inspeccionar rápidamente un bloque rectangular del arreglo original. Por ejemplo, las primeras cinco muestras y las tres primeras variables:"
+      ],
+      "id": "61fa5be9"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Selección por slicing.\n",
+        "P[:5, :3]"
+      ],
+      "id": "6a385b5d",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Finalmente, podemos usar *fancy indexing* en ambos ejes para inspeccionar posiciones puntuales de interés. Supongamos que queremos revisar las muestras en las filas 0, 4, 8 y 10, pero sólo en las columnas asociadas a tratamiento y ley:"
+      ],
+      "id": "54a6e72e"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Selección rectangular usando fancy indexing.\n",
+        "filas = np.array([0, 4, 8, 10])\n",
+        "columnas = np.array([0, 3])\n",
+        "\n",
+        "P[np.ix_(filas, columnas)]"
+      ],
+      "id": "8e275259",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Este ejemplo resume bastante bien la lógica general de esta parte del curso: comparar valores, construir reglas Booleanas, filtrar mediante máscaras y luego seleccionar subconjuntos específicos de datos mediante distintos esquemas de indexación. En la práctica, una fracción muy importante del preprocesamiento de datos en Python consiste precisamente en encadenar este tipo de operaciones de manera clara y eficiente. ◼︎\n",
+        "\n",
+        "## Ordenamiento de arreglos\n",
+        "\n",
+        "Hasta este punto, hemos considerado herramientas que nos sirven para acceder y manipular los datos almacenados en nuestros arreglos con **<font color='darkmagenta'>Numpy</font>**. Procederemos ahora a cubrir algunas rutinas que nos permiten generar algún tipo de orden en los elementos que constituyen tales arreglos.\n",
+        "\n",
+        "A pesar de que Python tiene disponibles las funciones nativas `sort()` y `sorted()`, las cuales funcionan perfecto en objetos tales como listas, no las discutiremos en este curso debido a que la función `np.sort()` es mucho más eficiente que las alternativas nativas (en tiempo de ejecución). De esta manera, para retornar la versión ordenada de un arreglo, sin modificar nada más, podemos escribir:"
+      ],
+      "id": "f93b3840"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Definimos una semilla aleatoria fija.\n",
+        "rng = np.random.default_rng(10)\n",
+        "\n",
+        "# Creamos nuestro arreglo.\n",
+        "u = rng.integers(low=1, high=20, size=10)\n",
+        "\n",
+        "# Y lo mostramos en pantalla.\n",
+        "u"
+      ],
+      "id": "05fa38c9",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Retornamos la versión ordenada del arreglo u.\n",
+        "np.sort(u)"
+      ],
+      "id": "e79e7469",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "**<font color='darkmagenta'>Numpy</font>** también nos provee del método `sort()`, aplicable sobre cualquier arreglo, y que también permite ordenar sus elementos. Sin embargo, este método no retorna una copia del arreglo con sus elementos ordenados (como la función `np.sort()`), sino que modifica el arreglo respectivo, ordenando sus elementos:"
+      ],
+      "id": "b3c82ec2"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Ordenamos el arreglo u mediante el método sort().\n",
+        "u.sort()\n",
+        "\n",
+        "# Mostramos el arreglo ordenado.\n",
+        "u"
+      ],
+      "id": "bb654f6f",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Con frecuencia, estamos interesados en determinar las posiciones relativas a los elementos de un arreglo que, de seleccionarlas, retornan el arreglo ordenado. Para ello, podemos utilizar la función `np.argsort()`:"
+      ],
+      "id": "e943514a"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Creamos el arreglo.\n",
+        "v = rng.integers(low=1, high=10, size=10)\n",
+        "\n",
+        "# Y lo mostramos en pantalla.\n",
+        "v"
+      ],
+      "id": "51f56309",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Determinamos las posiciones de los elementos que permiten ordenar el arreglo.\n",
+        "np.argsort(v)"
+      ],
+      "id": "15bde624",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Estos índices nos permiten listar los elementos ordenadamente en nuestro arreglo.\n",
+        "v[np.argsort(v)]"
+      ],
+      "id": "1137d96a",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "La función `np.sort()` también permite operar de forma agregada. Por lo tanto, es posible ordenar los elementos de un arreglo multidimensional conforme la dirección de cualquiera de sus ejes. Por ejemplo, conforme filas o columnas en un arreglo 2D:"
+      ],
+      "id": "42ff7bde"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# El arreglo `M`.\n",
+        "M"
+      ],
+      "id": "18c22276",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Ordenamos los elementos que constituyen las columnas de M.\n",
+        "np.sort(M, axis=0)"
+      ],
+      "id": "d01a7451",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Ordenamos los elementos que constituyen las filas de M.\n",
+        "np.sort(M, axis=1)"
+      ],
+      "id": "1fbab5bb",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Debemos tener en consideración que el método anterior asume que tanto las filas como las columnas de un arreglo son arreglos independientes. Por lo tanto, cualquier relación existente entre los elementos del arreglo original no se preserva al generar este tipo de ordenamientos.\n",
+        "\n",
+        "A veces no estamos interesados en ordenar un arreglo completamente, sino que simplemente queremos encontrar los `K` valores más pequeños en el mismo. **<font color='darkmagenta'>Numpy</font>** nos provee de la función `np.partition()`, la cual toma como argumentos un arreglo determinado y un número `K`. El resultado que retorna es un nuevo arreglo, con los `K` valores más pequeños situados a la izquierda de esta partición, y los demás elementos a la derecha de `K`, en un orden arbitrario:"
+      ],
+      "id": "7998522e"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# La función np.partition() devuelve un arreglo cuyos primeros K elementos son los de menor magnitud\n",
+        "# del arreglo original, sin un orden específico, mientras que el resto de los elementos permanecen\n",
+        "# a la derecha de la partición.\n",
+        "np.partition(v, 3)"
+      ],
+      "id": "148df753",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Notemos que los primeros tres elementos en el arreglo resultante corresponden a los tres elementos más pequeños del arreglo original, mientras que las posiciones restantes contienen al resto de los elementos. Ambas particiones tienen un orden arbitrario en sus elementos respectivos.\n",
+        "\n",
+        "Similarmente al caso del ordenamiento clásico, también podemos particionar elementos conforme cualquier eje estructural de un arreglo:"
+      ],
+      "id": "2ce6898a"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Retornamos un arreglo cuyos dos primeros elementos, por columna, son los de menor magnitud.\n",
+        "np.partition(M, 2, axis=0)"
+      ],
+      "id": "ba262958",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Retornamos un arreglo cuyos dos primeros elementos, por fila, son los de menor magnitud.\n",
+        "np.partition(M, 2, axis=1)"
+      ],
+      "id": "008f218d",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "El resultado es un arreglo en el cual los primeros dos elementos de cada fila contienen a los elementos más pequeños en dicha fila, estando en las posiciones restantes el resto de los elementos de cada fila correspondiente, ambos en un orden arbitrario.\n",
+        "\n",
+        "Finalmente, de la misma forma que disponemos de la función `np.argsort()` para devolver los índices de los elementos ordenados de un arreglo, también contamos con la función `np.argpartition()`, la cual computa los índices que denotan las posiciones relativas a una partición. Veremos esto en detalle en el siguiente ejemplo.\n",
+        "\n",
+        "**Ejemplo 4.2 – El algoritmo de $K$ vecinos más cercanos:** Veamos rápidamente cómo utilizar la función `np.argsort()` conforme múltiples ejes para encontrar a los vecinos más cercanos de cada punto en un conjunto. Comenzaremos creando un conjunto aleatorio de 30 puntos en un plano, en un arreglo de geometría `(30, 2)`:"
+      ],
+      "id": "56488384"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Definimos el arreglo que trabajaremos.\n",
+        "P = rng.uniform(size=(30, 2))\n",
+        "\n",
+        "# Y lo mostramos en pantalla.\n",
+        "P"
+      ],
+      "id": "b3df06cf",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Para tener una idea de cómo se ven estos puntos en el plano, podemos graficarlos rápidamente usando **<font color='darkmagenta'>Matplotlib</font>**. No ahondaremos en el gráfico demasiado, ya que más adelante abordaremos este tema en detalle. Sin embargo, el código es el siguiente:"
+      ],
+      "id": "8df753eb"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "import matplotlib.pyplot as plt"
+      ],
+      "id": "a020eb90",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Seteamos algunas opciones para que nuestras figuras queden bonitas.\n",
+        "plt.rcParams[\"figure.dpi\"] = 90\n",
+        "plt.style.use(\"bmh\")"
+      ],
+      "id": "419483e7",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "#| label: fig-comparacion-ordenamiento-y-reemplazo-01\n",
+        "#| fig-cap: Visualización generada para la sección Ordenamiento de arreglos.\n",
+        "# Gráfico de nuestros puntos en el plano.\n",
+        "fig, ax = plt.subplots(figsize=(9, 5))\n",
+        "ax.scatter(P[:, 0], P[:, 1], color=\"firebrick\")\n",
+        "ax.set_xlabel(r\"$X$\", fontsize=12, labelpad=10)\n",
+        "ax.set_ylabel(r\"$Y$\", fontsize=12, labelpad=15, rotation=0)\n",
+        "plt.tight_layout()"
+      ],
+      "id": "fig-comparacion-ordenamiento-y-reemplazo-01",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Recordemos, de la geometría analítica, que para dos puntos $P_{1}=(x_{1},y_{1})$ y $P_{2}=(x_{2},y_{2})$, la distancia $d(P_{1},P_{2})$ puede calcularse como\n",
+        "\n",
+        "::: {.eq-scroll}\n",
+        "$$\n",
+        "d(P_{1},P_{2})=\\Vert P_{1}-P_{2}\\Vert={\\displaystyle \\sqrt{(x_{1}-x_{2})^{2}+( y_{1}-y_{2})^{2}}}\n",
+        "\\tag{4.1}\n",
+        "$$\n",
+        ":::\n",
+        "\n",
+        "El algoritmo de K-vecinos más cercanos corresponde a un procedimiento que asigna ciertos valores o características a un punto dependiendo de su distancia al resto de los puntos en un espacio determinado. Corresponde a uno de los modelos de clasificación más sencillos que podemos implementar.\n",
+        "\n",
+        "Dado que este algoritmo funciona en base a las distancias a fin de poder establecer qué tan cerca está un punto de otro, podemos construir una matriz de distancias cruzadas entre cada par de puntos. Si disponemos de $n$ puntos, tal matriz será de dimensión $n\\times n$. De esta manera, para nuestro arreglo `P`, dicha matriz corresponderá a un arreglo de geometría `(30, 30)`, que podemos construir de la siguiente manera:"
+      ],
+      "id": "ea1d11fb"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Construimos una matriz llamada dist, para almacenar las distancias que calcularemos.\n",
+        "dist = np.zeros(shape=(30, 30))\n",
+        "\n",
+        "# Mediante un loop sencillo, calculamos estas distancias cuadradas.\n",
+        "for i in range(P.shape[0]):\n",
+        "    for j in range(P.shape[0]):\n",
+        "        dist_ij = np.sum((P[i] - P[j])**2)\n",
+        "        dist[i, j] = dist_ij"
+      ],
+      "id": "0dd101e4",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Sólo para hacer un doble chequeo de lo que estamos haciendo, deberíamos observar los valores en la diagonal de esta matriz. Tales valores corresponden a las distancias entre un punto consigo mismo y, por supuesto, éstas deben ser iguales a cero:"
+      ],
+      "id": "cad341ef"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Doble check de nuestro cálculo.\n",
+        "dist.diagonal()"
+      ],
+      "id": "0fd93df0",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "¡Vamos súper bien! Aunque en `dist` hemos almacenado distancias cuadradas en vez de distancias Euclidianas exactas, esto no afecta el orden relativo entre vecinos y, por lo tanto, sigue siendo completamente válido para el problema de vecinos más cercanos.\n",
+        "\n",
+        "Con las distancias entre pares de puntos ya resueltas, podemos utilizar la función `np.argsort()` para ordenar los elementos por fila. Las columnas de más a la izquierda nos darán los índices de los vecinos más cercanos:"
+      ],
+      "id": "50827514"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Determinamos las posiciones, en nuestra matriz de distancias, de los\n",
+        "# puntos más cercanos a cada punto.\n",
+        "nearest = np.argsort(dist, axis=1)\n",
+        "\n",
+        "# Mostramos estas posiciones en pantalla.\n",
+        "print(nearest)"
+      ],
+      "id": "325b79c9",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Notemos que la primera columna nos da los números de 0 a 29 en orden: esto es debido a que el vecino más cercano a cada punto es sí mismo, como cabría esperar. Si estamos simplemente interesados en los K-vecinos más cercanos, todo lo que necesitamos es particionar cada fila de manera tal que las `K + 1` distancias más pequeñas vengan primero, dejando el resto de las distancias llenando el resto de los espacios en el arreglo. Podemos lograr esto con la función `np.argpartition()`:"
+      ],
+      "id": "284b1080"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Buscamos los tres vecinos más cercanos a cada punto.\n",
+        "K = 3\n",
+        "nearest_partition = np.argpartition(dist, K + 1, axis=1)"
+      ],
+      "id": "81ac579c",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "A fin de visualizar esta red de vecinos más cercanos, grafiquemos rápidamente los puntos y las líneas que representan las conexiones de cada punto a sus tres vecinos más cercanos. No es el objetivo de esta sección el aprender a graficar, pero no está demás empezar a tener una noción de cómo hacerlo:"
+      ],
+      "id": "5ca2818c"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "#| label: fig-comparacion-ordenamiento-y-reemplazo-02\n",
+        "#| fig-cap: Las conexiones a los tres vecinos más cercanos de cada punto.\n",
+        "# Inicializamos nuestra figura.\n",
+        "fig, ax = plt.subplots(figsize=(9, 5))\n",
+        "ax.scatter(P[:, 0], P[:, 1], color=\"firebrick\")\n",
+        "\n",
+        "# Graficamos las conexiones a los tres vecinos más cercanos de cada punto.\n",
+        "K = 3\n",
+        "for i in range(P.shape[0]):\n",
+        "    for j in nearest_partition[i, :K + 1]:\n",
+        "        ax.plot(*zip(P[j], P[i]), color='k', linewidth=1, linestyle=\"--\", alpha=0.4)\n",
+        "\n",
+        "ax.set_xlabel(r\"$X$\", fontsize=12, labelpad=10)\n",
+        "ax.set_ylabel(r\"$Y$\", fontsize=12, labelpad=15, rotation=0)\n",
+        "plt.tight_layout()"
+      ],
+      "id": "fig-comparacion-ordenamiento-y-reemplazo-02",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Cada punto en el gráfico tiene líneas que lo conectan a sus tres vecinos más cercanos. En un primer vistazo, puede parecer extraño que haya puntos con más de tres líneas saliendo de ellos. Esto ocurre porque `A` puede ser el vecino más cercano de `B`, pero eso no necesariamente significa que `B` sea el vecino más cercano de `A`. ◼︎\n",
+        "\n",
+        "## Reemplazo de los elementos de un arreglo\n",
+        "\n",
+        "Con frecuencia, estamos interesados en reemplazar los elementos de un arreglo en función de alguna condición en particular. Por ejemplo, si disponemos de un arreglo que contiene información relativa al rendimiento horario de un circuito de molienda en una planta concentradora, podríamos querer eliminar las entradas que estén por debajo de un umbral mínimo de tratamiento. Supongamos pues que un molino tiene un rendimiento promedio de 1800 tph, con una desviación de 650 tph y distribución normal:"
+      ],
+      "id": "b88031e8"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Arreglo T, con 1000 horas de valores medios de tratamiento de 1800 tph, desviación de 650 tph\n",
+        "# y distribución normal.\n",
+        "T = rng.normal(loc=1800, scale=650, size=1000)"
+      ],
+      "id": "ee01f588",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Supongamos que, por un lineamiento del área de metalurgia en esta planta, todo análisis que se realice relativo a la evolución del tratamiento de molienda no debe considerar rendimientos menores a 1200 tph. Una opción sería reemplazar tales valores por registros nulos, que indiquen a **<font color='darkmagenta'>Numpy</font>** que no hay valores en tales filas (por ejemplo, codificando estas entradas con `np.nan`). Podemos hacer ese reemplazo mediante la función `np.where()`:"
+      ],
+      "id": "4da429ca"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Generamos el reemplazo requerido.\n",
+        "T_corr = np.where(T < 1200, np.nan, T)"
+      ],
+      "id": "457d2ded",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Vemos pues que la función `np.where()` toma tres inputs: la condición a revisar, el valor que debemos imputar en el arreglo para reemplazar las entradas que cumplan con esta condición, y los valores a imputar cuando tal condición no se cumple. En este caso, el uso de `np.nan` es natural porque `T` es un arreglo de punto flotante, por lo que puede representar sin problemas valores no numéricos de este tipo.\n",
+        "\n",
+        "Podemos graficar este arreglo para verificar que, en efecto, hemos reemplazado todos los valores menores que 1200 tph por entradas de tipo `nan`:"
+      ],
+      "id": "b6b180f3"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "#| label: fig-comparacion-ordenamiento-y-reemplazo-03\n",
+        "#| fig-cap: Visualización generada para la sección Reemplazo de los elementos de un arreglo.\n",
+        "fig, ax = plt.subplots(figsize=(9, 5))\n",
+        "ax.hist(T, label=\"Arreglo `T` sin reemplazo\", alpha=0.3)\n",
+        "ax.hist(T_corr, label=\"Arreglo `T_corr` corregido\", alpha=0.3)\n",
+        "ax.legend(loc=\"best\", frameon=True)\n",
+        "ax.set_xlabel(\"Marcas de clase (tph)\", fontsize=12, labelpad=10)\n",
+        "ax.set_ylabel(\"Frecuencia observada\", fontsize=12, labelpad=10)\n",
+        "plt.tight_layout()"
+      ],
+      "id": "fig-comparacion-ordenamiento-y-reemplazo-03",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "## Comentarios finales\n",
+        "\n",
+        "En este apunte dimos un paso importante desde la operatoria básica con arreglos hacia tareas mucho más cercanas al análisis de datos real. Vimos que, una vez que disponemos de un arreglo numérico, no sólo podemos calcular con él, sino también compararlo, consultar propiedades lógicas, filtrar subconjuntos, seleccionar posiciones específicas, ordenar sus elementos y reemplazar valores conforme reglas determinadas.\n",
+        "\n",
+        "Una de las ideas más importantes que deja este recorrido es que los arreglos de **<font color='darkmagenta'>Numpy</font>** no deben pensarse únicamente como contenedores de números, sino como estructuras sobre las cuales podemos formular criterios de decisión. Un operador de comparación genera una condición; una máscara convierte esa condición en un filtro; el *fancy indexing* transforma índices en reglas de selección; y funciones como `np.sort()`, `np.argsort()` o `np.where()` nos permiten reorganizar o corregir la información de manera muy expresiva.\n",
+        "\n",
+        "También conviene destacar que muchas de las herramientas revisadas aquí trabajan de manera especialmente poderosa cuando se combinan entre sí. Esa fue justamente la intención del ejemplo integrado: Mostrar que en un flujo real de trabajo no solemos usar comparación, *masking*, *slicing* o *fancy indexing* de manera aislada, sino encadenados, como parte de un mismo proceso de selección y depuración de datos.\n",
+        "\n",
+        "Con esto, cerramos una parte muy importante de la introducción a **<font color='darkmagenta'>Numpy</font>**. Ya contamos con una base suficiente para construir, transformar, filtrar, resumir y reorganizar arreglos con bastante soltura. A partir de aquí, el paso natural será utilizar estas herramientas en contextos cada vez más cercanos al análisis tabular, la visualización de datos y la construcción de modelos."
+      ],
+      "id": "16e77a58"
+    }
+  ],
+  "metadata": {
+    "kernelspec": {
+      "name": "python3",
+      "language": "python",
+      "display_name": "Python 3 (ipykernel)",
+      "path": "/Users/fquezadac/.local/share/virtualenvs/nerdyminer.github.io-TiwzloiM/share/jupyter/kernels/python3"
+    }
+  },
+  "nbformat": 4,
+  "nbformat_minor": 5
+}

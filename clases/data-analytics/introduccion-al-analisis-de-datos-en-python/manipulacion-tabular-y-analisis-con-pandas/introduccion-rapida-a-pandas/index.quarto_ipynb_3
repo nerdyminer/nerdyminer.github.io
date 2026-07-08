@@ -1,0 +1,2338 @@
+{
+  "cells": [
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "---\n",
+        "title: \"Una introducción rápida a **<font color='darkmagenta'>Pandas</font>**\"\n",
+        "subtitle: \"Primer recorrido por series, DataFrames, índices y selección de datos\"\n",
+        "section_href: \"/clases/data-analytics/introduccion-al-analisis-de-datos-en-python/manipulacion-tabular-y-analisis-con-pandas/\"\n",
+        "toc: true\n",
+        "toc-depth: 3\n",
+        "page-layout: article\n",
+        "jupyter: nerdyminer\n",
+        "number-offset: 1\n",
+        "---\n",
+        "\n",
+        "::: {.class-keywords}\n",
+        "[Pandas]{.class-keyword}\n",
+        "[Análisis tabular]{.class-keyword}\n",
+        "[Numpy]{.class-keyword}\n",
+        "[DataFrame]{.class-keyword}\n",
+        "[Series]{.class-keyword}\n",
+        "[Index]{.class-keyword}\n",
+        "[Etiquetas]{.class-keyword}\n",
+        "[Selección de datos]{.class-keyword}\n",
+        "[`loc[]`]{.class-keyword}\n",
+        "[`iloc[]`]{.class-keyword}\n",
+        "[`query()`]{.class-keyword}\n",
+        "[Vectorización]{.class-keyword}\n",
+        "[Buenas prácticas]{.class-keyword}\n",
+        ":::\n",
+        "\n",
+        "::: {.callout-important}\n",
+        "## Idea central\n",
+        "\n",
+        "En este apunte haremos una introducción rápida a **<font color='darkmagenta'>Pandas</font>**: La librería más clásica del ecosistema Python para trabajar con datos tabulares. El objetivo no es agotar todos sus detalles, sino construir una primera imagen operativa de sus objetos centrales (`Series`, `DataFrame` e `Index`), entender cómo se seleccionan y filtran datos, y cerrar con buenas prácticas iniciales. En el apunte siguiente profundizaremos en un tema que aquí sólo aparecerá de manera transversal: Los tipos de datos.\n",
+        ":::\n",
+        "\n",
+        "## Introducción\n",
+        "\n",
+        "En las secciones anteriores, estudiamos en detalle el uso del módulo **<font color='darkmagenta'>Numpy</font>** para trabajar con arreglos de datos gracias a su objeto `numpy.ndarray`. Ahora daremos un primer salto hacia **<font color='darkmagenta'>Pandas</font>**, una librería pensada para trabajar con información tabular de manera más cómoda. Dicha librería está construida sobre **<font color='darkmagenta'>Numpy</font>**, siendo una de sus grandes características la implementación de un objeto muy conocido en la ciencia de datos como `pandas.DataFrame`. Los *DataFrames* son, en esencia, estructuras tabulares bidimensionales con etiquetas o rótulos que distinguen tanto sus filas como sus columnas, y que son capaces de almacenar varios tipos de datos, incluyendo valores faltantes. También poseen una interfaz muy cómoda para usuarios familiarizados con hojas de cálculo, como las usadas típicamente en programas como MS Excel®, SPSS o Minitab.\n",
+        "\n",
+        "De la misma forma que ocurre con **<font color='darkmagenta'>Numpy</font>**, **<font color='darkmagenta'>Pandas</font>** suele venir incluido en la instalación por defecto de muchos *frameworks* dedicados al análisis y ciencia de datos en Python, como Anaconda®. Sin embargo, siempre podremos hacer una instalación limpia de **<font color='darkmagenta'>Pandas</font>** desde el índice de paquetes de Python como:\n",
+        "\n",
+        "```bash\n",
+        "pip install pandas\n",
+        "```\n",
+        "\n",
+        "La importación de **<font color='darkmagenta'>Pandas</font>**, en la práctica, suele hacerse mediante el *alias* `pd`. De esta manera, al iniciar nuestra sesión, escribiremos:"
+      ],
+      "id": "809f5ff1"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "import numpy as np\n",
+        "import pandas as pd"
+      ],
+      "id": "d5131e12",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Usaremos esta convención en todo artículo, apunte o clase de este blog.\n",
+        "\n",
+        "En un nivel muy básico de entendimiento, los objetos de **<font color='darkmagenta'>Pandas</font>** pueden ser pensados como versiones \"mejoradas\" o \"generalizadas\" de los arreglos de **<font color='darkmagenta'>Numpy</font>**, en los cuales las filas y las columnas son identificadas con rótulos o etiquetas en vez de simples números enteros. Como veremos a lo largo de esta secuencia del blog, **<font color='darkmagenta'>Pandas</font>** nos provee de una serie de herramientas, métodos y funcionalidades muy eficientes para el trabajo con este tipo de estructuras, pero casi todas ellas requieren comprender bien sus índices y sus reglas de alineamiento. Por lo tanto, en esta entrada construiremos una primera mirada práctica a tres objetos fundamentales de **<font color='darkmagenta'>Pandas</font>**: `pandas.Series` (series), `pandas.DataFrame` (DataFrames) y `pandas.Index` (índices).\n",
+        "\n",
+        "Antes de proceder, vale la pena comentar que, al igual que como lo hicimos al aprender los aspectos elementales de **<font color='darkmagenta'>Numpy</font>**, jugaremos un poco con la elaboración de algunos gráficos en **<font color='darkmagenta'>Matplotlib</font>** y **<font color='darkmagenta'>Plotly</font>**. No será nuestro objetivo aprender a usar estas librerías en profundidad, sino simplemente apoyarnos en ellas para visualizar algunos aspectos de las estructuras de datos que estudiaremos. Por lo tanto, si no estás familiarizado con estas herramientas de visualización, no te preocupes, no son necesarias para entender los contenidos centrales de este apunte. Si quieres aprender a usarlas con más detalle, puedes revisar la [sección de visualización de datos](/clases/data-analytics/visualizacion-de-datos/) del blog.\n",
+        "\n",
+        "## Series\n",
+        "\n",
+        "En **<font color='darkmagenta'>Pandas</font>**, una serie se define como un arreglo unidimensional etiquetado que permite almacenar datos en un número arbitrario de observaciones. Sin embargo, dicho arreglo unidimensional posee dos diferencias esenciales con el típico arreglo de **<font color='darkmagenta'>Numpy</font>**: dispone de un índice que permite identificar cada observación con un rótulo arbitrario (no necesariamente un número entero), y puede representar datos con tipos más flexibles que los de un arreglo homogéneo de **<font color='darkmagenta'>Numpy</font>**. Una serie de **<font color='darkmagenta'>Pandas</font>** puede construirse de manera rápida mediante la clase `pd.Series()`, la cual considera, como mínimo, un argumento denominado `data`, que naturalmente representa los datos a ingresar en esta estructura. Estos datos pueden ser entregados en forma de una lista de Python, un arreglo de **<font color='darkmagenta'>Numpy</font>** o incluso un diccionario de Python. Por ejemplo, podemos construir una serie a partir de una lista de Python como:"
+      ],
+      "id": "458ba54d"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Construimos la serie a partir de una lista de Python.\n",
+        "data = pd.Series(data=[0.25, 0.5, 0.75, 1.0])\n",
+        "\n",
+        "# Mostramos la serie en pantalla.\n",
+        "data"
+      ],
+      "id": "6dae1427",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Vemos que, al mostrar la serie en pantalla, no solamente se destacan los **datos** o **valores** que hemos ingresado, sino que además cada observación de la serie viene rotulada o *indexada* por un número. Este conjunto de valores que etiquetan a las observaciones es llamado **índice de la serie**. Su función es permitir una selección rápida y, en lo posible, **sin ambigüedad** de los elementos que sean de nuestro interés.\n",
+        "\n",
+        "Por otro lado, también se muestra el **tipo de dato** que se ha almacenado en nuestra serie. En este caso, vemos que la misma está constituida por números de punto flotante de `64` bits.\n",
+        "\n",
+        "Los tres elementos mencionados previamente constituyen atributos propios de una serie. De esta manera, si queremos simplemente trabajar con los valores de una serie, bastará con usar su atributo `values`, el cual nos retornará un arreglo unidimensional de **<font color='darkmagenta'>Numpy</font>** constituido únicamente por los valores que están almacenados en la serie:"
+      ],
+      "id": "e1429bcf"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Obtenemos los valores de la serie.\n",
+        "data.values"
+      ],
+      "id": "f2b65d62",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Por otro lado, el índice de la serie (en el cual profundizaremos un poco más adelante) puede individualizarse mediante el atributo `index`:"
+      ],
+      "id": "d50feed0"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Obtenemos el índice de la serie.\n",
+        "data.index"
+      ],
+      "id": "e5de5f37",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "El índice corresponde a un objeto del tipo `pd.Index`, exclusivo de **<font color='darkmagenta'>Pandas</font>**. En el ejemplo, tal índice es simplemente un rango de valores que va desde el `0` hasta antes del `4`, con un paso igual a `1` (similar a un rango construido mediante la función `np.arange(start=0, stop=4, step=1)`). La selección de valores de interés en la serie se realiza por medio de este índice, de la misma forma en que lo haríamos con un arreglo unidimensional de **<font color='darkmagenta'>Numpy</font>**:"
+      ],
+      "id": "65d7bcad"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Selección individual de elementos.\n",
+        "data[1]"
+      ],
+      "id": "09230682",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Selección mediante slicing.\n",
+        "data[1:3]"
+      ],
+      "id": "7676d2c7",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Si bien son parecidas, las series son estructuras de datos mucho más generales y flexibles que los arreglos unidimensionales de **<font color='darkmagenta'>Numpy</font>**. La diferencia esencial entre ambos es, naturalmente, la presencia del objeto `pd.Index`: mientras que el arreglo de **<font color='darkmagenta'>Numpy</font>** tiene siempre posiciones enteras implícitas que usamos para acceder selectivamente a los valores de nuestro interés, una serie de **<font color='darkmagenta'>Pandas</font>** tiene un índice explícito asociado a los valores que almacena. En ese sentido, una serie se parece también a un diccionario de Python, pues mantiene una relación entre rótulos y valores.\n",
+        "\n",
+        "Esta definición explícita le da a las series capacidades adicionales. Por ejemplo, el índice no debe ser necesariamente un entero, ya que podemos usar el tipo de datos que nosotros queramos para definirlo. Por ejemplo, podemos usar strings, creando la serie y usando el argumento `index` para construir un índice según nuestras necesidades:"
+      ],
+      "id": "3cd61f2c"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Definición explícita del índice en una serie.\n",
+        "data = pd.Series(\n",
+        "    data=[0.25,  0.5, 0.75,  1.0],\n",
+        "    index=[\"a\", \"b\", \"c\", \"d\"],\n",
+        ")\n",
+        "\n",
+        "# Mostramos la serie en pantalla.\n",
+        "data"
+      ],
+      "id": "59b59c8f",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Como cabría esperar, el acceso a los datos es conforme el índice que hemos definido:"
+      ],
+      "id": "4a0eb48a"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Seleccionamos la data conforme el índice que hemos creado.\n",
+        "data[\"b\"]"
+      ],
+      "id": "fbe310f4",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Notemos que, como hemos creado una serie cuyo índice está constituido por strings, cualquier selección que explicitemos requerirá especificar dicho string entre comillas, como en el ejemplo anterior.\n",
+        "\n",
+        "Al construir una serie, no estaremos en absoluto limitados por ningún criterio más que el sentido común a la hora de indexar los valores que se almacenan en ella. De este modo, si un índice está conformado por números enteros, éstos ni siquiera tienen por qué estar ordenados:"
+      ],
+      "id": "da2351ae"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# El índice de una serie no tiene por qué seguir un orden lógico.\n",
+        "data = pd.Series([0.25,  0.5, 0.75,  1.0], index=[2, 5, 3, 7])\n",
+        "\n",
+        "# Mostramos la serie en pantalla.\n",
+        "data"
+      ],
+      "id": "a27cebef",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Notemos que el segundo elemento almacenado en la serie se corresponde con el índice `5`, y no `2`. Como no hay ambigüedad, al seleccionar ese elemento, **<font color='darkmagenta'>Pandas</font>** lo identificará de inmediato:"
+      ],
+      "id": "82d70d5d"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Seleccionamos el elemento con índice 5.\n",
+        "data[5]"
+      ],
+      "id": "fd169b8e",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "La correspondencia entre el par `(índice, valor)` en las series de **<font color='darkmagenta'>Pandas</font>** permite formular la abstracción de que las series, además de ser versiones especializadas de los arreglos unidimensionales de **<font color='darkmagenta'>Numpy</font>**, también pueden ser vistas como versiones generales de los diccionarios nativos de Python. Recordemos que los diccionarios son estructuras de datos que relacionan una llave con un valor, de tal forma que siempre que deseemos recuperar un determinado valor de un diccionario, haremos uso de su correspondiente llave. Un ejemplo de diccionario es el siguiente:"
+      ],
+      "id": "fd4fcea5"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Un diccionario con la información relativa a la producción de cobre fino (en ktmh)\n",
+        "# para distintas operaciones mineras en Chile (2021).\n",
+        "production_dict = {\n",
+        "    \"Escondida\": 1011,\n",
+        "    \"Collahuasi\": 630,\n",
+        "    \"El Teniente\": 460,\n",
+        "    \"Los Bronces\": 370,\n",
+        "    \"Los Pelambres\": 336,\n",
+        "    \"Radomiro Tomic\": 326,\n",
+        "    \"Chuquicamata\": 319,\n",
+        "    \"Centinela\": 274,\n",
+        "    \"Spence\": 203,\n",
+        "    \"Sierra Gorda\": 198,\n",
+        "    \"Ministro Hales\": 182,\n",
+        "    \"Andina\": 177,\n",
+        "    \"Candelaria\": 119,\n",
+        "    \"Caserones\": 110,\n",
+        "    \"Gabriela Mistral\": 101,\n",
+        "}"
+      ],
+      "id": "2a7d1ae5",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "No existe ningún problema al convertir este diccionario en una serie por medio de la clase `pd.Series()`. De hecho, al hacerlo, las llaves del diccionario serán transformadas inmediatamente en los índices de la serie, mientras que los valores anexados a cada llave serán los valores anexados a cada índice de la serie resultante:"
+      ],
+      "id": "533422ed"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Todo diccionario puede transformarse en una serie.\n",
+        "production_data = pd.Series(production_dict)\n",
+        "\n",
+        "# Mostramos la serie en pantalla.\n",
+        "production_data"
+      ],
+      "id": "7d115934",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Vemos pues que la serie preserva incluso el orden original en el cual fueron definidas las llaves en nuestro diccionario, además del tipo de dato que caracteriza a los valores de la misma (en este caso, números enteros).\n",
+        "\n",
+        "El acceso a la información de la serie `production_data` es muy intuitivo. Si quisiéramos acceder a la data asociada a la producción anual (`2021`) de la mina Candelaria, bastará con usar el índice respectivo para consultar dicha información:"
+      ],
+      "id": "aeb5c7fc"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# La selección de información en series es muy intuitiva.\n",
+        "production_data[\"Candelaria\"]"
+      ],
+      "id": "df584090",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Toda selección de datos por medio de slicing debe tener en consideración el orden de los índices que definen la serie. De este modo, si queremos seleccionar la data de producción entre las minas El Teniente y Chuquicamata, bastará con que escribamos:"
+      ],
+      "id": "e624e297"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# El slicing también es posible, y preserva el orden original de los índices.\n",
+        "production_data[\"El Teniente\": \"Chuquicamata\"]"
+      ],
+      "id": "c46a74c5",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "La serie, en virtud de su estructura similar a un arreglo unidimensional (pero con mayor flexibilidad), puede ser utilizada para operar de una forma parecida a como lo haríamos con estructuras de **<font color='darkmagenta'>Numpy</font>**. Sin embargo, la presencia del índice en una serie sirve como referencia para muchas de las operaciones que queramos realizar. Por lo tanto, al operar aritméticamente con dos o más series, **<font color='darkmagenta'>Pandas</font>** intentará empatar los elementos que compartan el mismo índice antes de realizar el cálculo. Esto se conoce como **alineamiento de índices**:"
+      ],
+      "id": "b6ff2632"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Demanda mundial de cobre refinado, proyeccion 2020 (en ktmf).\n",
+        "cu_dem_20 = pd.Series(\n",
+        "    data=[12807, 3472, 1702, 930, 410, 696, 446, 358],\n",
+        "    index=[\"China\", \"Europa\", \"EE.UU.\", \"Japon\", \"India\", \"Corea\", \"Turquia\", \"Mexico\"],\n",
+        ")\n",
+        "\n",
+        "# Demanda mundial de cobre refinado, proyeccion 2021 (en ktmf).\n",
+        "cu_dem_21 = pd.Series(\n",
+        "    data=[13063, 3594, 1753, 949, 484, 706, 463, 369],\n",
+        "    index=[\"China\", \"Europa\", \"EE.UU.\", \"Japon\", \"India\", \"Corea\", \"Turquia\", \"Mexico\"],\n",
+        ")\n",
+        "\n",
+        "# La suma de ambas series alinea los índices en ambos casos.\n",
+        "cu_dem_20 + cu_dem_21"
+      ],
+      "id": "bea48938",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "La serie resultante de la suma `cu_dem_20 + cu_dem_21` contiene la unión de los índices que caracterizan a los datos en `cu_dem_20` y `cu_dem_21`. Como ambas series tienen el mismo índice, éste se preserva en el resultado de la suma, y se alinea en relación a las sumas respectivas elemento a elemento.\n",
+        "\n",
+        "Por otro lado, si operamos aritméticamente con series que tienen distintos índices, la serie resultante tendrá como índice a la unión de los índices de las series con las que operamos, pero sólo se tendrán resultados de la operación para los índices que aparecen en las series individuales. Para el resto de las posiciones, no se hará ningún cálculo, y **<font color='darkmagenta'>Pandas</font>** rellenará esos valores con `nan` (que, recordemos, es la convención utilizada para representar data faltante: *“Not a number”*)."
+      ],
+      "id": "18556a25"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Mineral transportado por camiones de una flota un día determinado.\n",
+        "ore_transp_1 = pd.Series(\n",
+        "    data=[1291, 1334, 480, 851, 1180],\n",
+        "    index=[\"C251\", \"C256\", \"C224\", \"C231\", \"C265\"]\n",
+        ")\n",
+        "\n",
+        "# Mineral transportado por camiones de una flota al día siguiente del anterior.\n",
+        "ore_transp_2 = pd.Series(\n",
+        "    data=[251, 1291, 1332, 456, 1210],\n",
+        "    index=[\"C221\", \"C231\", \"C251\", \"C230\", \"C274\"]\n",
+        ")\n",
+        "\n",
+        "# Cuando las series no tienen los mismos índices, sólo obtendremos resultados para aquellos\n",
+        "# que están definidos en todas las series, obteniendo un NaN como resultado en el resto de los\n",
+        "# índices.\n",
+        "ore_transp_1 + ore_transp_2"
+      ],
+      "id": "27bbaccf",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Toda serie puede ser inicializada a partir de un único valor escalar. De ser el caso, el número de valores que tenga la serie será igual al número de elementos definidos en su índice al haberla construido:"
+      ],
+      "id": "0c4df88d"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Podemos iniciar siempre una serie mediante un escalar.\n",
+        "scalar_series = pd.Series(data=42, index=[\"a\", \"b\", \"c\", \"d\"])\n",
+        "\n",
+        "# Mostramos la serie en pantalla.\n",
+        "scalar_series"
+      ],
+      "id": "1d75ca95",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Toda serie puede *“bautizarse”* con un nombre, el cual permite rotular los valores de la misma. Podemos darle nombre a una serie mediante su constructor, con el argumento `name`:"
+      ],
+      "id": "a0773f7c"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Podemos usar el argumento name en el constructor de una serie para rotular los datos.\n",
+        "s = pd.Series(\n",
+        "    data=[5.5, 4.8, 6.3, 6.5, 6.2],\n",
+        "    index=[\"P1\", \"P2\", \"P3\", \"P4\", \"P5\"],\n",
+        "    name=\"qualifications\",\n",
+        ")\n",
+        "\n",
+        "# Mostramos la serie en pantalla.\n",
+        "s"
+      ],
+      "id": "cf94d586",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "El nombre de una serie también puede definirse mediante el atributo `name`:"
+      ],
+      "id": "1f2f1392"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# El atributo name permite cambiar el nombre de una serie\n",
+        "s.name = \"Notas\"\n",
+        "\n",
+        "# Mostramos la serie en pantalla de nuevo.\n",
+        "s"
+      ],
+      "id": "f507a844",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Las series disponen además de un método `plot()`, que nos permite graficar los valores almacenados en ellas, considerando como etiquetas de los ejes los valores definidos por el índice respectivo de la serie. Los gráficos se construyen mediante las librerías **<font color='darkmagenta'>Matplotlib</font>** y **<font color='darkmagenta'>Plotly</font>**, dependiendo de la configuración que tengamos en nuestro entorno de trabajo, o bien, si deseamos una visualización estática o interactiva, respectivamente. Por ejemplo, podemos graficar la demanda mundial de cobre refinado proyectada para el año 2020, que hemos almacenado en la serie `cu_dem_20`, mediante su método `plot()`, como sigue:"
+      ],
+      "id": "61566cd4"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "#| label: fig-introduccion-rapida-a-pandas-01\n",
+        "#| fig-cap: Visualización generada para la sección Series.\n",
+        "# Un gráfico de líneas sencillo (notemos los argumentos del método `plot()`).\n",
+        "fig = cu_dem_20.plot(\n",
+        "    kind=\"line\",\n",
+        "    xlabel=\"País\",\n",
+        "    ylabel=\"Cobre (ktmf)\",\n",
+        "    title=\"Demanda proyectada de cobre (2020)\",\n",
+        "    color=\"firebrick\",\n",
+        "    figsize=(9, 5),\n",
+        ")"
+      ],
+      "id": "fig-introduccion-rapida-a-pandas-01",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Si queremos cambiar la librería de fondo usada por **<font color='darkmagenta'>Pandas</font>** de **<font color='darkmagenta'>Matplotlib</font>** a **<font color='darkmagenta'>Plotly</font>**, basta con configurar el argumento `backend=\"plotly\"` en el método `plot()`, como sigue:"
+      ],
+      "id": "2176d2a6"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "#| label: fig-introduccion-rapida-a-pandas-02\n",
+        "#| fig-cap: El gráfico en pantalla.\n",
+        "# Un gráfico de líneas interactivo con Plotly.\n",
+        "# Notemos que los argumentos cambian ligeramente, pues Plotly tiene una sintaxis\n",
+        "# diferente a Matplotlib.\n",
+        "fig = cu_dem_20.plot(\n",
+        "    backend=\"plotly\",\n",
+        "    kind=\"line\",\n",
+        "    title=\"Demanda proyectada de cobre (2020)\",\n",
+        "    color_discrete_sequence=[\"firebrick\"],\n",
+        "    height=500,\n",
+        ")\n",
+        "\n",
+        "# Configuramos el título de los ejes.\n",
+        "fig.update_layout(\n",
+        "    xaxis_title=\"País\",\n",
+        "    yaxis_title=\"Cobre (ktmf)\",\n",
+        ")\n",
+        "\n",
+        "# Mostramos el gráfico en pantalla.\n",
+        "fig.show()"
+      ],
+      "id": "fig-introduccion-rapida-a-pandas-02",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Por otro lado, si deseamos cambiar el tipo de gráfico, basta con configurar el argumento `kind` en el método `plot()`. Por ejemplo, si queremos graficar la demanda mundial de cobre refinado proyectada para el año 2020 mediante un gráfico de barras, basta con escribir:"
+      ],
+      "id": "9c7e8a4f"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "#| label: fig-introduccion-rapida-a-pandas-03\n",
+        "#| fig-cap: Visualización generada para la sección Series.\n",
+        "# Un gráfico de barras sencillo.\n",
+        "fig = cu_dem_20.plot(\n",
+        "    kind=\"bar\",\n",
+        "    xlabel=\"País\",\n",
+        "    ylabel=\"Cobre (ktmf)\",\n",
+        "    title=\"Demanda proyectada de cobre (2020)\",\n",
+        "    color=\"firebrick\",\n",
+        "    figsize=(9, 5),\n",
+        ")"
+      ],
+      "id": "fig-introduccion-rapida-a-pandas-03",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Esto mismo es válido si queremos graficar la demanda mundial de cobre refinado proyectada para el año 2020 mediante un gráfico de barras interactivo con **<font color='darkmagenta'>Plotly</font>**:"
+      ],
+      "id": "b8779404"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "#| label: fig-introduccion-rapida-a-pandas-04\n",
+        "#| fig-cap: El gráfico en pantalla.\n",
+        "# Un gráfico de barras interactivo con Plotly.\n",
+        "# Insistimos: La sintaxis de Plotly es diferente.\n",
+        "fig = cu_dem_20.plot(\n",
+        "    backend=\"plotly\",\n",
+        "    kind=\"bar\",\n",
+        "    title=\"Demanda proyectada de cobre (2020)\",\n",
+        "    color_discrete_sequence=[\"firebrick\"],\n",
+        "    height=500,\n",
+        ")\n",
+        "\n",
+        "# Configuramos el título de los ejes.\n",
+        "fig.update_layout(\n",
+        "    xaxis_title=\"País\",\n",
+        "    yaxis_title=\"Cobre (ktmf)\",\n",
+        ")\n",
+        "\n",
+        "# Mostramos el gráfico en pantalla.\n",
+        "fig.show()"
+      ],
+      "id": "fig-introduccion-rapida-a-pandas-04",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "::: {.callout-warning}\n",
+        "## ¡Ojo!\n",
+        "\n",
+        "Si bien el método `plot()` de las series de **<font color='darkmagenta'>Pandas</font>** es muy útil para graficar rápidamente los datos almacenados en ellas, y es recomendable su uso en combinación con **<font color='darkmagenta'>Matplotlib</font>** o **<font color='darkmagenta'>Plotly</font>** para obtener gráficos más personalizados, no profundizaremos mucho más en el uso de este método, ni en la personalización de gráficos con estas librerías, pues no es nuestro objetivo aprender a usar estas herramientas de visualización en profundidad. Si quieres aprender a usar **<font color='darkmagenta'>Matplotlib</font>** o **<font color='darkmagenta'>Plotly</font>**, puedes revisar el apunte dedicado a ellas en la [sección de visualización de datos](/clases/data-analytics/visualizacion-de-datos/) del blog, donde hablamos en detalle de ambas librerías, y de cómo construir gráficos personalizados con ellas.\n",
+        ":::\n",
+        "\n",
+        "## DataFrames\n",
+        "\n",
+        "Los DataFrames son estructuras de datos de **<font color='darkmagenta'>Pandas</font>** que permiten generalizar el concepto de serie. En este contexto, un DataFrame puede entenderse como una colección de series que comparten un mismo índice de filas, donde cada serie ocupa una columna. Sin embargo, los DataFrames también cuentan con un segundo conjunto de rótulos que permite individualizar sus columnas. Por lo tanto, podemos pensar en los DataFrames como versiones especializadas de los arreglos bidimensionales de **<font color='darkmagenta'>Numpy</font>**, pero con la flexibilidad de las series tanto en la identificación de filas como de columnas.\n",
+        "\n",
+        "Del mismo modo que las series, los DataFrames también pueden ser pensados como diccionarios de columnas: cada llave identifica una columna, y cada valor asociado puede ser una lista, un arreglo, una serie u otra estructura compatible. En **<font color='darkmagenta'>Pandas</font>**, el constructor de DataFrames corresponde a la clase `pd.DataFrame()`, la cual toma como mínimo un argumento denominado `data`, que corresponde a los valores que se almacenarán en él. También es posible definir, en forma explícita, el juego de índices tanto para las filas, con el argumento `index`, como para las columnas, con el argumento `columns`. Bastará con especificar tales índices mediante listas:"
+      ],
+      "id": "8b246c7f"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Constructor de DataFrames.\n",
+        "df = pd.DataFrame(\n",
+        "    data=np.array([[2, 1, 3], [4, 0, 3], [0, 9, 1]]),\n",
+        "    index=[\"fila_1\", \"fila_2\", \"fila_3\"],\n",
+        "    columns=[\"col_1\", \"col_2\", \"col_3\"]\n",
+        ")\n",
+        "\n",
+        "# Mostramos el DataFrame en pantalla.\n",
+        "df"
+      ],
+      "id": "da8b3739",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "De la misma forma que las series, los DataFrames cuentan con atributos que permiten recuperar tanto índices (`index`) como valores almacenados en ellos (`values`). Sin embargo, también cuentan con el atributo `columns`, que permite recuperar el juego de índices asociados a sus columnas:"
+      ],
+      "id": "78efb425"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# El atributo values permite recuperar los datos almacenados en un DataFrame\n",
+        "# (en un formato de arreglo de Numpy bidimensional).\n",
+        "df.values"
+      ],
+      "id": "7e438d4f",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# El atributo index permite recuperar el índice asociado a las filas del DataFrame.\n",
+        "df.index"
+      ],
+      "id": "a51e77cb",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# El atributo columns permite recuperar el índice asociado a las columnas del DataFrame.\n",
+        "df.columns"
+      ],
+      "id": "df1cab4d",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Además de estos atributos, los DataFrames disponen de una serie de métodos que permiten inspeccionar rápidamente su estructura. Por ejemplo, `shape` permite recuperar el número de filas y columnas, `dtypes` permite observar los tipos de datos de cada columna, e `info()` entrega una vista resumida de columnas, valores no nulos y uso de memoria:"
+      ],
+      "id": "26ed6ce9"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Número de filas y columnas del DataFrame.\n",
+        "df.shape"
+      ],
+      "id": "647d4203",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Tipos de datos almacenados en cada columna.\n",
+        "df.dtypes"
+      ],
+      "id": "7bc1af2c",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Resumen general del DataFrame.\n",
+        "df.info()"
+      ],
+      "id": "def32285",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Siempre podremos construir un DataFrame mediante su constructor, tomando como base un diccionario de columnas. El siguiente diccionario, que llamamos `owners_dict`, lista las empresas propietarias de las operaciones mineras detalladas en el diccionario `production_dict`, construido con anterioridad:"
+      ],
+      "id": "d7aef872"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Otro diccionario, pero esta vez de propietarios de las operaciones mineras.\n",
+        "owners_dict = {\n",
+        "    \"Escondida\": \"BHP\",\n",
+        "    \"Collahuasi\": \"Anglo American PLC & Glencore\",\n",
+        "    \"El Teniente\": \"Codelco\",\n",
+        "    \"Los Bronces\": \"Anglo American PLC\",\n",
+        "    \"Los Pelambres\": \"Antofagasta Minerals\",\n",
+        "    \"Radomiro Tomic\": \"Codelco\",\n",
+        "    \"Chuquicamata\": \"Codelco\",\n",
+        "    \"Centinela\": \"Antofagasta Minerals\",\n",
+        "    \"Spence\": \"BHP\",\n",
+        "    \"Sierra Gorda\": \"KGHM International\",\n",
+        "    \"Ministro Hales\": \"Codelco\",\n",
+        "    \"Andina\": \"Codelco\",\n",
+        "    \"Candelaria\": \"Lundin Mining\",\n",
+        "    \"Caserones\": \"SCM Lumina Copper Chile\",\n",
+        "    \"Gabriela Mistral\": \"Codelco\",\n",
+        "}\n",
+        "\n",
+        "# Llevamos ambos diccionarios a un DataFrame.\n",
+        "data = pd.DataFrame({\"Produccion\": production_dict, \"Empresa\": owners_dict})\n",
+        "\n",
+        "# Mostramos el DataFrame en pantalla.\n",
+        "data"
+      ],
+      "id": "40a93509",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Notemos que la estructura de nuestro DataFrame `data` es equivalente a dos series unidas por el mismo índice de filas, y para las cuales cada columna es individualizada por su propio rótulo. Para todo DataFrame, podemos seleccionar cualquier columna especificando su nombre entre corchetes. El resultado de seleccionar una determinada columna de un DataFrame es que ésta será retornada como una serie:"
+      ],
+      "id": "323f31c2"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Las columnas pueden seleccionarse especificando su nombre entre corchetes.\n",
+        "data[\"Empresa\"]"
+      ],
+      "id": "902ceaf0",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Podemos, igualmente, individualizar cualquier elemento de un DataFrame usando notación encadenada entre corchetes. En este esquema de selección, primero especificamos el rótulo de la columna de interés con su propio corchete, y luego el rótulo de la fila respectiva, también con su propio corchete:\n"
+      ],
+      "id": "2f6025de"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Individualización de un dato específico.\n",
+        "data[\"Empresa\"][\"Centinela\"]"
+      ],
+      "id": "75a4c885",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "El **esquema de selección** anterior funciona en muchos casos, pero no es el más adecuado para seleccionar ni modificar datos. Al encadenar dos selecciones, **<font color='darkmagenta'>Pandas</font>** puede trabajar con una vista o con una copia intermedia, y eso puede introducir ambigüedad al momento de asignar valores. Un poco más adelante veremos esquemas más explícitos mediante `.loc[]` e `.iloc[]`. Lo que sí es muy común y recomendable es usar un único corchete para seleccionar columnas individuales de un DataFrame.\n",
+        "\n",
+        "Vamos a agregar más información a nuestro DataFrame por medio de la construcción de un nuevo diccionario, en el cual especificaremos la región en la cual se ubica cada una de las operaciones mineras:"
+      ],
+      "id": "526e944b"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Y otro diccionario... (esta vez, con las ubicaciones de las operaciones).\n",
+        "location_dict = {\n",
+        "    \"Escondida\": \"Antofagasta\",\n",
+        "    \"Collahuasi\": \"Tarapaca\",\n",
+        "    \"El Teniente\": \"Lib. Bdo. O'Higgins\",\n",
+        "    \"Los Bronces\": \"Metropolitana\",\n",
+        "    \"Los Pelambres\": \"Coquimbo\",\n",
+        "    \"Radomiro Tomic\": \"Antofagasta\",\n",
+        "    \"Chuquicamata\": \"Antofagasta\",\n",
+        "    \"Centinela\": \"Antofagasta\",\n",
+        "    \"Spence\": \"Antofagasta\",\n",
+        "    \"Sierra Gorda\": \"Antofagasta\",\n",
+        "    \"Ministro Hales\": \"Antofagasta\",\n",
+        "    \"Andina\": \"Valparaiso\",\n",
+        "    \"Candelaria\": \"Atacama\",\n",
+        "    \"Caserones\": \"Atacama\",\n",
+        "    \"Gabriela Mistral\": \"Antofagasta\",\n",
+        "}\n",
+        "\n",
+        "# Unimos todo en un DataFrame.\n",
+        "data = pd.DataFrame({\n",
+        "    \"Produccion\": production_dict, \n",
+        "    \"Empresa\": owners_dict, \n",
+        "    \"Región\": location_dict\n",
+        "})\n",
+        "\n",
+        "# Y lo mostramos en pantalla.\n",
+        "data"
+      ],
+      "id": "37a1563d",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Para seleccionar la información de más de una columna, bastará con especificar los nombres de tales columnas dentro de una lista, usando la misma notación entre corchetes anterior (es decir, *fancy indexing*). De esta manera, si queremos seleccionar la data relativa a las producciones y ubicaciones de las operaciones mineras especificadas en nuestro DataFrame, obtendremos otro DataFrame:"
+      ],
+      "id": "231155e5"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Selección de más de una columna en un DataFrame.\n",
+        "data[[\"Produccion\", \"Región\"]]"
+      ],
+      "id": "0ccbeb75",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Es importante destacar que tanto las series como los DataFrames son estructuras mutables desde la perspectiva de los datos que éstos almacenan, lo que es similar a lo que ocurre con los arreglos de **<font color='darkmagenta'>Numpy</font>**. Por esta razón, podemos modificar cualquier valor en un DataFrame (o en una serie) mediante la selección de dicho valor:"
+      ],
+      "id": "6e34df42"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Modificamos un valor en un DataFrame mediante una selección explícita.\n",
+        "data.loc[\"El Teniente\", \"Región\"] = \"O'Higgins\"\n",
+        "\n",
+        "# Mostramos el DataFrame en pantalla de nuevo para verificar el cambio.\n",
+        "data"
+      ],
+      "id": "8c82e890",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "La instrucción anterior utiliza `.loc[]`, un indexador que explicita simultáneamente la fila y la columna que queremos modificar. Esta forma es preferible a escribir asignaciones encadenadas como `data[\"Región\"][\"El Teniente\"] = \"O'Higgins\"`, pues ese patrón puede levantar una advertencia (`SettingWithCopyWarning`) cuando **<font color='darkmagenta'>Pandas</font>** no puede garantizar si estamos modificando el DataFrame original o una copia intermedia. En general, cuando queramos asignar valores sobre una estructura tabular, conviene hacerlo con `.loc[]` o `.iloc[]`, según corresponda.\n",
+        "\n",
+        "La mutabilidad también permite construir nuevos registros para nuestro DataFrame simplemente definiéndolos:"
+      ],
+      "id": "d9b05dce"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Creación sencilla de una nueva columna en nuestro DataFrame\n",
+        "# a partir de un arreglo de Numpy.\n",
+        "data[\"Porcentaje produccion Chile\"] = np.array(\n",
+        "    [\n",
+        "        18.0, 11.2, 8.2, 6.6, 6.0, 5.8,\n",
+        "        5.7, 4.9, 3.6, 3.5, 3.2, 3.2,\n",
+        "        2.1, 2.0, 1.8,\n",
+        "    ],\n",
+        ")\n",
+        "\n",
+        "# Mostramos el DataFrame en pantalla de nuevo para verificar el cambio.\n",
+        "data"
+      ],
+      "id": "2dcdc3cd",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "También podemos crear columnas a partir de operaciones entre columnas ya existentes. Como estas operaciones respetan los índices, **<font color='darkmagenta'>Pandas</font>** mantiene la correspondencia fila a fila al calcular nuevos valores:"
+      ],
+      "id": "3fe034cc"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Estimamos el porcentaje acumulado de producción nacional.\n",
+        "data[\"Porcentaje acumulado\"] = data[\"Porcentaje produccion Chile\"].cumsum()\n",
+        "\n",
+        "# Mostramos las primeras filas para verificar la nueva columna.\n",
+        "data.head()"
+      ],
+      "id": "4a7b3776",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "En el ejemplo anterior aparece un método muy útil: `cumsum()`, que calcula una suma acumulada. No necesitamos escribir un ciclo `for` para recorrer las filas del DataFrame, porque **<font color='darkmagenta'>Pandas</font>** está diseñado para trabajar de manera vectorizada sobre columnas completas.\n",
+        "\n",
+        "Todo DataFrame, al igual que los arreglos bidimensionales de **<font color='darkmagenta'>Numpy</font>**, puede transponerse, invirtiendo filas y columnas. Dicha transposición se logra mediante el mismo atributo que tienen tales arreglos, definido como `T`. Por ejemplo, para el primer DataFrame que construimos, la transposición nos da:"
+      ],
+      "id": "38307399"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Transposición de un DataFrame.\n",
+        "df.T"
+      ],
+      "id": "98af5e9f",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "En un DataFrame, podemos generar apilamientos de información mezclando los índices de filas con los índices de columnas. Esto permite transformar cualquier DataFrame en una **serie multinivel** (o serie **jerárquicamente indexada**). Para ello, usamos el método `stack()`:"
+      ],
+      "id": "5ac7eec6"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Apilamiento de un DataFrame para construir una serie multinivel.\n",
+        "data_stacked = data.stack()\n",
+        "\n",
+        "# Imprimimos la serie resultante en pantalla.\n",
+        "data_stacked"
+      ],
+      "id": "529a91c8",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "No lo parece, pero `data_stacked` es efectivamente una serie. Podemos comprobarlo:"
+      ],
+      "id": "6808f763"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Comprobamos que data_stacked es una serie.\n",
+        "type(data_stacked)"
+      ],
+      "id": "96dd8add",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Esta serie se denomina multinivel porque su índice tiene dos **niveles** de anidamiento, lo que nos permite seleccionar sus datos de manera jerárquica con base en las posibles combinaciones de índices que se pueden formar a partir de los índices de filas y columnas del DataFrame original:"
+      ],
+      "id": "70f3bd14"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# El índice de data_stacked es un multi-índice (o índice jerárquico).\n",
+        "data_stacked.index"
+      ],
+      "id": "a44e87db",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Más adelante profundizaremos en series (y DataFrames) con este tipo de índices.\n",
+        "\n",
+        "Es posible desacoplar una serie multinivel mediante el método `unstack()`:"
+      ],
+      "id": "3e49ad7b"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Siempre podemos desacoplar una serie multinivel.\n",
+        "data_stacked.unstack()"
+      ],
+      "id": "bea98b13",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "La mayoría de los métodos de **<font color='darkmagenta'>Pandas</font>** que se aplican sobre series y DataFrames retornan nuevos objetos, y no modifican la estructura original en el acto. Sin embargo, algunos métodos sí disponen de argumentos como `inplace=True`, o bien permiten asignar el resultado sobre el mismo nombre de variable. En general, una buena práctica es distinguir entre la estructura original y las estructuras derivadas que generamos durante un análisis. Cuando queramos manipular una estructura sin alterar la original, podemos crear una copia explícita mediante el método `copy()`:"
+      ],
+      "id": "85dbf34f"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# El método copy() nos permite crear copias de nuestras series o DataFrames.\n",
+        "data_copied = data.copy()\n",
+        "\n",
+        "# Mostramos la copia en pantalla.\n",
+        "data_copied"
+      ],
+      "id": "22d70beb",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Los DataFrames también disponen de un método `plot()` para generar gráficos rápidos de la data contenida en ellos, apoyándonos de los juegos de índices para las filas y columnas:"
+      ],
+      "id": "55d27cd2"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "#| label: fig-introduccion-rapida-a-pandas-05\n",
+        "#| fig-cap: Como en las series, el API de graficación de Pandas se apoya,.\n",
+        "# El método `plot()` también está disponible para los DataFrames.\n",
+        "# Como en las series, el API de graficación de Pandas se apoya,\n",
+        "# por defecto, en Matplotlib.\n",
+        "fig = df.plot(\n",
+        "    kind=\"bar\",\n",
+        "    figsize=(10, 6),\n",
+        "    title=\"Titulo de gráfico\", \n",
+        "    xlabel=\"Rótulo del eje X\",\n",
+        "    ylabel=\"Rótulo del eje Y\",\n",
+        "    edgecolor=\"white\",\n",
+        ")"
+      ],
+      "id": "fig-introduccion-rapida-a-pandas-05",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Y que también podemos usar con **<font color='darkmagenta'>Plotly</font>**:"
+      ],
+      "id": "0c87b321"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "#| label: fig-introduccion-rapida-a-pandas-06\n",
+        "#| fig-cap: El gráfico en pantalla.\n",
+        "# El método `plot()` también puede usar Plotly como backend.\n",
+        "fig = df.plot(\n",
+        "    backend=\"plotly\",\n",
+        "    kind=\"bar\",\n",
+        "    title=\"Titulo de gráfico\",\n",
+        "    height=500,\n",
+        ")\n",
+        "\n",
+        "# Configuramos el título de los ejes.\n",
+        "fig.update_layout(\n",
+        "    xaxis_title=\"Rótulo del eje X\",\n",
+        "    yaxis_title=\"Rótulo del eje Y\",\n",
+        "    barmode=\"group\",\n",
+        ")\n",
+        "\n",
+        "# Mostramos el gráfico en pantalla.\n",
+        "fig.show()"
+      ],
+      "id": "fig-introduccion-rapida-a-pandas-06",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "::: {.callout-warning}\n",
+        "## ¡Ojo!\n",
+        "\n",
+        "De nuevo... Hemos mostrado el método `plot()` de los DataFrames para graficar rápidamente los datos almacenados en ellos, y es recomendable su uso en combinación con **<font color='darkmagenta'>Matplotlib</font>** o **<font color='darkmagenta'>Plotly</font>** para obtener gráficos más personalizados, pero no profundizaremos mucho más en el uso de este método, ya que esta secuencia está orientada fundamentalmente al análisis de datos.\n",
+        ":::\n",
+        "\n",
+        "## Índices\n",
+        "\n",
+        "Hemos visto que tanto las series como los DataFrames contienen índices explícitos que permiten referenciar nuestros datos. En **<font color='darkmagenta'>Pandas</font>**, un índice no es simplemente una decoración visual: corresponde a una *entidad* independiente representada por medio del objeto `pd.Index`. Tal objeto es una estructura interesante en sí misma, y puede ser entendida tanto como un **arreglo inmutable** como una estructura cercana a un **conjunto ordenado**. Esta segunda analogía debe tomarse con cuidado, porque `pd.Index` puede contener elementos repetidos, pero sigue siendo útil para entender operaciones como uniones, intersecciones y diferencias."
+      ],
+      "id": "5ee69fd1"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Definimos una lista con enteros.\n",
+        "idx = [2 * j for j in range(5)]\n",
+        "\n",
+        "# Construimos un índice a partir de la lista anterior.\n",
+        "index = pd.Index(idx)\n",
+        "\n",
+        "# Mostramos este objeto en pantalla.\n",
+        "index"
+      ],
+      "id": "5d6866e8",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Vemos que **<font color='darkmagenta'>Pandas</font>** nos indica que el índice que hemos creado está compuesto por números enteros. Según la versión instalada, este objeto puede mostrarse como un `Index` con tipo entero, o como una clase especializada de índice entero. Un índice de **<font color='darkmagenta'>Pandas</font>** tiene algunas similitudes con los arreglos de **<font color='darkmagenta'>NumPy</font>**, ya que podemos seleccionar cualquier elemento del mismo especificando la posición de dicho elemento entre corchetes, o bien recuperar un subconjunto de elementos del índice por medio de slicing:"
+      ],
+      "id": "d7dfcedb"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Selección de un elemento del índice.\n",
+        "index[1]"
+      ],
+      "id": "8b11191b",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Selección de varios elementos del índice.\n",
+        "index[::2]"
+      ],
+      "id": "2694343a",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Los índices, además, también tienen ciertos atributos que son heredados de los arreglos de **<font color='darkmagenta'>NumPy</font>**:"
+      ],
+      "id": "be96f6b8"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Número de elementos del índice.\n",
+        "index.size"
+      ],
+      "id": "9f574603",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Tipo de dato del índice.\n",
+        "index.dtype"
+      ],
+      "id": "a61af564",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Número de dimensiones del índice.\n",
+        "index.ndim"
+      ],
+      "id": "334df6ec",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Geometría del índice.\n",
+        "index.shape"
+      ],
+      "id": "6712bd47",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Sin embargo, **los índices son objetos inmutables**; si queremos cambiar un valor de un índice mediante simple selección, Python nos levantará una excepción (`TypeError`):"
+      ],
+      "id": "ba095861"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Intentamos modificar un valor del índice (esto no es posible, pues los índices son inmutables).\n",
+        "try:\n",
+        "    index[1] = 0\n",
+        "except TypeError as e:\n",
+        "    print(e)"
+      ],
+      "id": "0174f580",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Esta inmutabilidad hace más seguro compartir índices entre múltiples series o DataFrames, evitando problemas derivados de modificaciones accidentales. Si queremos cambiar las etiquetas de un índice, lo habitual no es modificar una posición individual del índice, sino crear un nuevo índice o usar métodos como `rename()`, `set_index()` o `reset_index()`, dependiendo del caso."
+      ],
+      "id": "5b4ae202"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Podemos reemplazar el índice completo por otro índice compatible.\n",
+        "renamed_df = df.copy()\n",
+        "renamed_df.index = [\"muestra_1\", \"muestra_2\", \"muestra_3\"]\n",
+        "\n",
+        "# Mostramos el nuevo DataFrame.\n",
+        "renamed_df"
+      ],
+      "id": "0ba4f530",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Los índices también pueden tener un nombre, lo cual ayuda a documentar qué representa cada fila. Esto es especialmente útil cuando luego exportamos una tabla, la apilamos, la combinamos con otra, o la usamos en gráficos:"
+      ],
+      "id": "770f4efd"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Nombramos los índices de filas y columnas.\n",
+        "df_named = df.copy()\n",
+        "df_named.index.name = \"muestra\"\n",
+        "df_named.columns.name = \"variable\"\n",
+        "\n",
+        "# Mostramos el DataFrame con nombres en sus ejes.\n",
+        "df_named"
+      ],
+      "id": "f1f395f6",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "**Los índices también se comportan como conjuntos de Python**. Recordemos que los conjuntos, tal y como su nombre lo indica (`set`), son objetos nativos de Python que permiten operar algebraicamente con sus elementos mediante el uso de operaciones típicas de ese tipo de objetos, tales como uniones, intersecciones, complementos, entre otras. De esta manera, si definimos otro índice:"
+      ],
+      "id": "90c56863"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Construimos otro índice, esta vez con números impares.\n",
+        "index_2 = pd.Index([2 * j + 1 for j in range(5)])\n",
+        "\n",
+        "# Y lo mostramos en pantalla.\n",
+        "index_2"
+      ],
+      "id": "727bed65",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Podemos unir ambos índices previamente construidos mediante el método `union()`:"
+      ],
+      "id": "fa27450b"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Unión de índices.\n",
+        "index.union(index_2)"
+      ],
+      "id": "a55e97eb",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "También podemos obtener su intersección mediante el método `intersection()`:"
+      ],
+      "id": "82e830f2"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Intersección de índices.\n",
+        "index.intersection(index_2)"
+      ],
+      "id": "b227fef3",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Y su diferencia mediante el método `difference()`:"
+      ],
+      "id": "7c39fd69"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Diferencia de índices.\n",
+        "index.difference(index_2)"
+      ],
+      "id": "f17c4a7a",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Las operaciones con índices siguen una lógica cercana al álgebra de conjuntos, y por lo tanto el resultado de cada operación dependerá de los elementos que componen a cada índice. La razón de esto es simple: los índices permiten a las series y DataFrames de **<font color='darkmagenta'>Pandas</font>** alinear sus datos para operar con ellos. Por esta razón, el resultado de cualquier operación entre estructuras de datos dependerá no sólo de sus valores, sino también de sus etiquetas.\n",
+        "\n",
+        "Esta idea es una de las características más poderosas de **<font color='darkmagenta'>Pandas</font>**. En la práctica, permite que al sumar, comparar, combinar o filtrar datos, **<font color='darkmagenta'>Pandas</font>** use los rótulos como referencia semántica, y no solamente la posición física de cada valor en memoria. Esto es especialmente importante cuando trabajamos con datos reales, donde el orden de las filas puede cambiar, algunas observaciones pueden faltar y distintas fuentes pueden contener subconjuntos diferentes de entidades.\n",
+        "\n",
+        "## Selección de datos\n",
+        "\n",
+        "Cuando aprendimos a trabajar con los arreglos de **<font color='darkmagenta'>Numpy</font>**, discutimos en detalle métodos y herramientas para seleccionar, asignar y modificar valores de dichos arreglos, incluyendo esquemas de indexación simple (por ejemplo, `x[2, 1]`), slicing (por ejemplo, `x[:1, :5]`), masking (por ejemplo, `x[x >= 0]`), *fancy indexing* (por ejemplo, `x[0, [1, 5]]`), y combinaciones de todos ellos. A continuación, estudiaremos métodos similares para poder modificar y acceder a los valores que constituyen las estructuras de datos básicas de **<font color='darkmagenta'>Pandas</font>**: Series y DataFrames. La indexación sobre objetos de **<font color='darkmagenta'>Pandas</font>** se sentirá muy familiar, luego de haber aprendido a ejecutar estas mismas operaciones sobre arreglos de **<font color='darkmagenta'>Numpy</font>**.\n",
+        "\n",
+        "Partiremos con el caso más sencillo, que corresponde a la selección de datos en series. Como ya vimos un poco más atrás, las series actúan en muchas facetas como arreglos unidimensionales, y en otras, como diccionarios de Python. Con ambas analogías en mente, podremos entender sin demasiado problema cómo indexar elementos de una serie.\n",
+        "\n",
+        "Como en el caso de un diccionario, la serie nos provee de una forma de mapeo de tipo `(índice, valor)`, similar al que haríamos al tratar de mapear valores en un diccionario a partir de sus llaves. Por ejemplo:"
+      ],
+      "id": "7e4fd7d9"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Construimos una serie para jugar con ella.\n",
+        "data = pd.Series(data=[0.25, 0.5, 0.75, 1.0], index=[\"a\", \"b\", \"c\", \"d\"])\n",
+        "\n",
+        "# Mostramos la serie en pantalla.\n",
+        "data"
+      ],
+      "id": "d799952b",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Selección directa de un elemento de una serie.\n",
+        "data[\"b\"]"
+      ],
+      "id": "fbc4cad9",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Las series, al ser **parcialmente mutables**, pueden ser modificadas mediante una sintaxis típica de diccionarios (tal y como hicimos previamente con los DataFrames). De la misma forma en que generalmente extendemos la longitud de un diccionario mediante la asignación de una nueva llave, podemos extender una serie mediante la asignación de un índice nuevo, como sigue:"
+      ],
+      "id": "3e890df4"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Agregamos un valor nuevo a la serie por simple asignación.\n",
+        "data[\"e\"] = 1.25\n",
+        "\n",
+        "# Mostramos la serie en pantalla de nuevo para verificar el cambio.\n",
+        "data"
+      ],
+      "id": "9209e2b1",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Esta sencilla mutabilidad de los objetos constituye una característica muy conveniente: Bajo toda esta sencillez, **<font color='darkmagenta'>Pandas</font>** está tomando decisiones respecto de la distribución de memoria y copia de datos que podrían tener lugar en operaciones así. De este modo, **<font color='darkmagenta'>Pandas</font>** asume que el usuario, en general, no debería perder su tiempo en cuestiones de esta naturaleza (aunque podríamos, ciertamente).\n",
+        "\n",
+        "Podemos aprovechar la similitud de una serie a un arreglo unidimensional y aplicar las mismas operaciones de selección que aprendimos para esas estructuras de datos. Por ejemplo:"
+      ],
+      "id": "37c3aa4b"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Slicing explicitando los índices.\n",
+        "data[\"a\": \"c\"]"
+      ],
+      "id": "eff99b8d",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Los índices no tienen por qué ser especificados en forma explícita.\n",
+        "data[0: 3]"
+      ],
+      "id": "6c7f8256",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Podemos realizar filtros mediante masking.\n",
+        "data[(data > 0.3) & (data < 0.8)]"
+      ],
+      "id": "fe772f4c",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Y también fancy indexing.\n",
+        "data[[\"a\", \"e\"]]"
+      ],
+      "id": "2a20fb3d",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Los esquemas de selección de **<font color='darkmagenta'>Pandas</font>** que se parecen a los de **<font color='darkmagenta'>Numpy</font>** son intuitivos, pero también pueden ser una fuente de confusión. Miremos el caso de la selección por medio de slicing: en los arreglos de **<font color='darkmagenta'>Numpy</font>**, la posición final de un slice se excluye del resultado. En **<font color='darkmagenta'>Pandas</font>**, en cambio, un slice basado en etiquetas suele incluir la etiqueta final, mientras que un slice basado en posiciones sigue la convención de Python y excluye la posición final. Esta diferencia puede llevar a confusión, especialmente cuando el índice está formado por números enteros.\n",
+        "\n",
+        "### Esquemas de indexación\n",
+        "\n",
+        "En general, **<font color='darkmagenta'>Pandas</font>** presenta comportamientos por defecto diferentes dependiendo del tipo de selección que se quiera realizar sobre una serie o un DataFrame. Por ejemplo, si una serie tiene un índice entero explícito, una operación de indexado como `data[1]` usará los índices explícitos, mientras que una operación de slicing como `data[1: 3]` usará índices implícitos, como si se tratara de un arreglo o una lista de Python:"
+      ],
+      "id": "798c9103"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Creamos una nueva serie.\n",
+        "data = pd.Series(data=[\"a\", \"b\", \"c\"], index=[1, 3, 5])\n",
+        "\n",
+        "# Mostramos la serie en pantalla.\n",
+        "data"
+      ],
+      "id": "e9249f51",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Selección simple con índice explícito.\n",
+        "data[1]"
+      ],
+      "id": "01d339d9",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Selección por slicing con índice implícito.\n",
+        "data[1: 3]"
+      ],
+      "id": "fc2f6538",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "A causa de esta potencial confusión en el caso de los índices enteros, **<font color='darkmagenta'>Pandas</font>** nos provee de indexadores que explicitan el esquema de selección de una serie o de un DataFrame. No son métodos en el sentido usual, sino interfaces de indexación: `.loc[]` trabaja con etiquetas, mientras que `.iloc[]` trabaja con posiciones enteras.\n",
+        "\n",
+        "Tanto las series como los DataFrames, como hemos visto previamente, admiten selecciones de datos mediante el uso de corchetes. Por defecto, los DataFrames permiten seleccionar columnas escribiendo `data[\"columna_j\"]`. También podríamos encadenar una segunda selección, como `data[\"columna_j\"][\"fila_i\"]`, pero esta forma puede llevar a ambigüedades y no es la opción preferida para escribir código claro.\n",
+        "\n",
+        "Afortunadamente, dadas todas estas posibles ambigüedades, podemos seleccionar datos siguiendo un esquema diferente. Existen dos indexadores fundamentales: `.loc[]`, que selecciona mediante etiquetas, e `.iloc[]`, que selecciona mediante posiciones enteras. El primer indexador es `.loc[]`, que nos dejará seleccionar información de una serie o DataFrame explicitando el o los rótulos respectivos:"
+      ],
+      "id": "b528f0b1"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Indexamos de manera explícita una serie mediante .loc[].\n",
+        "data.loc[1]"
+      ],
+      "id": "001be99c",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Slicing usando este esquema de indexación.\n",
+        "data.loc[1: 3]"
+      ],
+      "id": "42cea417",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Este esquema de indexación, en el caso de un DataFrame, permite seleccionar información conforme un esquema que nos es familiar desde **<font color='darkmagenta'>Numpy</font>**: explicitando primero la fila, y luego la columna respectiva. De esta manera, dicho esquema es del tipo `data.loc[\"fila_i\", \"columna_j\"]`:"
+      ],
+      "id": "5c416a76"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Creamos un DataFrame para probar los esquemas de indexación.\n",
+        "df = pd.DataFrame({\n",
+        "    \"Produccion\": production_dict, \n",
+        "    \"Empresa\": owners_dict, \n",
+        "    \"Region\": location_dict\n",
+        "})\n",
+        "\n",
+        "# Mostramos el DataFrame en pantalla.\n",
+        "df"
+      ],
+      "id": "d4cab0a1",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "El esquema de indexación por medio de `loc[]` en un DataFrame sigue el orden `(fila, columna)` al seleccionar información:"
+      ],
+      "id": "07c6d275"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Seleccionamos información de una fila y columna específica.\n",
+        "df.loc[\"Chuquicamata\", \"Produccion\"]"
+      ],
+      "id": "377f3607",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Esto también es válido para cualquier tipo de slicing, masking o *fancy indexing*:"
+      ],
+      "id": "0fcd0136"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# El slicing con .loc[] usa etiquetas e incluye el extremo final.\n",
+        "df.loc[\"Radomiro Tomic\": \"Sierra Gorda\", \"Produccion\": \"Empresa\"]"
+      ],
+      "id": "37ecc225",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Mediante masking, podemos construir filtros sencillos para nuestras selecciones.\n",
+        "df.loc[df[\"Produccion\"] >= 200]"
+      ],
+      "id": "2515c2ff",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Y estos filtros pueden ser respecto de cualquier combinación de filas y/o columnas.\n",
+        "df.loc[(df[\"Produccion\"] >= 200) & (df[\"Region\"] == \"Antofagasta\")]"
+      ],
+      "id": "f945998e",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Mediante fancy indexing podemos especificar ciertas filas o columnas.\n",
+        "df.loc[[\"El Teniente\", \"Chuquicamata\", \"Radomiro Tomic\", \"Andina\"], [\"Produccion\", \"Region\"]]"
+      ],
+      "id": "e1ca3fc9",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Por otro lado, también disponemos de un esquema de indexación que prescinde de las etiquetas de una serie o DataFrame, tratando a estas estructuras de datos como si fueran arreglos unidimensionales o bidimensionales de **<font color='darkmagenta'>Numpy</font>**, según sea el caso. Tal esquema se genera por medio del indexador `.iloc[]`:"
+      ],
+      "id": "ebb0fa00"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# .iloc[] nos permite tratar a cualquier serie como un arreglo unidimensional\n",
+        "# cuando seleccionamos información.\n",
+        "data.iloc[1]"
+      ],
+      "id": "bb7451d2",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Selección de la última posición de una serie.\n",
+        "data.iloc[-1]"
+      ],
+      "id": "4235dcef",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Selección de la última fila de un DataFrame.\n",
+        "df.iloc[-1, :]"
+      ],
+      "id": "440ec4b0",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Como regla práctica, si estamos pensando en nombres de filas o columnas, usamos `.loc[]`. Si estamos pensando en posiciones, usamos `.iloc[]`. Esta distinción evita buena parte de las confusiones comunes al comenzar a trabajar con **<font color='darkmagenta'>Pandas</font>**.\n",
+        "\n",
+        "### Convenciones de orden\n",
+        "\n",
+        "Existen algunas convenciones adicionales de indexación que podrían parecer extrañas en primera instancia, pero que, de todas maneras, pueden llegar a ser extremadamente útiles en la práctica. Tales convenciones son especialmente relevantes cuando tratamos con DataFrames.\n",
+        "\n",
+        "En un DataFrame, el esquema de selección por defecto al rotular entre corchetes (sin usar indexadores como `loc[]` o `iloc[]`) siempre aplica por defecto sobre los índices relativos a las columnas. De esta manera, si escribimos `df[\"col_j\"]`, **<font color='darkmagenta'>Pandas</font>** entenderá que estamos buscando la columna llamada `\"col_j\"` en el DataFrame `df`. En efecto:"
+      ],
+      "id": "6a102ab4"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Al escribir un nombre entre corchetes luego del nombre de un DataFrame,\n",
+        "# Pandas siempre asumirá que estamos buscando una determinada columna en\n",
+        "# dicho DataFrame.\n",
+        "df[\"Produccion\"]"
+      ],
+      "id": "2ead8d28",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Por lo tanto, si buscamos una determinada fila en un DataFrame, siempre tendremos que usar algún indexador:"
+      ],
+      "id": "3602997e"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# En un DataFrame, si queremos seleccionar una fila, tendremos que usar un indexador.\n",
+        "df.loc[\"Los Pelambres\"]"
+      ],
+      "id": "a3edffbf",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Al contrario de lo que ocurre con la simple selección, al realizar un slicing entre corchetes sin especificar un indexador, **<font color='darkmagenta'>Pandas</font>** siempre entenderá que dicha búsqueda se hará con respecto a las filas del DataFrame:"
+      ],
+      "id": "4af3cd77"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# En el slicing, si no usamos indexadores, Pandas entiende que siempre barremos por\n",
+        "# filas.\n",
+        "df[\"Los Bronces\": \"Centinela\"]"
+      ],
+      "id": "fbeeeda6",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Por lo tanto, si queremos generar un slicing en un DataFrame con respecto a las columnas, nuevamente, tendremos que hacer uso de algún indexador:"
+      ],
+      "id": "ec0d1864"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Para realizar un slicing en un DataFrame con referencia a sus índices de columnas, necesitamos\n",
+        "# usar un indexador.\n",
+        "df.loc[:, :\"Empresa\"]"
+      ],
+      "id": "2639ca8c",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Las convenciones anteriores para el caso de la selección y del slicing en DataFrames no llevan un nombre específico, pero sin duda son útiles para entender cómo **<font color='darkmagenta'>Pandas</font>** trabaja por defecto sobre sus estructuras de datos si optamos por no especificar una forma de indexar al seleccionar información.\n",
+        "\n",
+        "### Filtrado\n",
+        "\n",
+        "Una tarea importante al trabajar con series o DataFrames, y que se desprende de cualquier análisis de datos, corresponde al **filtrado** de información conforme algún criterio. En las estructuras de datos de **<font color='darkmagenta'>Pandas</font>**, una primera forma de filtrar información es mediante el uso de *masking*, de la misma forma que lo haríamos en arreglos de **<font color='darkmagenta'>Numpy</font>**. Ya hemos visto ejemplos de esto previamente, pero ahora lo explicaremos más en detalle.\n",
+        "\n",
+        "Partamos pues construyendo un DataFrame (para las series, las operaciones de filtrado son totalmente análogas), el cual tendrá un total de `100` filas y `3` columnas. Cada fila corresponderá a un día determinado de observaciones sobre una planta de chancado primario. La primera columna corresponderá al procesamiento de mineral en el chancador (en toneladas/hora o *tph*), la segunda, a la utilización efectiva promedio de la flota de transporte de la mina respectiva, y la tercera, a la fracción porcentual de mineral de tamaño grueso (+1’’) que llega a la planta, estando todas estas mediciones referenciadas al día en cuestión. Usaremos el generador de números aleatorios de **<font color='darkmagenta'>Numpy</font>** para construir este DataFrame:"
+      ],
+      "id": "16ddf59f"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Definimos una semilla para el generador de números aleatorios de Numpy.\n",
+        "rng = np.random.default_rng(42)\n",
+        "\n",
+        "# Tratamiento de chancado primario.\n",
+        "x1 = rng.normal(loc=3200, scale=580, size=100)\n",
+        "\n",
+        "# Utilización efectiva de flota CAEX.\n",
+        "x2 = rng.lognormal(mean=4, sigma=0.2, size=100)\n",
+        "\n",
+        "# Proporción de mineral grueso (+1\").\n",
+        "x3 = rng.normal(loc=30, scale=12.5, size=100)\n",
+        "\n",
+        "# Construimos un DataFrame con esta información.\n",
+        "ch1_df = pd.DataFrame(\n",
+        "    data=np.array([x1, x2, x3]).T,\n",
+        "    columns=[\"Tratamiento CH1\", \"UE CAEX\", \"% Gruesos\"]\n",
+        ")"
+      ],
+      "id": "da303771",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Debido a que el DataFrame que hemos construido tiene un total de `100` filas, sería un despropósito imprimirlo completamente en pantalla. Sin embargo, podemos usar el método `head()` para mostrar las primeras filas de nuestro DataFrame, a fin de revisar someramente su estructura. El método `head()` toma como argumento un número entero `n`, el cual indica la cantidad de filas que se mostrarán desde el inicio del DataFrame. Por ejemplo, para mostrar las primeras `5` filas de nuestro DataFrame (que es la opción por defecto), haríamos lo siguiente:"
+      ],
+      "id": "d9f5f332"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Mostramos las primeras filas de nuestro DataFrame.\n",
+        "ch1_df.head(n=5)"
+      ],
+      "id": "851c0290",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "El método `tail()`, por otro lado, nos permite mostrar las últimas filas de un DataFrame, tomando el mismo argumento `n` para indicar la cantidad de filas a mostrar desde el final del DataFrame. Por ejemplo, para mostrar las últimas `5` filas de nuestro DataFrame (que también es la opción por defecto), haríamos lo siguiente:"
+      ],
+      "id": "3571e265"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Mostramos las últimas filas de nuestro DataFrame.\n",
+        "ch1_df.tail(n=5)"
+      ],
+      "id": "9559bb7c",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Un primer filtro de información que podemos querer observar en nuestro DataFrame es verificar cuáles son los registros tales que el tratamiento de chancado primario fue mayor a `3700` tph. Dicho filtro es sencillo de construir, ya que sólo requiere de una simple operación de masking:"
+      ],
+      "id": "d91893fc"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Seleccionamos aquellas filas (o días) con tratamiento sobre 3700 tph.\n",
+        "ch1_df[ch1_df[\"Tratamiento CH1\"] > 3700]"
+      ],
+      "id": "9a7b0beb",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "El filtro anterior entrega como resultado un DataFrame con todas las filas del original tales que el tratamiento de chancado primario (la primera columna) es mayor que `3700` tph. Por supuesto, quizás la propia columna de tratamiento puede ser innecesaria en esta consulta de información, y queramos únicamente retener los valores del % de gruesos y de utilización efectiva de la flota de transporte tales que el tratamiento es mayor a `3700` tph. Para hacer esto, podemos combinar la máscara anterior con `.loc[]`, listando las columnas que queremos obtener:"
+      ],
+      "id": "96801266"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Tratamiento sobre 3700 tph, retornamos columnas de utilización efectiva\n",
+        "# y % de gruesos.\n",
+        "ch1_df.loc[\n",
+        "    ch1_df[\"Tratamiento CH1\"] > 3700,\n",
+        "    [\"UE CAEX\", \"% Gruesos\"]\n",
+        "]"
+      ],
+      "id": "fd623403",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Si deseamos aplicar más de una condición en un filtro, y que éstas sean incluyentes, bastará con separar cada una de tales condiciones entre paréntesis mediante el operador `&`, que en este contexto representa una conjunción lógica elemento a elemento:"
+      ],
+      "id": "a5bb1851"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Filtro conforme dos condiciones.\n",
+        "# Determinamos todos los registros de % de gruesos, tales que el tratamiento\n",
+        "# de chancado primario es mayor que 3500 tph, y la utilización efectiva de la\n",
+        "# flota CAEX es mayor o igual a 60%.\n",
+        "ch1_df[\n",
+        "    (ch1_df[\"Tratamiento CH1\"] > 3500)  # Primera condición.\n",
+        "    & (ch1_df[\"UE CAEX\"] >= 60)  # Segunda condición.\n",
+        "][\"% Gruesos\"]"
+      ],
+      "id": "a409236d",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Si queremos expresar una condición de tipo \"o\", usaremos el operador `|`, que también debe aplicarse separando cada condición entre paréntesis:"
+      ],
+      "id": "262b9fe4"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Registros con tratamiento alto o con alta utilización efectiva.\n",
+        "ch1_df.loc[\n",
+        "    (ch1_df[\"Tratamiento CH1\"] > 3700)\n",
+        "    | (ch1_df[\"UE CAEX\"] >= 65)\n",
+        "]"
+      ],
+      "id": "20da8249",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Una forma más legible de filtrar datos en DataFrames es mediante el uso del método `query()`, el cual permite evaluar consultas de información conforme condiciones escritas como texto. La sintaxis de este método es bastante sencilla (aunque no tan intuitiva al principio), y se basa en escribir la consulta de información como una cadena de texto, en la cual se pueden usar los nombres de las columnas del DataFrame para referenciar a los datos que queremos filtrar. Por ejemplo, para replicar el filtro anterior con `query()`:"
+      ],
+      "id": "20779f3e"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Mismo filtro anterior, pero usando el método query().\n",
+        "ch1_df.query(\"`Tratamiento CH1` > 3500 & `UE CAEX` >= 60\")[\"% Gruesos\"]"
+      ],
+      "id": "806b0994",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Entendamos bien el resultado anterior: el método `query()` funciona por medio de evaluaciones de expresiones escritas como cadenas de texto. En este caso, la expresión a evaluar es ``\"`Tratamiento CH1` > 3500 & `UE CAEX` >= 60\"``. Usamos acentos graves o *backticks* para diferenciar los rótulos de columnas (por ejemplo, `UE CAEX`), debido a que tales rótulos presentan espacios. De no existir tales espacios, la diferenciación de los rótulos de columna mediante *backticks* no es necesaria. Esto es algo que retomaremos un poco más adelante, cuando convengamos algunas buenas prácticas a la hora de trabajar en **<font color='darkmagenta'>Pandas</font>**.\n",
+        "\n",
+        "El método `query()` está relacionado con otro método denominado `eval()`, que permite evaluar expresiones sobre columnas de un DataFrame. En el siguiente ejemplo, `eval()` retorna una serie con los mismos índices de fila que el DataFrame original, pero con valores Booleanos. Se asigna el valor `True` si dicha fila cumple con la condición evaluada previamente:"
+      ],
+      "id": "d4a07cf7"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Evaluamos qué filas de nuestro DataFrame cumplen con la condición a evaluar.\n",
+        "ch1_df.eval(\"`UE CAEX` >= 60\")"
+      ],
+      "id": "c4cdc8a5",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "El método `eval()` se encarga de evaluar la expresión que se le entrega como argumento y retornar una serie de tipo Booleano con los resultados de dicha evaluación. El método `query()`, por otro lado, usa una expresión de este tipo para filtrar las filas del DataFrame original, retornando un nuevo DataFrame con sólo las filas que cumplen con la condición evaluada. El método `query()` es, por lo tanto, una forma muy legible de filtrar datos en DataFrames, aunque `eval()` también puede ser útil cuando queremos construir expresiones intermedias que involucren varias columnas.\n",
+        "\n",
+        "Por cierto, métodos como `eval` y `query` son llamados, en general, **evaluadores**.\n",
+        "\n",
+        "## Buenas prácticas iniciales en <font color='darkmagenta'>Pandas</font>\n",
+        "\n",
+        "Antes de cerrar esta introducción rápida, vale la pena presentar algunas buenas prácticas que ayudan mucho cuando pasamos desde ejemplos pequeños a análisis reales. **<font color='darkmagenta'>Pandas</font>** es muy flexible, pero precisamente por eso conviene establecer ciertas convenciones tempranas.\n",
+        "\n",
+        "### Normalizar nombres de columnas e índices\n",
+        "\n",
+        "Una práctica simple y poderosa es trabajar con rótulos consistentes. En particular, conviene usar minúsculas en los nombres de columnas, filas o cualquier string que funcione como etiqueta de una tabla. Esto reduce errores de escritura y facilita el uso de métodos como `query()`."
+      ],
+      "id": "f99ecf57"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Creamos una copia para no modificar el DataFrame original.\n",
+        "ch1_clean = ch1_df.copy()\n",
+        "\n",
+        "# Normalizamos las columnas: minúsculas, espacios recortados y guiones bajos.\n",
+        "ch1_clean.columns = (\n",
+        "    ch1_clean\n",
+        "    .columns\n",
+        "    .str.strip()\n",
+        "    .str.lower()\n",
+        "    .str.replace(\" \", \"_\", regex=False)\n",
+        ")\n",
+        "\n",
+        "# Mostramos las primeras filas con cabeceras normalizadas.\n",
+        "ch1_clean.head()"
+      ],
+      "id": "2b928c20",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "En el caso anterior, la columna `\"Tratamiento CH1\"` pasa a llamarse `\"tratamiento_ch1\"`, `\"UE CAEX\"` pasa a `\"ue_caex\"` y `\"% Gruesos\"` pasa a `\"%_gruesos\"`. En un proyecto real, probablemente también reemplazaríamos símbolos como `%` por nombres más explícitos:"
+      ],
+      "id": "b0f6f48c"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Renombramos una columna para evitar símbolos especiales.\n",
+        "ch1_clean = ch1_clean.rename(columns={\"%_gruesos\": \"pct_gruesos\"})\n",
+        "\n",
+        "# Verificamos el resultado.\n",
+        "ch1_clean.head()"
+      ],
+      "id": "680fc563",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "La misma lógica aplica a valores categóricos almacenados como texto. Por ejemplo, si queremos filtrar por región, conviene que los nombres estén normalizados:"
+      ],
+      "id": "b303a3c2"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Creamos una copia de trabajo del DataFrame de operaciones mineras.\n",
+        "mining_df = df.copy()\n",
+        "\n",
+        "# Normalizamos columnas y valores de texto relevantes.\n",
+        "mining_df.columns = mining_df.columns.str.strip().str.lower()\n",
+        "mining_df[\"region\"] = mining_df[\"region\"].str.strip().str.lower()\n",
+        "\n",
+        "# Filtramos usando nombres consistentes.\n",
+        "mining_df.query(\"produccion > 200 & region == 'antofagasta'\")"
+      ],
+      "id": "ec0d16c7",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "::: {.callout-tip}\n",
+        "## Consejo\n",
+        "\n",
+        "Si una columna será usada muchas veces en filtros, combinaciones o gráficos, conviene darle un nombre corto, expresivo y estable. Nombres como `produccion`, `region`, `empresa`, `tratamiento_ch1` o `pct_gruesos` suelen ser más cómodos que nombres con espacios, mayúsculas, tildes o símbolos.\n",
+        ":::\n",
+        "\n",
+        "### Ordenar cadenas de métodos por línea\n",
+        "\n",
+        "Otra buena práctica es ordenar las transformaciones como una cadena de métodos, escribiendo cada método en una línea diferente. Esto hace que el flujo de trabajo se lea de arriba hacia abajo: primero tomamos una tabla, luego transformamos sus columnas, después filtramos, y finalmente inspeccionamos el resultado."
+      ],
+      "id": "3c4ab17a"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Sintaxis donde los métodos de Pandas se ordenan por línea.\n",
+        "(\n",
+        "    mining_df\n",
+        "    .rename(columns=str.lower)\n",
+        "    .assign(region=lambda x: x[\"region\"].str.strip().str.lower())\n",
+        "    .query(\"produccion > 200 & region == 'antofagasta'\")\n",
+        "    .head(n=5)\n",
+        ")"
+      ],
+      "id": "b18673b4",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Esta sintaxis es cómoda porque evita crear muchas variables intermedias cuando sólo queremos expresar una secuencia breve de operaciones. Además, los paréntesis permiten escribir la cadena en varias líneas sin usar barras invertidas (`\\`), lo que mejora la legibilidad.\n",
+        "\n",
+        "### Preferir `.loc[]` e `.iloc[]` para seleccionar y asignar\n",
+        "\n",
+        "Cuando seleccionamos columnas aisladas, `df[\"columna\"]` es una sintaxis perfectamente razonable. Sin embargo, cuando queremos seleccionar filas y columnas al mismo tiempo, o cuando queremos asignar valores, es mejor usar `.loc[]` o `.iloc[]`."
+      ],
+      "id": "22fe5d01"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Selección explícita por etiquetas.\n",
+        "mining_df.loc[\n",
+        "    mining_df[\"produccion\"] > 300,\n",
+        "    [\"empresa\", \"region\"]\n",
+        "]"
+      ],
+      "id": "caef93a9",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Asignación explícita por etiquetas.\n",
+        "mining_df.loc[\"El Teniente\", \"region\"] = \"ohiggins\""
+      ],
+      "id": "fa9954e1",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Esta forma evita la selección encadenada y reduce la probabilidad de encontrarnos con advertencias del tipo `SettingWithCopyWarning`.\n",
+        "\n",
+        "### Crear copias cuando el análisis lo requiere\n",
+        "\n",
+        "Cuando una tabla original representa nuestra fuente de datos base, conviene no modificarla sin querer. Para explorar alternativas, probar limpiezas o construir versiones derivadas, usamos `copy()`:"
+      ],
+      "id": "f74976a1"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Copia explícita antes de transformar.\n",
+        "analysis_df = mining_df.copy()\n",
+        "\n",
+        "# Creamos una nueva columna derivada.\n",
+        "analysis_df[\"produccion_relativa\"] = (\n",
+        "    analysis_df[\"produccion\"] / analysis_df[\"produccion\"].sum()\n",
+        ")\n",
+        "\n",
+        "# Revisamos el resultado.\n",
+        "analysis_df.head()"
+      ],
+      "id": "0dc365e9",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "La idea no es copiar absolutamente todo, sino ser explícitos cuando queremos separar una tabla base de una tabla de trabajo.\n",
+        "\n",
+        "### Inspeccionar antes de transformar\n",
+        "\n",
+        "Antes de filtrar, combinar o modificar una tabla, suele ser buena idea mirar su estructura. En esta etapa inicial, algunos métodos especialmente útiles son `head()`, `tail()`, `shape`, `dtypes`, `info()` y `describe()`:"
+      ],
+      "id": "90f7ffb7"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Resumen estadístico de columnas numéricas.\n",
+        "ch1_clean.describe()"
+      ],
+      "id": "4d08d55a",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Estos métodos ayudan a detectar valores inesperados, nombres de columnas incómodos, tipos de datos incorrectos o escalas que conviene revisar antes de seguir.\n",
+        "\n",
+        "### Aprovechar operaciones vectorizadas\n",
+        "\n",
+        "En **<font color='darkmagenta'>Pandas</font>**, muchas operaciones se aplican directamente sobre columnas completas. En general, si podemos expresar una transformación como una operación entre series, será preferible a recorrer fila por fila con ciclos explícitos:"
+      ],
+      "id": "32d536c8"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Operación vectorizada sobre columnas.\n",
+        "ch1_clean[\"tratamiento_sobre_promedio\"] = (\n",
+        "    ch1_clean[\"tratamiento_ch1\"] > ch1_clean[\"tratamiento_ch1\"].mean()\n",
+        ")\n",
+        "\n",
+        "# Mostramos algunas filas.\n",
+        "ch1_clean.head()"
+      ],
+      "id": "2f667dc1",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Esta forma suele ser más clara, más breve y más eficiente que construir manualmente una lista de resultados con un ciclo.\n",
+        "\n",
+        "### Mantener índices con significado\n",
+        "\n",
+        "Los índices son útiles cuando identifican naturalmente las observaciones: nombres de operaciones mineras, fechas, códigos de equipos, identificadores de clientes, etc. Si el índice no aporta significado, no hay problema en mantener el índice entero por defecto. Lo importante es no olvidar que el índice participa en alineamientos, operaciones y combinaciones."
+      ],
+      "id": "84319e5d"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Devolvemos el índice a una columna explícita.\n",
+        "mining_reset = mining_df.reset_index(names=\"operacion\")\n",
+        "\n",
+        "# Mostramos el resultado.\n",
+        "mining_reset.head()"
+      ],
+      "id": "e66d9701",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "## Comentarios finales\n",
+        "\n",
+        "En este apunte hicimos una introducción rápida a **<font color='darkmagenta'>Pandas</font>** a partir de sus objetos más visibles: Las series, los DataFrames y los índices. La idea más importante es que **<font color='darkmagenta'>Pandas</font>** no sólo almacena datos en filas y columnas, sino que también asocia esos datos a etiquetas que le dan significado operativo a nuestras selecciones, filtros, transformaciones y cálculos.\n",
+        "\n",
+        "Las series nos permiten representar variables unidimensionales con índices explícitos; los DataFrames extienden esa lógica a tablas completas; y los índices hacen posible que **<font color='darkmagenta'>Pandas</font>** alinee información de manera automática. Con esta base, ya podemos avanzar hacia un asunto que conviene entender antes de manipular datos con demasiada confianza: Los tipos de datos que **<font color='darkmagenta'>Pandas</font>** usa para representar enteros, flotantes, texto, categorías, fechas y valores faltantes.\n",
+        "\n",
+        "En la práctica, aprender **<font color='darkmagenta'>Pandas</font>** no consiste sólo en memorizar métodos, sino en desarrollar una forma ordenada de pensar con tablas: Nombrar bien las variables, seleccionar con claridad, filtrar con intención, inspeccionar antes de transformar y mantener trazabilidad sobre cada cambio que hacemos en nuestros datos."
+      ],
+      "id": "4e8d1063"
+    }
+  ],
+  "metadata": {
+    "kernelspec": {
+      "name": "nerdyminer",
+      "language": "python",
+      "display_name": "Python (nerdyminer)",
+      "path": "/Users/fquezadac/Library/Jupyter/kernels/nerdyminer"
+    }
+  },
+  "nbformat": 4,
+  "nbformat_minor": 5
+}

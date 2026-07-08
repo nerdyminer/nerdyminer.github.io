@@ -5,6 +5,7 @@ section_href: "/apuntes/calculo-incertidumbre-y-optimizacion/"
 toc: true
 toc-depth: 3
 page-layout: article
+number-offset: 4
 ---
 
 ::: {.callout-important}
@@ -13,7 +14,7 @@ page-layout: article
 Una vez construido el concepto formal de probabilidad sobre espacios muestrales y eventos, el siguiente paso natural consiste en trasladar esa estructura hacia cantidades numéricas de interés. Esa transición se realiza mediante las variables aleatorias, las funciones de distribución y las densidades, que permiten describir incertidumbre, cuantificar magnitudes esperadas y modelar dependencias. Este lenguaje será la base de buena parte de la estadística y del aprendizaje automático en un contexto probabilístico.
 :::
 
-## Introducción.
+## Introducción
 Anteriormente construimos la noción formal de probabilidad a partir de espacios muestrales, eventos y funciones de conjunto. Sin embargo, en la práctica rara vez nos interesa trabajar directamente con resultados elementales de un experimento aleatorio. Lo habitual es que queramos asociar a cada resultado una **cantidad numérica**: el número obtenido al lanzar un dado, el tiempo de vida útil de un fusible, la ley de cobre de una muestra, el error de predicción de un modelo o la cantidad de aciertos de un clasificador.
 
 Ese paso conceptual da origen al objeto central de este apunte: La **variable aleatoria**. Una variable aleatoria permite transformar los resultados de un experimento incierto en números reales, sobre los cuales ya podemos operar analíticamente. Gracias a esta construcción, la probabilidad deja de expresarse sólo como una medida sobre eventos abstractos y pasa a describir cómo se distribuyen cantidades observables o medibles.
@@ -24,7 +25,7 @@ Todo este lenguaje es decisivo en machine learning. Muchos modelos modernos no s
 
 En este apunte comenzaremos por definir rigurosamente las variables aleatorias y sus funciones asociadas. Luego estudiaremos sus principales resúmenes numéricos, la construcción de distribuciones multivariables y condicionales, y cerraremos con resultados especialmente relevantes en inferencia y aprendizaje, como la fórmula de Bayes y algunas transformaciones de variables aleatorias.
 
-## Variables aleatorias.
+## Variables aleatorias
 En muchos experimentos nos interesan números asociados a los resultados del experimento. Por ejemplo, $n$ monedas se lanzan simultáneamente y preguntamos por el número de caras. Un par de dados ruedan y nos interesa la suma de los puntos conseguidos. Se lanza una flecha hacia un blanco circular y queremos saber la distancia desde el punto en que cayó con respecto al centro. Siempre que asociamos un número real a cada resultado de un experimento estamos tratando con una función cuyo dominio es el conjunto de resultados posibles y cuyo recorrido es el conjunto de los números reales en cuestión. Una función de estas características se llama **variable aleatoria**. Formalizaremos pues su definición a continuación.
 
 **<font color='blue'>Definición 4.1 – Variable aleatoria:</font>** Sea $\Omega$ un espacio muestral arbitrario. Una función $X:\Omega \longrightarrow \mathbb{R}$ es llamada **variable aleatoria unidimensional**. En términos más generales, una función vectorial del tipo $\mathbf{X}:\Omega \longrightarrow \mathbb{R}^{n}$ es llamada **variable aleatoria $n$-dimensional** (o, en términos más prácticos, **vector aleatorio $n$-dimensional**).
@@ -61,7 +62,7 @@ Los valores 0 y 1 no son esenciales. Podría utilizarse cualquier par de número
 
 Vamos a detenernos un poco en el tema de las notaciones. Evitaremos generar una notación engorrosa (siempre que se pueda) empleando notaciones breves para describir ciertos tipos de sucesos y sus probabilidades. Por ejemplo, si $t\in \mathbb{R}$, el conjunto de todos los valores de $\omega$ del espacio muestral tales que $X(\omega)=t$ se representará brevemente poniendo $X=t$. La probabilidad de este suceso se denota como $P(X=t)$ en lugar de poner $P\left( \left\{ \omega |X\left( \omega \right)  =t\right\}  \right)$. Los símbolos tales como $P\left( X=a\vee X=b\right)$ y $P(a<X\leq b)$ se definen de modo parecido. Así pues, el suceso $X=a\vee X=b$ es la unión de los sucesos $X=a$ y $X=b$; el símbolo $P\left( X=a\vee X=b\right)$ representa la probabilidad de esta unión. El suceso $a<X\leq b$ es el conjunto de todos los puntos $\omega$ tales que $X(\omega)$ pertenece al intervalo semiabierto $(a,b]$, y el símbolo $P(a<X\leq b)$ representa la probabilidad de este suceso.
 
-## Funciones de distribución.
+## Funciones de distribución
 Volvamos de nuevo al problema del cálculo de probabilidades de un suceso asociado a una cierta variable aleatoria. Sea $X$ una variable aleatoria unidimensional definida en un espacio muestral $\Omega$, siendo $\Omega$ un conjunto de Borel en $\mathbb{R}^{n}$ para $n\geq 1$. Sea $P$ una medida de probabilidad definida en los subconjuntos de Borel de $\Omega$. Para cada $\omega$ de $\Omega$, $X(\omega)$ es un número real, y cuando $\omega$ recorre los elementos de $\Omega$, los números $X(\omega)$ recorren un conjunto de números reales (el recorrido de $X$). Este conjunto puede ser finito, infinito numerable o infinito no numerable. Para cada número real $t$ consideramos el siguiente subconjunto de $\Omega$:
 
 ::: {.eq-scroll}
@@ -144,6 +145,8 @@ def U(t):
 Graficar esta función resulta sencillo. Por ejemplo, para $-1\leq t\leq 2$, tenemos:
 
 ```{python}
+#| label: fig-introduccion-al-calculo-de-probabilidades-01
+#| fig-cap: "Distribución uniforme, para $-1\\leq t\\leq 2$."
 # Iniciamos nuestra figura.
 fig, ax = plt.subplots(figsize=(9, 5))
 
@@ -154,7 +157,6 @@ t = np.linspace(start=-1, stop=2, num=100)
 ax.plot(t, U(t), color="navy", lw=3)
 ax.set_xlabel(r"$t$", fontsize=12, labelpad=10)
 ax.set_ylabel(r"$U(t)$", fontsize=12, labelpad=20, rotation=0)
-ax.set_title(r"Distribución uniforme, para $-1\leq t\leq 2$", fontsize=14, fontweight="bold", pad=10)
 plt.tight_layout()
 ```
 
@@ -176,6 +178,8 @@ def S(t):
 ```
 
 ```{python}
+#| label: fig-introduccion-al-calculo-de-probabilidades-02
+#| fig-cap: "Distribución logística, para $-5\\leq t\\leq 5$."
 # Iniciamos nuestra figura.
 fig, ax = plt.subplots(figsize=(9, 5))
 
@@ -186,7 +190,6 @@ t = np.linspace(start=-5, stop=5, num=100)
 ax.plot(t, S(t), color="indianred", lw=3)
 ax.set_xlabel(r"$t$", fontsize=12, labelpad=10)
 ax.set_ylabel(r"$S(t)$", fontsize=12, labelpad=20, rotation=0)
-ax.set_title(r"Distribución logística, para $-5\leq t\leq 5$", fontsize=14, fontweight="bold", pad=10)
 plt.tight_layout()
 ```
 
@@ -215,7 +218,7 @@ En efecto, es posible demostrar que, para cada una de estas funciones $F$, exist
 
 Existen dos tipos especiales de distribuciones, llamadas **discretas** y **continuas**, que en la práctica tienen particular importancia. En el caso discreto toda la *masa* de puntos con probabilidades no nulas está concentrada en un número de puntos finito o infinito numerable, mientras que en el caso continuo, dichas probabilidades están esparcidas, con espesor uniforme o variado, a lo largo de todo el eje real, a modo de una densidad de infinitos puntos. A continuación, trataremos con cierto detalle esos dos tipos de distribuciones.
 
-### Distribuciones discretas.
+### Distribuciones discretas
 Sea $X$ una variable aleatoria unidimensional y consideremos una nueva función $p$, llamada **función de masa de probabilidad** de $X$ (que suele abreviarse como *fmp*, *pmf*, del inglés *probability mass function*). Sus valores están definidos para todo el rango de valores de $X$, digamos $k\in \mathbb{R}$, mediante la ecuación $p(k)=P(X=k)$. Es decir, $p(k)$ es la probabilidad de $X$ tome el valor $k$. Cuando deseamos poner de manifiesto que $p$ está asociada a $X$, solemos escribir $p_{X}$ en lugar de sólo $p$, $p_{X}(k)$ en lugar de simplemente $p(k)$.
 
 El conjunto de números reales $k$ para los cuales $p(k)>0$ es finito o infinito numerable. Si llamamos $T$ a dicho conjunto, podemos expresarlo como $T=\left\{ k\in \mathbb{R} :p\left( k\right)  >0\right\}$. Al respecto, diremos que la variable aleatoria $X$ es **discreta** si se cumple que
@@ -294,29 +297,64 @@ from scipy import stats
 Para crear una variable aleatoria binomial, basta con usar la clase `stats.binom()`, inicializándola con el número total $n$ de repeticiones del experimento en cuestión y la probabilidad $p$ de obtener éxito. En los siguientes bloques de código, crearemos tres variables aleatorias binomiales para distintas combinaciones de $n$ y $p$, a fin de visualizar tales cambios en sus correspondientes funciones de masa y de distribución:
 
 ```{python}
+#| label: fig-introduccion-al-calculo-de-probabilidades-03
+#| fig-cap: "Funciones de masa y de distribución binomial."
 # Inicializamos la figura.
 fig, ax = plt.subplots(figsize=(9, 9), nrows=2, sharex=True)
 
-# Creamos el rango de valores para evaluar las funciones de masa y de distribución.
+# Creamos el rango de valores para evaluar las funciones de masa y
+# de distribución.
 k = np.linspace(start=0, stop=20, num=21)
 
 # Mediante un loop, creamos las variables aleatorias y las graficamos.
-for n_j, p_j, color_j in zip([20, 20, 40], [0.5, 0.7, 0.5], ["orange", "purple", "skyblue"]):
-    X_j = stats.binom(n_j, p_j) # Creamos la variable aleatoria.
+for n_j, p_j, color_j in zip(
+    [20, 20, 40],
+    [0.5, 0.7, 0.5],
+    ["orange", "purple", "skyblue"],
+):
+    # Creamos la variable aleatoria.
+    X_j = stats.binom(n_j, p_j)
+
+    # Y generamos los gráficos de sus funciones de masa y de distribución.
     ax[0].scatter(
-        k, X_j.pmf(k), marker="o", ec="gray", color=color_j, label=r"$n=$"+f"{n_j}, " + r"$p=$" + f"{p_j}"
+        k,
+        X_j.pmf(k),
+        marker="o",
+        ec="gray",
+        color=color_j,
+        label=r"$n=$"+f"{n_j}, " + r"$p=$" + f"{p_j}",
     )
+
     ax[0].legend(loc="upper left", frameon=True, fontsize=12)
     ax[0].set_ylabel(r"$p(k)$", fontsize=14, labelpad=20, rotation=0)
     ax[1].scatter(
-        k, X_j.cdf(k), marker="o", ec="gray", color=color_j, label=r"$n=$"+f"{n_j}, " + r"$p=$" + f"{p_j}"
+        k,
+        X_j.cdf(k),
+        marker="o",
+        ec="gray",
+        color=color_j,
+        label=r"$n=$"+f"{n_j}, " + r"$p=$" + f"{p_j}",
     )
+
     ax[1].legend(loc="best", frameon=True, fontsize=12)
     ax[1].set_ylabel(r"$F(k)$", fontsize=14, labelpad=20, rotation=0)
 
-ax[0].set_title("Función de masa binomial", pad=10, fontweight="bold", fontsize=15)
-ax[1].set_title("Función de distribución binomial", pad=10, fontweight="bold", fontsize=15)
+ax[0].set_title(
+    "Función de masa binomial",
+    pad=10,
+    fontweight="bold",
+    fontsize=15,
+)
+
+ax[1].set_title(
+    "Función de distribución binomial",
+    pad=10,
+    fontweight="bold",
+    fontsize=15,
+)
+
 ax[1].set_xlabel(r"$k$", fontsize=14, labelpad=10)
+
 plt.tight_layout()
 ```
 
@@ -347,30 +385,63 @@ Es, por tanto, aplicable a diversos problemas relativos a sucesos aleatorios que
 Como en el caso de la distribución binomial, visualizar una distribución de Poisson es sencillo si nos referimos al uso del módulo `scipy.stats`. En esta oportunidad, usamos la clase `stats.poisson()`, seteando el parámetro $\lambda$ en distintos valores, a fin de observar los efectos en las funciones de masa y de distribución:
 
 ```{python}
+#| label: fig-introduccion-al-calculo-de-probabilidades-04
+#| fig-cap: "Funciones de densidad y distribución de Poisson."
 # Inicializamos la figura.
 fig, ax = plt.subplots(figsize=(9, 9), nrows=2, sharex=True)
 
-# Creamos el rango de valores para evaluar las funciones de masa y de distribución.
+# Creamos el rango de valores para evaluar las funciones de masa y
+# de distribución.
 k = np.linspace(start=0, stop=20, num=21)
 
 # Mediante un loop, creamos las variables aleatorias y las graficamos.
-for lambda_j, color_j in zip([1, 4, 10], ["orange", "purple", "skyblue"]):
+for lambda_j, color_j in zip(
+    [1, 4, 10],
+    ["orange", "purple", "skyblue"],
+    ):
+    # Creamos la variable aleatoria.
     X_j = stats.poisson(lambda_j)
+
+    # Y generamos los gráficos de sus funciones de masa y de distribución.
     ax[0].plot(
-        k, X_j.pmf(k), marker="o", color="gray", 
-        markerfacecolor=color_j, ms=7, label=r"$\lambda=$"+f"{lambda_j}"
+        k,
+        X_j.pmf(k),
+        marker="o",
+        color="gray", 
+        markerfacecolor=color_j,
+        ms=7,
+        label=r"$\lambda=$"+f"{lambda_j}",
     )
+
     ax[0].legend(loc="best", frameon=True, fontsize=12)
     ax[0].set_ylabel(r"$p(k)$", fontsize=14, labelpad=20, rotation=0)
+
     ax[1].plot(
-        k, X_j.cdf(k), marker="o", color="gray", 
-        markerfacecolor=color_j, ms=7, label=r"$\lambda=$"+f"{lambda_j}"
+        k,
+        X_j.cdf(k),
+        marker="o",
+        color="gray", 
+        markerfacecolor=color_j,
+        ms=7,
+        label=r"$\lambda=$"+f"{lambda_j}",
     )
     ax[1].legend(loc="best", frameon=True, fontsize=12)
     ax[1].set_ylabel(r"$F(k)$", fontsize=14, labelpad=20, rotation=0)
 
-ax[0].set_title("Función de densidad de Poisson", pad=10, fontweight="bold", fontsize=15)
-ax[1].set_title("Función de distribución de Poisson", pad=10, fontweight="bold", fontsize=15)
+ax[0].set_title(
+    "Función de densidad de Poisson",
+    pad=10,
+    fontweight="bold",
+    fontsize=15,
+)
+
+ax[1].set_title(
+    "Función de distribución de Poisson",
+    pad=10,
+    fontweight="bold",
+    fontsize=15,
+)
+
 ax[1].set_xlabel(r"$k$", fontsize=14, labelpad=10)
 plt.tight_layout()
 ```
@@ -421,7 +492,7 @@ U = stats.poisson(10)
 
 Así que la probabilidad de que fallen al menos 10 bombas en 125 días es de un 41.7%. Un valor preocupantemente alto y que ameritaría discutir ciertos planes de prevención con el área de mantenimiento. ◼︎
 
-### Distribuciones continuas.
+### Distribuciones continuas
 
 Sea $X$ una variable aleatoria unidimensional y $F$ sy función de distribución, de modo que $F(t)=P(X\leq t)$ para todo $t\in \mathbb{R}$. Si la probabilidad $P(X=t)$ es cero para todo $t$, entonces, en virtud del teorema (4.2), $F$ es una función continua en todo $\mathbb{R}$. En este caso, decimos que $F$ es una **distribución continua de probabilidad** y $X$ es, por extensión, una **variable aleatoria continua**. Si $F$ es de clase $C^{1}$ para todo $t$ en el intervalo $[a,t]$, podemos hacer uso del teorema fundamental del cálculo y escribir
 
@@ -495,6 +566,8 @@ La variable aleatoria `X` creada de esta forma tiene una función de densidad $\
 Vamos a obtener el gráfico de esta función de densidad en el intervalo $[-3, 3]$, y encerraremos el área entre las rectas $x=-1$ y $x=1$:
 
 ```{python}
+#| label: fig-introduccion-al-calculo-de-probabilidades-05
+#| fig-cap: "Función de densidad normal estándar."
 # Creamos el rango de valores sobre los cuales graficaremos la función.
 x = np.linspace(start=-3, stop=3, num=100)
 
@@ -507,10 +580,15 @@ ax.plot(x, phi, color="navy", label=r"$\phi(x)$", linewidth=2)
 ax.axvline(x=-1, color="k", linestyle="-.", label=r"$x=-1$")
 ax.axvline(x=1, color="k", linestyle="--", label=r"$x=1$"),
 ax.fill_between(
-    x, phi, 0, where=(x >= -1) & (x <= 1), color="turquoise", alpha=0.6,
-    label=r"$P\ \left( -1\leq X\leq 1\right)$"
+    x,
+    phi,
+    0,
+    where=(x >= -1) & (x <= 1),
+    color="turquoise",
+    alpha=0.6,
+    label=r"$P\ \left( -1\leq X\leq 1\right)$",
 )
-ax.set_title(r"Función de densidad normal estándar", fontsize=15, pad=10, fontweight="bold")
+
 ax.set_xlabel(r"$x$", fontsize=14, labelpad=10)
 ax.set_ylabel(r"$\phi(x)$", fontsize=14, labelpad=20, rotation=0)
 ax.legend(loc="best", fontsize=11, frameon=True)
@@ -519,7 +597,7 @@ plt.tight_layout()
 
 Podemos observar pues que, en el gráfico anterior, el área sombreada bajo $\phi(x)$ representa la probabilidad $P(-1\leq X\leq 1)$.
 
-## Valor esperado de una variable aleatoria.
+## Valor esperado de una variable aleatoria
 
 Vamos a dar un paso más en la caracterización de las variables aleatorias y añadiremos algunos elementos que son dependientes de sus respectivas funciones de masa o densidad (ya sea que la variable aleatoria respectiva sea discreta o continua, respectivamente). El primero de estos elementos corresponde a la **esperanza matemática** o **valor esperado** de la variable aleatoria respectiva, y que corresponde a una **medida de tendencia central** cuyo objetivo es, mediante un único número (o un rango de ellos), representar una distribución de probabilidad en términos de sus valores más probables. Es pues una generalización del concepto de media de un conjunto de datos discretos, y que definiremos en detalle a continuación.
 
@@ -638,7 +716,7 @@ $$
 :::
 ◼︎
 
-## Varianza de una variable aleatoria.
+## Varianza de una variable aleatoria
 El segundo de los elementos clave de una distribución de probabilidad, a nivel descriptivo (y de representatividad) corresponde a la **varianza**, la cual corresponde a una **medida de dispersión**, lo que significa que mide qué tan lejos se dispersan los valores de un variable aleatoria con respecto a su valor esperado. De la misma forma que éste último, resulta esencial para describir la geometría de una función de masa o densidad de probabilidad, y por lo tanto, decimos igualmente que la varianza es un valor representativo de dicha función.
 
 **<font color='blue'>Definición 4.6 – Varianza:</font>** Sea $X$ una variable aleatoria con valor esperado $\mathrm{E}[X]$, y que designaremos con la letra griega $\mu$. Definimos la **varianza** de $X$, denotada como $\mathrm{Var}(X)$ (o bien, $\sigma^{2}$), mediante la fórmula
@@ -778,7 +856,7 @@ Según su concepción clásica, una curtosis de gran magnitud implica una mayor 
 
 ![Distintas funciones de densidad con media 0 y varianza 1, pero distintos coeficientes de curtosis](images/fig_4_2.png){#fig-curtosis fig-align="center" width="60%"}
 
-## Distribuciones multivariables.
+## Distribuciones multivariables
 Dadas dos variables aleatorias definidas en el mismo espacio de probabilidad, decimos que la **distribución de probabilidad conjunta** de ambas variables aleatorias (o distribución bidimensional) corresponde a la distribución de probabilidad relativa a todos los pares posibles de resultados para ambas variables aleatorias. Este es un ejemplo de función de **distribución multivariable**, debido a que sus valores dependen de dos variables aleatorias (no necesariamente independientes).
 
 **Ejemplo 4.11:** Supongamos que dos tómbolas contienen el doble de bolitas rojas que azules (y no de otro color), y que sacamos al azar una bolita de cada una, siendo ambas elecciones independientes la una de la otra. Sean $A$ y $B$ variables aleatorias discretas asociadas a las elecciones resultantes en cada tómbola. La probabilidad de obtener una bolita roja es igual a $2/3$, mientras que la de obtener una bolita azul, $1/3$. La distribución conjunta de probabilidad se esquematiza pues en la @tbl-distrib.
@@ -1016,7 +1094,7 @@ $$
 
 Luego, como $f_{X}(x)f_{Y}(y)\neq f_{XY}(x,y)$, entonces las variables aleatorias $X$ e $Y$ no son independientes. ◼︎
 
-## Distribuciones condicionales.
+## Distribuciones condicionales
 Durante prácticamente la totalidad de esta sección, hemos considerado que la teoría de la probabilidad es simplemente una aplicación de la teoría de funciones de conjunto y, por extensión, una forma lógica, a nivel matemático, de formular cuestiones de incertidumbre en problemas determinados. Después de haber introducido la definición de probabilidad, hemos aplicado el cálculo integral para definir los conceptos de función de densidad y función de distribución. Las únicas reglas fundamentales que restringen la aplicación de estos conceptos corresponden a las **reglas de la suma y el producto**.
 
 Recordemos que $F_{XY}(x,y)$ denota la función de distribución conjunta de probabilidad para las variables aleatorias $X$ e $Y$, mientras que las distribuciones $F_{X}(x)$ y $F_{Y}(y)$ son, correspondientemente, las distribuciones marginales de $X$ e $Y$. Queremos ahora construir la **función de distribución condicional de probabilidad** $F_{X|Y}(x,y)$, la cual nos permite calcular la probabilidad de ocurrencia de un resultado descrito por $X$, dada la ocurrencia de un conjunto determinado de resultados descritos por $Y$. Para ello, necesitamos primero definir la respectiva función condicional de densidad para los casos en los cuales $X$ e $Y$ son variables aleatorias discretas o continuas. Tiene sentido, por tanto, la siguiente definición.
@@ -1159,7 +1237,7 @@ $$
 
 Luego hay una probabilidad del 50% de que la cantidad de combustible cargado en los vehículos menores sea menos de la mitad del diésel almacenado en el tanque, en una semana dada. ◼︎
 
-## Fórmula de Bayes.
+## Fórmula de Bayes
 Habíamos comentado que, una vez definidos los conceptos de función de densidad y función de distribución, sólo existen dos reglas fundamentales para caracterizar en su totalidad un experimento aleatorio. A continuación, describiremos tales reglas.
 
 Consideremos entonces dos variables aleatorias discretas $X$ e $Y$, siendo $f_{XY}(x,y)$ su función de densidad conjunta, con $f_{X}(x)$ y $f_{Y}(y)$ las correspondientes funciones marginales de densidad. Sea $f_{Y|X}(x,y)$ la función condicional de densidad que describe las probabilidades de ocurrencia de $Y$ dado $X$. Si $X$ e $Y$ son variables discretas, las funciones de masa conjunta, marginales y condicional, se denotan como $p_{XY}(x,y), p_{X}(x), p_{Y}(y)$ y $p_{Y|X}(x,y)$. La **regla de la suma** extendida a las variables aleatorias establece que
@@ -1283,7 +1361,7 @@ $$
 
 Por definición, la evidencia integra el numerador en la ecuación (4.83) con respecto a la variable latente $\mathbf{x}$. Por lo tanto, la evidencia es independiente de $\mathbf{x}$ y, de este modo, garantiza que la función de densidad a posteriori $f_{\mathbf{X} |\mathbf{Y} }\left( \mathbf{x} ,\mathbf{y} \right)$ esté **normalizada**; es decir, que su rango de valores tenga media nula y desviación estándar unitaria. La evidencia juega un papel fundamental en la selección de modelos con enfoque Bayesiano, como discutiremos en secciones posteriores. Por supuesto, la integral en la ecuación (4.83) implica que, con frecuencia, **la evidencia es computacionalmente costosa de calcular**.
 
-## Esperanza y varianza para variables aleatorias multidimensionales.
+## Esperanza y varianza para variables aleatorias multidimensionales
 
 Con frecuencia estamos interesados en resumir información representativa de conjuntos de variables aleatorias, o bien, comparar dos variables aleatorias. Un **estadígrafo** referido a una variable aleatoria corresponde a una función determinística de esa variable aleatoria. Los **estadígrafos de resumen** (conocidos también como **métricas representativas**) de una distribución de probabilidad nos proveen de información valiosa en relación al comportamiento de la(s) variable(s) aleatoria(s) subyacente(s), ya que permiten, mediante números sencillos, resumir y caracterizar una distribución. El **valor esperado** (esperanza) y la **varianza** son dos métricas representativas que ya desarrollamos previamente para el caso de variables aleatorias unidimensionales. En esta subsección, extenderemos tales conceptos a variables aleatorias multidimensionales aprovechando las herramientas que desarrollamos en nuestro estudio del álgebra lineal, y luego construiremos una forma de comparar dos variables aleatorias.
 
@@ -1539,7 +1617,7 @@ $$
 
 Luego, para que $\mathrm{SNR}_{S} \rightarrow +\infty$, debe cumplirse que $\rho \left( x_{1},x_{2}\right)  \rightarrow -1$. ◼︎
 
-### Estadígrafos empíricos.
+### Estadígrafos empíricos
 
 Las definiciones de esperanza y covarianza revisadas en la subsección anterior son, con frecuencia, referidas como **estadígrafos poblacionales**, porque son válidos para poblaciones completas de datos. En machine learning, necesitamos aprender a partir de datos empíricos (obtenidos a partir de observaciones). Consideremos pues una variable aleatoria $X$; hay dos pasos conceptuales que nos permiten transitar desde estadígrafos poblacionales a la realización de estadígrafos empíricos. Primero, usaremos el hecho de que disponemos de un conjunto de datos finito (de tamaño $n$) para construir un estadígrafo empírico que es función de un número finito de variables aleatorias idénticas, $X_{1},...,X_{n}$. Luego, **observamos la data**; esto es, fijamos nuestra atención en las realizaciones (estados) $x_{1},...,x_{n}$ de cada una de las variables aleatorias y, a partir de tales realizaciones, estimaremos los estadígrafos respectivos. Esto motiva la siguiente definición.
 
@@ -1561,7 +1639,7 @@ $$
 $$
 :::
 
-## Transformaciones de variables aleatorias.
+## Transformaciones de variables aleatorias
 
 En general, estamos interesados en modelar fenómenos que, con frecuencia, no pueden ser explicados mediante distribuciones de probabilidad *de libro* (aunque estudiaremos algunas de ellas un poco más adelante). Por lo tanto, se hace necesario saber operar con variables aleatorias y considerar incluso funciones de combinaciones entre ellas. Un ejemplo de esto es la extensión de las propiedades de la esperanza y (co)varianza a vectores aleatorios. Sean pues $\mathbf{X}$ e $\mathbf{Y}$ vectores aleatorios con estados $\mathbf{x},\mathbf{y}\in \mathbb{R}^{d}$. Luego tenemos:
 
@@ -1662,7 +1740,7 @@ $$
 
 Donde $\Omega_{\mathbf{Z}}$ es el conjunto de todos los estados posibles de $\mathbf{Z}$. Escribimos $\mathbf{X}\vDash  \mathbf{Y}|\mathbf{Z}$ para denotar que $\mathbf{X}$ es condicionalmente independiente de $\mathbf{Y}$ dado $\mathbf{Z}$.
 
-## Producto interno de variables aleatorias.
+## Producto interno de variables aleatorias
 
 Recordemos la definición de producto interno vista en la [apunte dedicado a este concepto](/apuntes/estructuras-lineales/producto-interno/). Es posible definir un **producto interno entre variables aleatorias**, el cual describiremos brevemente a continuación. Si tenemos dos variables aleatorias no correlacionadas (sin pérdida de generalidad, ejemplificaremos este concepto con variables aleatorias unidimensionales) $X$ e $Y$, entonces
 
@@ -1710,7 +1788,7 @@ Luego tenemos que $\cos(\theta)=\rho(x,y)$. Esto significa que podemos pensar en
 
 Si bien podríamos vernos tentados a utilizar normas Euclidianas (y, por extensión, distancias Euclidianas) construidas a partir del producto interno definido previamente a fin de comparar distribuciones de probabilidad, desafortunadamente no es la mejor opción para obtener *métricas* entre distribuciones. Recordemos que una función de densidad (o de masa) de probabilidad es siempre positiva y con un área total bajo su gráfica igual a 1. Estas restricciones significan que las distribuciones de probabilidad viven sobre objetos geométricos mucho más generales que espacios Euclídeos, y que de hecho se conocen como **variedades**. El estudio de estas variedades (que, insistimos, son objetos geométricos que resultan de un profunda abstracción de los conceptos propios de la geometría diferencial y el álgebra lineal) se conoce como **geometría de la información**. El cálculo de distancias entre distribuciones, con frecuencia, se realiza mediante el uso pseudo-métricas (que suelen violar alguno de los postulados de las métricas estrictas, muy comúnmente el que sean definidas positivas), tales como la **divergencia de Kullback-Leibler**, y que es propia de la famosa **teoría matemática de la información de Shannon**, aunque, por el momento, no nos adentraremos en dicho terreno.
 
-## Comentarios finales.
+## Comentarios finales
 
 Con este apunte hemos dado un paso decisivo en la transición desde la probabilidad entendida como una medida sobre eventos hacia la probabilidad entendida como una teoría sobre cantidades observables. Ese paso no es menor. Introducir variables aleatorias significa pasar desde la descripción abstracta de resultados inciertos a un lenguaje capaz de representar numéricamente fenómenos reales, medirlos, resumirlos y compararlos. En ese sentido, este apunte marca el punto exacto donde la teoría de probabilidad comienza a volverse verdaderamente operativa.
 

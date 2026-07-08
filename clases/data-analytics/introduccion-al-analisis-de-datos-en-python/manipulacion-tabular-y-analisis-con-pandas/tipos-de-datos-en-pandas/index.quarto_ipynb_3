@@ -1,0 +1,1356 @@
+{
+  "cells": [
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "---\n",
+        "title: \"Tipos de datos en **<font color='darkmagenta'>Pandas</font>**\"\n",
+        "subtitle: \"Representación, conversión y uso eficiente de datos tabulares\"\n",
+        "section_href: \"/clases/data-analytics/introduccion-al-analisis-de-datos-en-python/manipulacion-tabular-y-analisis-con-pandas/\"\n",
+        "toc: true\n",
+        "toc-depth: 3\n",
+        "page-layout: article\n",
+        "jupyter: nerdyminer\n",
+        "number-offset: 4\n",
+        "---\n",
+        "\n",
+        "::: {.class-keywords}\n",
+        "[Pandas]{.class-keyword}\n",
+        "[Tipos de datos]{.class-keyword}\n",
+        "[`dtype`]{.class-keyword}\n",
+        "[Numpy]{.class-keyword}\n",
+        "[PyArrow]{.class-keyword}\n",
+        "[Valores faltantes]{.class-keyword}\n",
+        "[Enteros anulables]{.class-keyword}\n",
+        "[Strings]{.class-keyword}\n",
+        "[Categorías]{.class-keyword}\n",
+        "[Fechas y horas]{.class-keyword}\n",
+        "[`pd.NA`]{.class-keyword}\n",
+        "[`astype()`]{.class-keyword}\n",
+        "[`convert_dtypes()`]{.class-keyword}\n",
+        ":::\n",
+        "\n",
+        "::: {.callout-important}\n",
+        "## Idea central\n",
+        "\n",
+        "En este apunte estudiaremos los principales tipos de datos disponibles en **<font color='darkmagenta'>Pandas</font>** y la forma en que éstos afectan la representación, conversión y manipulación de información tabular. Revisaremos tipos numéricos, strings, categóricos y temporales, además de la diferencia entre tipos clásicos de **<font color='darkmagenta'>Numpy</font>**, tipos anulables de **<font color='darkmagenta'>Pandas</font>** y tipos respaldados por **<font color='darkmagenta'>PyArrow</font>**. La idea central es simple: Antes de transformar datos, conviene entender cómo están siendo almacenados.\n",
+        ":::\n",
+        "\n",
+        "## Tipos de datos en <font color='darkmagenta'>Pandas</font>\n",
+        "\n",
+        "**<font color='darkmagenta'>Pandas</font>** es una librería con una historia longeva, sobre todo al compararla con otras librerías de análisis de datos en Python. Su historia versa mucho sobre tipos de datos y la forma en la cual estos se representan en memoria. Durante mucho tiempo, **<font color='darkmagenta'>Pandas</font>** se apoyó principalmente en tipos de datos de **<font color='darkmagenta'>Numpy</font>**, con el propósito de aprovechar su eficiencia en el cómputo numérico y la manipulación de arreglos. Naturalmente, esto también hacía que **<font color='darkmagenta'>Pandas</font>** heredara algunas de las limitaciones de **<font color='darkmagenta'>Numpy</font>**, especialmente en lo que respecta a la representación de datos faltantes y columnas de texto. Esto favoreció la aparición y popularización de otras librerías de análisis de datos en Python, muy enfocadas en optimizar la representación de datos en memoria, como es el caso de **<font color='darkmagenta'>Polars</font>**.\n",
+        "\n",
+        "A partir de sus tipos de extensión (*extension dtypes*), **<font color='darkmagenta'>Pandas</font>** empezó a ofrecer representaciones más expresivas para enteros con valores faltantes, booleanos anulables, strings y datos respaldados por **<font color='darkmagenta'>PyArrow</font>**. En la familia `2.x`, el soporte para **<font color='darkmagenta'>PyArrow</font>** ganó mucha visibilidad mediante opciones como `dtype_backend=\"pyarrow\"`, aunque los tipos de **<font color='darkmagenta'>Numpy</font>** siguieron siendo centrales. En la familia `3.x`, uno de los cambios más importantes es que los textos se infieren por defecto con un dtype dedicado `str`, en lugar del antiguo `object`, usando **<font color='darkmagenta'>PyArrow</font>** si está disponible y recurriendo a una representación basada en `object` si no lo está.\n",
+        "\n",
+        "Más adelante dejaremos una tabla resumen con los principales tipos de datos en **<font color='darkmagenta'>Pandas</font>** para las familias `1.x`, `2.x` y `3.x`. Antes de llegar a ella, conviene entender por qué estos matices existen.\n",
+        "\n",
+        "### Algunos comentarios sobre los tipos en Python\n",
+        "\n",
+        "Cuando debemos trabajar con series y DataFrames en **<font color='darkmagenta'>Pandas</font>**, en general, nos encontraremos con datos que consisten en números, cadenas de texto, fechas y horas. Es importante entender cómo estos tipos de datos se representan nativamente en Python, ya que nos permitirá entender por qué **<font color='darkmagenta'>Pandas</font>** los representa de la forma en que lo hace, y cómo podemos manipularlos de manera eficiente.\n",
+        "\n",
+        "En Python, los números se representan principalmente a través de los tipos `int` y `float`. El tipo `int` se utiliza para representar números enteros, mientras que el tipo `float` se utiliza para representar números con una cantidad arbitraria de decimales, dependiendo del nivel de precisión requerido. En términos de implementación, Python crea un objeto para cada número que se utilice en un programa, y que contiene el tipo de dato, su valor y otra información relevante. Tal objeto puede contener una cantidad arbitraria de dígitos, lo que difiere de otros lenguajes de programación, que almacenan en memoria directamente el valor numérico, como es el caso de `C`. Cuando creamos un entero en `C`, nuestro computador \"reserva\" un espacio de memoria específico para almacenar ese número, y el valor se almacena directamente en esa ubicación de memoria. Si declaramos que dicho número es un entero de `32` bits, entonces se reservarán `4` bytes de memoria para almacenarlo. El rango de valores dependerá de si dicho entero tiene signo o no: un `int32_t` con signo puede representar valores entre $-2^{31}$ y $2^{31}-1$, mientras que un `uint32_t` sin signo puede representar valores entre `0` y $2^{32}-1$.\n",
+        "\n",
+        "En código `C`, para crear un número entero de `8` bits, escribiríamos:\n",
+        "\n",
+        "```c\n",
+        "#include <stdint.h>\n",
+        "#include <stdio.h>\n",
+        "\n",
+        "int main(void) {\n",
+        "    int8_t x = 127; // El número más grande que se puede almacenar en un int8_t\n",
+        "    printf(\"El número es: %d\\n\", x);\n",
+        "    return 0;\n",
+        "}\n",
+        "```\n",
+        "\n",
+        "El máximo valor que puede almacenar un entero de `8` bits con signo (`int8_t`) es `127`, que es igual a $2^7 - 1$. La variable `x` se declara como un `int8_t`, lo que significa que se reservará `1` byte de memoria para almacenar ese número, y el valor se almacenará directamente en esa ubicación de memoria. Si intentamos almacenar un número fuera del rango permitido, se producirá un **desbordamiento** u **overflow**. En C, el overflow de enteros con signo no debe tratarse como un mecanismo de seguridad: dependiendo de cómo ocurra, puede producir comportamiento indefinido o dependiente de la implementación. En muchas arquitecturas modernas, la intuición de complemento a dos nos llevaría a pensar en un \"salto\" desde `127` hacia `-128`, pero no conviene escribir programas que dependan de ese comportamiento. Si deseamos almacenar un número mayor a `127`, debemos declarar un tipo de dato adecuado, por ejemplo `int16_t`, `int32_t` o `int64_t`.\n",
+        "\n",
+        "Por cierto, he conocido a muchos puristas de la programación que no se sienten cómodos en Python precisamente por esta razón. Python es un lenguaje de programación de alto nivel que abstrae muchos detalles de la gestión de memoria y la representación de datos, lo que puede resultar en una menor eficiencia en términos de rendimiento y uso de memoria en comparación con lenguajes de bajo nivel como `C`. Sin embargo, esta abstracción también hace que Python sea más fácil de aprender y usar, especialmente para tareas de análisis de datos, donde la eficiencia no siempre es la principal preocupación. Además, con el uso de librerías como **<font color='darkmagenta'>Pandas</font>** y **<font color='darkmagenta'>Numpy</font>**, es posible lograr un rendimiento muy eficiente en el análisis de datos tabulares, incluso con la abstracción que ofrece Python... aunque, reconozcamos, no al nivel de eficiencia que se puede lograr con lenguajes de bajo nivel como `C` o `Rust`.\n",
+        "\n",
+        "En Python, si creamos una variable para almacenar el valor `127`, simplemente escribimos:"
+      ],
+      "id": "7b2adb50"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Definimos una variable para almacenar el número 127.\n",
+        "x = 127\n",
+        "\n",
+        "# Y lo imprimimos en pantalla.\n",
+        "print(f\"El número es: {x}\")"
+      ],
+      "id": "5934c22e",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Si sumamos `1` a `x`, obtenemos:"
+      ],
+      "id": "a43bbc97"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Sumamos 1 a x.\n",
+        "x + 1"
+      ],
+      "id": "b7a7e969",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Por tanto, el *overflow* no representa una preocupación en Python, ya que el lenguaje maneja automáticamente la gestión de memoria y la representación de números enteros, permitiendo que los números crezcan en tamaño según sea necesario. Si queremos verificar cuánta memoria está utilizando un número entero en Python, podemos usar la función `sys.getsizeof()` del módulo **<font color='darkmagenta'>sys</font>**:"
+      ],
+      "id": "ea2ec0d4"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "import sys"
+      ],
+      "id": "66153b89",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Verificamos cuánta memoria está utilizando la variable x.\n",
+        "sys.getsizeof(x)"
+      ],
+      "id": "f7efe541",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Podemos observar que Python está utilizando `28` bytes de memoria para almacenar el número `127`.\n",
+        "\n",
+        "Este comportamiento tiene ventajas y desventajas. Naturalmente, la mayor ventaja es que no tenemos que preocuparnos por el tamaño de los números que creemos. Pueden tener 100, 200 o incluso 1000 dígitos, y Python los manejará sin problemas. Sin embargo, la desventaja es que Python tendrá que trabajar más para manejar números grandes. Esta es la razón por la cual Python trabaja más *lento* que otros lenguajes de programación de bajo nivel, como `C` o `Rust`, que manejan números enteros de tamaño fijo.\n",
+        "\n",
+        "La razón por la cual Python es tan popular en el análisis de datos estriba fundamentalmente en la existencia de **<font color='darkmagenta'>Numpy</font>**. Como aprendimos en nuestra [serie de clases sobre esta librería](/clases/data-analytics/introduccion-al-analisis-de-datos-en-python/computacion-vectorizada-y-arreglos-con-numpy/), el cómputo de cantidades masivas de datos numéricos dispuestas en arreglos es mucho más eficiente cuando se realiza a través de operaciones vectorizadas, que es precisamente en lo que **<font color='darkmagenta'>Numpy</font>** se especializa.\n",
+        "\n",
+        "### El caso de <font color='darkmagenta'>Numpy</font> (otra vez...)\n",
+        "\n",
+        "Si existe un héroe (muchas veces, sin capa) en el análisis de datos en Python, ese es sin duda **<font color='darkmagenta'>Numpy</font>**. Esta librería es la base sobre la cual se construyen muchas otras librerías de análisis de datos en Python, incluyendo herramientas extremadamente poderosas en *machine learning* como **<font color='darkmagenta'>Scikit-learn</font>** y **<font color='darkmagenta'>PyTorch</font>**. En esencia, **<font color='darkmagenta'>Numpy</font>** puede considerarse como el \"(sub)lenguaje de bajo nivel\" para el análisis de datos en Python, ya que proporciona una interfaz eficiente para trabajar con arreglos multidimensionales y realizar operaciones matemáticas sobre ellos.\n",
+        "\n",
+        "Hagamos algo de memoria (literalmente): El objeto base con el que **<font color='darkmagenta'>Numpy</font>** trabaja es el `ndarray`, que es un arreglo multidimensional de elementos del mismo tipo. Esta última no es una restricción a ciegas, ya que permite almacenar los datos de manera contigua en memoria, ganando velocidad al vectorizar operaciones sobre ellos en vez de iterar sobre cada elemento individualmente, haciendo uso de loops (el famoso `for`...).\n",
+        "\n",
+        "El arreglo `ndarray` es el objeto característico de **<font color='darkmagenta'>Numpy</font>**. Otros lenguajes de bajo nivel pueden implementar arreglos de datos de manera similar, con su propia sintaxis y características. Por ejemplo, en `C`, se pueden crear arreglos utilizando la sintaxis de corchetes `[]` y especificando el tipo de dato de los elementos del arreglo. En `Rust`, se pueden crear arreglos utilizando la sintaxis de corchetes `[]` y especificando el tipo de dato de los elementos del arreglo, así como su tamaño.\n",
+        "\n",
+        "Para crear un arreglo de 10 enteros de `32` bits en `C`, escribiríamos:\n",
+        "\n",
+        "```c\n",
+        "#include <inttypes.h>\n",
+        "#include <stdint.h>\n",
+        "#include <stdio.h>\n",
+        "\n",
+        "int main(void) {\n",
+        "    // Declaramos un arreglo de 10 enteros de 32 bits\n",
+        "    int32_t arr[10];\n",
+        "\n",
+        "    // Inicializamos el arreglo con algunos valores\n",
+        "    for (int i = 0; i < 10; i++) {\n",
+        "        arr[i] = i + 1; // Asignamos valores del 1 al 10\n",
+        "    }\n",
+        "\n",
+        "    // Imprimimos el arreglo\n",
+        "    printf(\"El arreglo es: \");\n",
+        "    for (int i = 0; i < 10; i++) {\n",
+        "        printf(\"%\" PRId32 \" \", arr[i]);\n",
+        "    }\n",
+        "    printf(\"\\n\");\n",
+        "\n",
+        "    return 0;\n",
+        "}\n",
+        "```\n",
+        "\n",
+        "Y en `Rust`:\n",
+        "\n",
+        "```rust\n",
+        "fn main() {\n",
+        "    let arr: [i32; 10] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]; // Declaramos un arreglo de 10 enteros de 32 bits\n",
+        "\n",
+        "    // Imprimimos el arreglo\n",
+        "    println!(\"El arreglo es: {:?}\", arr);\n",
+        "}\n",
+        "```\n",
+        "\n",
+        "Notemos que, en `Rust`, la anotación `[i32; 10]` indica un arreglo de tamaño fijo compuesto por `10` enteros de `32` bits con signo. Si necesitáramos una colección dinámica, cuyo tamaño pueda crecer o reducirse durante la ejecución del programa, usaríamos una estructura como `Vec<i32>`. Sin embargo, esto queda fuera del alcance del blog.\n",
+        "\n",
+        "En ambos casos, el arreglo ocupa un bloque de memoria cuyo tamaño es de `40` bytes (10 enteros de 4 bytes cada uno), y el valor de cada entero se almacena directamente dentro de ese bloque. En `C`, el nombre del arreglo puede convertirse implícitamente en un puntero al primer elemento en muchas expresiones, lo que permite acceder a sus elementos mediante aritmética de punteros o notación de corchetes. En `Rust`, en cambio, `[i32; 10]` es un valor de arreglo de tamaño fijo; el lenguaje permite indexarlo con corchetes, pero no conviene describirlo como si fuera simplemente un puntero.\n",
+        "\n",
+        "Si quisiéramos sumar `1` a cada elemento del arreglo en `C`, podríamos usar un bucle `for` para iterar sobre cada elemento y realizar la suma:\n",
+        "\n",
+        "```c\n",
+        "#include <inttypes.h>\n",
+        "#include <stdint.h>\n",
+        "#include <stdio.h>\n",
+        "\n",
+        "int main(void) {\n",
+        "    // Declaramos un arreglo de 10 enteros de 32 bits\n",
+        "    int32_t arr[10];\n",
+        "\n",
+        "    // Inicializamos el arreglo con algunos valores\n",
+        "    for (int i = 0; i < 10; i++) {\n",
+        "        arr[i] = i + 1; // Asignamos valores del 1 al 10\n",
+        "    }\n",
+        "\n",
+        "    // Sumamos 1 a cada elemento del arreglo\n",
+        "    for (int i = 0; i < 10; i++) {\n",
+        "        arr[i] += 1; // Suma de 1 a cada elemento\n",
+        "    }\n",
+        "\n",
+        "    // Imprimimos el arreglo actualizado\n",
+        "    printf(\"El arreglo actualizado es: \");\n",
+        "    for (int i = 0; i < 10; i++) {\n",
+        "        printf(\"%\" PRId32 \" \", arr[i]);\n",
+        "    }\n",
+        "    printf(\"\\n\");\n",
+        "\n",
+        "    return 0;\n",
+        "}\n",
+        "```\n",
+        "\n",
+        "Mientras que, en `Rust`, el procedimiento sería similar:\n",
+        "\n",
+        "```rust\n",
+        "fn main() {\n",
+        "    let mut arr: [i32; 10] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]; // Declaramos un arreglo de 10 enteros de 32 bits\n",
+        "\n",
+        "    // Sumamos 1 a cada elemento del arreglo\n",
+        "    for i in 0..arr.len() {\n",
+        "        arr[i] += 1; // Suma de 1 a cada elemento\n",
+        "    }\n",
+        "\n",
+        "    // Imprimimos el arreglo actualizado\n",
+        "    println!(\"El arreglo actualizado es: {:?}\", arr);\n",
+        "}\n",
+        "```\n",
+        "\n",
+        "En **<font color='darkmagenta'>Numpy</font>**, para crear un arreglo de 10 enteros de `32` bits, escribiríamos:"
+      ],
+      "id": "1fa4a4e5"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "import numpy as np"
+      ],
+      "id": "2bd4a883",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Creamos un arreglo de 10 enteros de 32 bits en Numpy.\n",
+        "arr = np.array([1, 2, 3, 4, 5, 6, 7, 8, 9, 10], dtype=np.int32)\n",
+        "\n",
+        "# Imprimimos el arreglo en pantalla.\n",
+        "print(f\"El arreglo es: {arr}\")"
+      ],
+      "id": "7205f18b",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Y para sumar `1` a cada elemento del arreglo, simplemente escribimos:"
+      ],
+      "id": "ef6fd3f4"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Sumamos 1 a cada elemento del arreglo.\n",
+        "arr += 1"
+      ],
+      "id": "266b100b",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Notemos que, a diferencia de `C` y `Rust`, en **<font color='darkmagenta'>Numpy</font>** no necesitamos usar un bucle para iterar sobre cada elemento del arreglo y realizar la suma. Esto se debe a que **<font color='darkmagenta'>Numpy</font>** está diseñado para realizar operaciones **vectorizadas**, lo que significa que puede aplicar una operación a todos los elementos de un arreglo de manera eficiente sin necesidad de escribir un bucle explícito. En este caso, la operación `arr += 1` se aplica a cada elemento del arreglo `arr`, sumando `1` a cada uno de ellos de manera eficiente.\n",
+        "\n",
+        "**<font color='darkmagenta'>Pandas</font>**, en su versión `1.x`, usa principalmente a **<font color='darkmagenta'>Numpy</font>** como su motor de cómputo subyacente (o, en corto, *backend*), aunque ya en esa familia aparecen algunos tipos de extensión propios, como los enteros anulables y el tipo dedicado para strings.\n",
+        "\n",
+        "En la actualidad, este panorama es más flexible. **<font color='darkmagenta'>Pandas</font>** puede seguir trabajando con tipos de **<font color='darkmagenta'>Numpy</font>**, puede usar tipos de extensión propios y también puede apoyarse en **<font color='darkmagenta'>PyArrow</font>** cuando esta librería está instalada o cuando pedimos explícitamente un backend de tipos basado en Arrow. La versión que se muestra en este blog es:"
+      ],
+      "id": "a79b5bcd"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "import pandas as pd"
+      ],
+      "id": "d47df582",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Verificamos la versión de Pandas instalada.\n",
+        "pd.__version__"
+      ],
+      "id": "7b0c772a",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "¡Ups! **<font color='darkmagenta'>Pandas</font>** ya va en su versión `3.x`... ¿Es esto un problema? En realidad, no. La versión `2.x` puede entenderse como una familia de transición hacia backends de tipos más flexibles, entre ellos **<font color='darkmagenta'>PyArrow</font>**, mientras que la versión `3.x` consolida algunos cambios importantes. Uno de los más visibles es el uso de un dtype dedicado `str` para columnas de texto inferidas automáticamente. Esto es algo que comentaremos con más detalle cuando aparezcan esos matices en el quehacer típico del análisis.\n",
+        "\n",
+        "### El caso de <font color='darkmagenta'>PyArrow</font>\n",
+        "\n",
+        "**<font color='darkmagenta'>PyArrow</font>** es una librería de código abierto que proporciona una implementación eficiente de [Apache Arrow](https://arrow.apache.org/), un formato de datos en memoria diseñado para el procesamiento rápido y eficiente de grandes conjuntos de datos. **<font color='darkmagenta'>PyArrow</font>** ofrece una interfaz en Python para trabajar con datos en formato Arrow, lo que permite a los desarrolladores aprovechar las ventajas de rendimiento y eficiencia que ofrece este formato.\n",
+        "\n",
+        "Podemos pensar en **<font color='darkmagenta'>PyArrow</font>** como una versión modernizada de **<font color='darkmagenta'>Numpy</font>** para el análisis de datos tabulares. Mientras que **<font color='darkmagenta'>Numpy</font>** se centra principalmente en arreglos multidimensionales de datos numéricos, **<font color='darkmagenta'>PyArrow</font>** está diseñado para manejar datos tabulares con una variedad de tipos de datos, incluyendo enteros, flotantes, booleanos, texto y fechas, entre otros. Además, resulta especialmente ventajoso para manejar datos con valores faltantes y tiene un mejor soporte para datos de texto. El resultado es una representación de datos en memoria más eficiente, que puede mejorar el rendimiento de las operaciones de análisis de datos, especialmente cuando se trabaja con grandes conjuntos de datos.\n",
+        "\n",
+        "No usaremos la librería **<font color='darkmagenta'>PyArrow</font>** de manera explícita en este blog. En general, será **<font color='darkmagenta'>Pandas</font>** quien interactúe con ella cuando usemos dtypes respaldados por Arrow, como `int64[pyarrow]`, `double[pyarrow]` o `string[pyarrow]`. Conviene, eso sí, hacer una precisión importante: **<font color='darkmagenta'>Pandas</font>** no convierte automáticamente todos sus datos a Arrow por el solo hecho de estar en una versión moderna. Algunos tipos, como los strings inferidos en **<font color='darkmagenta'>Pandas</font>** `3.x`, tienen una relación más directa con esta transición, pero para usar Arrow de forma explícita debemos pedirlo mediante `dtype`, `astype()`, `convert_dtypes(dtype_backend=\"pyarrow\")` o funciones de lectura como `read_csv(dtype_backend=\"pyarrow\")`. Además, si queremos usar tipos de datos respaldados por esta librería, será necesaria su instalación independiente:\n",
+        "\n",
+        "```bash\n",
+        "pip install pyarrow\n",
+        "```\n",
+        "\n",
+        "### Resumen de tipos de datos en <font color='darkmagenta'>Pandas</font>\n",
+        "\n",
+        "La siguiente tabla resume algunas representaciones habituales de tipos de datos en **<font color='darkmagenta'>Pandas</font>**. No debe leerse como una traducción única y rígida, porque **<font color='darkmagenta'>Pandas</font>** puede representar una misma idea de varias formas: mediante dtypes de **<font color='darkmagenta'>Numpy</font>**, mediante dtypes anulables propios de **<font color='darkmagenta'>Pandas</font>**, o mediante dtypes respaldados por **<font color='darkmagenta'>PyArrow</font>**.\n",
+        "\n",
+        "::: {.table-scroll}\n",
+        "\n",
+        ": Tipos de datos frecuentes en **<font color='darkmagenta'>Pandas</font>** (familias `1.x`, `2.x` y `3.x`) {#tbl-dtypes}\n",
+        "\n",
+        "| Tipo de dato | Equivalente SQL aproximado | En Python | **<font color='darkmagenta'>Pandas</font>** `1.x` | **<font color='darkmagenta'>Pandas</font>** `2.x` | **<font color='darkmagenta'>Pandas</font>** `3.x` |\n",
+        "|:-------------|:---------------------------|:----------|:--------------------------------------------------|:--------------------------------------------------|:--------------------------------------------------|\n",
+        "| Entero con signo | `INTEGER`, `BIGINT` | `int` | `int64`; anulable con `Int64` | `int64`; anulable con `Int64`; Arrow opcional con `int64[pyarrow]` | `int64`; anulable con `Int64`; Arrow opcional con `int64[pyarrow]` |\n",
+        "| Entero sin signo | `INTEGER`, `BIGINT` | `int` | `uint64`; anulable con `UInt64` | `uint64`; anulable con `UInt64`; Arrow opcional con `uint64[pyarrow]` | `uint64`; anulable con `UInt64`; Arrow opcional con `uint64[pyarrow]` |\n",
+        "| Flotante | `FLOAT`, `DOUBLE` | `float` | `float64`; anulable con `Float64` | `float64`; anulable con `Float64`; Arrow opcional con `double[pyarrow]` | `float64`; anulable con `Float64`; Arrow opcional con `double[pyarrow]` |\n",
+        "| Booleano | `BOOLEAN` | `bool` | `bool`; anulable con `boolean` | `bool`; anulable con `boolean`; Arrow opcional con `bool[pyarrow]` | `bool`; anulable con `boolean`; Arrow opcional con `bool[pyarrow]` |\n",
+        "| Texto | `VARCHAR`, `TEXT` | `str` | `object`; opcionalmente `string` | `object` por defecto; `string`, `string[python]` o `string[pyarrow]` de forma explícita | `str` por defecto para texto inferido; `string` y `string[pyarrow]` siguen disponibles |\n",
+        "| Fecha y hora | `TIMESTAMP` | `datetime.datetime` | `datetime64[ns]`; con zona horaria mediante `DatetimeTZDtype` | `datetime64[ns]`; con zona horaria mediante `DatetimeTZDtype`; Arrow opcional | `datetime64[...]`; con zona horaria mediante `DatetimeTZDtype`; Arrow opcional |\n",
+        "| Duración | `INTERVAL` | `datetime.timedelta` | `timedelta64[ns]` | `timedelta64[ns]`; Arrow opcional | `timedelta64[...]`; Arrow opcional |\n",
+        "| Categórico | `ENUM`, dimensión codificada | `str`, `int` | `category` (`CategoricalDtype`) | `category` (`CategoricalDtype`); Arrow puede usar tipos tipo diccionario | `category` (`CategoricalDtype`); Arrow puede usar tipos tipo diccionario |\n",
+        "| Datos arbitrarios de Python | Variable | `object` | `object` | `object` | `object`, aunque deja de ser la representación por defecto para texto simple |\n",
+        "| Datos respaldados por Arrow | Depende del tipo | Escalares de Python o `pd.NA` | Soporte limitado según versión | `ArrowDtype`, alias como `int64[pyarrow]`, `string[pyarrow]`, `bool[pyarrow]` | `ArrowDtype`, alias como `int64[pyarrow]`, `string[pyarrow]`, `bool[pyarrow]`; mejor integración con interoperabilidad Arrow |\n",
+        "\n",
+        ":::\n",
+        "\n",
+        "::: {.callout-note}\n",
+        "## Nota\n",
+        "\n",
+        "En **<font color='darkmagenta'>Pandas</font>**, escribir `int64` no es lo mismo que escribir `Int64`. El primero corresponde al dtype entero clásico de **<font color='darkmagenta'>Numpy</font>** y no puede representar valores faltantes sin convertir la columna a flotante. El segundo corresponde a un dtype anulable de **<font color='darkmagenta'>Pandas</font>**, capaz de representar valores faltantes mediante `pd.NA`.\n",
+        ":::\n",
+        "\n",
+        "En la práctica, una forma cómoda de inspeccionar los tipos de datos de un DataFrame es revisar su atributo `dtypes`:"
+      ],
+      "id": "d3565743"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Inspección de tipos de datos en un DataFrame.\n",
+        "pd.DataFrame({\n",
+        "    \"entero\": pd.Series([1, 2, None], dtype=\"Int64\"),\n",
+        "    \"texto\": [\"mina\", \"planta\", None],\n",
+        "    \"booleano\": pd.Series([True, False, None], dtype=\"boolean\"),\n",
+        "}).dtypes"
+      ],
+      "id": "68b99b4b",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "## Herramientas prácticas para trabajar con tipos\n",
+        "\n",
+        "Antes de entrar en el detalle de los tipos numéricos y de texto, conviene tener a mano cuatro herramientas de uso frecuente. En primer lugar, el atributo `dtypes` nos permite inspeccionar el tipo de datos de cada columna. En segundo lugar, el método `astype()` permite convertir una serie o columna a un tipo específico. En tercer lugar, `convert_dtypes()` intenta convertir automáticamente columnas hacia dtypes más adecuados, incluyendo dtypes anulables de **<font color='darkmagenta'>Pandas</font>** o respaldados por **<font color='darkmagenta'>PyArrow</font>**. Finalmente, `select_dtypes()` permite seleccionar columnas según sus tipos, lo que resulta muy útil cuando queremos aplicar transformaciones sólo a columnas numéricas, de texto o booleanas."
+      ],
+      "id": "536009db"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Creamos un DataFrame pequeño con tipos mezclados.\n",
+        "sample_df = pd.DataFrame({\n",
+        "    \"equipo\": [\"CAEX-01\", \"CAEX-02\", None],\n",
+        "    \"tonelaje\": [1200, 1350, None],\n",
+        "    \"operativo\": [True, False, None],\n",
+        "})\n",
+        "\n",
+        "# Inspeccionamos los tipos inferidos inicialmente.\n",
+        "sample_df.dtypes"
+      ],
+      "id": "1e07213c",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Podemos pedir a **<font color='darkmagenta'>Pandas</font>** que convierta las columnas a dtypes más expresivos:"
+      ],
+      "id": "ca2f5f9b"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Conversión automática a tipos anulables de Pandas.\n",
+        "sample_df.convert_dtypes().dtypes"
+      ],
+      "id": "653d0301",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Y, si tenemos **<font color='darkmagenta'>PyArrow</font>** instalado, podemos solicitar explícitamente un backend de tipos basado en Arrow:"
+      ],
+      "id": "07b44a95"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Conversión automática a tipos respaldados por PyArrow.\n",
+        "sample_df.convert_dtypes(dtype_backend=\"pyarrow\").dtypes"
+      ],
+      "id": "f1b7f1b0",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "También podemos convertir una columna específica con `astype()`:"
+      ],
+      "id": "13dbc648"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Conversión explícita de una columna a un tipo específico.\n",
+        "sample_df[\"tonelaje\"].astype(\"double[pyarrow]\")"
+      ],
+      "id": "2a25bb4b",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Finalmente, `select_dtypes()` permite seleccionar columnas de acuerdo con sus tipos:"
+      ],
+      "id": "2bd1bf3b"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Seleccionamos columnas numéricas.\n",
+        "sample_df.convert_dtypes().select_dtypes(include=\"number\")"
+      ],
+      "id": "4339e7be",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Cuando nos preocupe el uso de memoria, el método `memory_usage()` entrega una primera aproximación:"
+      ],
+      "id": "eb8aa2ad"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Uso de memoria por columna.\n",
+        "sample_df.convert_dtypes(dtype_backend=\"pyarrow\").memory_usage(deep=True)"
+      ],
+      "id": "af62cd3e",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Estas herramientas aparecen una y otra vez en flujos reales de análisis: Inspeccionamos, convertimos, verificamos y recién después transformamos.\n",
+        "\n",
+        "## Tipos numéricos\n",
+        "\n",
+        "En lo que resta de este apunte, nos centraremos en los tipos provistos por **<font color='darkmagenta'>Pandas</font>** en su versión `3.x`, salvo que se indique lo contrario.\n",
+        "\n",
+        "Los **tipos numéricos** de interés, a grandes rasgos, en **<font color='darkmagenta'>Pandas</font>** son los enteros y números de punto flotante. Dependiendo del nivel de precisión requerido, podemos elegir entre enteros de `8`, `16`, `32` o `64` bits, con o sin signo, y números de punto flotante de `32` o `64` bits. \n",
+        "\n",
+        "Para introducir los tipos enteros de manera práctica, partiremos definiendo tres listas de Python que los incorporarán, incluyendo un registro sin datos en el último caso:"
+      ],
+      "id": "7e0448a0"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Definimos las listas de interés.\n",
+        "small_vals = [1, 81, 127]\n",
+        "large_vals = [2 ** 31, 2 ** 63, 2 ** 100]\n",
+        "mixed_vals = [None, 10, -20]"
+      ],
+      "id": "c8597ae4",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Cuando construimos una serie a partir de cada una de estas listas, **<font color='darkmagenta'>Pandas</font>** infiere el tipo de datos más adecuado para cada caso:"
+      ],
+      "id": "ea81deb0"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Construimos una serie a partir de la lista de enteros pequeños.\n",
+        "small_series = pd.Series(small_vals)\n",
+        "\n",
+        "# Mostramos la serie y su tipo de datos.\n",
+        "small_series"
+      ],
+      "id": "d8510078",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "El tipo de dato inferido es `int64`, que es el tipo entero con signo de `64` bits. Notemos que éste se corresponde con el tipo `int64` de **<font color='darkmagenta'>Numpy</font>**, lo que significa que esta serie se almacena en memoria como un arreglo de enteros de `64` bits, sin capacidad para representar valores faltantes.\n",
+        "\n",
+        "Si deseamos que la serie pueda representar valores faltantes, podemos usar un tipo de datos anulable de **<font color='darkmagenta'>Pandas</font>**:"
+      ],
+      "id": "163bb918"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Construimos una serie a partir de la lista de enteros pequeños,\n",
+        "# usando un tipo de datos anulable de Pandas.\n",
+        "small_series_nullable = pd.Series(small_vals, dtype=\"Int64\")\n",
+        "\n",
+        "# Mostramos la serie y su tipo de datos.\n",
+        "small_series_nullable"
+      ],
+      "id": "f215df30",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Y si queremos forzar a que esta serie use un tipo de dato apalancado en **<font color='darkmagenta'>PyArrow</font>**, podemos especificarlo explícitamente:"
+      ],
+      "id": "1e2c5d08"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Construimos una serie a partir de la lista de enteros pequeños, \n",
+        "# usando un tipo de datos nativo de PyArrow.\n",
+        "small_series_pyarrow = pd.Series(small_vals, dtype=\"int64[pyarrow]\")\n",
+        "\n",
+        "# Mostramos la serie y su tipo de datos.\n",
+        "small_series_pyarrow"
+      ],
+      "id": "1f3c4c0f",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Veamos ahora qué ocurre con la lista de enteros grandes. Primero, dejando que **<font color='darkmagenta'>Pandas</font>** infiera el tipo de datos:"
+      ],
+      "id": "ff719776"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Construimos una serie a partir de la lista de enteros grandes.\n",
+        "large_series = pd.Series(large_vals)\n",
+        "\n",
+        "# Mostramos la serie y su tipo de datos.\n",
+        "large_series"
+      ],
+      "id": "8b3ba90d",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Ahora, verificamos lo que ocurre cuando usamos un tipo de datos anulable de **<font color='darkmagenta'>Pandas</font>**:"
+      ],
+      "id": "e79de605"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Construimos una serie a partir de la lista de enteros grandes,\n",
+        "# usando un tipo de datos anulable de Pandas.\n",
+        "try:\n",
+        "    large_series_nullable = pd.Series(large_vals, dtype=\"Int64\")\n",
+        "except Exception as e:\n",
+        "    print(f\"Error: {e}\")"
+      ],
+      "id": "4167458a",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "En este caso, se produce un error de desbordamiento porque los enteros grandes de la lista `large_vals` exceden el rango permitido por el tipo de datos `Int64`, que es un entero con signo de `64` bits. Al forzar que la serie use un tipo nativo de **<font color='darkmagenta'>PyArrow</font>**, el resultado es similar:"
+      ],
+      "id": "34afb5e4"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Construimos una serie a partir de la lista de enteros grandes,\n",
+        "# usando un tipo de datos nativo de PyArrow.\n",
+        "try:\n",
+        "    large_series_pyarrow = pd.Series(large_vals, dtype=\"int64[pyarrow]\")\n",
+        "except Exception as e:\n",
+        "    print(f\"Error: {e}\")"
+      ],
+      "id": "3445e492",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Notemos que, cuando **<font color='darkmagenta'>Pandas</font>** infiere el tipo de datos para la lista de enteros grandes, lo hace como `object`, lo que significa que esta serie se almacena en memoria como un arreglo de objetos de Python, cada uno de los cuales puede contener un número entero de tamaño arbitrario. Esto permite representar enteros grandes sin problemas, aunque a costa de una mayor utilización de memoria y una menor eficiencia en las operaciones numéricas.\n",
+        "\n",
+        "Ahora consideremos la lista de enteros mixtos, que incluye un valor faltante. Si dejamos que **<font color='darkmagenta'>Pandas</font>** infiera el tipo de datos, obtenemos:"
+      ],
+      "id": "d27e608f"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Construimos una serie a partir de la lista de enteros mixtos.\n",
+        "mixed_series = pd.Series(mixed_vals)\n",
+        "\n",
+        "# Mostramos la serie y su tipo de datos.\n",
+        "mixed_series"
+      ],
+      "id": "ade90279",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Verificamos que el tipo de datos inferido es `float64`, lo que significa que esta serie se almacena en memoria como un arreglo de números de punto flotante de `64` bits. Esto se debe a que el valor faltante `None` no puede representarse como un entero, por lo que **<font color='darkmagenta'>Pandas</font>** opta por convertir toda la serie a un tipo de datos que pueda representar tanto los enteros como el valor faltante, y el tipo de datos más adecuado para esto es `float64`, ya que los números de punto flotante pueden representar valores faltantes mediante `NaN`. Este es, de hecho, el comportamiento que se hereda desde **<font color='darkmagenta'>Numpy</font>**, que no tiene un tipo de datos entero con soporte para valores faltantes.\n",
+        "\n",
+        "::: {.callout-note}\n",
+        "## Importante\n",
+        "\n",
+        "Si bien la conversión *tras bambalinas* a `float64` permite representar valores faltantes, también puede llevar a resultados inesperados en algunos casos. Sobre todo cuando queremos mantener la representación de los resultados como enteros.\n",
+        ":::\n",
+        "\n",
+        "Si queremos que la serie de enteros mixtos pueda representar valores faltantes sin convertir toda la serie a `float64`, podemos usar un tipo de datos anulable de **<font color='darkmagenta'>Pandas</font>**:"
+      ],
+      "id": "ccbe530e"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Construimos una serie a partir de la lista de enteros mixtos,\n",
+        "# usando un tipo de datos anulable de Pandas.\n",
+        "mixed_series_nullable = pd.Series(mixed_vals, dtype=\"Int64\")\n",
+        "\n",
+        "# Mostramos la serie y su tipo de datos.\n",
+        "mixed_series_nullable"
+      ],
+      "id": "f6d9ea3f",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Vemos pues que, al imprimir la serie en pantalla, el valor faltante se representa como `<NA>`, que es el valor especial de **<font color='darkmagenta'>Pandas</font>** para indicar la presencia de datos faltantes en una serie independientemente de su tipo de datos. Los dtypes respaldados por **<font color='darkmagenta'>PyArrow</font>** también usan una representación nativa para valores nulos, pero el escalar `<NA>` que vemos aquí corresponde a `pd.NA`.\n",
+        "\n",
+        "Pasemos al caso de los números de punto flotante. Definiremos igualmente tres listas de Python. La segunda incluirá un registro sin datos, mientras que la tercera incluirá un carácter de texto, lo que forzará a que la serie resultante se convierta a un tipo de datos capaz de representar tanto números como texto cuando dejamos que **<font color='darkmagenta'>Pandas</font>** infiera el tipo de datos.\n",
+        "\n",
+        "Definimos pues las listas como sigue:"
+      ],
+      "id": "d0b2f5cc"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Definimos las listas de interés.\n",
+        "float_vals = [0.5, 1.5, 2.7]\n",
+        "float_vals_with_na = [None, 0.6, -45.0]\n",
+        "float_vals_w_text = [1.5, 2.5, 0.5, \"T\", 1.8, 0.9]"
+      ],
+      "id": "194b8cdb",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Convirtamos la primera lista a una serie, dejando que **<font color='darkmagenta'>Pandas</font>** infiera el tipo de datos:"
+      ],
+      "id": "ac8f7e61"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Construimos una serie a partir de la lista.\n",
+        "float_series = pd.Series(float_vals)\n",
+        "\n",
+        "# Mostramos la serie y su tipo de datos.\n",
+        "float_series"
+      ],
+      "id": "50853082",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Y ahora, con la segunda lista:"
+      ],
+      "id": "0ef6ec53"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Construimos una serie a partir de la lista con un valor faltante.\n",
+        "float_series_with_na = pd.Series(float_vals_with_na)\n",
+        "\n",
+        "# Mostramos la serie y su tipo de datos.\n",
+        "float_series_with_na"
+      ],
+      "id": "09adca2c",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "En ambos casos, el tipo de datos inferido es `float64`, lo que significa que estas series se almacenan en memoria como arreglos de números de punto flotante de `64` bits. Esto no es ninguna sorpresa, y es el comportamiento esperado conforme los tipos heredados de **<font color='darkmagenta'>Numpy</font>**.\n",
+        "\n",
+        "Si queremos que la serie con el valor faltante use un tipo de datos anulable de **<font color='darkmagenta'>Pandas</font>**, podemos especificarlo explícitamente:"
+      ],
+      "id": "ab62b0b6"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Construimos una serie a partir de la lista con un valor faltante,\n",
+        "# usando un tipo de datos anulable de Pandas.\n",
+        "float_series_with_na_nullable = pd.Series(float_vals_with_na, dtype=\"Float64\")\n",
+        "\n",
+        "# Mostramos la serie y su tipo de datos.\n",
+        "float_series_with_na_nullable"
+      ],
+      "id": "1e2e1b72",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "O bien, usando un tipo de datos nativo de **<font color='darkmagenta'>PyArrow</font>**:"
+      ],
+      "id": "7815c7fd"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Construimos una serie a partir de la lista con un valor faltante,\n",
+        "# usando un tipo de datos nativo de PyArrow.\n",
+        "float_series_with_na_pyarrow = pd.Series(float_vals_with_na, dtype=\"double[pyarrow]\")\n",
+        "\n",
+        "# Mostramos la serie y su tipo de datos.\n",
+        "float_series_with_na_pyarrow"
+      ],
+      "id": "4b28f713",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "La representación del dato faltante en los dos casos es `<NA>`, lo que indica que la serie puede representar valores faltantes de manera eficiente sin necesidad de convertir toda la serie a un tipo de datos diferente.\n",
+        "\n",
+        "En la práctica, la diferencia entre trabajar con `NaN` y `<NA>` no siempre será crítica, pero sí importa cuando queremos preservar el tipo lógico de una columna. Esto es especialmente relevante en columnas enteras o booleanas, donde no queremos que la presencia de un valor faltante obligue a convertir toda la columna a `float64`.\n",
+        "\n",
+        "Veamos ahora qué ocurre con la tercera lista, que incluye un carácter de texto. Si dejamos que **<font color='darkmagenta'>Pandas</font>** infiera el tipo de datos, obtenemos:"
+      ],
+      "id": "2efb3a40"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Construimos una serie a partir de la lista con un valor de texto.\n",
+        "float_series_w_text = pd.Series(float_vals_w_text)\n",
+        "\n",
+        "# Mostramos la serie y su tipo de datos.\n",
+        "float_series_w_text"
+      ],
+      "id": "9d6c8ee5",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "El tipo de datos inferido es `object`, lo que significa que esta serie se almacena en memoria como un arreglo de objetos de Python, cada uno de los cuales puede contener un número de punto flotante o una cadena de texto. Esto se debe a que el valor de texto `\"T\"` no puede representarse como un número de punto flotante, por lo que **<font color='darkmagenta'>Pandas</font>** opta por convertir toda la serie a un tipo de datos que pueda representar tanto los números como el texto, y el tipo de datos más adecuado para esto es `object`, ya que los objetos de Python pueden contener cualquier tipo de dato.\n",
+        "\n",
+        "Mezclar números de punto flotante con texto no es una práctica recomendada, ya que puede llevar a resultados inesperados y dificultar el análisis de datos. En muchas ocasiones, los valores de texto pueden representar algún valor numérico específico. Por ejemplo, `\"T\"` podría representar una \"traza\" de algún valor numérico, digamos `0.0001`. En ese caso, lo recomendable sería reemplazar el valor de texto por su equivalente numérico antes de convertir la serie a un tipo de datos numérico:"
+      ],
+      "id": "87968b7d"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Reemplazamos el valor de texto por su equivalente numérico.\n",
+        "(\n",
+        "    float_series_w_text\n",
+        "    .replace(\"T\", 0.0001)\n",
+        "    .astype(\"float64[pyarrow]\")\n",
+        ")"
+      ],
+      "id": "06e4daaa",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "En este caso, el valor de texto `\"T\"` se reemplaza por `0.0001`, lo que permite convertir toda la serie a un tipo de datos numérico de punto flotante de `64` bits respaldado por **<font color='darkmagenta'>PyArrow</font>**. Esto facilita el análisis de datos y evita problemas relacionados con la mezcla de tipos de datos en una misma serie.\n",
+        "\n",
+        "## Strings\n",
+        "\n",
+        "Las columnas con tipos de datos de texto son comunes en el análisis de datos tabulares. Tales columnas pueden contener datos de diversa naturaleza, incluyendo texto arbitrario, datos categóricos, fechas, números representados como texto (o valores faltantes representados como texto), entre otros. Con frecuencia, si estas columnas contienen fechas o números expresados como texto, será común su conversión a un tipo apropiado. Por otro lado, columnas con texto arbitrario pueden ser objeto de análisis más sofisticados, comúnmente asociados a procesamiento de lenguaje natural (NLP, por sus siglas en inglés). Finalmente, las columnas con datos categóricos pueden ser convertidas a un tipo de datos categórico ad-hoc, lo que puede mejorar el rendimiento de ciertas operaciones.\n",
+        "\n",
+        "La conversión de columnas de texto a tipos de datos específicos provistos por **<font color='darkmagenta'>PyArrow</font>** puede realizarse utilizando el método `astype()`, indicando el tipo de datos deseado. Si, en efecto, las columnas a convertir consisten en texto arbitrario, lo recomendable es usar el tipo de datos `string[pyarrow]`.\n",
+        "\n",
+        "Consideremos la siguiente lista de Python con datos de texto:"
+      ],
+      "id": "72888c5f"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Definimos una lista de texto.\n",
+        "text_vals = [\n",
+        "    \"Molino SAG se encuentra con presión muy alta y en riesgo de sobrecarga\",\n",
+        "    \"Recomendación no aplica por cubas en niveles demasiado bajos\",\n",
+        "    \"Molinos de bolas operando con carga muy baja, lo que puede causar daños a los revestimientos\",\n",
+        "]"
+      ],
+      "id": "f83d7814",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Si construimos una serie a partir de esta lista, dejando que **<font color='darkmagenta'>Pandas</font>** infiera el tipo de datos, obtenemos:"
+      ],
+      "id": "3f754d90"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Construimos una serie a partir de la lista de texto.\n",
+        "text_series = pd.Series(text_vals)\n",
+        "\n",
+        "# Mostramos la serie y su tipo de datos.\n",
+        "text_series"
+      ],
+      "id": "789dc3d5",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "El tipo inferido es `str`. En la versión `3.x` de **<font color='darkmagenta'>Pandas</font>**, este es el dtype por defecto para columnas de texto inferidas automáticamente, reemplazando el uso histórico de `object` para strings simples. Sin embargo, si queremos usar explícitamente un tipo respaldado por **<font color='darkmagenta'>PyArrow</font>** para esta serie, podemos especificarlo de la siguiente manera:"
+      ],
+      "id": "00ceb5ae"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Construimos una serie a partir de la lista de texto, usando un\n",
+        "# tipo de datos nativo de PyArrow.\n",
+        "text_series_pyarrow = pd.Series(text_vals, dtype=\"string[pyarrow]\")\n",
+        "\n",
+        "# Mostramos la serie y su tipo de datos.\n",
+        "text_series_pyarrow"
+      ],
+      "id": "b9ebf14d",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Notemos que el tipo mostrado por **<font color='darkmagenta'>Pandas</font>** puede aparecer como `string`, aunque internamente hayamos solicitado `string[pyarrow]`. Podemos confirmar el backend específico inspeccionando el atributo `dtype` de la serie si necesitamos ese nivel de detalle.\n",
+        "\n",
+        "Consideremos ahora la misma lista anterior, pero con un registro sin datos:"
+      ],
+      "id": "faf2b067"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Definimos una lista de texto con un valor faltante.\n",
+        "text_vals_with_na = [\n",
+        "    \"Molino SAG se encuentra con presión muy alta y en riesgo de sobrecarga\",\n",
+        "    None,\n",
+        "    \"Molinos de bolas operando con carga muy baja, lo que puede causar daños a los revestimientos\",\n",
+        "]"
+      ],
+      "id": "2d4385f3",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Si construimos una serie a partir de esta lista, dejando que **<font color='darkmagenta'>Pandas</font>** infiera el tipo de datos, obtenemos:"
+      ],
+      "id": "7079bafa"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Construimos una serie a partir de la lista de texto con un valor faltante.\n",
+        "text_series_with_na = pd.Series(text_vals_with_na)\n",
+        "\n",
+        "# Mostramos la serie y su tipo de datos.\n",
+        "text_series_with_na"
+      ],
+      "id": "7efe9b3c",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Vemos que **<font color='darkmagenta'>Pandas</font>** sigue infiriendo un tipo de datos `str` para esta serie. Este comportamiento fue introducido en la versión `3.x` de **<font color='darkmagenta'>Pandas</font>**, y favorece el manejo de datos faltantes en series constituidas únicamente por strings sin caer necesariamente en el antiguo dtype `object`, que solía ser menos expresivo y menos conveniente para operaciones especializadas sobre texto.\n",
+        "\n",
+        "Naturalmente, si queremos usar un tipo de datos nativo de **<font color='darkmagenta'>PyArrow</font>** para esta serie, podemos especificarlo explícitamente:"
+      ],
+      "id": "b6035eef"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Construimos una serie a partir de la lista de texto con un valor faltante,\n",
+        "# usando un tipo de datos nativo de PyArrow.\n",
+        "text_series_with_na_pyarrow = pd.Series(text_vals_with_na, dtype=\"string[pyarrow]\")\n",
+        "\n",
+        "# Mostramos la serie y su tipo de datos.\n",
+        "text_series_with_na_pyarrow"
+      ],
+      "id": "f1b441c6",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "El uso de un tipo de datos respaldado por **<font color='darkmagenta'>PyArrow</font>** para esta serie puede resultar deseable, no sólo por la representación explícita de valores faltantes mediante `<NA>`, sino también porque permite trabajar con una representación más especializada para texto, con mejor interoperabilidad y posibles ventajas de memoria en columnas grandes.\n",
+        "\n",
+        "## Datos categóricos\n",
+        "\n",
+        "Los datos categóricos son aquellos que representan grupos discretos que, con frecuencia, reciben el nombre de clases o categorías. Como regla general, la cardinalidad de estas categorías suele ser baja, lo que las diferencia de los datos de texto arbitrario. Por ejemplo, una columna que indique el tipo de equipo (molino SAG, molino de bolas, etc.) o el estado operativo (operativo, en mantenimiento, fuera de servicio) podría considerarse categórica si el número de categorías es limitado y no se espera que crezca significativamente con el tiempo.\n",
+        "\n",
+        "**<font color='darkmagenta'>Pandas</font>** almacena los datos categóricos utilizando el tipo de datos `category`, que permite mantener los valores únicos identificados en una columna categórica en un arreglo separado, mientras que la columna en sí misma almacena referencias a estos valores únicos mediante códigos enteros. La ventaja de esta representación es que puede reducir significativamente el uso de memoria, especialmente cuando la columna tiene un gran número de filas pero pocas categorías únicas.\n",
+        "\n",
+        "Los datos categóricos también son susceptibles de ser ordenados, lo que es deseable en ciertos casos. Por ejemplo, en un proceso de flotación colectiva de sulfuros de cobre, podríamos disponer de una columna en una tabla que identifica el reactivo utilizado para la colección de partículas de interés (por ejemplo, `xantato`, `tiopropionato`, `tiobutirato`). El orden de estas categorías no es relevante, puesto que, a priori, no hay una jerarquía natural entre los reactivos. Por otro lado, si otra columna representa la posición de una válvula de descarga de agua (por ejemplo, `cerrada` y `abierta`), el orden de estas categorías sí es relevante, ya que `abierta` implica un mayor flujo de agua que `cerrada`. La buena noticia es que **<font color='darkmagenta'>Pandas</font>** permite representar ambos casos mediante el mismo tipo de datos `category`, diferenciando entre categorías ordenadas y no ordenadas mediante un atributo específico:"
+      ],
+      "id": "fb3241ca"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Definimos listas de Python con datos categóricos.\n",
+        "reagents = [\"xantato\", \"tiopropionato\", \"tiobutirato\"]\n",
+        "valve_positions = [\"cerrada\", \"abierta\"]\n",
+        "\n",
+        "# Construimos series categóricas a partir de las listas.\n",
+        "reagents_cat = pd.Series(reagents, dtype=\"category\")\n",
+        "valve_positions_cat = pd.Series(valve_positions, dtype=\"category\")\n",
+        "\n",
+        "# Mostramos las series y sus tipos de datos.\n",
+        "print(reagents_cat)\n",
+        "print(\"---\")\n",
+        "print(valve_positions_cat)"
+      ],
+      "id": "a7845fcc",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "**<font color='darkmagenta'>Pandas</font>** infiere que ambas series son de tipo `category`, pero no las considera ordenadas. Si queremos que la serie `valve_positions_cat` sea considerada como una categoría ordenada, podemos especificarlo explícitamente:"
+      ],
+      "id": "8402d07a"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Construimos una serie categórica ordenada a partir de la lista de posiciones de válvula.\n",
+        "valve_positions_cat_ordered = pd.Series(\n",
+        "    valve_positions,\n",
+        "    dtype=pd.api.types.CategoricalDtype(\n",
+        "        categories=valve_positions, ordered=True,\n",
+        "    ),\n",
+        ")\n",
+        "\n",
+        "# Mostramos la serie y su tipo de datos.\n",
+        "valve_positions_cat_ordered"
+      ],
+      "id": "eb1bff61",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Verificamos que las categorías ahora están ordenadas, ya que **<font color='darkmagenta'>Pandas</font>** informa dicho orden imprimiendo en pantalla `Categories (2, str): ['cerrada' < 'abierta']`. Esto significa que, para esta serie, `cerrada` es considerada *menor que* `abierta`, lo que es coherente con una lectura ordinal basada en el flujo de agua: una válvula abierta permite más flujo que una válvula cerrada. En otros problemas, naturalmente, el orden dependerá de la convención analítica que adoptemos.\n",
+        "\n",
+        "## Datos de tiempo\n",
+        "\n",
+        "En sus inicios, **<font color='darkmagenta'>Pandas</font>** fue creado para la realización de análisis financieros. Por ello, desde sus primeras versiones, esta librería ha incluido tipos de datos específicos para manejar fechas y horas, lo que la ha convertido en una herramienta muy popular para el análisis de **series de tiempo**.\n",
+        "\n",
+        "A nivel computacional, una serie de tiempo no es más que una serie de datos indexada por fechas o momentos en el tiempo. Dependiendo de si tales tiempos son \"equidistantes\" o no, se habla de series de tiempo **regulares** o **irregulares**, respectivamente. El uso de series de tiempo en ciencia e ingeniería resulta muy común, debido a que solemos estar interesados en resolver problemas relacionados con la evolución de ciertos fenómenos, procesos o sistemas a lo largo del tiempo. En minería esto es especialmente cierto. Por ejemplo, en una operación a cielo abierto, resulta crucial entender cómo opera una flota de transporte conforme la ubicación de las palas en distintas frentes y su interacción con las condiciones de las rutas a recorrer entre tales frentes y los correspondientes destinos (botaderos y planta de chancado), ya que los tiempos de ciclo de los camiones dependen de estas variables, y su minimización es clave para mejorar la productividad de la operación.\n",
+        "\n",
+        "En Python, la representación de momentos en el tiempo se realiza principalmente por medio de la librería nativa **<font color='darkmagenta'>datetime</font>**, que incluye tipos de datos como `datetime.datetime` para representar fechas y horas, y `datetime.timedelta` para representar duraciones o intervalos de tiempo. **<font color='darkmagenta'>Pandas</font>** ha adoptado estos tipos de datos como base para su propia representación de datos de tiempo, aunque también ha introducido sus propios tipos específicos para manejar series de tiempo de manera más eficiente y conveniente, siendo capaz de inferir fechas y tiempos a partir de texto siguiendo algunos patrones comunes.\n",
+        "\n",
+        "Consideremos las siguientes listas de Python con datos de tiempo y texto:"
+      ],
+      "id": "f4252b30"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "import datetime as dt"
+      ],
+      "id": "6e4e4bd3",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Definimos listas de Python con datos de tiempo y texto.\n",
+        "datetime_vals = [\n",
+        "    dt.datetime(2024, 1, 1, 12, 0),\n",
+        "    dt.datetime(2024, 1, 2, 14, 30),\n",
+        "    dt.datetime(2024, 1, 3),\n",
+        "]\n",
+        "\n",
+        "string_vals = [\n",
+        "    \"2024-01-01 12:00\",\n",
+        "    \"2024-01-02 14:30\",\n",
+        "    \"2024-01-03\",\n",
+        "]\n",
+        "\n",
+        "string_vals_with_na = [\n",
+        "    \"2024-01-01 12:00\",\n",
+        "    None,\n",
+        "    \"2024-01-03\",\n",
+        "]\n",
+        "\n",
+        "epoch_vals = [\n",
+        "    1704158400,  # Corresponde a 2024-01-01 12:00:00 UTC\n",
+        "    1704243000,  # Corresponde a 2024-01-02 14:30:00 UTC\n",
+        "    1704326400,  # Corresponde a 2024-01-03 00:00:00 UTC\n",
+        "]"
+      ],
+      "id": "fc25455a",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Si construimos una serie a partir de la lista `datetime_vals`, dejando que **<font color='darkmagenta'>Pandas</font>** infiera el tipo de datos, obtenemos:"
+      ],
+      "id": "e431d08b"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Construimos una serie a partir de la lista de objetos nativos de `datetime`.\n",
+        "datetime_series = pd.Series(datetime_vals)\n",
+        "\n",
+        "# Mostramos la serie y su tipo de datos.\n",
+        "datetime_series"
+      ],
+      "id": "201e21e9",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "El tipo de datos inferido es `datetime64[ns]`, lo que significa que esta serie se almacena como fechas y horas con una precisión de nanosegundos. Este dtype proviene del ecosistema de **<font color='darkmagenta'>Numpy</font>**, pero **<font color='darkmagenta'>Pandas</font>** lo complementa con herramientas propias como `Timestamp`, `DatetimeIndex`, `Timedelta`, `Period`, `NaT` y soporte para zonas horarias. En términos de uso de memoria, una columna `datetime64[ns]` se representa de forma compacta mediante enteros de `64` bits, lo que permite representar fechas y horas desde el año `1677` hasta el año `2262` con precisión de nanosegundos.\n",
+        "\n",
+        "Para la lista con datos de texto, si dejamos que **<font color='darkmagenta'>Pandas</font>** infiera el tipo de datos, obtenemos:"
+      ],
+      "id": "22b96198"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Construimos series a partir de la lista de texto.\n",
+        "string_series = pd.Series(string_vals)\n",
+        "\n",
+        "# Mostramos la serie y su tipo de datos.\n",
+        "string_series"
+      ],
+      "id": "1d79efd0",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Vemos pues que **<font color='darkmagenta'>Pandas</font>** infiere un tipo de datos `str` para esta serie, lo que significa que se almacena en memoria como un arreglo de cadenas de texto. Sin embargo, dado que el texto de cada registro sigue un formato común que representa fechas y horas, podemos forzar a **<font color='darkmagenta'>Pandas</font>** a interpretar estos textos como fechas y horas, especificando el tipo de datos `datetime64[ns]` usando el argumento `dtype`:"
+      ],
+      "id": "fb572823"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Construimos una serie a partir de la lista de texto, forzando \n",
+        "# la interpretación como fechas y horas.\n",
+        "string_as_datetime_series = pd.Series(string_vals, dtype=\"datetime64[ns]\")\n",
+        "\n",
+        "# Mostramos la serie y su tipo de datos.\n",
+        "string_as_datetime_series"
+      ],
+      "id": "638da2ad",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Esto también es válido para la lista con un valor faltante:"
+      ],
+      "id": "25b6ad8b"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Construimos una serie a partir de la lista de texto con un valor faltante,\n",
+        "# forzando la interpretación como fechas y horas.\n",
+        "string_with_na_as_datetime_series = pd.Series(\n",
+        "    string_vals_with_na, dtype=\"datetime64[ns]\"\n",
+        ")\n",
+        "\n",
+        "# Mostramos la serie y su tipo de datos.\n",
+        "string_with_na_as_datetime_series"
+      ],
+      "id": "2752d430",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Notemos que ahora el valor faltante se representa como `NaT`, que es el **valor centinela** de **<font color='darkmagenta'>Pandas</font>** para indicar la presencia de datos faltantes en una serie de tiempo. Este valor es análogo a `NaN` para números de punto flotante, pero específico para datos de tiempo (literalmente significa *not a time*).\n",
+        "\n",
+        "Finalmente, si construimos una serie a partir de la lista `epoch_vals`, forzando su representación como fechas y horas, obtenemos:"
+      ],
+      "id": "e32b72a6"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Construimos una serie a partir de la lista de valores `epoch_vals`, forzando\n",
+        "# la interpretación como fechas y horas.\n",
+        "epoch_series = pd.Series(epoch_vals, dtype=\"datetime64[ns]\")\n",
+        "\n",
+        "# Mostramos la serie y su tipo de datos.\n",
+        "epoch_series"
+      ],
+      "id": "b1d884e6",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Si observamos la primera fila de la serie (`1970-01-01 00:00:01.704158400`), notamos que el valor `1704158400` de la lista `epoch_vals` **no** fue interpretado como segundos, sino como nanosegundos transcurridos desde el `Unix epoch` (1 de enero de 1970 a las 00:00:00 UTC). Esto ocurre porque solicitamos explícitamente el tipo `datetime64[ns]`, cuya unidad mínima es el nanosegundo. Para tiempos representados como segundos desde un `epoch`, lo recomendable es usar una granularidad de segundos (`datetime64[s]`), lo que permite interpretar correctamente los valores de `epoch_vals` sin necesidad de realizar conversiones adicionales:"
+      ],
+      "id": "68fb1b63"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Construimos una serie a partir de la lista de valores `epoch_vals`, forzando\n",
+        "# la interpretación como fechas y horas con granularidad de segundos.\n",
+        "epoch_as_datetime_series = pd.Series(epoch_vals, dtype=\"datetime64[s]\")\n",
+        "\n",
+        "# Mostramos la serie y su tipo de datos.\n",
+        "epoch_as_datetime_series"
+      ],
+      "id": "e1dbf9e3",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "::: {.callout-note}\n",
+        "## Cultura general\n",
+        "\n",
+        "¿Qué es un `epoch`? En informática, un `epoch` es un punto de referencia en el tiempo a partir del cual se calculan los tiempos transcurridos. El `epoch` más comúnmente utilizado es el `Unix epoch`, que corresponde al 1 de enero de 1970 a las 00:00:00 UTC. Los sistemas operativos y muchas aplicaciones utilizan el `Unix epoch` como base para representar fechas y horas, contando el número de segundos transcurridos desde ese momento. Por ejemplo, el valor `1704158400` representa el número de segundos transcurridos desde el `Unix epoch` hasta la fecha y hora `2024-01-01 12:00:00 UTC`.\n",
+        "\n",
+        "De hecho, esta es la razón por la cual, al manipular la fecha y hora de un sistema operativo, veremos que el momento más antiguo que podemos representar es el `Unix epoch`, y que los tiempos anteriores a este momento se representan con valores negativos. Por ejemplo, el 31 de diciembre de 1969 a las 23:59:59 UTC se representaría como `-1` segundo desde el `Unix epoch`.\n",
+        "\n",
+        "Sí... este es un dato *freak* extremadamente ñoño.\n",
+        ":::\n",
+        "\n",
+        "La representación de fechas y horas en **<font color='darkmagenta'>Pandas</font>** es muy flexible, y permite manejar una amplia variedad de formatos de entrada, así como realizar operaciones complejas sobre series de tiempo, incluyendo selecciones de subconjuntos de datos asociados a granularidades específicas (años, meses, semanas, días, etc.), siempre que el índice de la serie o DataFrame contenga datos de tiempo formateados adecuadamente. Esto es algo en lo que profundizaremos más adelante.\n",
+        "\n",
+        "## Comentarios finales\n",
+        "\n",
+        "En este apunte revisamos un aspecto que suele parecer secundario al comenzar a trabajar con **<font color='darkmagenta'>Pandas</font>**, pero que termina siendo fundamental en casi cualquier análisis real: Los tipos de datos. La forma en que una columna representa enteros, flotantes, texto, categorías, fechas, duraciones o valores faltantes afecta directamente la memoria utilizada, la velocidad de ciertas operaciones y la semántica de nuestros cálculos.\n",
+        "\n",
+        "La idea más importante es que no existe una única representación correcta para todos los casos. Los tipos de datos clásicos de **<font color='darkmagenta'>Numpy</font>** siguen siendo muy eficientes para cómputo numérico; los tipos de datos anulables de **<font color='darkmagenta'>Pandas</font>** permiten preservar tipos lógicos en presencia de datos faltantes; y los tipos de datos respaldados por **<font color='darkmagenta'>PyArrow</font>** ofrecen una alternativa moderna, especialmente atractiva para texto, interoperabilidad y procesamiento columnar.\n",
+        "\n",
+        "En la práctica, conviene desarrollar el hábito de inspeccionar los tipos con `dtypes`, corregirlos con `astype()` o `convert_dtypes()`, seleccionar columnas por tipo con `select_dtypes()` y evaluar el costo en memoria con `memory_usage()`. Con esta base, ya estamos en mejores condiciones para avanzar hacia la manipulación propiamente tal de series y DataFrames: Selección, filtrado, limpieza, agregación y transformación de datos tabulares."
+      ],
+      "id": "0cd6f8f2"
+    }
+  ],
+  "metadata": {
+    "kernelspec": {
+      "name": "nerdyminer",
+      "language": "python",
+      "display_name": "Python (nerdyminer)",
+      "path": "/Users/fquezadac/Library/Jupyter/kernels/nerdyminer"
+    }
+  },
+  "nbformat": 4,
+  "nbformat_minor": 5
+}

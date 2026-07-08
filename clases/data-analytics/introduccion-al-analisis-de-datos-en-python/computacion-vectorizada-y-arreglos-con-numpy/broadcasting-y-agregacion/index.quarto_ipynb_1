@@ -1,0 +1,857 @@
+{
+  "cells": [
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "---\n",
+        "title: \"Operaciones de agregación\"\n",
+        "subtitle: \"Introduciendo el procedimiento de *broadcasting*\"\n",
+        "section_href: \"/clases/data-analytics/introduccion-al-analisis-de-datos-en-python/computacion-vectorizada-y-arreglos-con-numpy/\"\n",
+        "toc: true\n",
+        "toc-depth: 3\n",
+        "page-layout: article\n",
+        "---\n",
+        "\n",
+        "::: {.callout-important}\n",
+        "## Idea central\n",
+        "\n",
+        "En este apunte estudiaremos dos ideas estrechamente conectadas entre sí. La primera es el **broadcasting**, que permite a **<font color='darkmagenta'>Numpy</font>** operar con arreglos de distinta geometría sin necesidad de que construyamos manualmente copias compatibles de ellos. La segunda es el conjunto de **operaciones de agregación**, que resume información a lo largo de uno o más ejes de un arreglo. Juntas, estas dos ideas forman una parte esencial de la programación numérica moderna: una nos permite **extender** cálculos vectorizados sobre estructuras de distinta forma, y la otra nos permite **resumir** esos resultados de manera eficiente y controlada.\n",
+        ":::\n",
+        "\n",
+        "## El concepto de *broadcasting*\n",
+        "\n",
+        "El término **broadcasting** hace referencia al mecanismo mediante el cual **<font color='darkmagenta'>Numpy</font>** puede operar con arreglos cuyas geometrías no coinciden exactamente, siempre que la operación involucrada sea componente a componente, como ocurre con muchas de las operaciones algebraicas revisadas en [el apunte anterior](/clases/data-analytics/introduccion-al-analisis-de-datos-en-python/computacion-vectorizada-y-arreglos-con-numpy/operatoria-en-numpy/).\n",
+        "\n",
+        "En términos sencillos, cuando intentamos combinar dos arreglos y sus dimensiones no empatan, **<font color='darkmagenta'>Numpy</font>** no exige inmediatamente que construyamos a mano versiones compatibles de ellos. En lugar de eso, intenta **alinear** sus dimensiones y **extender** sólo aquellas que son compatibles conforme un conjunto preciso de reglas. Esto es justamente lo que permite escribir cálculos vectorizados de manera compacta, sin recurrir a bucles explícitos ni a copias manuales de datos.\n",
+        "\n",
+        "En términos un poco más rigurosos, el broadcasting provee a **<font color='darkmagenta'>Numpy</font>** de un medio para realizar operaciones vectorizadas sin necesidad de expandir materialmente los arreglos en memoria. Por esa razón, muchas operaciones que conceptualmente podrían entenderse como repeticiones o *copias virtuales* de datos se ejecutan internamente de manera eficiente, aprovechando rutinas implementadas a bajo nivel.\n",
+        "\n",
+        "Como ya comentamos en [el apunte anterior](/clases/data-analytics/introduccion-al-analisis-de-datos-en-python/computacion-vectorizada-y-arreglos-con-numpy/operatoria-en-numpy/), las operaciones algebraicas usuales en **<font color='darkmagenta'>Numpy</font>** trabajan componente a componente. Por lo tanto, el caso ideal es aquel en que ambos arreglos tienen exactamente la misma geometría. El broadcasting flexibiliza este requerimiento y permite que la operación siga teniendo sentido aun cuando las formas no sean idénticas, siempre que cumplan ciertas condiciones.\n",
+        "\n",
+        "Partamos con el caso más simple: Sumar un arreglo y un escalar."
+      ],
+      "id": "f3dbb8e8"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "import numpy as np"
+      ],
+      "id": "c6383b56",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Definimos el arreglo a y el escalar b.\n",
+        "a = np.array([1.0, 3.0, 5.0, 7.0])\n",
+        "b = 2.0"
+      ],
+      "id": "8399874f",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Sumamos a + b.\n",
+        "a + b"
+      ],
+      "id": "3febfaef",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Notemos que, si en vez de escribir `b = 2.0` escribimos `b = np.array([2.0, 2.0, 2.0, 2.0])`, la suma `a + b` entrega exactamente el mismo resultado:"
+      ],
+      "id": "00f05a2a"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Redefinimos b.\n",
+        "b = np.array([2.0, 2.0, 2.0, 2.0])\n",
+        "\n",
+        "# Sumamos a + b otra vez.\n",
+        "a + b"
+      ],
+      "id": "4acd9b0c",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Podemos pensar entonces que el escalar `b = 2.0`, en el primero de los bloques anteriores, se **extiende virtualmente** a lo largo del eje 0 para empatar la geometría del arreglo `a`. Los nuevos elementos en `b`, como se ilustra en la @fig-broadcasting1dx0d, serían copias del escalar original. Naturalmente, esta imagen es sólo una analogía pedagógica: **<font color='darkmagenta'>Numpy</font>** no necesita construir explícitamente ese nuevo arreglo para realizar la operación, y justamente ahí radica parte de la eficiencia del mecanismo.\n",
+        "\n",
+        "![Esquema de broadcasting entre un arreglo 1D y un escalar](images/fig_3_1.png){#fig-broadcasting1dx0d fig-align=\"center\" width=\"100%\"}\n",
+        "\n",
+        "El caso anterior es el más sencillo de todos. Sin embargo, el broadcasting aparece también cuando operamos con arreglos de distinta dimensión. Consideremos ahora un arreglo bidimensional `M`:"
+      ],
+      "id": "c7d7c946"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Arreglo diagonal reducido M, de geometría (4, 4), indexado en la posición 0.\n",
+        "M = np.eye(N=4, M=4, k=0)\n",
+        "M"
+      ],
+      "id": "985f992b",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Observemos los resultados de operar con el arreglo `M` y el arreglo `a`:"
+      ],
+      "id": "d1a09801"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Suma de un arreglo bidimensional con uno unidimensional.\n",
+        "M + a"
+      ],
+      "id": "8ba33485",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Vemos entonces que el arreglo unidimensional `a` se alinea con la última dimensión de `M` y se extiende virtualmente a lo largo del eje 0, de manera tal que la operación `M + a` tenga sentido. Nuevamente, esto no corresponde a una copia real del arreglo, sino a una forma útil de imaginar lo que **<font color='darkmagenta'>Numpy</font>** hace internamente.\n",
+        "\n",
+        "![Esquema de broadcasting entre un arreglo 2D y un arreglo 1D](images/fig_3_2.png){#fig-broadcasting2dx1d fig-align=\"center\" width=\"100%\"}\n",
+        "\n",
+        "Los casos anteriores son fáciles de visualizar. Sin embargo, el broadcasting puede involucrar situaciones más generales. Consideremos, por ejemplo, el siguiente caso:"
+      ],
+      "id": "18f5c5a2"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Definimos dos arreglos que representan una matriz fila y una matriz columna.\n",
+        "u = np.ones(shape=(1, 3))\n",
+        "v = np.ones(shape=(3, 1))"
+      ],
+      "id": "cda004c0",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Mostramos estos arreglos en pantalla.\n",
+        "print(u)\n",
+        "print(v)"
+      ],
+      "id": "fed16c73",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Calculamos la suma u + v.\n",
+        "u + v"
+      ],
+      "id": "faa3490f",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Tal y como ocurrió en los ejemplos anteriores, ahora ambos arreglos se extienden virtualmente en direcciones distintas para generar una geometría común. En este caso, el resultado es un arreglo de geometría `(3, 3)`. La intuición es clara: `u` se replica hacia abajo y `v` hacia la derecha, aunque, nuevamente, esta descripción debe entenderse como una imagen conceptual y no como una copia literal de datos en memoria.\n",
+        "\n",
+        "![Esquema de broadcasting entre dos arreglos en ejes distintos](images/fig_3_3.png){#fig-broadcastinggen fig-align=\"center\" width=\"100%\"}\n",
+        "\n",
+        "## Reglas de broadcasting\n",
+        "\n",
+        "Cuando operamos sobre dos arreglos, **<font color='darkmagenta'>Numpy</font>** compara sus geometrías **dimensión a dimensión, de derecha a izquierda**. En un arreglo bidimensional, por ejemplo, eso significa que primero compara el número de columnas y luego el número de filas.\n",
+        "\n",
+        "La regla de compatibilidad es muy simple: Dos dimensiones son **compatibles** si\n",
+        "\n",
+        "1. Son iguales, o\n",
+        "2. Una de ellas es igual a 1.\n",
+        "\n",
+        "Si ninguna de estas condiciones se cumple, la operación no puede realizarse y **<font color='darkmagenta'>Numpy</font>** levantará un error de valor.\n",
+        "\n",
+        "Más que memorizar una lista larga de reglas, conviene pensar el broadcasting como un procedimiento mental de tres pasos:\n",
+        "\n",
+        "1. **Igualar el número de dimensiones:**  \n",
+        "   Si uno de los arreglos tiene menos dimensiones que el otro, imaginamos que a su geometría se le agregan unos a la izquierda hasta empatar el número de dimensiones del arreglo mayor.\n",
+        "\n",
+        "2. **Comparar de derecha a izquierda:**  \n",
+        "   Una vez alineadas las dimensiones, comparamos cada par de tamaños empezando por el extremo derecho.\n",
+        "\n",
+        "3. **Extender sólo las dimensiones compatibles:**  \n",
+        "   Si una dimensión vale `1` y la otra no, la dimensión igual a `1` puede extenderse virtualmente para empatar. Si ambas son iguales, no hay problema. Si ninguna vale `1` y tampoco coinciden, la operación falla.\n",
+        "\n",
+        "Para clarificar estas ideas, consideremos algunos ejemplos.\n",
+        "\n",
+        "**Ejemplo 3.1:** Definamos dos arreglos, uno bidimensional y otro unidimensional:"
+      ],
+      "id": "701ba6d3"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "M = np.ones((2, 3))\n",
+        "a = np.arange(3)"
+      ],
+      "id": "54b90087",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Ahora consideremos una operación sobre estos arreglos. Las geometrías de éstos son:"
+      ],
+      "id": "d5cd85de"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "M.shape"
+      ],
+      "id": "e8391154",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "a.shape"
+      ],
+      "id": "d9271bad",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Vemos que el arreglo `a` tiene menos dimensiones, por lo que lo imaginamos como si su forma fuera `(1, 3)`:\n",
+        "\n",
+        "- `M.shape -> (2, 3)`\n",
+        "- `a.shape -> (1, 3)`\n",
+        "\n",
+        "Comparamos luego de derecha a izquierda:\n",
+        "\n",
+        "- última dimensión: `3` y `3`, compatibles;\n",
+        "- primera dimensión: `2` y `1`, compatibles.\n",
+        "\n",
+        "Por lo tanto, `a` puede extenderse virtualmente en su primera dimensión y la operación binaria tendrá como resultado un arreglo de geometría `(2, 3)`:"
+      ],
+      "id": "99a78720"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "M + a"
+      ],
+      "id": "0112767e",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "◼︎\n",
+        "\n",
+        "**Ejemplo 3.2:** Consideremos ahora un caso donde ambos arreglos deben pasar por broadcasting:"
+      ],
+      "id": "728af3c6"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "a = np.arange(3).reshape((3, 1))\n",
+        "b = np.arange(3)"
+      ],
+      "id": "a3fa858c",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Las formas originales de estos arreglos son:\n",
+        "\n",
+        "- `a.shape = (3, 1)`.\n",
+        "- `b.shape = (3,)`.\n",
+        "\n",
+        "Como `b` tiene menos dimensiones, lo reinterpretamos como un arreglo con forma `(1, 3)`:\n",
+        "\n",
+        "- `a.shape = (3, 1)`.\n",
+        "- `b.shape = (1, 3)`.\n",
+        "\n",
+        "Ahora comparamos de derecha a izquierda:\n",
+        "\n",
+        "- Última dimensión: `1` y `3`, compatibles.\n",
+        "- Primera dimensión: `3` y `1`, compatibles.\n",
+        "\n",
+        "Por lo tanto, ambos arreglos pueden extenderse virtualmente y la operación resultante tendrá forma `(3, 3)`:"
+      ],
+      "id": "5bb99522"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "a + b"
+      ],
+      "id": "9cc50bad",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "◼︎\n",
+        "\n",
+        "**Ejemplo 3.3:** Consideremos ahora un caso en que ambos arreglos son incompatibles:"
+      ],
+      "id": "1aa021a6"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "M = np.ones((3, 2))\n",
+        "a = np.arange(3)"
+      ],
+      "id": "21babaa0",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Las geometrías de los arreglos son las siguientes:\n",
+        "\n",
+        "- `M.shape = (3, 2)`.\n",
+        "- `a.shape = (3,)`.\n",
+        "\n",
+        "Como `a` tiene una dimensión menos, lo reinterpretamos como un arreglo de forma `(1, 3)`:\n",
+        "\n",
+        "- `M.shape = (3, 2)`.\n",
+        "- `a.shape = (1, 3)`.\n",
+        "\n",
+        "Comparamos ahora de derecha a izquierda:\n",
+        "\n",
+        "- Última dimensión: `2` y `3`, **incompatibles**.\n",
+        "\n",
+        "Como ninguna de estas dimensiones vale 1 y tampoco coinciden, la operación falla inmediatamente. Por lo tanto, si operamos sobre estos arreglos, obtendremos un error de valor:"
+      ],
+      "id": "857fae9a"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "try:\n",
+        "    M + a\n",
+        "except ValueError as e:\n",
+        "    print(e)"
+      ],
+      "id": "eed9e002",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Las reglas de broadcasting constituyen una de las ideas más importantes de **<font color='darkmagenta'>Numpy</font>**. Gran parte del trabajo numérico eficiente en Python depende de entenderlas bien y de reconocer cuándo pueden ser aprovechadas para escribir código más compacto y más expresivo. ◼︎\n",
+        "\n",
+        "**Ejemplo 3.4 – Visualización de una función de dos variables:** Vamos a graficar la función $f$ definida como\n",
+        "\n",
+        "::: {.eq-scroll}\n",
+        "$$\n",
+        "f\\left( x,y \\right)  =\\mathrm{a} \\mathrm{r} \\mathrm{c} \\mathrm{s} \\mathrm{e} \\mathrm{n} \\mathrm{h} \\left( x^{2}+y^{2}\\right)\n",
+        "\\tag{3.1}\n",
+        "$$\n",
+        ":::\n",
+        "\n",
+        "en el conjunto $\\Omega =\\left\\{ \\left( x,y\\right)  \\in \\mathbb{R}^{2} :-1\\leq x\\leq 1\\  ;-1\\leq y\\leq 1\\right\\}$. Para ello, definiremos dos arreglos que representarán los bordes del conjunto $\\Omega$, los que llamaremos `X` e `Y`:"
+      ],
+      "id": "311e361e"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Definimos los arreglos x e y.\n",
+        "X = np.linspace(-1, 1, 100).reshape(-1, 1)\n",
+        "Y = np.linspace(-1, 1, 100).reshape(1, -1)"
+      ],
+      "id": "c6f11e74",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Aprovechando las reglas de broadcasting, podemos calcular los valores de la función $f$ en el interior de la grilla rectangular $\\Omega$ de manera muy simple:"
+      ],
+      "id": "347b922e"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Calculamos la función f(x, y) en toda la grilla.\n",
+        "Z = np.arcsinh(X**2 + Y**2)\n",
+        "\n",
+        "# Vemos que el arreglo Z es bidimensional gracias al broadcasting.\n",
+        "Z.shape"
+      ],
+      "id": "18d59bf8",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Para graficar, usaremos la librería **<font color='darkmagenta'>Matplotlib</font>**. No es necesario, por el momento, ahondar en los detalles del siguiente código para generar el gráfico, pero sí es bueno observar que el broadcasting nos permitió construir la grilla de evaluación sin necesidad de usar bucles explícitos:"
+      ],
+      "id": "2d593f1f"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "import matplotlib.pyplot as plt"
+      ],
+      "id": "daa1967b",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Algunos ajustes para que nuestras figuras queden bien bonitas.\n",
+        "plt.rcParams[\"figure.dpi\"] = 90\n",
+        "plt.style.use(\"bmh\")"
+      ],
+      "id": "9384c094",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Gráfico de nuestra función.\n",
+        "fig, ax = plt.subplots(figsize=(9, 6))\n",
+        "p = ax.imshow(Z, origin=\"lower\", cmap=\"cool\")\n",
+        "ax.set_title(r\"Gráfico de la función $f(x, y)$\", fontsize=14, fontweight=\"bold\", pad=10)\n",
+        "ax.set_xlabel(r\"$x$\", labelpad=10, fontsize=14)\n",
+        "ax.set_ylabel(r\"$y$\", labelpad=15, fontsize=14, rotation=0)\n",
+        "ax.grid(False)\n",
+        "cb = fig.colorbar(p)\n",
+        "plt.tight_layout()"
+      ],
+      "id": "bf596976",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "◼︎\n",
+        "\n",
+        "**Ejemplo 3.5 – Estandarización de un conjunto de datos:** Un error muy común al construir modelos estadísticos o de regresión guarda relación con la no consideración de las unidades de medición inherentes a los atributos que son representados por los datos. Por ejemplo, en una planta concentradora, podríamos estudiar la relación entre tratamiento de molienda, presión de alimentación a la batería de hidrociclones y tamaño de producto en la salida del circuito de molienda. Estas variables viven en escalas muy distintas entre sí.\n",
+        "\n",
+        "En general, el tratamiento de molienda puede expresarse en toneladas por hora; la presión de hidrociclones, en psi; y el tamaño de producto, como porcentaje retenido en una determinada malla. Estas magnitudes son muy diferentes, y por ello suele ser conveniente **estandarizar** las variables antes de aplicar ciertos modelos.\n",
+        "\n",
+        "Una transformación muy común corresponde a la **estandarización tipo z-score**. Si un conjunto de datos tiene un total de $N$ observaciones (filas) y $D$ atributos o variables (columnas), entonces cada variable $X_{j}$ (para $1\\leq j\\leq D$) puede transformarse como\n",
+        "\n",
+        "::: {.eq-scroll}\n",
+        "$$\n",
+        "Z_{j}={\\displaystyle \\frac{X_{j}-\\bar{X}_{j} }{s_{j}}}\n",
+        "\\tag{3.2}\n",
+        "$$\n",
+        ":::\n",
+        "\n",
+        "donde $\\bar{X}_{j}$ es la media de todas las observaciones relativas a la variable $X_{j}$ y $s_{j}$ su desviación estándar ($j=1,...,D$).\n",
+        "\n",
+        "Es importante notar que esta transformación **no garantiza** que la variable resultante tenga distribución normal. Lo que sí garantiza, en condiciones ideales de cálculo, es que la nueva variable tenga media 0 y desviación estándar 1.\n",
+        "\n",
+        "En **<font color='darkmagenta'>Numpy</font>**, estandarizar un conjunto de datos representado por un arreglo es sencillo gracias a las reglas de broadcasting. Supongamos que el arreglo `T` contiene información de una prueba de laboratorio realizada sobre 10 muestras de mineral en un circuito de molienda, de manera tal que la primera columna representa el tratamiento de molienda, la segunda columna representa la presión de alimentación a la batería de hidrociclones, y la tercera columna representa el porcentaje de mineral retenido con respecto a la malla #100:"
+      ],
+      "id": "20d395fd"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Definimos las variables que poblarán nuestro arreglo por separado.\n",
+        "t = np.array([1280.98, 1871.11, 1556.39, 1291.01, 1335.52, 1610.04, 1892.44, 1042.19, 1123.21, 1902.11])  # Tratamiento.\n",
+        "p = np.array([6.5, 5.6, 8.6, 8.8, 9.0, 5.8, 7.7, 7.0, 6.5, 6.4])  # Presiones.\n",
+        "g = np.array([24.1, 21.3, 20.6, 22.3, 18.9, 19.9, 21.2, 19.0, 20.9, 24.5])  # Tamaños de producto."
+      ],
+      "id": "73467b80",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Concatenamos toda esta información en un único arreglo.\n",
+        "T = np.vstack([t, p, g]).T\n",
+        "print(T)"
+      ],
+      "id": "73bc450d",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Para aplicar la transformación previamente definida, calculamos la media y la desviación estándar por columnas. Estas operaciones son ejemplos de lo que, en **<font color='darkmagenta'>Numpy</font>**, se conoce como operaciones de agregación, pues resumen información a lo largo de un eje determinado. Como la estandarización se realiza columna a columna, ambos cálculos deben efectuarse conforme el eje 0:"
+      ],
+      "id": "e0f59cb2"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Estandarización por columnas.\n",
+        "Z = (T - T.mean(axis=0)) / T.std(axis=0)\n",
+        "print(Z)"
+      ],
+      "id": "186b67c2",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Nuestro arreglo `Z` estandarizado tiene media aproximadamente nula y desviación estándar unitaria. En efecto,"
+      ],
+      "id": "27f9ddcd"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Media del arreglo Z: aproximadamente nula.\n",
+        "Z.mean(axis=0)"
+      ],
+      "id": "691555c3",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Desviación estándar del arreglo Z: unitaria.\n",
+        "Z.std(axis=0)"
+      ],
+      "id": "79586f84",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Este ejemplo es muy importante porque muestra una de las grandes virtudes del broadcasting: nos permite aplicar una operación columna a columna sobre todo un arreglo sin necesidad de iterar manualmente sobre cada variable. ◼︎\n",
+        "\n",
+        "## Operaciones de agregación\n",
+        "\n",
+        "Los ejemplos que hemos visto hasta ahora han involucrado arreglos relativamente pequeños. Sin embargo, las ideas revisadas aplican igualmente a arreglos de gran tamaño. En particular, muchas operaciones en **<font color='darkmagenta'>Numpy</font>** pueden realizarse conforme un cierto eje del arreglo por medio del argumento `axis`, obteniendo resultados agregados por filas, columnas, sub-arreglos, etc. Toda operación que resume información a lo largo de un eje se denomina **operación de agregación**.\n",
+        "\n",
+        "Veremos algunos ejemplos de este tipo de operaciones.\n",
+        "\n",
+        "**Ejemplo 3.6 – Sumas y productos agregados:** Los métodos `sum()` y `prod()` permiten sumar o multiplicar elementos de un arreglo. Cuando los aplicamos sin argumentos, el resultado considera a todos los elementos del arreglo. Pero también podemos utilizarlos para obtener sumas o productos conforme un determinado eje:"
+      ],
+      "id": "2b71cd4f"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Definición de un arreglo bidimensional `A`.\n",
+        "rng = np.random.default_rng(8)\n",
+        "A = rng.integers(low=1, high=10, size=(5, 10))\n",
+        "\n",
+        "# Mostramos este arreglo en pantalla.\n",
+        "print(A)"
+      ],
+      "id": "d78d8b64",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Suma por filas.\n",
+        "A.sum(axis=1)"
+      ],
+      "id": "5f083dfc",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Suma por columnas.\n",
+        "A.sum(axis=0)"
+      ],
+      "id": "f5e8d8b8",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Producto por filas.\n",
+        "A.prod(axis=1)"
+      ],
+      "id": "a0a6e6fe",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Producto por columnas.\n",
+        "A.prod(axis=0)"
+      ],
+      "id": "c195dfac",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "◼︎\n",
+        "\n",
+        "**Ejemplo 3.7 – Sumas acumuladas en arreglos:** Una operación muy utilizada en análisis de datos corresponde a la suma acumulada de valores a lo largo de una secuencia. En **<font color='darkmagenta'>Numpy</font>**, esto puede conseguirse fácilmente mediante el método `cumsum()`, el cual también es una operación de agregación:"
+      ],
+      "id": "3f09faa8"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Suma acumulada en la dirección de las filas (eje 1).\n",
+        "A.cumsum(axis=1)"
+      ],
+      "id": "df71ab0a",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Suma acumulada en la dirección de las columnas (eje 0).\n",
+        "A.cumsum(axis=0)"
+      ],
+      "id": "73369905",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "◼︎\n",
+        "\n",
+        "**Ejemplo 3.8 – Media y desviación estándar:** En el ejemplo previo de estandarización ya revisamos cómo calcular medias y desviaciones estándar de manera agregada, pero conviene explicitarlo nuevamente:"
+      ],
+      "id": "3117e71e"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Media por filas.\n",
+        "A.mean(axis=1)"
+      ],
+      "id": "c3b7aab3",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Desviación estándar por columnas.\n",
+        "A.std(axis=0)"
+      ],
+      "id": "c6d8f82f",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Coeficiente de variación por columnas.\n",
+        "A.std(axis=0) / A.mean(axis=0)"
+      ],
+      "id": "d9517040",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "◼︎\n",
+        "\n",
+        "**Ejemplo 3.9 – Valores máximos y mínimos:** Otra operación muy utilizada en análisis de datos corresponde a la determinación de valores máximos y mínimos en un arreglo, ya sea a nivel global o conforme un eje. Las funciones que permiten determinar estos valores son `np.max()` y `np.min()`, respectivamente:"
+      ],
+      "id": "ca32ff4c"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Valor máximo por columnas.\n",
+        "A.max(axis=0)"
+      ],
+      "id": "85b4a401",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Valor mínimo por filas.\n",
+        "A.min(axis=1)"
+      ],
+      "id": "3d863899",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Con frecuencia, además, nos interesa conocer las posiciones relativas de dichos valores. Para ello, podemos usar las funciones `np.argmax()` y `np.argmin()`, que también permiten obtener resultados agregados:"
+      ],
+      "id": "7c882e89"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Posiciones asociadas al elemento que es el máximo valor por columnas de A.\n",
+        "A.argmax(axis=0)"
+      ],
+      "id": "3b060f90",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Posiciones asociadas al elemento que es el mínimo valor por filas de A.\n",
+        "A.argmin(axis=1)"
+      ],
+      "id": "ddb82279",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "**<font color='darkmagenta'>Numpy</font>** nos provee de muchas otras funciones de agregación, aunque no las discutiremos en detalle aquí. Adicionalmente, la mayoría de estas funciones tiene versiones que permiten operar en arreglos que contengan `NaN`s, recordando que `np.nan` representa un valor no numérico.\n",
+        "\n",
+        "Además, muchos de los métodos revisados en esta sección tienen su versión como `ufunc`. Algunos ejemplos se observan en la @tbl-aggfuncs.\n",
+        "\n",
+        ": Algunas funciones de agregación en **<font color='darkmagenta'>Numpy</font>** {#tbl-aggfuncs}\n",
+        "\n",
+        "| Función         | Versión a prueba de `nan` | Descripción                                                  |\n",
+        "| --------------- | ------------------------- | ------------------------------------------------------------ |\n",
+        "| `np.sum()`      | `np.nansum()`             | Calcula la suma de los elementos respectivos.                |\n",
+        "| `np.prod()`     | `np.nanprod()`            | Calcula el producto de los elementos respectivos.            |\n",
+        "| `np.mean()`     | `np.nanmean()`            | Calcula la media de los elementos respectivos.               |\n",
+        "| `np.std()`      | `np.nanstd()`             | Calcula la desviación estándar de los elementos respectivos. |\n",
+        "| `np.var()`      | `np.nanvar()`             | Calcula la varianza de los elementos respectivos.            |\n",
+        "| `np.min()`      | `np.nanmin()`             | Halla el valor mínimo.                                       |\n",
+        "| `np.max()`      | `np.nanmax()`             | Halla el valor máximo.                                       |\n",
+        "| `np.argmin()`   | `np.nanargmin()`          | Halla la posición del valor mínimo.                          |\n",
+        "| `np.argmax()`   | `np.nanargmax()`          | Halla la posición del valor máximo.                          |\n",
+        "| `np.median()`   | `np.nanmedian()`          | Calcula la mediana de los elementos respectivos.             |\n",
+        "\n",
+        "## Comentarios finales\n",
+        "\n",
+        "En este apunte introdujimos dos ideas que resultan esenciales para trabajar cómodamente con arreglos en **<font color='darkmagenta'>Numpy</font>**. La primera fue el broadcasting, que nos permite extender cálculos componente a componente sobre arreglos de distinta geometría sin necesidad de construir manualmente copias compatibles. La segunda fue el estudio de varias operaciones de agregación, que permiten resumir información a lo largo de ejes específicos de un arreglo.\n",
+        "\n",
+        "Conviene insistir en que el broadcasting no es sólo una curiosidad técnica, sino un verdadero principio de diseño dentro de **<font color='darkmagenta'>Numpy</font>**. Gracias a él, muchas operaciones que intuitivamente pensaríamos como repeticiones, empates de forma o expansiones de arreglos pueden escribirse con una sintaxis extremadamente compacta. Esto permite que el código sea más expresivo y, al mismo tiempo, más eficiente.\n",
+        "\n",
+        "Por otro lado, las operaciones de agregación nos muestran que trabajar con arreglos no consiste únicamente en transformarlos, sino también en resumirlos. Calcular sumas, productos, medias, desviaciones estándar, máximos, mínimos o posiciones extremas conforme distintos ejes forma parte del vocabulario mínimo del análisis numérico y del análisis de datos en Python.\n",
+        "\n",
+        "En conjunto, broadcasting y agregación comienzan a mostrar una idea más amplia: un arreglo no es solamente una estructura donde almacenamos números, sino una organización geométrica de datos sobre la cual podemos extender y resumir cálculos con enorme flexibilidad. Esa forma de pensar será decisiva en todo lo que sigue.\n",
+        "\n",
+        "En el próximo apunte profundizaremos justamente en operaciones que dependen de esta intuición geométrica: Comparación entre arreglos, máscaras Booleanas, reemplazo de valores, *fancy indexing* y ordenamiento. Allí veremos cómo seleccionar, filtrar y reorganizar información de manera más fina, dando un paso adicional hacia el tipo de manipulación que aparece naturalmente en tareas reales de análisis de datos."
+      ],
+      "id": "bb787410"
+    }
+  ],
+  "metadata": {
+    "kernelspec": {
+      "name": "python3",
+      "language": "python",
+      "display_name": "Python 3 (ipykernel)",
+      "path": "/Users/fquezadac/.local/share/virtualenvs/nerdyminer.github.io-TiwzloiM/share/jupyter/kernels/python3"
+    }
+  },
+  "nbformat": 4,
+  "nbformat_minor": 5
+}

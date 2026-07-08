@@ -1,0 +1,939 @@
+{
+  "cells": [
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "---\n",
+        "title: \"Operatoria en **<font color='darkmagenta'>Numpy</font>**\"\n",
+        "subtitle: \"Cómo operar con arreglos y las reglas que siguen esas operaciones\"\n",
+        "section_href: \"/clases/data-analytics/introduccion-al-analisis-de-datos-en-python/computacion-vectorizada-y-arreglos-con-numpy/\"\n",
+        "toc: true\n",
+        "toc-depth: 3\n",
+        "page-layout: article\n",
+        "number-offset: 2\n",
+        "---\n",
+        "\n",
+        "::: {.callout-important}\n",
+        "## Idea central\n",
+        "\n",
+        "En este apunte comenzaremos a ver por qué **<font color='darkmagenta'>Numpy</font>** es mucho más que una librería para almacenar arreglos: es una herramienta diseñada para operar con ellos de manera vectorizada, eficiente y matemáticamente coherente. A partir de las funciones universales o `ufuncs`, estudiaremos cómo las operaciones aritméticas sobre arreglos pueden interpretarse en términos de objetos clásicos del álgebra lineal, distinguiendo con cuidado entre operaciones componente a componente, productos matriciales y productos internos. Esta distinción será fundamental para desarrollar intuición computacional y evitar errores frecuentes al trabajar con datos numéricos en Python.\n",
+        ":::\n",
+        "\n",
+        "## Una observación acerca de los tiempos de ejecución\n",
+        "\n",
+        "Hasta ahora, hemos estado discutiendo algunos de los conceptos más elementales de **<font color='darkmagenta'>Numpy</font>**; en las próximas secciones de este módulo, revisaremos algunas de las razones por las cuales **<font color='darkmagenta'>Numpy</font>** es tan importante en el mundo de la ciencia de datos con Python. A saber, nos provee de una interfaz sencilla y flexible para la computación optimizada con arreglos de datos.\n",
+        "\n",
+        "Los cálculos con arreglos de **<font color='darkmagenta'>Numpy</font>** pueden ser extremadamente rápidos, o bien, muy lentos. La clave para hacerlos rápidos yace en la utilización de **operaciones vectorizadas** que, en general, se implementan mediante las llamadas funciones universales de **<font color='darkmagenta'>Numpy</font>**, conocidas en la práctica como `ufuncs`. Procederemos a motivar la necesidad por el uso de las `ufuncs`, las cuales pueden ser utilizadas para la realización de cálculos repetitivos sobre los elementos de un arreglo de manera mucho más eficiente. A partir de dicha motivación, introduciremos muchas de las `ufuncs` más comunes de **<font color='darkmagenta'>Numpy</font>**.\n",
+        "\n",
+        "La implementación estándar de Python, conocida como *CPython*, realiza algunas operaciones muy lentamente. Esto es, en parte, debido a la naturaleza interpretativa y dinámica de Python. La flexibilidad de los tipos provoca que Python infiera nuestros datos sin necesidad de que los declaremos, pero también hace que dichos datos tengan mayor complejidad, lo que implica que, cuando hacemos cálculos repetitivos con ellos (por ejemplo, en bucles), esa lentitud se manifieste de manera significativa. Por ejemplo:"
+      ],
+      "id": "6b484603"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "import numpy as np"
+      ],
+      "id": "6353b557",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Construimos una función que nos permite calcular las potencias\n",
+        "# negativas de 2 conforme los exponentes que se listan en un arreglo.\n",
+        "def compute_neg_exp(values):\n",
+        "\n",
+        "    # Inicializamos el output de nuestro cálculo mediante un arreglo\n",
+        "    # vacío.\n",
+        "    output = np.empty(len(values))\n",
+        "\n",
+        "    # Hacemos el cálculo mediante un bucle sencillo.\n",
+        "    for i in range(len(values)):\n",
+        "        output[i] = 2**(-values[i])\n",
+        "\n",
+        "    return output"
+      ],
+      "id": "481a4353",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Fijamos un generador de números aleatorios.\n",
+        "rng = np.random.default_rng(seed=7)\n",
+        "\n",
+        "# Definimos un arreglo unidimensional para almacenar los exponentes\n",
+        "# que queremos evaluar.\n",
+        "values = rng.normal(loc=5, scale=2, size=5)"
+      ],
+      "id": "71caa8b4",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "La implementación anterior no parece tener ningún problema. Pero si medimos el **tiempo de ejecución** de este código para un *input* muy grande, veremos que esta operación se ejecuta de manera muy lenta… ¡Quizás demasiado lenta! Mediremos dicho tiempo de ejecución mediante el uso de un código mágico de **<font color='darkmagenta'>IPython</font>** denominado `%timeit`:"
+      ],
+      "id": "0840e5da"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Construimos un arreglo de un millón de filas para testear el tiempo de ejecución de nuestra función.\n",
+        "huge_array = rng.normal(loc=5, scale=2, size=1000000)"
+      ],
+      "id": "aca73eb9",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Medimos el tiempo de ejecución de la función que construimos sobre este arreglo.\n",
+        "%timeit compute_neg_exp(huge_array)"
+      ],
+      "id": "dca5dda1",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "¡Toma varios milisegundos calcular estas operaciones y almacenar el resultado! En un mundo en el cual incluso los celulares tienen velocidades de procesamiento de información medidas en Giga-FLOPS (es decir, miles de millones de cálculos por segundo), esto parece ser ridículamente lento. Sucede que el cuello de botella aquí no son las operaciones propiamente tales, sino el chequeo de los tipos de datos subyacentes y los despachos de funciones que realiza CPython en cada ciclo del bucle. Cada vez que se calcula uno de estos valores, Python primero examina el tipo de dato que caracteriza al objeto respectivo y realiza un chequeo dinámico de la función correcta que debe usarse para ese tipo de dato.\n",
+        "\n",
+        "Es por eso que, a fin de ser capaces de asegurar que nuestros cálculos, basados en arreglos de **<font color='darkmagenta'>Numpy</font>**, tengan un tiempo de ejecución razonable, tenemos que conocer cómo operar con tales arreglos mediante operaciones especialmente construidas para trabajar con ellos.\n",
+        "\n",
+        "## Funciones universales\n",
+        "\n",
+        "Para muchos tipos de operaciones, **<font color='darkmagenta'>Numpy</font>** nos provee de una conveniente interfaz en este tipo de rutinas, de manera similar a lo que se lograría mediante un código ya compilado. Aquello se conoce como **operación vectorizada**. Podemos lograr esto simplemente realizando una operación sobre el arreglo, la cual luego será aplicada a cada elemento del mismo. Este enfoque vectorizado está diseñado para forzar a cualquier bucle a trabajar más rápido aprovechando las bondades de **<font color='darkmagenta'>Numpy</font>**, logrando así una ejecución más efectiva.\n",
+        "\n",
+        "Comparemos los tiempos de ejecución de la operación definida por nuestra función `compute_neg_exp()`, que trabaja mediante un bucle, y la misma operación aplicada directamente sobre nuestro arreglo gigante (`huge_array`):"
+      ],
+      "id": "ff887855"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "%timeit 2**(-huge_array)"
+      ],
+      "id": "0c8af5b8",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Vemos que la operación anterior, aplicada directamente sobre el arreglo `huge_array`, se ejecuta muchísimo más rápido que en el caso de la función `compute_neg_exp()`. La razón es que **<font color='darkmagenta'>Numpy</font>** logra ejecutar esta operación a través de rutinas optimizadas para arreglos, evitando buena parte del costo asociado al bucle explícito en Python.\n",
+        "\n",
+        "Las operaciones vectorizadas en **<font color='darkmagenta'>Numpy</font>** se implementan mediante el uso de funciones universales (comúnmente abreviadas como `ufuncs`, del inglés *universal functions*), cuyo gran propósito es ejecutar rápidamente operaciones repetitivas sobre los elementos que conforman un arreglo de **<font color='darkmagenta'>Numpy</font>**. Las `ufuncs` son extremadamente flexibles; recién vimos una operación entre un arreglo y un escalar, pero también podemos operar sobre dos arreglos:"
+      ],
+      "id": "78cf02b6"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "np.linspace(start=1, stop=10, num=10) / np.linspace(start=11, stop=20, num=10)"
+      ],
+      "id": "9568de89",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "El código anterior muestra la operación aritmética de división entre arreglos. Sin embargo, antes de proceder, es buena idea revisar cómo se opera aritméticamente con estas estructuras de datos, a fin de tener muy claro, en términos matemáticos, qué es lo que estamos haciendo. Esto es importante, puesto que partimos este estudio hablando de cómo los arreglos pueden ser utilizados para representar objetos matemáticos típicos del álgebra lineal, tales como vectores, matrices y tensores. Y si bien hay operaciones tales como la suma de arreglos, que es exactamente la misma suma definida sobre tales objetos matemáticos, otras operaciones no tienen una equivalencia necesariamente obvia.\n",
+        "\n",
+        "### Aritmética de arreglos\n",
+        "\n",
+        "En el contexto del álgebra lineal, existe un tipo de estructura de gran importancia conocida como **espacio vectorial**, la cual puede crearse a partir de un conjunto no vacío (cuyos elementos son llamados vectores), una operación interna (llamada suma, definida para los elementos del conjunto) y una operación externa (llamada producto por un escalar, definida entre dicho conjunto y otro conjunto, con estructura de cuerpo, como podrían ser los conjuntos $\\mathbb{R}$ o $\\mathbb{C}$) que satisface varias propiedades fundamentales. Tales propiedades se resumen en un conjunto de reglas que permiten darle sentido a las operaciones previamente mencionadas.\n",
+        "\n",
+        "En la asignatura de álgebra lineal, aprendimos que tanto los vectores en $\\mathbb{R}^n$ como las matrices (que se representan como $\\mathbb{R}^{m\\times n}$, para el caso de matrices con $m$ filas y $n$ columnas) conforman una estructura de espacio vectorial. La operación interna que define dicha estructura en ambos casos corresponde a la suma (de vectores o matrices). Sean $\\mathbf{a}=(a_{1},...,a_{m})$ y $\\mathbf{b}=(b_{1},...,b_{m})$ dos vectores en $\\mathbb{R}^{m}$. La suma de estos vectores es otro vector, que denotamos como $\\mathbf{a}+\\mathbf{b}$, y que se define como\n",
+        "\n",
+        "::: {.eq-scroll}\n",
+        "$$\n",
+        "\\mathbf{a}+\\mathbf{b}=(a_{1}+b_{1},...,a_{m}+b_{m})\\in \\mathbb{R}^{m}\n",
+        "\\tag{2.1}\n",
+        "$$\n",
+        ":::\n",
+        "\n",
+        "Es decir, para sumar dos vectores, estos deben ser de la misma dimensión, y la suma resultará en otro vector cuyos elementos serán iguales a la suma de los elementos de cada uno de los vectores originales, posición a posición. Esto también se cumple para el caso de las matrices en $\\mathbb{R}^{m\\times n}$; es decir, si $\\mathbf{A} =\\left\\{a_{ij}\\right\\}$ y $\\mathbf{B} =\\left\\{b_{ij}\\right\\}$ son matrices en $\\mathbb{R}^{m\\times n}$, la suma $\\mathbf{A}+\\mathbf{B}$ se definirá como\n",
+        "\n",
+        "::: {.eq-scroll}\n",
+        "$$\n",
+        "\\mathbf{A} +\\mathbf{B} =\\left\\{ a_{ij}+b_{ij}\\right\\}  =\\left( \\begin{matrix}a_{11}+b_{11}&\\cdots &a_{1n}+b_{1n}\\\\ \\vdots &\\ddots &\\vdots \\\\ a_{m1}+b_{m1}&\\cdots &a_{mn}+b_{mn}\\end{matrix} \\right)  \\in \\mathbb{R}^{m\\times n}\n",
+        "\\tag{2.2}\n",
+        "$$\n",
+        ":::\n",
+        "\n",
+        "La suma así definida es exactamente la misma suma que opera sobre arreglos en **<font color='darkmagenta'>Numpy</font>**. Por ejemplo, si definimos los arreglos:"
+      ],
+      "id": "2956b822"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Dos arreglos unidimensionales (símiles a vectores).\n",
+        "a = np.array([0, -1, 8, -2, 5])\n",
+        "b = np.array([-6, -9, 0, 1, -2])\n",
+        "\n",
+        "# Dos arreglos bidimensionales (similares a matrices).\n",
+        "A = np.array([\n",
+        "    [-1, 0, 1, 5, 2, 6],\n",
+        "    [-4, 0, 0, 4, -1, 0],\n",
+        "    [-8, -1, 3, 0, -2, 1],\n",
+        "    [0, -1, -1, 4, -2, 1],\n",
+        "])\n",
+        "B = np.array([\n",
+        "    [-2, -2, 0, 6, 1, -1],\n",
+        "    [0, -1, 8, -6, -8, 0],\n",
+        "    [9, 1, -7, 6, 1, -9],\n",
+        "    [0, -4, 4, 0, 0, -5],\n",
+        "])"
+      ],
+      "id": "37d0e6e2",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# La suma a + b resulta en un arreglo también 1D, cuyos\n",
+        "# elementos son las sumas de los correspondientes\n",
+        "# elementos de a y b.\n",
+        "a + b"
+      ],
+      "id": "f458cec6",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# La suma A + B resulta en un arreglo también 2D, cuyos\n",
+        "# elementos son las sumas de los correspondientes\n",
+        "# elementos de A y B.\n",
+        "A + B"
+      ],
+      "id": "7541a008",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "La resta, que en términos algebraicos no es más que un caso particular de la suma, también es una operación interna que trabaja de la misma forma sobre los correspondientes arreglos:"
+      ],
+      "id": "b18ae813"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# La resta a - b.\n",
+        "a - b"
+      ],
+      "id": "b8253606",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# La resta A - B.\n",
+        "A - B"
+      ],
+      "id": "73699be8",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Veamos ahora el caso del producto por un escalar.\n",
+        "\n",
+        "En estricto rigor, un escalar no es más que un valor que pertenece ya sea a $\\mathbb{R}$ o $\\mathbb{C}$, según sea el caso. En términos de **<font color='darkmagenta'>Numpy</font>**, los escalares son simplemente los números que pueden constituir los elementos de un arreglo respectivo. Desde la perspectiva algebraica, el producto de un vector por un escalar puede definirse como sigue: sea $\\mathbf{a}=(a_{1},...,a_{m})\\in \\mathbb{R}^{m}$ un vector y $\\lambda \\in \\mathbb{R}$ un escalar. Entonces el producto del vector $\\mathbf{a}$ por el escalar $\\lambda$ es también un vector, denotado como $\\lambda \\mathbf{a}$, y que se define como\n",
+        "\n",
+        "::: {.eq-scroll}\n",
+        "$$\n",
+        "\\lambda \\mathbf{a}=(\\lambda a_{1},...,\\lambda a_{m})\\in \\mathbb{R}^{m}\n",
+        "\\tag{2.3}\n",
+        "$$\n",
+        ":::\n",
+        "\n",
+        "Esta operación se define de manera completamente análoga para el caso de las matrices. Es decir, para la matriz $\\mathbf{A} =\\left\\{ a_{ij}\\right\\}  \\in \\mathbb{R}^{m\\times n}$, el producto entre el escalar $\\lambda$ y dicha matriz, denotado como $\\lambda \\mathbf{A}$, es también una matriz, y se calcula como\n",
+        "\n",
+        "::: {.eq-scroll}\n",
+        "$$\n",
+        "\\lambda \\mathbf{A} =\\left\\{ \\lambda a_{ij}\\right\\}  =\\left( \\begin{matrix}\\lambda a_{11}&\\cdots &\\lambda a_{1n}\\\\ \\vdots &\\ddots &\\vdots \\\\ \\lambda a_{m1}&\\cdots &\\lambda a_{mn}\\end{matrix} \\right)  \\in \\mathbb{R}^{m\\times n}\n",
+        "\\tag{2.4}\n",
+        "$$\n",
+        ":::\n",
+        "\n",
+        "Para el caso de los arreglos de **<font color='darkmagenta'>Numpy</font>**, la replicación de esta operación externa es igual de sencilla que en el caso de la suma:"
+      ],
+      "id": "3a24bba0"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Un escalar con un valor igual a 2.\n",
+        "lam = 2\n",
+        "\n",
+        "# Multiplicación de un arreglo unidimensional por este escalar.\n",
+        "lam * a"
+      ],
+      "id": "31ed217a",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Multiplicación de un arreglo bidimensional por este escalar.\n",
+        "lam * A"
+      ],
+      "id": "75841cda",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Vemos pues que las operaciones de suma y producto por un escalar siguen exactamente la misma lógica cuando representamos vectores y matrices mediante arreglos unidimensionales y bidimensionales, respectivamente.\n",
+        "\n",
+        "Sin embargo, existen otras operaciones que no resultan obvias en su ejecución cuando homologamos este tipo de objetos matemáticos a arreglos, y es muy buena idea detenernos a explicarlas a fin de evitar cualquier tipo de confusión. En **<font color='darkmagenta'>Numpy</font>**, las cuatro operaciones básicas de la aritmética (digamos, suma, resta, multiplicación y división) siguen la misma lógica que la suma (vista como una operación interna) definida previamente. Es decir, siempre operan componente a componente. De esta manera, para el caso de los arreglos bidimensionales `A` y `B` que construimos previamente, la multiplicación `A * B` también da como resultado un arreglo, ya que:"
+      ],
+      "id": "c24bab2d"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# La multiplicación directa de arreglos bidimensionales en Numpy\n",
+        "# trabaja como una operación interna: componente a componente.\n",
+        "A * B"
+      ],
+      "id": "8c33b4b2",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Esto también se cumple para el caso de los arreglos unidimensionales:"
+      ],
+      "id": "1c1e04ff"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# La multiplicación directa de arreglos unidimensionales en Numpy\n",
+        "# también es componente a componente.\n",
+        "a * b"
+      ],
+      "id": "afcb20b7",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "La división también trabaja exactamente igual:"
+      ],
+      "id": "d7a16af8"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# La división de arreglos bidimensionales también trabaja componente a componente.\n",
+        "A / B"
+      ],
+      "id": "fd41976a",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Mismo caso para los arreglos unidimensionales.\n",
+        "a / b"
+      ],
+      "id": "8b7eecf0",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Los arreglos resultantes de una división como la anterior pueden tener elementos indeterminados (`nan`) o con una magnitud demasiado grande (`inf`). Esto es porque, como cabría esperar, la división así definida requiere que los elementos del arreglo divisor sean todos distintos de cero. Esa es la razón por la cual **<font color='darkmagenta'>Numpy</font>** nos da el aviso mediante un `RuntimeWarning`.\n",
+        "\n",
+        "Es justo preguntarnos si esta forma de multiplicar existe formalmente en el área del álgebra lineal. Y resulta que, en efecto, esta operación sí está bien definida. Para todo par de matrices $\\mathbf{A} =\\left\\{ a_{ij}\\right\\}$ y $\\mathbf{B} =\\left\\{b_{ij}\\right\\}$ en $\\mathbb{R}^{m\\times n}$, se define el **producto de Hadamard**, denotado como $\\mathbf{A} \\odot \\mathbf{B}$, como la matriz cuyos elementos son las multiplicaciones, posición a posición, de los elementos originales de las matrices $\\mathbf{A}$ y $\\mathbf{B}$. Es decir,\n",
+        "\n",
+        "::: {.eq-scroll}\n",
+        "$$\n",
+        "\\mathbf{A} \\odot \\mathbf{B} =\\left\\{ a_{ij}b_{ij}\\right\\}  =\\left( \\begin{matrix}a_{11}b_{11}&\\cdots &a_{1n}b_{1n}\\\\ \\vdots &\\ddots &\\vdots \\\\ a_{m1}b_{m1}&\\cdots &a_{mn}b_{mn}\\end{matrix} \\right)  \\in \\mathbb{R}^{m\\times n}\n",
+        "\\tag{2.5}\n",
+        "$$\n",
+        ":::\n",
+        "\n",
+        "Por lo tanto, la operación de multiplicación `A * B` que está implementada en **<font color='darkmagenta'>Numpy</font>** para los arreglos `A` y `B` es, indudablemente, el producto de Hadamard. De hecho, la división `A / B` es un caso particular de este producto, donde la multiplicación se aplica sobre los recíprocos de la matriz `B`. Si volvemos al contexto del álgebra lineal, podemos observar que el producto de matrices es muy diferente del producto de Hadamard. Al respecto, sean las matrices $\\mathbf{A} =\\left\\{ a_{ij}\\right\\}\\in \\mathbb{R}^{m\\times n}$ y $\\mathbf{B} =\\left\\{ b_{ij}\\right\\}\\in \\mathbb{R}^{n\\times k}$. Los elementos $\\left\\{ c_{ij}\\right\\}$ de la matriz producto $\\mathbf{A} \\mathbf{B} \\in \\mathbb{R}^{m\\times k}$ se definen mediante la fórmula siguiente:\n",
+        "\n",
+        "::: {.eq-scroll}\n",
+        "$$\n",
+        "c_{ij}={\\displaystyle \\sum^{n}_{s=1} a_{is}b_{sj}}\\  ;\\  i=1,...,m\\  \\wedge \\  j=1,...,k\n",
+        "\\tag{2.6}\n",
+        "$$\n",
+        ":::\n",
+        "\n",
+        "Por lo tanto, para computar el elemento $c_{ij}$ de la matriz $\\mathbf{C}=\\mathbf{A} \\mathbf{B}$, multiplicamos los elementos de la i-ésima fila de $\\mathbf{A}$ con la j-ésima columna de $\\mathbf{B}$, y luego los sumamos. Esto pone de manifiesto que las matrices $\\mathbf{A}$ y $\\mathbf{B}$ deben cumplir con ser compatibles para la multiplicación matricial así definida. Por ejemplo, una matriz $\\mathbf{A}$ de $n\\times k$ puede ser multiplicada por otra matriz $\\mathbf{B}$ de $k\\times m$, pero solamente de izquierda a derecha:\n",
+        "\n",
+        "::: {.eq-scroll}\n",
+        "$$\n",
+        "\\underbrace{\\mathbf{A} }_{n\\times k} \\  \\underbrace{\\mathbf{B} }_{k\\times m} =\\underbrace{\\mathbf{C} }_{n\\times m}\n",
+        "\\tag{2.7}\n",
+        "$$\n",
+        ":::\n",
+        "\n",
+        "El producto $\\mathbf{B} \\mathbf{A}$ no está definido si $n\\neq m$, ya que las dimensiones respectivas no son compatibles.\n",
+        "\n",
+        "Este producto también puede implementarse en **<font color='darkmagenta'>Numpy</font>**. La función encargada de hacerlo es `np.matmul()`, la cual toma como argumentos dos arreglos que nos interesa multiplicar, siempre que éstos sean compatibles para esta operación. Ejemplifiquemos esto mediante la definición de dos nuevas matrices `A` y `B`, definidas como:"
+      ],
+      "id": "3f24880a"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Definimos los arreglos A y B.\n",
+        "A = np.array([\n",
+        "    [1, 2, 3],\n",
+        "    [3, 2, 1]\n",
+        "])\n",
+        "B = np.array([\n",
+        "    [0, 2],\n",
+        "    [1, -1],\n",
+        "    [0, 1]\n",
+        "])"
+      ],
+      "id": "5545ba60",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# La multiplicación matricial de ambos arreglos se realiza mediante la\n",
+        "# función np.matmul().\n",
+        "np.matmul(A, B)"
+      ],
+      "id": "c02a9ab6",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# En este caso, ambos arreglos son compatibles para ser multiplicados\n",
+        "# en ambos sentidos.\n",
+        "np.matmul(B, A)"
+      ],
+      "id": "991fd4e5",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "La multiplicación matricial, como podemos observar, no es una operación conmutativa. Por lo tanto, no cumple con ser una operación interna válida para poder construir un espacio vectorial. En **<font color='darkmagenta'>Numpy</font>**, el operador rápido para la implementación de este producto corresponde a `@`. De esta manera, en vez de utilizar la función `np.matmul()`, podemos simplemente escribir:"
+      ],
+      "id": "46c0f60c"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# El operador @ permite multiplicar matricialmente nuestros arreglos.\n",
+        "A @ B"
+      ],
+      "id": "4d11da9d",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# ... y funciona en ambos sentidos.\n",
+        "B @ A"
+      ],
+      "id": "e35edc8d",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Volvamos a la operación de producto y consideremos ahora arreglos unidimensionales. Debido a que éstos pueden ser usados para representar vectores, es evidente que el producto definido en primera instancia (`a * b`, en nuestro ejemplo) es también un producto de Hadamard (componente a componente). Sin embargo, como en el caso de las matrices, es probable que recordemos que el concepto de producto visto en nuestros cursos de Cálculo (e incluso de Física) es muy diferente.\n",
+        "\n",
+        "Partamos con el concepto de **producto interno** (o producto punto o escalar) de vectores. Para todo par de vectores $\\mathbf{a}, \\mathbf{b}\\in \\mathbb{R}^{n}$, tales que $\\mathbf{a}=(a_{1},...,a_{n})$ y $\\mathbf{b}=(b_{1},...,b_{n})$, se define el producto interno $\\mathbf{a} \\cdot \\mathbf{b}$ como\n",
+        "\n",
+        "::: {.eq-scroll}\n",
+        "$$\n",
+        "\\mathbf{a} \\cdot \\mathbf{b} =a_{1}b_{1}+\\cdots +a_{n}b_{n}={\\displaystyle \\sum^{n}_{i=1} a_{i}b_{i}}\\in \\mathbb{R}\n",
+        "\\tag{2.8}\n",
+        "$$\n",
+        ":::\n",
+        "\n",
+        "Es decir, el producto interno $\\mathbf{a} \\cdot \\mathbf{b}$ de los vectores $\\mathbf{a}$ y $\\mathbf{b}$ da como resultado un escalar.\n",
+        "\n",
+        "La implementación de este producto interno en **<font color='darkmagenta'>Numpy</font>** se realiza por medio de la función `np.dot()`. De esta manera, para el caso de los arreglos unidimensionales `a` y `b` definidos previamente, tendremos que su producto interno puede calcularse como:"
+      ],
+      "id": "fa3ca558"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# El producto interno entre los arreglos unidimensionales a y b se calcula de la siguiente manera.\n",
+        "np.dot(a, b)"
+      ],
+      "id": "077b365e",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Notemos que, en efecto, el resultado anterior es un escalar.\n",
+        "\n",
+        "Si los argumentos de la función `np.dot()` son arreglos bidimensionales, el resultado de la misma será el producto matricial equivalente al que obtendríamos por medio del uso de la función `np.matmul()`. Esto podemos chequearlo rápidamente mediante la función `np.allclose()`, la cual evalúa el resultado de dos operaciones y devuelve el valor Booleano `True` cuando tales resultados son iguales:"
+      ],
+      "id": "343da970"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# np.dot() y np.matmul() son equivalentes cuando usamos arreglos bidimensionales.\n",
+        "np.allclose(np.dot(A, B), np.matmul(A, B))"
+      ],
+      "id": "fbdb98d3",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Ahondaremos más en operaciones propias del álgebra lineal más adelante.\n",
+        "\n",
+        "Resumiendo las consideraciones previamente establecidas, las `ufuncs` de **<font color='darkmagenta'>Numpy</font>** se sienten muy naturales de utilizar debido a que hacen uso de los operadores aritméticos nativos de Python. Las operaciones aritméticas de adición, sustracción, multiplicación y división, por tanto, pueden expresarse como sigue:"
+      ],
+      "id": "1366aec2"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Construimos el arreglo x.\n",
+        "x = np.array([-1, 0, 9, 5, -4, 5])"
+      ],
+      "id": "497d9312",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Las operaciones aritméticas en Numpy son, en resumen, muy intuitivas.\n",
+        "print(\"x =\", x)\n",
+        "print(\"x + 5 =\", x + 5)\n",
+        "print(\"x - 5 =\", x - 5)\n",
+        "print(\"x * 2 =\", x * 2)\n",
+        "print(\"x / 2 =\", x / 2)\n",
+        "print(\"x // 2 =\", x // 2)"
+      ],
+      "id": "bb5af077",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "También existe una `ufunc` unaria para la negación, un operador `**` para la exponenciación, y un operador `%` para el cálculo de restos de divisiones (módulos):"
+      ],
+      "id": "92f7a4c4"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Operaciones de negación, exponenciación y módulo.\n",
+        "print(\"-x =\", -x)\n",
+        "print(\"x ** 2 =\", x ** 2)\n",
+        "print(\"x % 2 =\", x % 2)"
+      ],
+      "id": "8759910f",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "En adición, estas `ufuncs` pueden mezclarse como sea que deseemos, teniendo en consideración siempre que las operaciones respetarán la jerarquía de las operaciones aritméticas:"
+      ],
+      "id": "e42be204"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "-(0.5*x + 1) ** 2"
+      ],
+      "id": "7ea72ecd",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "### Valor absoluto y norma\n",
+        "\n",
+        "Estamos familiarizados con el concepto de valor absoluto, el cual, para el caso de los números reales, corresponde a la distancia absoluta a la cual éstos se emplazan en la recta real respecto del origen de dicha recta (el número 0). Por lo tanto, para todo número real $x$ se define la función valor absoluto como\n",
+        "\n",
+        "::: {.eq-scroll}\n",
+        "$$\n",
+        "f\\left( x\\right)  =\\left| x\\right|  =\\begin{cases}x&;\\  \\mathrm{s} \\mathrm{i} \\  x\\geq 0\\\\ -x&;\\  \\mathrm{s} \\mathrm{i} \\  x<0\\end{cases}\n",
+        "\\tag{2.9}\n",
+        "$$\n",
+        ":::\n",
+        "\n",
+        "El concepto de valor absoluto es extensible a los elementos de un arreglo siempre que opere únicamente sobre los elementos del mismo, posición a posición. De esta manera, en **<font color='darkmagenta'>Numpy</font>**, el valor absoluto puede implementarse mediante la función `np.abs()`, la cual permite calcular dicho valor absoluto para todos los elementos de un arreglo:"
+      ],
+      "id": "babc865f"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Construimos un arreglo bidimensional A.\n",
+        "A = np.array([\n",
+        "    [-1, -6, 0, 7, 8],\n",
+        "    [5, -3, -4, 8, -9],\n",
+        "    [-6, 6, 7, 1, 0],\n",
+        "    [9, -1, -1, 0, -7]\n",
+        "])\n",
+        "\n",
+        "# Calculamos el valor absoluto de sus elementos.\n",
+        "np.abs(A)"
+      ],
+      "id": "52e99c51",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Si los elementos de un arreglo son números complejos (como `np.complex64` o `np.complex128`, revisados en la tabla de tipos de datos de la entrada anterior), la función `np.abs()` calculará los módulos asociados a tales elementos. Recordemos que si $z=a+bi\\in \\mathbb{C}$, con $a,b\\in \\mathbb{R}$, entonces el módulo de $z$ se define como\n",
+        "\n",
+        "::: {.eq-scroll}\n",
+        "$$\n",
+        "\\left| z\\right|={\\displaystyle \\sqrt{a^{2}+b^{2}}}\n",
+        "\\tag{2.10}\n",
+        "$$\n",
+        ":::\n",
+        "\n",
+        "Luego, en **<font color='darkmagenta'>Numpy</font>**, tenemos:"
+      ],
+      "id": "b3605e4b"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Definimos un arreglo compuesto por números complejos.\n",
+        "Z = np.array([\n",
+        "    [2-3j, 4+1j, -5-6j, -2j],\n",
+        "    [3, -5j, 1-1j, 2-9j],\n",
+        "    [9+2j, -1-8j, 2+3j, -1j]\n",
+        "])\n",
+        "\n",
+        "# Calculamos el valor absoluto de los elementos del arreglo Z.\n",
+        "np.abs(Z)"
+      ],
+      "id": "d67fbfc1",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "El concepto de valor absoluto suele ser asociado a otros resultados más generales que son propios del álgebra lineal o de la física. En particular, cuando pensamos en vectores desde una perspectiva puramente geométrica; es decir, líneas dirigidas que parten desde el origen y terminan en un punto determinado, siempre hemos asociado a estos vectores el concepto de longitud del mismo en términos de la distancia entre el origen y dicho punto. La norma es un concepto que permite formalizar esa noción, siendo dependiente, por supuesto, del tipo de geometría subyacente a la referencia propia del vector. Es muy común trabajar con la norma Euclidiana (o norma $\\mathcal{l}_{2}$) de un vector $\\mathbf{x}\\in \\mathbb{R}^{n}$, la que nos permite calcular la distancia de este vector al origen del sistema de coordenadas que describe su posición:\n",
+        "\n",
+        "::: {.eq-scroll}\n",
+        "$$\n",
+        "\\left\\Vert \\mathbf{x} \\right\\Vert_{2}  :=\\sqrt{\\displaystyle \\sum^{n}_{i=1} x^{2}_{i}} =\\sqrt{\\mathbf{x}^{\\top } \\mathbf{x}}\n",
+        "\\tag{2.11}\n",
+        "$$\n",
+        ":::\n",
+        "\n",
+        "Si definimos el vector $\\mathbf{x}=( 1,-1,4,-8,0,-2)^{\\intercal}\\in \\mathbb{R}^{6}$, veremos que su norma Euclidiana será\n",
+        "\n",
+        "::: {.eq-scroll}\n",
+        "$$\n",
+        "\\left\\Vert \\mathbf{x} \\right\\Vert_{2}  =\\sqrt{1^{2}+1^{2}+4^{2}+8^{2}+0^{2}+2^{2}} =\\sqrt{86} \\approx 9.273\n",
+        "\\tag{2.12}\n",
+        "$$\n",
+        ":::\n",
+        "\n",
+        "En **<font color='darkmagenta'>Numpy</font>**, podemos calcular esta norma como sigue:"
+      ],
+      "id": "818ee74d"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Definimos el arreglo 1D (vector) x.\n",
+        "x = np.array([1, -1, 4, -8, 0, -2])\n",
+        "\n",
+        "# Calculamos su norma Euclidiana.\n",
+        "np.linalg.norm(x)"
+      ],
+      "id": "eb327847",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "No ahondaremos mucho más en temas relativos al álgebra lineal en **<font color='darkmagenta'>Numpy</font>** por ahora, ya que esto lo revisaremos un poco más en detalle más adelante.\n",
+        "\n",
+        "## Funciones trigonométricas\n",
+        "\n",
+        "**<font color='darkmagenta'>Numpy</font>** nos provee de una enorme cantidad de funciones trascendentes típicas en el análisis de datos. Un ejemplo son las funciones trigonométricas, las cuales son fácilmente representables en **<font color='darkmagenta'>Numpy</font>** mediante las funciones `np.sin()`, `np.cos()` y `np.tan()` para el caso de las funciones seno, coseno y tangente, respectivamente. Para ejemplificar su implementación, definiremos primeramente un arreglo llamado `theta`, que representará ciertos ángulos (en radianes) en términos de ciertos factores de $\\pi$. Tal constante puede, igualmente, representarse en **<font color='darkmagenta'>Numpy</font>** mediante `np.pi`. De este modo:"
+      ],
+      "id": "c6f33a1f"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Definimos un arreglo cuyos elementos serán algunos ángulos (en radianes).\n",
+        "theta = np.linspace(0, np.pi, 4)"
+      ],
+      "id": "11927849",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Calculamos los valores de cada una de las funciones trigonométricas para los ángulos que componen nuestro arreglo.\n",
+        "print(\"theta = \", theta)\n",
+        "print(\"sen(theta) = \", np.sin(theta))\n",
+        "print(\"cos(theta) = \", np.cos(theta))\n",
+        "print(\"tan(theta) = \", np.tan(theta))"
+      ],
+      "id": "feb2b646",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Estos valores se calculan a partir de la precisión numérica que tienen los distintos elementos de un arreglo, considerando el tipo de dato asociado al mismo, razón por la cual, en el bloque de código anterior, observamos valores que deberían ser cero pero no son exactamente cero.\n",
+        "\n",
+        "Las funciones trigonométricas inversas también están disponibles en **<font color='darkmagenta'>Numpy</font>**:"
+      ],
+      "id": "9f1c4740"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Funciones trigonométricas inversas.\n",
+        "x = [-1,  -1/2,  0, 1/2, 1]\n",
+        "print(\"x = \", x)\n",
+        "print(\"arcsen(x) = \", np.arcsin(x))\n",
+        "print(\"arccos(x) = \", np.arccos(x))\n",
+        "print(\"arctan(x) = \", np.arctan(x))"
+      ],
+      "id": "1728a693",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Las funciones anteriores asumen que los arreglos imputados a las mismas contienen ángulos expresados en radianes, o bien, en el caso de las funciones trigonométricas inversas, retornan arreglos cuyos elementos también son ángulos medidos en radianes. Para hacer conversiones de ángulos a otras unidades de medición, **<font color='darkmagenta'>Numpy</font>** nos provee de algunas funciones muy útiles. Por ejemplo, la función `np.rad2deg()` permite convertir los elementos de un arreglo de radianes a grados (suponiendo, por supuesto, que dicho arreglo almacene ángulos):"
+      ],
+      "id": "f5bb8e53"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# El arreglo theta expresado en grados.\n",
+        "np.rad2deg(theta)"
+      ],
+      "id": "56ae2655",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "La función `np.deg2rad()` permite realizar la conversión inversa, de grados a radianes.\n",
+        "\n",
+        "## Funciones logarítmicas y exponenciales\n",
+        "\n",
+        "**<font color='darkmagenta'>Numpy</font>** también nos provee de una serie de implementaciones relativas a funciones exponenciales y logarítmicas. Algunos ejemplos se muestran a continuación:"
+      ],
+      "id": "1130ed16"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Ejemplos de funciones exponenciales (y potenciales).\n",
+        "x = [1, 2, 3, 4, 5]\n",
+        "print(\"x = \", x)\n",
+        "print(\"exp(x) = \", np.exp(x))\n",
+        "print(\"2^x = \", np.exp2(x))\n",
+        "print(\"3^x = \", np.power(3, x))"
+      ],
+      "id": "8d1c7d1b",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Ejemplos de funciones logarítmicas.\n",
+        "print(\"ln(x) = \", np.log(x))\n",
+        "print(\"log2(x) = \", np.log2(x))\n",
+        "print(\"log10(x) = \", np.log10(x))"
+      ],
+      "id": "6df738a2",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "También existen versiones especializadas de funciones logarítmicas y exponenciales que son útiles para mantener la precisión para *inputs* de magnitudes pequeñas:"
+      ],
+      "id": "735d3df3"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "x = [0, 0.001, 0.01, 0.1]\n",
+        "print(\"exp(x) - 1 = \", np.expm1(x))\n",
+        "print(\"log(1 + x) = \", np.log1p(x))"
+      ],
+      "id": "dce9362b",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Finalmente, **<font color='darkmagenta'>Numpy</font>** dispone de una función que permite calcular raíces cuadradas sin ningún problema:"
+      ],
+      "id": "8c541a94"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# La función np.sqrt() permite calcular la raíz cuadrada de los elementos de un arreglo.\n",
+        "x = [1, 4, 9, 16, 25, 36]\n",
+        "print(\"np.sqrt(x) = \", np.sqrt(x))"
+      ],
+      "id": "90678460",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Las funciones revisadas en esta sección muestran que el paradigma de las `ufuncs` no se restringe a la aritmética elemental. Una vez que comprendemos que **<font color='darkmagenta'>Numpy</font>** puede aplicar operaciones sobre arreglos completos de manera vectorizada, se vuelve natural extender esa lógica a funciones trigonométricas, exponenciales, logarítmicas y muchas otras rutinas numéricas de uso frecuente.\n",
+        "\n",
+        "## Comentarios finales\n",
+        "\n",
+        "En este apunte dimos un paso importante: pasamos de entender qué es un arreglo en **<font color='darkmagenta'>Numpy</font>** a estudiar cómo se opera efectivamente con él. Este cambio no es menor. En la práctica, el verdadero valor de un arreglo no radica únicamente en su capacidad para almacenar información numérica, sino en que permite transformar esa información mediante reglas de cálculo claras, vectorizadas y computacionalmente eficientes.\n",
+        "\n",
+        "A lo largo del desarrollo vimos que muchas de las operaciones más comunes sobre arreglos admiten una interpretación matemática precisa. La suma y el producto por un escalar reproducen directamente las operaciones propias del álgebra lineal; la multiplicación y la división directas entre arreglos responden, en rigor, a operaciones componente a componente; y productos más estructurados, como el producto matricial o el producto interno, requieren herramientas específicas como `np.matmul()`, `@` o `np.dot()`. Comprender estas diferencias es fundamental para evitar errores conceptuales y para desarrollar una intuición más fina al momento de programar.\n",
+        "\n",
+        "También vimos que una de las grandes fortalezas de **<font color='darkmagenta'>Numpy</font>** es su capacidad para encapsular operaciones complejas bajo una sintaxis extremadamente simple. Detrás de expresiones aparentemente elementales como `2**(-x)`, `np.sin(theta)` o `np.log1p(x)` existe una infraestructura optimizada que permite aplicar rutinas numéricas sobre arreglos completos con gran rapidez. Esa es, justamente, una de las ideas más poderosas que introduce este apunte: aprender **<font color='darkmagenta'>Numpy</font>** no es sólo aprender funciones, sino acostumbrarse a pensar en términos de cálculo vectorizado.\n",
+        "\n",
+        "En el siguiente apunte profundizaremos en esa misma dirección, estudiando operaciones de agregación, reglas de *broadcasting*, comparación entre arreglos, *masking*, *fancy indexing* y otras herramientas esenciales para manipular estructuras numéricas de forma más flexible. Con ello, comenzaremos a acercarnos cada vez más al tipo de operaciones que aparecen de manera natural en el análisis de datos real."
+      ],
+      "id": "7c822d20"
+    }
+  ],
+  "metadata": {
+    "kernelspec": {
+      "name": "python3",
+      "language": "python",
+      "display_name": "Python 3 (ipykernel)",
+      "path": "/Users/fquezadac/.local/share/virtualenvs/nerdyminer.github.io-TiwzloiM/share/jupyter/kernels/python3"
+    }
+  },
+  "nbformat": 4,
+  "nbformat_minor": 5
+}

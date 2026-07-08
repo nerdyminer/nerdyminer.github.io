@@ -5,6 +5,7 @@ section_href: "/apuntes/calculo-incertidumbre-y-optimizacion/"
 toc: true
 toc-depth: 4
 page-layout: article
+number-offset: 6
 ---
 
 ::: {.callout-important}
@@ -13,7 +14,7 @@ page-layout: article
 La optimización permite formular rigurosamente la búsqueda de la mejor solución dentro de un conjunto de alternativas factibles. En machine learning, esta idea aparece de manera transversal, desde el ajuste de parámetros mediante el algoritmo de gradiente descendente hasta la resolución de problemas restringidos, convexos y de tipo *black-box* donde la información de derivadas no siempre está disponible.
 :::
 
-## Introducción.
+## Introducción
 
 Dado que los algoritmos de machine learning son implementados por medio de un computador, las correspondientes formulaciones matemáticas suelen expresarse por medio de métodos de optimización numérica. Esta sección describe los métodos numéricos básicos para el entrenamiento de modelos de machine learning. El entrenamiento de este tipo de modelos, con frecuencia, consiste en la búsqueda de un buen conjunto de parámetros, y la noción de *”buen conjunto”* se determina mediante la **función objetivo** en un **modelo probabilístico**, de los cuales veremos ejemplos concretos en secciones posteriores. Dada una función objetivo, buscar su *“mejor valor”* es, por tanto, un **problema de optimización**.
 
@@ -45,6 +46,8 @@ Y = X**4 + 7*X**3 + 5*X**2 - 17*X + 3
 Y ahora sí graficamos el valor de `y`. Construiremos algunas anotaciones que nos serán de utilidad para explicar ciertos conceptos básicos:
 
 ```{python}
+#| label: fig-introduccion-a-la-teoria-de-optimizacion-01
+#| fig-cap: "Función polinómica con un mínimo local y un mínimo global."
 fig, ax = plt.subplots(figsize=(9, 5))
 ax.plot(X, Y, color="red", linewidth=3)
 ax.annotate(
@@ -109,7 +112,8 @@ Un poco más adelante, aprenderemos una clase de funciones llamadas **funciones 
 
 Algo importante de notar, es que la discusión previa fue tan solo un adelanto de lo que veremos en esta sección, ya que el problema expuesto en el gráfico que hemos construido para $f$ involucra a una función de una variable, donde es fácil visualizar cualquier idea referida a gradientes, direcciones de decrecimiento de los mismos y los valores extremos que nos interesan en una función. En el resto de esta sección, extenderemos estas ideas a funciones en $\mathbb{R}^{n}$, con la salvedad de que será imposible “ver” estos conceptos de forma gráfica para $n>2$ (es decir, para funciones de más de dos variables). Además, algunos de los conceptos previamente presentados no son trivialmente extensibles a funciones en $\mathbb{R}^{n}$, por lo que tendremos que seguir ciertas reglas que iremos construyendo paso a paso.
 
-## Motivación geométrica.
+## Motivación geométrica
+
 La situación presentada previamente pone de manifiesto que un problema de optimización corresponde a un desafío que puede resultar significativamente difícil bajo determinadas condiciones. Para poder entender dicha dificultad, será bueno repasar algunos conocimientos que, en general, son presentados en detalle en los cursos de cálculo diferencial. No nos extenderemos demasiado aquí en ellos, pero sí será útil tenerlos en consideración. Ante todo, intentaremos dar ejemplos gráficos de lo que estamos hablando, para lo cual haremos un uso intensivo de la librería **<font color='darkmagenta'>Matplotlib</font>**, a fin de graficar algunos resultados. También haremos uso de la librería **<font color='darkmagenta'>Sympy</font>** para desarrollar algo de cálculo simbólico con ayuda de Python, a fin de poder llegar rápidamente a algunos resultados interesantes:
 
 ```{python}
@@ -160,6 +164,8 @@ Z = f(X, Y)
 ```
 
 ```{python}
+#| label: fig-introduccion-a-la-teoria-de-optimizacion-02
+#| fig-cap: "Superficie $f(x,y)=x^{2}+y^{2}$ (paraboloide circular)."
 # Y construimos el gráfico de la superficie.
 fig = plt.figure(figsize=(10, 6))
 ax = plt.axes(projection='3d')
@@ -167,18 +173,18 @@ ax.plot_surface(X, Y, Z, rstride=5, cstride=5, cmap='cool', edgecolor='k')
 ax.set_xlabel(r"$x$", fontsize=12, labelpad=10)
 ax.set_ylabel(r"$y$", fontsize=12, labelpad=10)
 ax.set_zlabel(r"$z$", fontsize=12, labelpad=10)
-ax.set_title(r'Superficie $f(x,y)=x^{2}+y^{2}$ (paraboloide circular)', fontsize=14, fontweight="bold", pad=10)
 ax.view_init(60, 60)
 plt.tight_layout()
 ```
 
 ```{python}
+#| label: fig-introduccion-a-la-teoria-de-optimizacion-03
+#| fig-cap: "Superficie $f(x,y)=x^{2}+y^{2}$ (paraboloide circular), proyección en 2D."
 # Y creamos un gráfico de contorno completo para visualizar este mínimo global en 2D.
 fig, ax = plt.subplots(figsize=(9, 7))
 p = ax.contourf(X, Y, Z, levels=30, cmap='cool')
 ax.set_xlabel(r"$x$", fontsize=12, labelpad=10)
 ax.set_ylabel(r"$y$", fontsize=12, labelpad=10, rotation=0)
-ax.set_title(r'Superficie $f(x,y)=x^{2}+y^{2}$ (paraboloide circular)', fontsize=14, fontweight="bold", pad=10)
 cb = plt.colorbar(p)
 cb.set_label("Valor de z", fontsize=12, labelpad=10)
 plt.tight_layout()
@@ -200,6 +206,8 @@ Z = f(X, Y, a=3, b=2)
 ```
 
 ```{python}
+#| label: fig-introduccion-a-la-teoria-de-optimizacion-04
+#| fig-cap: "Superficie $f(x,y) =\\frac{x^{2}}{9} -\\frac{y^{2}}{4}$ (paraboloide hiperbólico)."
 # Visualizamos su gráfico en el espacio tridimensional.
 fig = plt.figure(figsize=(10, 6))
 ax = plt.axes(projection='3d')
@@ -207,30 +215,24 @@ ax.plot_surface(X, Y, Z, rstride=5, cstride=5, cmap='cool', edgecolor='k')
 ax.set_xlabel(r"$x$", fontsize=12, labelpad=10)
 ax.set_ylabel(r"$y$", fontsize=12, labelpad=10)
 ax.set_zlabel(r"$z$", fontsize=12, labelpad=10)
-ax.set_title(
-    r'Superficie $f(x,y)  =\frac{x^{2}}{9} -\frac{y^{2}}{4}$ (paraboloide hiperbólico)', 
-    fontsize=14, fontweight="bold", pad=10
-)
 ax.view_init(60, 60)
 plt.tight_layout()
 ```
 
 ```{python}
+#| label: fig-introduccion-a-la-teoria-de-optimizacion-05
+#| fig-cap: "Superficie $f(x,y) =\\frac{x^{2}}{9} -\\frac{y^{2}}{4}$ (paraboloide hiperbólico)."
 # Y creamos un gráfico de contorno completo para visualizar este punto de ensilladura en 2D.
 fig, ax = plt.subplots(figsize=(9, 7))
 p = ax.contourf(X, Y, Z, levels=30, cmap='cool')
 ax.set_xlabel(r"$x$", fontsize=12, labelpad=10)
 ax.set_ylabel(r"$y$", fontsize=12, labelpad=10, rotation=0)
-ax.set_title(
-    r'Superficie $f(x,y)  =\frac{x^{2}}{9} -\frac{y^{2}}{4}$ (paraboloide hiperbólico)', 
-    fontsize=14, fontweight="bold", pad=10
-)
 cb = plt.colorbar(p)
 cb.set_label("Valor de z", fontsize=12, labelpad=10)
 plt.tight_layout()
 ```
 
-## Valores extremos de funciones.
+## Valores extremos de funciones
 
 A continuación estableceremos un criterio general que nos permitirá establecer si un punto en el dominio de una función objetivo $f$ de interés es, en efecto, un mínimo (o máximo) local. Un punto de este tipo suele llamarse **extremo local**, a fin de *ahorrarnos* el distinguir el sentido de la optimización. Para estructurar una propuesta general, trabajaremos con funciones escalares definidas sobre espacios de matrices; es decir, aplicaciones del tipo $f:U\subseteq \mathbb{R}^{m\times n} \longrightarrow \mathbb{R}$, donde $U$ es un conjunto *abierto*, denominadas comúnmente **campos matriciales**. Este marco es más general de lo que parece a primera vista, ya que muchos problemas de optimización en machine learning, estadística y álgebra numérica consisten precisamente en minimizar una función real cuyo argumento es una matriz constituida por parámetros que buscamos "ajustar" para un modelo determinado.
 
@@ -307,7 +309,7 @@ $$
 
 La forma cuadrática $\mathbf{H} \longmapsto D^{2}f\left( \mathbf{X}_{0} \right) \left[ \mathbf{H} ,\mathbf{H} \right]$, en términos geométricos, juega el papel de describir la curvatura local de $f$ en torno a $\mathbf{X}_{0}$. Cuando se fija una base de $\mathbb{R}^{m\times n}$, esta segunda derivada (de Fréchet) puede representarse por medio de una matriz de tamaño $mn\times mn$, denominada **matriz Hessiana** de $f$ en $\mathbf{X}_{0}$.
 
-### Criterio de primer orden para extremos locales.
+### Criterio de primer orden para extremos locales
 
 La primera prueba que nos permite evaluar si un punto perteneciente al dominio de un campo matricial $f$ es un extremo local se denomina **criterio de primer orden**, porque hace uso de la derivada de Fréchet de $f$ evaluada en dicho punto. Se trata de una condición necesaria de **estacionariedad**.
 
@@ -327,12 +329,13 @@ $$
 
 La relación (6.10) es válida para todo $\mathbf{H}$. Por lo tanto, concluimos que $Df\left( \mathbf{X}_{0} \right)=0$ y, por extensión, $\nabla f(\mathbf{X}_{0})=0$, tal y como queríamos demostrar.
 
-### Criterio de segundo orden para extremos locales.
+### Criterio de segundo orden para extremos locales
 
 Cuando un punto $\mathbf{X}_{0}$ satisface el teorema (6.1) para una función $f:U\subseteq \mathbb{R}^{m\times n} \longrightarrow \mathbb{R}$, decimos que éste es un **punto crítico** de $f$ y, por extensión, un "candidato" a extremo local. Sin embargo, el criterio de primer orden es una condición necesaria, pero no suficiente, para garantizar que $\mathbf{X}_{0}$ sea, en efecto, un valor extremo de $f$. Dicha suficiencia se logra estudiando la curvatura local del gráfico de $f$ en el entorno del punto crítico $\mathbf{X}_{0}$, lo que puede estructurarse conforme el siguiente resultado.
 
 ::: {.callout-tip}
 ## Teorema 6.2 – Criterio de segundo orden para extremos locales
+
 *Sea $f:U\subseteq \mathbb{R}^{m\times n} \longrightarrow \mathbb{R}$ una función de clase $C^{2}$ en un conjunto abierto $U$ de $\mathbb{R}^{m\times n}$ (es decir, $f$ es dos veces diferenciable según Fréchet en $U$ y las correspondientes derivadas son continuas en $U$). Sea $\mathbf{X}_{0}\in U$ tal que $\nabla f(\mathbf{X}_{0})=0$. Entonces se verifican las siguientes condiciones:*
 
 - *Si $D^{2}f\left( \mathbf{X}_{0} \right) \left[ \mathbf{H} ,\mathbf{H} \right] \geq 0$, para todo $\mathbf{H}\in \mathbb{R}^{m\times n}$, entonces la segunda derivada $D^{2}f\left( \mathbf{X}_{0} \right)$ satisface una condición necesaria para que $\mathbf{X}_{0}$ sea un mínimo local.*
@@ -387,7 +390,7 @@ La evaluación de candidatos a óptimo en todo orden de funciones reales es siem
 ¿Y existen casos en los cuales el criterio de primer orden (o de la primera derivada) es necesario y suficiente para garantizar que un punto crítico es, en efecto, un extremo de una función objetivo $f$? Afortunadamente, sí, aunque sólo para el caso de mínimos globales... ¿El problema? Siempre que $f$ cumpla con ciertas condiciones muy deseables: Ser convexa y diferenciable en su dominio. La condición de convexidad la definiremos formalmente más adelante, pero es súper estricta. La buena noticia es que la mayoría de las funciones más importantes que debemos optimizar en la práctica del aprendizaje automático (llamadas **funciones de pérdida**) cumplirán con esta condición.
 :::
 
-## Solución de un problema de optimización.
+## Solución de un problema de optimización
 
 Los criterios establecidos previamente permiten una evaluación general de funciones objetivo en un contexto global. Sin embargo, estamos interesados en evaluar problemas de optimización que incluyan ciertos tipos de restricciones. Tales restricciones pueden expresarse en la forma de igualdades y desigualdades definidas en el mismo dominio de la función objetivo, y tienen como misión el **acotar ese dominio** a fin de que el **espacio de soluciones factibles** del problema sea reducido y, ojalá, más fácil de examinar.
 
@@ -454,7 +457,7 @@ y se denomina **problema restringido incompleto**, en el sentido de que sólo co
 
 **(III)** Si $p\geq 1$ y $q\geq 1$, el problema (6.13) mantiene su estructura completa. La teoría natural asociada a este caso se fundamenta en las llamadas **condiciones de Karush–Kuhn–Tucker** (o condiciones *KKT*), que desarrollaremos brevemente después de presentar formalmente el caso de los multiplicadores de Lagrange.
 
-### Método de los multiplicadores de Lagrange.
+### Método de los multiplicadores de Lagrange
 
 Consideremos el problema incompleto (6.17). Agrupemos las restricciones de igualdad de dicho problema en el campo vectorial $\mathbf{g} :U\longrightarrow \mathbb{R}^{p}$, definido como
 
@@ -521,6 +524,8 @@ g = g(X, Y)
 ```
 
 ```{python}
+#| label: fig-introduccion-a-la-teoria-de-optimizacion-06
+#| fig-cap: "La situación geométrica de este problema en tres dimensiones."
 # Visualizamos la situación geométrica de este problema en tres dimensiones.
 fig = plt.figure(figsize=(9, 6))
 ax = plt.axes(projection='3d')
@@ -651,6 +656,8 @@ from mpl_toolkits.mplot3d import proj3d
 ```
 
 ```{python}
+#| label: fig-introduccion-a-la-teoria-de-optimizacion-07
+#| fig-cap: "Visualización del problema."
 # Visualización del problema.
 fig = plt.figure(figsize=(9, 7))
 ax = fig.add_subplot(111, projection="3d")
@@ -932,6 +939,8 @@ def annotate_point(ax, point, label, offset):
 ```
 
 ```{python}
+#| label: fig-introduccion-a-la-teoria-de-optimizacion-08
+#| fig-cap: "Visualización del problema."
 # Visualización del problema.
 fig = plt.figure(figsize=(9, 7))
 ax = fig.add_subplot(111, projection="3d")
@@ -1147,6 +1156,8 @@ z_offset = -3.1
 ```
 
 ```{python}
+#| label: fig-introduccion-a-la-teoria-de-optimizacion-09
+#| fig-cap: "Visualización del problema."
 # Visualización del problema.
 fig = plt.figure(figsize=(9, 7))
 ax = fig.add_subplot(111, projection="3d")
@@ -1318,7 +1329,7 @@ Vemos pues que este problema tiene un total de seis puntos críticos, dos de los
 
 Este ejercicio muestra que las ecuaciones de Lagrange proporcionan candidatos a óptimos restringidos, pero que la identificación final de mínimos y máximos requiere evaluar la función objetivo en dichos puntos, o bien complementar el análisis con condiciones de segundo orden. ◼︎
 
-### Condiciones de Karush–Kuhn–Tucker.
+### Condiciones de Karush–Kuhn–Tucker
 
 El método de los multiplicadores de Lagrange permite resolver problemas restringidos incompletos; es decir, aquellos que sólo poseen restricciones de igualdad. Sin embargo, en muchas aplicaciones relevantes de optimización y aprendizaje automático, las restricciones del problema incluyen también desigualdades del tipo $h_{j}\left( \mathbf{X} \right) \leq 0$. En tal caso, el comportamiento local del problema es más sutil, porque no todas las restricciones de desigualdad “actúan” efectivamente en un óptimo local. Algunas de ellas pueden cumplirse con igualdad, mientras que otras pueden quedar estrictamente satisfechas y, por lo tanto, no influir de manera directa en la solución.
 
@@ -1464,7 +1475,7 @@ Conviene enfatizar que las condiciones KKT son, en general, **necesarias**, pero
 En problemas generales, una solución del sistema KKT puede corresponder a un mínimo local, a un máximo local, a un punto de ensilladura restringido, o incluso a un punto que no optimiza la función objetivo en el sentido deseado. Por ello, las condiciones KKT deben entenderse, en general, como una herramienta para generar candidatos a óptimo, no como una "certificación" automática de optimalidad.
 :::
 
-#### Funciones convexas.
+#### Funciones convexas
 
 Antes de proseguir con nuestro estudio de las condiciones KKT, conviene detenernos en una clase de funciones especialmente importantes para la teoría de optimización, denominadas **funciones convexas**. Ya adelantamos previamente que, para este tipo de funciones, el criterio de primer orden deja de ser simplemente necesario y pasa a desempeñar un papel mucho más fuerte en la determinación de extremos globales. De hecho, **en el contexto adecuado**, la **convexidad** permite **garantizar** que todo mínimo local es automáticamente un **mínimo global**.
 
@@ -1547,6 +1558,8 @@ line_nonconv = ga + (gb - ga) * (x - a) / (b - a)
 ```
 
 ```{python}
+#| label: fig-introduccion-a-la-teoria-de-optimizacion-10
+#| fig-cap: "Comparación entre una función convexa y una no convexa."
 # Construimos visualizaciones para estas funciones.
 fig, ax = plt.subplots(1, 2, figsize=(9, 4.5))
 
@@ -1607,6 +1620,8 @@ Z2 = f_nonconv_2d(X, Y)
 ```
 
 ```{python}
+#| label: fig-introduccion-a-la-teoria-de-optimizacion-11
+#| fig-cap: "Comparación entre una función convexa y una no convexa en dos variables."
 # Finalmente, visualizamos ambas gráficas.
 fig = plt.figure(figsize=(9, 5))
 
@@ -1661,7 +1676,7 @@ La desigualdad (6.46) es particularmente importante, porque muestra que, para el
 
 También conviene mencionar una propiedad adicional. Si $f$ es estrictamente convexa, entonces **cualquier mínimo global, en caso de existir, es único**. De esta manera, la estricta convexidad no sólo garantiza la ausencia de mínimos locales espurios, sino también la unicidad de la solución óptima.
 
-#### Problemas de optimización convexa.
+#### Problemas de optimización convexa
 
 A partir de la noción de convexidad para funciones, podemos definir ahora una clase de problemas de optimización particularmente importante.
 
@@ -1702,7 +1717,7 @@ La condición de Slater es mucho más que una conveniencia técnica. En efecto, 
 *Sea el problema completo (6.31) y admitimos que es de tipo convexo, con $f$ y las funciones $h_{j}$ convexas, las funciones $g_{i}$ afines y, además, supongamos que se satisface la condición de Slater. Entonces, una matriz factible $\mathbf{X}^{\ast}\in \mathcal{F}$ es solución óptima global del problema si y sólo si existen multiplicadores $\boldsymbol{\lambda}^{\ast}\in \mathbb{R}^{p}$ y $\boldsymbol{\mu}^{\ast}\in \mathbb{R}^{q}$ tales que la terna $\left( \mathbf{X}^{\ast} ,\boldsymbol{\lambda}^{\ast} ,\boldsymbol{\mu}^{\ast} \right)$ satisface las condiciones KKT (6.37)–(6.41).*
 :::
 
-### Problemas primal y dual.
+### Problemas primal y dual
 
 La teoría que subyace a las condiciones KKT se conecta de manera natural con otra idea fundamental de la optimización moderna, denominada como **dualidad**. Todo problema de optimización restringida puede asociarse a un segundo problema, llamado **problema dual**, cuyo estudio proporciona cotas, garantías de optimalidad y, en muchos casos, una vía alternativa de resolución.
 
@@ -1901,6 +1916,8 @@ z_offset = -1.6
 ```
 
 ```{python}
+#| label: fig-introduccion-a-la-teoria-de-optimizacion-12
+#| fig-cap: "Espacio factible en 3D: intersección recortada por desigualdades."
 # Construimos nuestra visualización.
 fig = plt.figure(figsize=(10, 7))
 ax = fig.add_subplot(111, projection="3d")
@@ -1953,18 +1970,11 @@ ax.set_xlabel(r"$x$", fontsize=12, labelpad=10)
 ax.set_ylabel(r"$y$", fontsize=12, labelpad=10)
 ax.set_zlabel(r"$z$", fontsize=12, labelpad=10)
 
-ax.set_title(
-    "Espacio factible en 3D: intersección recortada por desigualdades",
-    fontsize=13,
-    fontweight="bold",
-    pad=12
-)
-
 ax.view_init(elev=25, azim=-55)
 plt.tight_layout()
 ```
 
-## Solución numérica por medio de `scipy.optimize`.
+## Solución numérica por medio de `scipy.optimize`
 
 Un aspecto esencial del estudio de los problemas de optimización, como hemos visto previamente, es la dificultad que existe para determinar una solución óptima en un caso general (ya sabemos, restringido y completo). Si bien existen elementos estructurales que permiten "certificar" la optimalidad de una solución factible, como los multiplicadores de Lagrange o las condiciones KKT, la verdad es que será usual recurrir a métodos numéricos para resolver estos problemas. Tales métodos son variados y será necesario elegir el mejor dependiendo de la cantidad de información con la que contemos en determinado momento. Algunos de estos métodos requerirán mucha información, incluyendo gradientes e incluso matrices Hessianas explícitamente definidas para las corresapondientes funciones objetivo. Otros prescindirán incluso de la definición de las correspondientes funciones objetivo, asumiendo que éstas son verdaderas *cajas negras* (lo que se conoce como **optimización de tipo black-box**). Sea cual sea el caso, será necesario equiparnos con herramientas computacionales capaces de trabajar eficientemente en la solución de estos problemas, evitando caer en "trampas" típicas, como la existencia de extremos locales.
 
@@ -2015,6 +2025,8 @@ Z = 100 * (Y - X**2)**2 + (1 - X)**2
 ```
 
 ```{python}
+#| label: fig-introduccion-a-la-teoria-de-optimizacion-13
+#| fig-cap: "Función de Rosenbrock: $f(x,y)=100(y-x^{2})^{2}+(1-x)^{2}$."
 # Graficamos la superficie resultante de esta función.
 fig = plt.figure(figsize=(10, 6))
 ax = plt.axes(projection="3d")
@@ -2022,24 +2034,18 @@ ax.plot_surface(X, Y, Z, rstride=3, cstride=3, lw=0.5, cmap="cool", edgecolor="k
 ax.set_xlabel(r"$x$", fontsize=12, labelpad=10)
 ax.set_ylabel(r"$y$", fontsize=12, labelpad=10)
 ax.set_zlabel(r"$z$", fontsize=12, labelpad=10)
-ax.set_title(
-    r'Función de Rosenbrock: $f(x,y)=100(y-x^{2})^{2}+(1-x)^{2}$', 
-    fontsize=14, fontweight="bold", pad=10
-)
 ax.view_init(40, 20)
 plt.tight_layout()
 ```
 
 ```{python}
+#| label: fig-introduccion-a-la-teoria-de-optimizacion-14
+#| fig-cap: "Función de Rosenbrock: $f(x,y)=100(y-x^{2})^{2}+(1-x)^{2}$, proyección en 2D."
 # Y creamos un gráfico de contorno completo para visualizar este mínimo global en 2D.
 fig, ax = plt.subplots(figsize=(9, 7))
 p = ax.contourf(X, Y, Z, levels=20, cmap="cool")
 ax.set_xlabel(r"$x$", fontsize=12, labelpad=10)
 ax.set_ylabel(r"$y$", fontsize=12, labelpad=10, rotation=0)
-ax.set_title(
-    r'Función de Rosenbrock: $f(x,y)=100(y-x^{2})^{2}+(1-x)^{2}$', 
-    fontsize=14, fontweight="bold", pad=10
-)
 cb = plt.colorbar(p)
 cb.set_label("Valor de z", fontsize=12, labelpad=10)
 plt.tight_layout()
@@ -2076,6 +2082,8 @@ Z = rastrigin_2d(X, Y)
 ```
 
 ```{python}
+#| label: fig-introduccion-a-la-teoria-de-optimizacion-15
+#| fig-cap: "Función de Rastrigin: $f\\left( x,y\\right) =20+x^{2}+y^{2}-10\\left( \\cos \\left( 2\\pi x\\right) +\\cos \\left( 2\\pi y\\right) \\right)$."
 # Graficamos la superficie resultante de esta función.
 fig = plt.figure(figsize=(9, 7))
 ax = plt.axes(projection='3d')
@@ -2083,24 +2091,18 @@ ax.plot_surface(X, Y, Z, rstride=5, cstride=5, edgecolor="k", cmap='cool')
 ax.set_xlabel(r"$x$", fontsize=12, labelpad=10)
 ax.set_ylabel(r"$y$", fontsize=12, labelpad=10)
 ax.set_zlabel(r"$z$", fontsize=12, labelpad=10)
-ax.set_title(
-    r'Función de Rastrigin: $f\left( x,y\right)  =20+x^{2}+y^{2}-10\left( \cos \left( 2\pi x\right)  +\cos \left( 2\pi y\right)  \right)$', 
-    fontsize=14, fontweight="bold", pad=10
-)
 ax.view_init(40, 20)
 plt.tight_layout()
 ```
 
 ```{python}
+#| label: fig-introduccion-a-la-teoria-de-optimizacion-16
+#| fig-cap: "Función de Rastrigin: $f\\left( x,y\\right) =20+x^{2}+y^{2}-10\\left( \\cos \\left( 2\\pi x\\right) +\\cos \\left( 2\\pi y\\right) \\right)$, proyección en 2D."
 # Y creamos un gráfico de contorno completo para visualizar este mínimo global en 2D.
 fig, ax = plt.subplots(figsize=(9, 7))
 p = ax.contourf(X, Y, Z, levels=20, cmap='cool')
 ax.set_xlabel(r"$x$", fontsize=12, labelpad=10)
 ax.set_ylabel(r"$y$", fontsize=12, labelpad=10, rotation=0)
-ax.set_title(
-    r'Función de Rastrigin: $f\left( x,y\right)  =20+x^{2}+y^{2}-10\left( \cos \left( 2\pi x\right)  +\cos \left( 2\pi y\right)  \right)$', 
-    fontsize=14, fontweight="bold", pad=10
-)
 cb = plt.colorbar(p)
 cb.set_label("Valor de z", fontsize=12, labelpad=10)
 plt.tight_layout()
@@ -2108,7 +2110,7 @@ plt.tight_layout()
 
 La función de Rastrigin se utiliza ampliamente en el benchmarking de métodos de optimización, particularmente para algoritmos metaheurísticos y evolutivos, debido a que es una función altamente multimodal y que presenta un desafío significativo para encontrar el mínimo global. Contiene una gran cantidad de **mínimos locales** repartidos por todo el espacio de búsqueda. Esto la convierte en un banco de pruebas ideal para evaluar la capacidad de un algoritmo para escapar de óptimos locales y no converger prematuramente.
 
-### Resolución de problemas no restringidos.
+### Resolución de problemas no restringidos
 
 En el módulo `scipy.optimize`, la función encargada de resolver problemas de optimización corresponde, en términos generales, a `scipy.optimize.minimize()` (en adelante, sólo `minimize()`). Esto nos obligará a que cualquier problema de optimización de interés se plantee conforme la búsqueda de un mínimo (ojalá global) de una función objetivo. Esto no representa ningún problema, puesto que, como comentamos antes, para problemas de maximización, siempre podremos realizar la conversión $\max(f)=-\min(f)$, para toda función objetivo $f$.
 
@@ -2430,7 +2432,7 @@ En general, el algoritmo SLSQP es una buena opción cuando deseamos resolver un 
 
 Por supuesto, las opciones a nuestra disposición pueden cambiar enormemente si el problema a resolver presenta restricciones. Esto es lo que abordaremos a continuación. ◼︎
 
-### Problemas restringidos.
+### Problemas restringidos
 
 Como cabría esperar, el asunto cambia completamente cuando queremos resolver problemas de optimización que cuentan con un número arbitrario de restricciones. En un caso así, dependiendo del algoritmo escogido, tendremos que definir ciertos objetos que jugarán el papel de dichas restricciones.
 
@@ -2472,6 +2474,8 @@ p_right = (np.sqrt(3) - 1, 1 - 2*(np.sqrt(3) - 1))
 ```
 
 ```{python}
+#| label: fig-introduccion-a-la-teoria-de-optimizacion-17
+#| fig-cap: "Espacio factible del problema (6.76)."
 # Visualizamos el espacio de soluciones factibles.
 fig, ax = plt.subplots(figsize=(9, 7), dpi=90)
 
@@ -2533,7 +2537,6 @@ ax.set_xlim(-0.05, 1.05)
 ax.set_ylim(-0.6, 2.05)
 ax.set_xlabel(r"$x_1$", fontsize=12)
 ax.set_ylabel(r"$x_2$", fontsize=12)
-ax.set_title("Espacio factible del problema (6.76)", fontsize=14, fontweight="bold")
 ax.legend(loc="upper right", frameon=True)
 ax.grid(True, alpha=0.25)
 
@@ -2788,7 +2791,7 @@ print(f"Valor mínimo de la función objetivo: {np.around(result['fun'], 4)}")
 
 Y ahí lo tenemos. Problema resuelto, con mucho menos trabajo.
 
-## Comentarios finales.
+## Comentarios finales
 
 A lo largo de este apunte hemos visto que la teoría de optimización no debe entenderse únicamente como un conjunto de técnicas algorítmicas para “buscar mínimos”, sino como un marco matemático general para formular y resolver problemas de decisión bajo criterios de desempeño y restricciones. Esta idea resulta especialmente importante en machine learning, donde el entrenamiento de modelos, la calibración de parámetros, la regularización y el ajuste de funciones de pérdida pueden interpretarse, en esencia, como problemas de optimización.
 

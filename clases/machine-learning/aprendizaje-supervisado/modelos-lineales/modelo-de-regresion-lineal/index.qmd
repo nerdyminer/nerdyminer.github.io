@@ -1,0 +1,2814 @@
+---
+title: "Modelo de regresión lineal"
+subtitle: "La recta como modelo y diagnóstico"
+section_href: "/clases/machine-learning/aprendizaje-supervisado/modelos-lineales/"
+toc: true
+toc-depth: 3
+page-layout: article
+jupyter: nerdyminer
+number-offset: 5
+---
+
+::: {.callout-important}
+## Idea central
+
+La regresión lineal permite estudiar el problema de aprendizaje supervisado desde una de sus formas más transparentes: Ajustar una función continua a partir de datos observados. En esta entrada construiremos el modelo desde su formulación algebraica clásica, lo conectaremos con mínimos cuadrados, gradiente descendente y máxima verosimilitud, y revisaremos cómo diagnosticar su desempeño mediante residuos, métricas y señales tempranas de sobreajuste. La idea no es solamente aprender a trazar una recta, sino entender qué se está estimando, bajo qué supuestos y cuándo esa estimación deja de ser confiable.
+:::
+
+## Introducción
+
+A continuación, vamos a abordar uno de los problemas más insignes del **aprendizaje supervisado**, y que ya (más o menos) presentamos en entradas anteriores, pero ahora ya con todo detalle y con el objetivo de estructurar un marco de referencia similar al que construimos para los **modelos de clasificación**: En concreto, intentaremos (de la forma más general posible) resolver el problema de ajustar una función $f$ (que ya formalizaremos en términos fondo y estructura) a un conjunto de $m$ pares de la forma $(\mathbf{x}_{1}, y_{1}),...,(\mathbf{x}_{n}, y_{n})$, donde $\mathbf{x}_{i}\in \mathbb{R}^{n}$ e $y_{i}\in \mathbb{R}$, con la importante condición de que $y_{i}$ ahora puede tomar un número virtualmente infinito de valores. Esto difiere enormemente del **problema de clasificación** tratado en la [entrada dedicada](/clases/machine-learning/aprendizaje-supervisado/modelos-lineales/modelos-de-clasificacion-parte-i/), porque el vector $\mathbf{y}=(y_{1},...,y_{m})\in \mathbb{R}^{m}$ ya no representa un número (muy) limitado de clases o categorías, sino que ahora puede idealizarse como una *muestra* de una variable aleatoria continua (digamos $Y$), en general, desconocida. El problema así definido se conoce como **problema de regresión**.
+
+Consideremos un conjunto de entrenamiento $\mathcal{D} =\left\{ \left( \mathbf{X} ,\mathbf{y} \right)  :\mathbf{X} \in \mathbb{R}^{m\times n} \wedge \mathbf{y} \in \mathbb{R}^{m} \right\}$. Sea $\mathbf{x}_{i}\in \mathbb{R}^{n}$ la fila o instancia $i$-ésima de la matriz de datos de entrada $\mathbf{X}$. En el problema de regresión, estamos interesados en construir una función $f$ que permita *estimar* el valor de $y_{i}$ en función de los valores que componen $\mathbf{x}_{i}$ (para todo $i=1,...,m$), de tal forma que dicha estimación, que llamamos $\hat{y}_{i}$, pueda expresarse por medio de la ecuación 
+
+::: {.eq-scroll}
+$$
+\hat{y}_{i}=f(\mathbf{x}_{i});\ \forall i=1,...,m
+\tag{5.1}
+$$
+:::
+
+Un modelo así definido es llamado, consecuentemente, **modelo de regresión**.
+
+En un contexto práctico, en general, la ecuación (5.1) no describe a este problema de forma *completa*, porque es común que los datos que constituyen la matriz $\mathbf{X}$ se encuentren *alterados* o *corrompidos* por un nivel aleatorio de **ruido**. Entenderemos este último término como una modificación (de naturaleza aleatoria) no deseada propia de una muestra de datos asociados a una variable independiente, que puede ser consecuencia del proceso de captura de los datos, su almacenamiento y/o, incluso, su transmisión. De esta manera, el proceso generador de las observaciones se reescribe considerando un término de ruido $\epsilon$, tal que
+
+::: {.eq-scroll}
+$$
+y_{i}=f(\mathbf{x}_{i})+ \epsilon;\ \forall i=1,...,m
+\tag{5.2}
+$$
+:::
+
+Durante el resto de esta sección, salvo que se diga lo contrario, $\epsilon$ será una variable aleatoria normalmente distribuida y con media nula, que correspondientemente llamaremos **ruido Gaussiano** asociado a la observación y/o medición de nuestros datos de entrada.
+
+Naturalmente, como en el caso de los modelos de clasificación, estamos interesados en que la función $f$ no solamente *estime* adecuadamente los valores de $\mathbf{y}$ en el conjunto de entrenamiento, sino que además *generalice* su aprendizaje sobre datos de prueba (es decir, valores de $\mathbf{y}$ que no fueron *vistos* por el correspondiente algoritmo de aprendizaje durante el entrenamiento).
+
+La regresión es uno de los elementos fundamentales del aprendizaje automático, siendo un problema que aparece en prácticamente todas las áreas de la ciencia y la ingeniería. Áreas de gran interés en investigación donde los modelos de regresión son protagonistas corresponden al análisis de series de tiempo (fundamental en ciencias sociales), robótica y automatización (donde comienza a ser un arco integral de los algoritmos de **aprendizaje por reforzamiento**), aprendizaje profundo, entre otros.
+
+La **elección** de la **función regresora** $f$ es una cuestión fundamental en este problema. Y para ello, existe una serie de enfoques y técnicas, al igual que en el caso de los modelos de clasificación. En una primera aproximación, vamos a tratar el **modelo de regresión lineal**, para el cual $f$ no será más que una transformación afín aplicada sobre los datos de entrada. Sin embargo, antes de apresurarnos a *juzgar* la simplicidad de este tipo de modelos, es bueno remarcar que haremos el esfuerzo de desarrollar la teoría subyacente a los modelos de regresión lineal de la forma más general que podamos, a fin de incorporar modelos más complejos sin abandonar la condición de que éstos puedan expresarse por medio de una función lineal.
+
+## Enfoque tradicional
+
+### Descripción exhaustiva
+
+Partiremos pues con el más elemental de los modelos de regresión, y también el más fundamental. En un contexto bien general, el problema inherente al modelo de regresión lineal puede expresarse como sigue: Dado un conjunto de datos $\mathcal{D} =\left\{ \left( \mathbf{X} ,\mathbf{y} \right)  :\mathbf{X} \in \mathbb{R}^{m\times n} \wedge \mathbf{y} \in \mathbb{R}^{m} \right\}$, donde $\mathbf{x}_{i}\in \mathbb{R}^{n}$ representa una fila o instancia $i$-ésima de la matriz de diseño $\mathbf{X}$, siendo $m$ el total de instancias de $\mathcal{D}$, asumiremos que la relación entre los pares $\left( \mathbf{x}_{1} ,y_{1}\right)  ,...,\left( \mathbf{x}_{m} ,y_{m}\right)$ es de tipo lineal. Es decir, buscamos un estimador del tipo
+
+::: {.eq-scroll}
+$$
+y_{i}=w_{0}+w_{1}x_{i1}+\cdots +w_{n}x_{in}+\varepsilon_{i} \  ;\  \forall i=1,...,m
+\tag{5.3}
+$$
+:::
+
+donde $x_{ij}$ representa la $i$-ésima instancia asociada a la $j$-ésima variable independiente en la matriz $\mathbf{X}$. La ecuación (5.3) representa por tanto al **modelo de regresión lineal**, siendo $\varepsilon_{i}$ un término de ruido asociado a la $i$-ésima instancia observada de $\mathcal{D}$. La **función regresora** en este caso es, por tanto, una **transformación afín sencilla** que establece que el modelo es simplemente una combinación lineal entre los valores de entrada asociados a cada instancia y una serie de parámetros $w_{1},...,w_{n}$, llamados **coeficientes** o **pesos** del modelo, siendo $w_{0}$ el correspondiente **parámetro de sesgo** o **coeficiente de intercepción**. 
+
+Podemos adoptar una notación matricial para condensar la fórmula (5.3) para el caso de las $m$ instancias de $\mathcal{D}$. Agrupando los coeficientes del modelo en un único vector, definido como $\mathbf{w}=(w_{0}, w_{1},...,w_{n})\in \mathbb{R}^{n+1}$ y agregando un $1$ a la izquierda de cada instancia $\mathbf{x}_{i}$, la ecuación (5.3) se reduce a
+
+::: {.eq-scroll}
+$$
+y_{i}=\mathbf{x}^{\top }_{i} \mathbf{w} +\varepsilon_{i} \  ;\  \forall i=1,...,m
+\tag{5.4}
+$$
+:::
+
+Para el conjunto $\mathcal{D}$ completo, si agrupamos todos los términos de ruido en un vector $\mathbf{\varepsilon}=(\varepsilon_{1},...,\varepsilon_{m})\in \mathbb{R}^{m}$, llegamos a la **forma matricial** del modelo de regresión lineal,
+
+::: {.eq-scroll}
+$$
+\mathbf{y} =\mathbf{X}^{\ast} \mathbf{w} +\mathbf{\varepsilon }
+\tag{5.5}
+$$
+:::
+
+Donde $\mathbf{X}^{\ast}$ es la matriz resultante de agregar una columna únicamente conformada por $1$s a la izquierda de $\mathbf{X}$. Es decir,
+
+::: {.eq-scroll}
+$$
+\underbrace{\left( \begin{matrix}y_{1}\\ y_{2}\\ \vdots \\ y_{m}\end{matrix} \right)  }_{\mathbf{y} \in \mathbb{R}^{m\times 1} } =\underbrace{\left( \begin{matrix}1&x_{11}&\cdots &x_{1n}\\ 1&x_{21}&\cdots &x_{2n}\\ \vdots &\vdots &\ddots &\vdots \\ 1&x_{m1}&\cdots &x_{mn}\end{matrix} \right)  }_{\mathbf{X}^{\ast } \in \mathbb{R}^{m\times n+1} } \underbrace{\left( w_{0},w_{1},...,w_{n}\right)  }_{\mathbf{w} \in \mathbb{R}^{n+1} } +\underbrace{\left( \begin{matrix}\varepsilon_{1} \\ \varepsilon_{2} \\ \vdots \\ \varepsilon_{m} \end{matrix} \right)  }_{\mathbf{\varepsilon } \in \mathbb{R}^{m\times 1} }
+\tag{5.6}
+$$
+:::
+
+
+El modelo de regresión lineal contempla, para su correcta implementación, una serie de supuestos relativos a las $n$ variables independientes que constituyen la matriz $\mathbf{X}$, la variable de respuesta $\mathbf{y}$ y las relaciones entre ellas. Debido a la longevidad de este modelo, se han publicado un sinnúmero de investigaciones que han permitido relajar algunos de estos supuestos (o, como mínimo, expresar una versión *débil* de los mismos), aunque muchas veces tales consideraciones implicarán el aumento en la complejidad de cada implementación, o bien, mayores exigencias en términos de los datos (por ejemplo, una cantidad mínima significativa de observaciones), a fin de poder garantizar soluciones de mayor precisión.
+
+Algunos de los supuestos más generales para el modelo de regresión lineal, en su forma más clásica, son:
+
+- **Exogeneidad débil:** Este supuesto hace referencia esencialmente al hecho de que cada una de las variables independientes $\mathbf{x}_{1},...,\mathbf{x}_{n}\in \mathbb{R}^{m}$ que comprenden la matriz de datos de entrada $\mathbf{X}$ puede ser tratada como un conjunto fijo de datos, y no como la realización de alguna variable aleatoria determinada. En la práctica, esto significa que las variables que constituyen el conjunto de datos no se encuentran *contaminadas* por errores de muestreo. Indudablemente, se trata de un supuesto difícil de cumplir en la realidad, porque esto implica que no existe ruido en el muestreo de ninguna de las variables independientes de interés.
+- **Linealidad:** Asumimos que la variable de respuesta $\mathbf{y}$ es, en efecto, una combinación lineal de las variables de entrada con respecto a una serie de ponderadores o parámetros desconocidos, que se corresponden con los **coeficientes de regresión**. Observemos que este supuesto no es demasiado restrictivo, ya que al tratar a cada variable independiente como un conjunto de datos fijo (supuesto de exogeneidad débil), la linealidad únicamente constituye una restricción sobre los parámetros de la regresión. De esta manera, las variables independientes pueden ser transformadas arbitrariamente e, inclusive, podemos añadir múltiples copias o *redundancias* de la misma variable independiente al modelo, cada una de ellas transformada de manera diferente. Un ejemplo de lo anterior es el **modelo de regresión polinomial**, donde simplemente se aplica un procedimiento de regresión lineal sobre un polinomio de grado fijo (siendo éste un hiperparámetro). Naturalmente, esta flexibilidad tiene un costo: Un modelo polinomial de grado *demasiado alto* puede ser susceptible de memorizar incluso patrones que no son de nuestro interés en un conjunto de datos (por ejemplo, ruido aleatorio, errores de medición, etc.), lo que los hace particularmente sensibles a problemas de *overfitting*. Por esta razón, es recomendable la incorporación de **términos de regularización** que permitan controlar este problema, tales como los vistos (aunque someramente) en la [entrada dedicada a los modelos de clasificación](/clases/machine-learning/aprendizaje-supervisado/modelos-lineales/modelos-de-clasificacion-parte-i/). Profundizaremos en esto último en esta misma sección.
+- **Homocedasticidad**: Asumimos que la **varianza** de los errores (que comete el modelo) no depende de los valores que hemos estimado para los coeficientes o parámetros de la regresión. De esta manera, la variabilidad de la variable de respuesta $\mathbf{y}$ es siempre la misma para un set de valores dados de estos parámetros, independiente de qué tan grandes (o pequeños) sean los valores de $\mathbf{y}$. En general, éste no es el caso, porque una variable cuya media sea muy grande tendrá típicamente una varianza mayor que otra variable cuya media sea mucho más pequeña. Por ejemplo, si predecimos (o *estimamos*) que una línea de molienda convencional tendrá un tratamiento de $70.000$ tpd, es muy probable que el valor real de dicho tratamiento oscile entre $50.000$ y $90.000$ tpd; es decir, es razonable suponer una desviación estándar de, aproximadamente, $20.000$ tpd. Sin embargo, para una planta mucho más pequeña (por ejemplo, en mediana minería), con un tratamiento de $10.000$ tpd, es más bien improbable que tenga exactamente la misma desviación estándar, siendo más razonable que ésta sea muchísimo más pequeña. En general, para chequear este supuesto, es muy usual definir la cantidad $r_{i}=\hat{y}_{i}-y_{i}$, denominada **residuo** asociado a la $i$-ésima instancia predicha por el modelo de regresión lineal (para $i=1,...,m$), donde $\hat{y}_{i}$ es la estimación que realiza dicho modelo e $y_{i}$ el valor de respuesta real. Luego se construye un gráfico de dispersión que permite observar la correlación entre las predicciones del modelo y los correspondientes residuos, donde chequeamos si existe algún tipo de tendencia o patrón entre ambos. De ser así, decimos que existe **heterocedasticidad**, lo que implicará que nuestro modelo generará estimaciones menos precisas, aunque para ciertos métodos de estimación de los parámetros del modelo (como el método de mínimos cuadrados, que abordaremos un poco más adelante), tales estimaciones serán también insesgadas.
+- **Los residuos deben tener una media nula:** En general, uno de los supuestos más importantes a la hora de proceder con la construcción de cualquier modelo de regresión (más allá del *apellido* que éste tenga), es que el promedio de los errores que comete el modelo sea cero. Dicho de otro modo, establecemos que $\sum_{i}^{m} r_{i} /m=0$. Este supuesto resulta fundamental para validar cualquier conclusión que se formule a partir de las estimaciones de los parámetros del modelo. Si la media de los errores o residuos no es igual a cero, esto implica que el modelo **consistentemente sobreestima o subestima los valores de respuesta observados**, lo que necesariamente implicará la presencia de un **sesgo** importante en la estimación de los coeficientes del modelo.
+
+Los supuestos anteriores describen condiciones más bien generales que gobiernan la practicabilidad de implementar un modelo de regresión lineal sobre un problema de interés, aunque en realidad existen varios enfoques cuyo objetivo es la estimación de los parámetros de la regresión que permiten trabajar en las fronteras de estos supuestos e, incluso, manejar casos en los cuales algunos de ellos no se cumplen. Para motivar la discusión de estos enfoques más particulares, partiremos estudiando el más clásico (y conocido) de éstos: La estimación de los parámetros de una regresión lineal por medio del **método de mínimos cuadrados**.
+
+### Estimación por mínimos cuadrados
+
+La más elemental de las técnicas de estimación de los coeficientes de un modelo de regresión lineal es llamada **estimación por mínimos cuadrados**. El nombre obedece al hecho de que dicha técnica subyace en la resolución de un **problema de optimización** del mismo nombre, en el cual la función objetivo es la suma de las diferencias al cuadrado de los residuos del modelo. Se trata de una técnica formalizada por primera vez por el matemático francés Pierre Frédéric Sarrus en 1826, aunque fue el matemático alemán Carl Friedrich Gauss quien la popularizó y le dio su nombre actual, al usarla para predecir la órbita de un cometa. Desde entonces, el método de mínimos cuadrados se ha convertido en una de las técnicas más utilizadas para la estimación de los parámetros de un modelo de regresión lineal, debido a su simplicidad y a que, bajo ciertas condiciones, es el **estimador insesgado con menor varianza** (es decir, el mejor estimador insesgado) para este tipo de modelos.
+
+En términos geométricos, el método de mínimos cuadrados puede ser ilustrado en términos de una suma de distancias al cuadrado, orientadas conforme un vector paralelo al eje coordenado con respecto al cual se define cada una de las variables independientes del problema de interés, entre cada punto que constituye el conjunto de entrenamiento y su correspondiente proyección ortogonal sobre el (híper)-plano que representa la (híper)-superficie resultante del modelo de regresión lineal. Por lo tanto, el estimador puede expresarse por medio de una **fórmula cerrada**, lo que garantiza la existencia de una solución para este problema. Aunque el tiempo de ejecución en sí puede llegar a ser un problema a considerar, sobre todo en conjuntos de datos muy grandes.
+
+El método de mínimos cuadrados suele ser abreviado como **OLS** en un montón de implementaciones, del inglés *ordinary least squares*.
+
+#### Formulación
+
+Consideremos exactamente el mismo marco de referencia mostrado en las ecuaciones (5.5) y (5.6). Es decir, para un conjunto $\mathcal{D} =\left\{ \left( \mathbf{X} ,\mathbf{y} \right)  :\mathbf{X} \in \mathbb{R}^{m\times n+1} \wedge \mathbf{y} \in \mathbb{R}^{m} \right\}$, donde $\mathbf{x}_{i}\in \mathbb{R}^{n+1}$ representa una fila o instancia $i$-ésima de la matriz de diseño $\mathbf{X}$, siendo $m$ el total de instancias de $\mathcal{D}$, estamos interesados en determinar una **función regresora** $f$ tal que $\hat{\mathbf{y} } =f\left( \mathbf{X} \right)$, donde
+
+::: {.eq-scroll}
+$$
+f\left( \mathbf{X} \right)  =\mathbf{X} \mathbf{w} +\mathbf{\varepsilon }
+\tag{5.7}
+$$
+:::
+
+Notemos que, a diferencia de antes, ahora estamos considerando *a priori* que $\mathbf{X}$ ya tiene incorporada una columna con $1$s a su izquierda, a fin de poder incorporar el parámetro de sesgo $w_{0}$ al vector $\mathbf{w}=(w_{0}, w_{1},...,w_{n})\in \mathbb{R}^{n+1}$. Recordemos además que $\mathbf{\varepsilon}\in \mathbb{R}^{m}$ es un vector que representa el **ruido aleatorio** considerado en la variable de respuesta, siendo éste de tipo Gaussiano y con media nula. Definimos la función $S:\mathcal{W}\longrightarrow \mathbb{R}$ como
+
+::: {.eq-scroll}
+$$
+S\left( \mathbf{w} \right)  =\sum^{m}_{i=1} \left| y_{i}-\sum^{n}_{j=1} x_{ij}w_{j}\right|^{2}  =\left\Vert \mathbf{y} -\mathbf{X} \mathbf{w} \right\Vert^{2}
+\tag{5.8}
+$$
+:::
+
+y que llamamos **suma de cuadrados con respecto al vector $\mathbf{w}$**, donde $\mathcal{W}$ es el espacio que reúne a todos los valores posibles que pueden tomar los parámetros aglutinados en el vector $\mathbf{w}$, llamado **espacio de parámetros**. Notemos que esta es la **función de costo** que usamos como base del modelo de regresión lineal. Coincide con el **error cuadrático medio** asociado a nuestro modelo salvo por el factor de escala $1/m$, que no altera el mínimo del problema de optimización. Queremos hallar los valores del vector $\mathbf{w}$ que satisfacen el problema no restringido,
+
+::: {.eq-scroll}
+$$
+\hat{\mathbf{w} } =\underset{\mathbf{w} }{\mathrm{argmin} \  } S\left( \mathbf{w} \right)
+\tag{5.9}
+$$
+:::
+
+Siendo $\hat{\mathbf{w} }$ por tanto el **estimador por mínimos cuadrados** de $\mathbf{w}$.
+
+#### Ecuación normal
+
+Es posible demostrar que el problema (5.9) tiene una única solución (algebraicamente cerrada) si y sólo si las $p$ columnas de $\mathbf{X}$ que representan a las variables independientes de nuestro problema (es decir, excluyendo la columna de $1$s que agregamos para incorporar el parámetro de sesgo al vector $\mathbf{w}$) son linealmente independientes (en muchos textos especializados, esta importante restricción es llamada **condición de no multicolinealidad**, y ya la abordaremos más adelante).
+
+Notemos que la función $S$ puede escribirse como un producto matricial, ya que
+
+::: {.eq-scroll}
+$$
+S\left( \mathbf{w} \right)  =\left\Vert \mathbf{y} -\mathbf{X} \mathbf{w} \right\Vert^{2}  =\left( \mathbf{y} -\mathbf{X} \mathbf{w} \right)^{\top }  \left( \mathbf{y} -\mathbf{X} \mathbf{w} \right)
+\tag{5.10}
+$$
+:::
+
+Por lo que, para resolver el problema (5.9), basta con hallar las derivadas parciales del lado derecho de la ecuación (5.10) e igualarlas a cero. En efecto,
+
+::: {.eq-scroll}
+$$
+\begin{array}{lll}\displaystyle \frac{\partial S\left( \mathbf{w} \right)  }{\partial \mathbf{w} } &=&\displaystyle \frac{\partial }{\partial \mathbf{w} } \left( \left( \mathbf{y} -\mathbf{X} \mathbf{w} \right)^{\top }  \left( \mathbf{y} -\mathbf{X} \mathbf{w} \right)  \right)  \\ &=&2\left( \mathbf{y} -\mathbf{X} \mathbf{w} \right)^{\top }  \left( \displaystyle \frac{\partial }{\partial \mathbf{w} } \left( \mathbf{y} -\mathbf{X} \mathbf{w} \right)  \right)  \  \left( \mathrm{por\  la\  regla\  de\  la\  cadena} \right)  \\ &=&2\left( \mathbf{y} -\mathbf{X} \mathbf{w} \right)^{\top }  \left( -\mathbf{X} \right)  \  \left( \mathrm{desarrollando\  la\  derivada\  interior} \right)  \end{array}
+\tag{5.11}
+$$
+:::
+
+Por lo tanto,
+
+::: {.eq-scroll}
+$$
+\begin{array}{llll}&2\left( \mathbf{y} -\mathbf{X} \mathbf{w} \right)^{\top }  \left( \mathbf{X} \right)  &=&0\\ \Longrightarrow &\mathbf{X}^{\top } \left( \mathbf{y} -\mathbf{X} \mathbf{w} \right)  &=&0\\ \Longrightarrow &\mathbf{X}^{\top } \mathbf{y} -\mathbf{X}^{\top } \mathbf{X} \mathbf{w} &=&0\\ \Longrightarrow &\left( \mathbf{X}^{\top } \mathbf{X} \right)^{-1}  \left( \mathbf{X}^{\top } \mathbf{y} \right)  &=&\mathbf{w} \end{array}
+\tag{5.12}
+$$
+:::
+
+La expresión $\mathbf{w}= \left( \mathbf{X}^{\top } \mathbf{X} \right)^{-1}  \left( \mathbf{X}^{\top } \mathbf{y} \right)$ se conoce como **ecuación normal**, y constituye una solución algebraicamente cerrada para el vector de parámetros $\mathbf{w}$ (es decir, exacta). Al reemplazar (5.12) en la expresión (5.7), la estimación por mínimos cuadrados para $\mathbf{y}$ finalmente toma la forma
+
+::: {.eq-scroll}
+$$
+\begin{array}{lll}\hat{\mathbf{y} } &=&\mathbf{X} \hat{\mathbf{w}} \\ &=&\underbrace{\mathbf{X} \left( \mathbf{X}^{\top } \mathbf{X} \right)^{-1}  \mathbf{X}^{\top } }_{\mathbf{P} } \mathbf{y} \\ &=&\mathbf{P} \mathbf{y} \end{array}
+\tag{5.13}
+$$
+:::
+
+En la ecuación anterior, $\mathbf{P}$ es la matriz proyectiva de $\mathbf{y}$ sobre el subespacio vectorial generado por las columnas de $\mathbf{X}$ (es decir, las variables independientes). Por lo tanto, los residuos del modelo, aglutinados en el vector $\mathbf{r}\in \mathbb{R}^{m}$, pueden expresarse como $\mathbf{r} =\mathbf{y} -\hat{\mathbf{y}}=\mathbf{y}-\mathbf{X}\hat{\mathbf{w}}$. De esta manera, la estimación por mínimos cuadrados admite una interesante interpretación geométrica: Para un problema bidimensional (es decir, cuyo conjunto de entrenamiento es del tipo $\mathcal{D} =\left\{ \left( \mathbf{X} ,\mathbf{y} \right)  :\mathbf{X} \in \mathbb{R}^{m\times 2} \wedge \mathbf{y} \in \mathbb{R}^{m} \right\}$), el subespacio vectorial generado por las columnas $\mathbf{x}_{1} ,\mathbf{x}_{2} \in \mathbb{R}^{m}$ constituye un plano que describimos como $\mathcal{P} =\mathrm{col} \left( \mathbf{X} \right)$. En este contexto, el modelo de regresión lineal establece que $\hat{\mathbf{y}}=\mathbf{X}\hat{\mathbf{w}}$, lo que implica que el vector $\mathbf{y}$ tiene a $\mathbf{X}\hat{\mathbf{w}}$ como proyección ortogonal sobre $\mathcal{P}$, siendo $\hat{w}_{1} \mathbf{x}_{1}$ y $\hat{w}_{2} \mathbf{x}_{2}$ las *componentes* de dicha proyección sobre $\mathcal{P}$ (donde $\hat{w}_{j}$ es la estimación –por mínimos cuadrados– de $w_{j}$, para $j=1,2$). El efecto de los errores del modelo, representado por el *vector de residuos* $\mathbf{r}$, se representa por medio del vector normal a $\mathcal{P}$ que une a $\mathbf{y}$ con $\hat{\mathbf{y}}$. Esta situación se observa en la @fig-regproj.
+
+![La estimación por mínimos cuadrados puede ser interpretada como una proyección sobre el subespacio vectorial generado por las variables independientes (regresores o columnas) que constituyen la matriz de diseño $\mathbf{X}$. En la figura se ilustra el caso para en el cual se tienen únicamente dos variables independientes](images/fig_5_1.png){#fig-regproj fig-align="center" width="100%"}
+
+**Ejemplo 5.1 – Una implementación desde cero del método de mínimos cuadrados:** La discusión anterior quizás fue un tanto densa, así que es justo comenzar a *entrenar los dedos* y entender cómo podría ser su implementación a nivel de código. En este sencillo ejercicio, crearemos una clase llamada `OLSRegression` que, siguiendo la filosofía de la API de **<font color='darkmagenta'>Scikit-Learn</font>**, implementará la técnica de estimación por mínimos cuadrados para construir un modelo de regresión lineal, dados una matriz de datos de entrada `X` y un vector de valores de respuesta `y`, ambos representados por arreglos de **<font color='darkmagenta'>Numpy</font>**. Recordemos que el vector de parámetros de la regresión, que llamaremos `w`, será calculado de manera directa por medio de la ecuación normal (5.12).
+
+Partimos con las correspondientes importaciones:
+
+```{python}
+import warnings
+
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+import seaborn as sns
+```
+
+```{python}
+from mpl_toolkits import mplot3d
+```
+
+```{python}
+# Suprimimos los warnings para evitar distracciones.
+# OJO: En contextos productivos, jamás se recomienda suprimir los
+# warnings, ya que éstos pueden ser indicativos de problemas importantes
+# en el código.
+warnings.filterwarnings("ignore")
+```
+
+```{python}
+# Seteamos algunos parámetros para hermosear nuestras figuras.
+plt.rcParams["figure.dpi"] = 90
+sns.set()
+plt.style.use("bmh")
+```
+
+Y construimos nuestra implementación:
+
+```{python}
+# Definimos nuestro estimador por medio de una clase.
+class OLSRegression:
+    def __init__(self):
+        """
+        Inicialización de nuestra implementación. Aquí simplemente
+        establecemos las 'cajas' en las cuales vamos a almacenar
+        los valores resultantes del modelo de regresión lineal 
+        (coeficientes del modelo y parámetro de sesgo o intercepción).
+        
+        """
+        self.coef_ = None
+        self.fit_intercept_ = None
+
+    def __repr__(self):
+        """
+        Representación legible del estimador.
+        
+        """
+        if self.coef_ is None or self.fit_intercept_ is None:
+            return "OLSRegression(not fitted)"
+
+        coef = np.array2string(
+            self.coef_,
+            precision=4,
+            separator=", ",
+        )
+        return f"OLSRegression(fit_intercept_={self.fit_intercept_:.4f}, coef_={coef})"
+
+    def fit(self, X, y):
+        """
+        Procedimiento de ajuste por medio de una estimación por
+        mínimos cuadrados, a fin de determinar los coeficientes de
+        regresión de nuestro modelo.
+
+        Parámetros:
+        -----------
+        X : Arreglo 2D de dimensión (n_instances, n_features) que
+            aglutina toda la información de entrada necesaria para
+            entrenar nuestro modelo. En este caso `n_instances`
+            representa el número de instancias del conjunto de datos
+            y `n_features` representa el número de variables independientes
+            del mismo.
+        y : Arreglo 1D con los valores de respuesta usados como base para
+            entrenar nuestro modelo.
+        
+        """
+        # Añadimos una columna con 1s a la izquierda de la matriz X.
+        X_biased = np.c_[np.ones((X.shape[0], 1)), X]
+
+        # Calculamos el vector de parámetros del modelo por medio de la
+        # ecuación normal.
+        w = np.linalg.inv(X_biased.T @ X_biased) @ X_biased.T @ y
+
+        # Asignamos los valores calculados.
+        self.coef_ = w[1:]
+        self.fit_intercept_ = w[0]
+
+        return self
+
+    def predict(self, X):
+        """
+        Método que permite obtener predicciones por medio de nuestro modelo.
+
+        Parámetros:
+        -----------
+        X : Arreglo 2D de dimensión (n_instances, n_features) que aglutina
+            toda la información de entrada necesaria para entrenar nuestro
+            modelo. En este caso `n_instances` representa el número de
+            instancias del conjunto de datos y `n_features` representa el
+            número de variables independientes del mismo.
+
+        Retorna:
+        --------
+        y_hat : Predicción realizada por el modelo.
+        
+        """
+        # Añadimos una columna con 1s a la izquierda de la matriz X.
+        X_biased = np.c_[np.ones((X.shape[0], 1)), X]
+
+        # Calculamos la estimación para y usando nuestro modelo.
+        y_hat = X_biased.dot(np.r_[self.fit_intercept_, self.coef_])
+        
+        return y_hat
+```
+
+La implementación anterior es extremadamente simple, y explota la notación de Python para la multiplicación matricial. Sin embargo, puede requerir ciertos ajustes más específicos en caso de que la matriz $\mathbf{X}^{\top} \mathbf{X}$ sea no singular.
+
+Vamos a generar algo de data aleatoria para testear nuestra implementación. Para ello, nos valdremos del generador de números aleatorios de **<font color='darkmagenta'>Numpy</font>**, a partir del cual crearemos un conjunto de datos definido por un par del tipo $\left( \mathbf{x} ,\mathbf{y} \right)$, tal que $\mathbf{x} \wedge \mathbf{y} \in \mathbb{R}^{1000}$. De este modo sólo dispondremos de una variable independiente $\mathbf{x}$, ligada a $\mathbf{y}$ por la ecuación $\mathbf{y} =4+2.5\mathbf{x} +\mathbf{\varepsilon }$, donde $\mathbf{\varepsilon } \in \mathbb{R}^{1000}$ es ruido Gaussiano con media nula y desviación estándar igual a $2$:
+
+```{python}
+# Creamos una semilla aleatoria fija.
+rng = np.random.default_rng(42)
+
+# Generamos un conjunto de datos del tipo (X, y), donde X está compuesta únicamente por una única
+# variable independiente.
+X = rng.normal(loc=0, scale=1, size=1000)
+y = 4 + 2.5 * X + rng.normal(loc=0, scale=2, size=1000)
+```
+
+Nuestro conjunto de datos tiene la siguiente estructura:
+
+```{python}
+#| label: fig-modelo-de-regresion-lineal-01
+#| fig-cap: "Conjunto de datos aleatorio."
+# Visualizamos nuestro conjunto de datos.
+fig, ax = plt.subplots(figsize=(9, 5))
+ax.scatter(X, y, marker="o", s=20, color="dodgerblue")
+ax.set_xlabel(r"$x_{1}$", fontsize=14, labelpad=10)
+ax.set_ylabel(r"$x_{2}$", fontsize=14, labelpad=15, rotation=0)
+ax.set_title(
+    "Conjunto de datos aleatorio",
+    fontsize=14,
+    fontweight="bold",
+    pad=10,
+)
+
+ax.grid(True)
+plt.tight_layout()
+```
+
+El problema a resolver es entonces $\hat{\mathbf{y} } =b+w\mathbf{x} +\mathbf{\varepsilon }$, donde $b$ y $w$ son los parámetros que debemos estimar.
+
+Debido a que la implementación que hemos construido para el modelo de regresión lineal conforme una estimación por mínimos cuadrados sigue la filosofía de consistencia de la API de **<font color='darkmagenta'>Scikit-Learn</font>**, su aplicación es relativamente simple, conforme lo ya aprendido en la [entrada correspondiente](/clases/machine-learning/aprendizaje-supervisado/modelos-lineales/introduccion-a-scikit-learn/):
+
+```{python}
+# Inicializamos nuestro modelo.
+model = OLSRegression()
+
+# Y lo entrenamos conforme nuestro conjunto de datos previamente construido.
+model.fit(X, y)
+```
+
+```{python}
+# Obtenemos predicciones conforme nuestro modelo.
+y_pred = model.predict(X)
+
+# Recuperamos los coeficientes de este modelo.
+b = model.fit_intercept_
+w = model.coef_[0]
+
+# Imprimimos los parámetros estimados.
+print("Parámetros estimados por el método de mínimos cuadrados:")
+print(f"b = {b:.3f}")
+print(f"w = {w:.3f}")
+```
+
+Podemos observar que nuestro modelo obtiene estimaciones para $b$ y $w$ bastante cercanas a las originalmente utilizadas para generar el conjunto de datos en primera instancia. Naturalmente, la función regresora construida previamente toma la forma de una recta, la cual podemos visualizar rápidamente como sigue:
+
+```{python}
+#| label: fig-modelo-de-regresion-lineal-02
+#| fig-cap: "Estimación por mínimos cuadrados, caso univariable."
+# Visualizamos nuestro conjunto de datos y el modelo construido conforme
+# la estimación por mínimos cuadrados.
+fig, ax = plt.subplots(figsize=(9, 5))
+ax.scatter(
+    x=X,
+    y=y,
+    marker="o",
+    s=20,
+    color="dodgerblue",
+    label="Conjunto de datos",
+)
+
+ax.plot(
+    X,
+    y_pred,
+    linestyle="--",
+    color="navy",
+    lw=1.5,
+    label="Modelo construido vía OLS",
+)
+
+ax.set_xlabel(r"$x$", fontsize=14, labelpad=10)
+ax.set_ylabel(r"$y$", fontsize=14, labelpad=15, rotation=0)
+ax.set_title(
+    "Estimación por mínimos cuadrados, caso univariable",
+    fontsize=14,
+    pad=10,
+    fontweight="bold",
+)
+
+ax.legend(loc="best", frameon=True, fontsize=10)
+ax.grid(True)
+
+plt.tight_layout()
+```
+
+La implementación del método de mínimos cuadrados previamente desarrollada para la construcción de un modelo de regresión lineal es independiente del número de variables independientes que conformen la matriz de datos de entrada $\mathbf{X}$. En efecto, si ahora construimos un conjunto de datos representado por el par $\left( \mathbf{X} ,\mathbf{y} \right)$ tal que $\mathbf{X} =\left( \mathbf{x}_{1} ,\mathbf{x}_{2} \right)  \in \mathbb{R}^{1000\times 2} \wedge \mathbf{y} \in \mathbb{R}^{1000}$, haciendo uso de la misma semilla aleatoria fija definida previamente, tendremos:
+
+```{python}
+# Creamos ahora un conjunto de datos con dos variables independientes.
+X = rng.normal(loc=0, scale=1, size=(1000, 2))
+y = -3 + 1.5 * X[:, 0] + 2 * X[:, 1] + rng.normal(loc=0, scale=2, size=1000)
+```
+
+```{python}
+#| label: fig-modelo-de-regresion-lineal-03
+#| fig-cap: "Visualización generada para la sección Ecuación normal."
+fig = plt.figure(figsize=(9, 8))
+ax = plt.axes(projection="3d")
+ax.scatter3D(X[:, 0], X[:, 1], y, s=40, color="dodgerblue")
+ax.set_xlabel(r"$x_{1}$", fontsize=12, labelpad=10)
+ax.set_ylabel(r"$x_{2}$", fontsize=12, labelpad=10)
+ax.set_zlabel(r"$y$", fontsize=12, labelpad=10)
+plt.tight_layout()
+```
+
+Notemos que, para el conjunto anterior, hemos definido que $\mathbf{y} =-3+1.5\mathbf{x}_{1} +2\mathbf{x}_{2} +\mathbf{\varepsilon }$, donde nuevamente $\mathbf{\varepsilon }$ representa ruido Gaussiano con media nula y desviación estándar igual a $2$. El problema a resolver es ahora $\hat{\mathbf{y} } =b+w_{1}\mathbf{x}_{1} +w_{2}\mathbf{x}_{2}$, donde $b,w_{1}$ y $w_{2}$ son los parámetros a estimar.
+
+Como antes, la aplicación de la clase previamente definida es directa:
+
+```{python}
+# Inicializamos nuestro modelo.
+model_2 = OLSRegression()
+
+# Y lo entrenamos conforme nuestro conjunto de datos previamente construido.
+model_2.fit(X, y)
+```
+
+```{python}
+# Obtenemos predicciones conforme nuestro modelo.
+y_pred = model_2.predict(X)
+
+# Recuperamos los coeficientes de este modelo.
+b = model_2.fit_intercept_
+w1 = model_2.coef_[0]
+w2 = model_2.coef_[1]
+
+# Imprimimos los parámetros estimados.
+print("Parámetros estimados por el método de mínimos cuadrados:")
+print(f"b = {b:.3f}")
+print(f"w1 = {w1:.3f}")
+print(f"w2 = {w2:.3f}")
+```
+
+Y nuevamente obtenemos estimaciones muy cercanas a los valores reales.
+
+La función regresora ahora describe un plano de ecuación $\hat{\mathbf{y} } =\hat{b} +\hat{w}_{1} \mathbf{x}_{1} +\hat{w}_{2} \mathbf{x}_{2}$, siendo $\hat{b},\hat{w}_{1}$ y $\hat{w}_{2}$ las estimaciones realizadas para $b,w_{1}$ y $w_{2}$, respectivamente. Podemos visualizar fácilmente este plano en **<font color='darkmagenta'>Scikit-Learn</font>** mediante la incorporación de una grilla tridimensional limitada, en cada dimensión, por los valores extremos de cada una de las variables independientes que conforman a la matriz $\mathbf{X}$. De esta manera, tenemos:
+
+```{python}
+# Generamos el hiperplano que representa nuestra función regresora.
+x1 = np.linspace(start=X[:, 0].min(), stop=X[:, 0].max(), num=100)
+x2 = np.linspace(start=X[:, 1].min(), stop=X[:, 1].max(), num=100)
+X1, X2, = np.meshgrid(x1, x2)
+y_pred = b + w1 * X1 + w2 * X2
+```
+
+```{python}
+#| label: fig-modelo-de-regresion-lineal-04
+#| fig-cap: "Estimación por mínimos cuadrados, caso bivariable."
+# Visualizamos nuestro conjunto de datos y el modelo construido 
+# conforme la estimación por mínimos cuadrados.
+fig = plt.figure(figsize=(9, 8))
+ax = plt.axes(projection="3d")
+ax.scatter3D(
+    X[:, 0],
+    X[:, 1],
+    y,
+    s=20,
+    color="dodgerblue",
+    label="Conjunto de datos",
+)
+
+ax.plot_surface(
+    X1,
+    X2,
+    y_pred,
+    cmap="Grays",
+    lw=0,
+    alpha=0.2,
+    label="Modelo construido vía OLS",
+)
+
+# Etiquetamos los ejes y el título de la figura.
+ax.legend(loc="best", frameon=True, fontsize=10)
+ax.set_xlabel(r"$x_{1}$", fontsize=12, labelpad=10)
+ax.set_ylabel(r"$x_{2}$", fontsize=12, labelpad=10)
+ax.set_zlabel(r"$y$", fontsize=12, labelpad=10)
+ax.set_title(
+    "Estimación por mínimos cuadrados, caso bivariable",
+    fontsize=14,
+    pad=10,
+    fontweight="bold",
+)
+
+plt.tight_layout()
+```
+
+Los problemas resueltos previamente son casos muy simples que no deben tomarse como una norma general de los casos de estudio que enfrentaremos en el mundo real. De hecho, incluso, en estos ejemplos hemos definido con anterioridad los valores *reales* de los coeficientes de regresión, lo que nos ha dado una idea de donde debíamos llegar con nuestros modelos. Por supuesto, este difícilmente sea el caso en un contexto más real. ◼︎
+
+## Solución aproximada por medio del algoritmo de gradiente descendente
+
+Es evidente que la implementación del método de mínimos cuadrados para la construcción de un modelo de regresión lineal tiene sus ventajas. La más destacable de éstas es que la ecuación normal (5.12) nos provee de una solución algebraica cerrada que garantiza su existencia. Sin embargo, el tiempo de ejecución es un asunto completamente diferente, debido a la existencia de la matriz inversa $\left( \mathbf{X}^{\top } \mathbf{X} \right)^{-1}$, que puede ser muy difícil de computar, sobre todo cuando los problemas subyacentes no están bien condicionados (por ejemplo, causando que la inversa $\left( \mathbf{X}^{\top } \mathbf{X} \right)^{-1}$ no exista). Por lo tanto, es común que la estimación de los parámetros de la regresión se realice por medio de métodos de optimización numérica que permitan obtener soluciones aproximadas de gran calidad en un tiempo significativamente menor. Un ejemplo clásico de estas rutinas es, por supuesto, el **algoritmo de gradiente descendente (GD)**, el que abordamos en detalle en la [entrada correspondiente](/apuntes/calculo-incertidumbre-y-optimizacion/optimizacion-aplicada-al-aprendizaje-automatico/).
+
+Sea el conjunto de entrenamiento $\mathcal{D} =\left\{ \left( \mathbf{X} ,\mathbf{y} \right)  :\mathbf{X} \in \mathbb{R}^{m\times n+1} \wedge \mathbf{y} \in \mathbb{R}^{m} \right\}$, donde $\mathbf{x}_{i}\in \mathbb{R}^{n+1}$ representa una fila o instancia $i$-ésima de la matriz de datos de entrada $\mathbf{X}$, siendo $m$ el total de instancias de $\mathcal{D}$. En esta representación, estamos considerando nuevamente que $\mathbf{X}$ tiene añadida una columna con $1$s a su izquierda para así considerar el efecto de cualquier parámetro de sesgo propio de un modelo de regresión lineal. De esta manera, estamos nuevamente interesados en estimar una función regresora $f$, tal que $\mathbf{y}=f(\mathbf{X})+\mathbf{\varepsilon}$, donde $f(\mathbf{X}) =\mathbf{X} \mathbf{w}$. Aquí $\mathbf{w}\in \mathbb{R}^{n+1}$ es nuevamente un vector de parámetros que deseamos estimar (los coeficientes de regresión, incluyendo por supuesto al parámetro de sesgo $b=w_{0}$).
+
+Consideremos la función de pérdida (5.8). Notemos que dicha función difiere del error cuadrático medio únicamente por una constante. En efecto, si $L(\mathbf{w})$ denota al error cuadrático medio en términos del vector $\mathbf{w}$, entonces tenemos que
+
+::: {.eq-scroll}
+$$
+\begin{array}{lll}L\left( \mathbf{w} \right)  &=&\displaystyle \frac{1}{m} \sum^{m}_{i=1} \left( y_{i}-\hat{y}_{i} \right)^{2}  \\ &=&\displaystyle \frac{1}{m} \sum^{m}_{i=1} \left( y_{i}-\sum^{n}_{j=1} x_{ij}w_{j}\right)^{2}  \\ &=&\displaystyle \frac{1}{m} \left\Vert \mathbf{y} -\mathbf{X} \mathbf{w} \right\Vert^{2}  \\ &=&\displaystyle \frac{S\left( \mathbf{w} \right)  }{m} \end{array}
+\tag{5.14}
+$$
+:::
+
+Por lo tanto, el valor mínimo de la suma de cuadrados $S\left( \mathbf{w} \right)$ coincide con el valor mínimo del error cuadrático medio $L\left( \mathbf{w} \right)$. De esta manera, el gradiente de $L$ con respecto a $\mathbf{w}$ es
+
+::: {.eq-scroll}
+$$
+\nabla L\left( \mathbf{w} \right)  =\left( \begin{gathered}\displaystyle \frac{\partial L\left( \mathbf{w} \right)  }{\partial w_{0}} \\ \displaystyle \frac{\partial L\left( \mathbf{w} \right)  }{\partial w_{1}} \\ \vdots \\ \displaystyle \frac{\partial L\left( \mathbf{w} \right)  }{\partial w_{n}} \end{gathered} \right)  =\frac{2}{m} \left( \mathbf{y} -\mathbf{X} \mathbf{w} \right)^{\top }  \left( -\mathbf{X} \right)
+\tag{5.15}
+$$
+:::
+
+Con el gradiente expresado en términos de $\mathbf{w}$, lo único que nos queda pendiente es insertar la fórmula (5.15) en la rutina del algoritmo de gradiente descendente. Es decir, para una secuencia o **programa de aprendizaje** consistente de $k$ iteraciones del algoritmo, el valor de $\mathbf{w}$ en la iteración $k$ será
+
+::: {.eq-scroll}
+$$
+\mathbf{w}^{\left( k\right)  } =\mathbf{w}^{\left( k-1\right)  } -\eta \nabla L\left( \mathbf{w}^{\left( k-1\right)  } \right)
+\tag{5.16}
+$$
+:::
+
+donde $\eta$ es la **tasa de aprendizaje** del algoritmo. 
+
+Notemos que la fórmula (5.15) hace uso del conjunto de entrenamiento completo (es decir, hace uso de la matriz $\mathbf{X}$ completa), razón por la cual la implementación definida por la ecuación (5.16) es frecuentemente llamada **gradiente descendente en batch o por lotes** (del inglés *batch gradient descent*, o **BGD**), porque utilizamos una única muestra (*batch* o lote) del conjunto de entrenamiento en cada paso. Esto puede derivar en problemas de rendimiento por efecto del número de cálculos requeridos cuando $\mathbf{X}$ es muy grande en términos del número de instancias $m$, aunque el efecto de agregar más variables al modelo no es demasiado costoso (porque equivale al cálculo de una derivada parcial adicional).
+
+**Ejemplo 5.2 – El efecto de la tasa de aprendizaje:** La implementación de un modelo de regresión lineal con coeficientes estimados por medio del algoritmo de gradiente descendente de tipo batch (BGD) es muy sencilla de implementar en Python. Para ilustrarlo, crearemos una clase que mantenga la consistencia de la API de **<font color='darkmagenta'>Scikit-Learn</font>** para su aplicación, de la misma forma que lo hicimos para el caso de la estimación por mínimos cuadrados. En esta oportunidad, nuestra clase se llamará `BGDRegression`, para diferenciar cada implementación (y le agregaremos una barra de progreso):
+
+```{python}
+from tqdm import tqdm
+```
+
+```{python}
+# Definimos nuestro estimador por medio de una clase.
+class BGDRegression:
+    def __init__(
+        self,
+        n_epochs=1000,
+        learning_rate=0.1,
+        random_state=42,
+        ):
+        """
+        Inicialización de nuestra implementación. Aquí simplemente
+        establecemos las 'cajas' en las cuales vamos a almacenar los
+        valores resultantes del modelo de regresión lineal 
+        (coeficientes del modelo y parámetro de sesgo o intercepción).
+
+        Parámetros:
+        -----------
+        n_epochs : Número de iteraciones requerido para el algoritmo BGD.
+        learning_rate : Tasa de aprendizaje del algoritmo.
+        random_state : Parámetro que permite reproducir el resultado del
+            algoritmo por medio de la introducción de una semilla aleatoria
+            fija.
+        
+        """
+        self.coef_ = None
+        self.fit_intercept_ = None
+        self.n_epochs = n_epochs
+        self.learning_rate = learning_rate
+        self.random_state = random_state
+
+    def __repr__(self):
+        """
+        Representación legible del estimador.
+        
+        """
+        if self.coef_ is None or self.fit_intercept_ is None:
+            return (
+                "BGDRegression("
+                f"n_epochs={self.n_epochs}, "
+                f"learning_rate={self.learning_rate}, "
+                "not fitted)"
+            )
+
+        coef = np.array2string(
+            self.coef_,
+            precision=4,
+            separator=", ",
+        )
+        return (
+            "BGDRegression("
+            f"n_epochs={self.n_epochs}, "
+            f"learning_rate={self.learning_rate}, "
+            f"fit_intercept_={self.fit_intercept_:.4f}, "
+            f"coef_={coef})"
+        )
+
+    def fit(self, X, y):
+        """
+        Procedimiento de ajuste por medio de una estimación por mínimos
+        cuadrados, a fin de determinar los coeficientes de regresión de
+        nuestro modelo.
+
+        Parámetros:
+        -----------
+        X : Arreglo 2D de dimensión (n_instances, n_features) que aglutina
+            toda la información de entrada necesaria para entrenar nuestro
+            modelo. En este caso `n_instances` representa el número de instancias
+            del conjunto de datos y `n_features` representa el número de variables
+            independientes del mismo.
+        y : Arreglo 1D con los valores de respuesta usados como base para entrenar
+            nuestro modelo.
+        
+        """
+        # Añadimos una columna con 1s a la izquierda de la matriz X.
+        X_biased = np.c_[np.ones((X.shape[0], 1)), X]
+        m = X_biased.shape[0]
+
+        # Inicializamos los parámetros del modelo de manera aleatoria.
+        seed = self.random_state
+        rng = np.random.default_rng(seed)
+        w = rng.random(X_biased.shape[1])
+
+        # Implementamos el algoritmo BGD por medio de un loop muy sencillo.
+        for epoch_k in tqdm(
+            range(self.n_epochs),
+            desc="Generando búsqueda de parámetros óptimos vía BGD",
+        ):
+            # Calculamos el gradiente de la función de costo (error
+            # cuadrático medio).
+            gradient_k = (2 / m) * (y - X_biased @ w).T @ (-X_biased)
+
+            # Actualizamos los coeficientes de regresión.
+            w -= self.learning_rate * gradient_k
+
+        # Asignamos los valores calculados.
+        self.coef_ = w[1:]
+        self.fit_intercept_ = w[0]
+
+        return self
+
+    def predict(self, X):
+        """
+        Método que permite obtener predicciones por medio de nuestro modelo.
+
+        Parámetros:
+        -----------
+        X : Arreglo 2D de dimensión (n_instances, n_features) que aglutina
+            toda la información de entrada necesaria para entrenar nuestro
+            modelo. En este caso `n_instances` representa el número de instancias
+            del conjunto de datos y `n_features` representa el número de variables
+            independientes del mismo.
+
+        Retorna:
+        --------
+        y_hat : Predicción realizada por el modelo.
+        
+        """
+        # Añadimos una columna con 1s a la izquierda de la matriz X.
+        X_biased = np.c_[np.ones((X.shape[0], 1)), X]
+
+        # Calculamos la estimación para y usando nuestro modelo.
+        y_hat = X_biased.dot(np.r_[self.fit_intercept_, self.coef_])
+        
+        return y_hat
+```
+
+La implementación es más bien sencilla, ya que hemos *reciclado* bastante código del utilizado para crear nuestra implementación casera de la estimación por mínimos cuadrados.
+
+Para probar nuestra implementación, el camino a seguir será exactamente el mismo que el transitado para testear nuestro estimador de mínimos cuadrados (de ahí la *consistencia*). Es decir, instanciaremos nuestro modelo en una variable (que llamaremos `model`), entrenaremos dicho modelo sobre el conjunto de datos haciendo uso del método `fit()`, y luego obtendremos predicciones haciendo uso del método `predict()`:
+
+```{python}
+# Instanciamos nuestro modelo.
+model = BGDRegression()
+
+# Y lo entrenamos conforme nuestro conjunto de datos previamente construido.
+model.fit(X, y)
+```
+
+```{python}
+# Obtenemos predicciones conforme nuestro modelo.
+y_pred = model.predict(X)
+```
+
+De lo anterior, la obtención de los parámetros de la regresión resulta sencillo:
+
+```{python}
+# Recuperamos los coeficientes de este modelo.
+b = model.fit_intercept_
+w1 = model.coef_[0]
+w2 = model.coef_[1]
+
+# Mostramos los parámetros estimados.
+print("Parámetros estimados por el método de mínimos cuadrados:")
+print(f"b = {b:.3f}")
+print(f"w1 = {w1:.3f}")
+print(f"w2 = {w2:.3f}")
+```
+
+Estos parámetros son prácticamente *iguales* a los obtenidos previamente por medio del estimador de mínimos cuadrados, lo que pone de manifiesto la utilidad del algoritmo de gradiente descendente como eje central de la estimación de parámetros en modelos de naturaleza lineal (por muy *generales* que éstos sean, como veremos más adelante).
+
+Ahora evaluaremos el efecto de elegir una tasa de aprendizaje muy pequeña o muy grande para el algoritmo de gradiente descendente, a fin de tener una idea completa de la importancia de este hiperparámetro. Para ello, simplificaremos la implementación a una del tipo funcional, a fin de poder insertarla de manera sencilla en un bucle que permita trazar todas las curvas resultantes de los parámetros estimados en cada iteración del algoritmo. Para efectos prácticos, haremos uso de un conjunto de datos univariable del tipo $\left\{ x_{i},y_{i}\right\}^{m}_{i=1}  ;x_{i}\in \mathbb{R} \wedge y_{i}\in \mathbb{R}$, que generaremos igualmente de manera aleatoria. 
+
+Usaremos como base la ecuación $y=3x -1$, y agregaremos un nivel constante de ruido Gaussiano (de media nula) a esta expresión a fin de dificultar la labor del algoritmo de gradiente descendente a la hora de estimar los parámetros de la regresión:
+
+```{python}
+# Generamos un arreglo de números en el rango [-5, 5].
+X = np.linspace(start=-5, stop=5, num=100)
+
+# Y construimos nuestra variable de respuesta.
+noise = rng.normal(loc=0, scale=5, size=100)
+y = 3 * X - 1 + noise
+```
+
+Nuestro conjunto de datos tiene la siguiente estructura:
+
+```{python}
+#| label: fig-modelo-de-regresion-lineal-05
+#| fig-cap: "Conjunto de datos aleatorio."
+# Visualizamos nuestro conjunto de datos.
+fig, ax = plt.subplots(figsize=(9, 5))
+ax.scatter(X, y, color="dodgerblue", marker="o", s=20)
+ax.set_title(
+    "Conjunto de datos aleatorio",
+    fontsize=14,
+    fontweight="bold",
+    pad=10,
+)
+
+ax.set_xlabel(r"$x$", fontsize=14, labelpad=10)
+ax.set_ylabel(r"$y$", fontsize=14, labelpad=15, rotation=0)
+ax.grid(True)
+plt.tight_layout()
+```
+
+En el siguiente bloque de código, construiremos una función que implementará un bucle sencillo en el cual haremos variar la tasa de aprendizaje del algoritmo, almacenando en cada caso la trayectoria completa del mismo (todos los valores que toma el vector de parámetros $\mathbf{w}$ en cada iteración):
+
+```{python}
+# Definimos una función que implementa el algoritmo BGD para nuestro caso particular.
+def batch_gradient_descent(
+    X,
+    y,
+    learning_rate=0.01,
+    n_iter=3000,
+    random_state=42,
+):
+    # Añadimos una columna con 1s a la izquierda de la matriz X.
+    X_biased = np.c_[np.ones((X.shape[0], 1)), X]
+
+    # Número total de observaciones en el lote.
+    m = X_biased.shape[0] 
+
+    # Adecuamos y en un arreglo bidimensional.
+    y = y.reshape(-1, 1) 
+
+    # Definimos una lista vacía donde almacenaremos la trayectoria del
+    # algoritmo.
+    w_path = [] 
+
+    # Inicializaremos el algoritmo con un valor aleatorio para nuestros
+    # parámetros.
+    rng = np.random.default_rng(random_state)
+    w0 = rng.normal(loc=0, scale=1, size=(2, 1))
+    wk = w0.copy()
+
+    # Y finalmente implementamos el procedimiento del algoritmo BGD.
+    for iter_k in range(n_iter):
+        gradient_k = (2/m) * X_biased.T @ (X_biased @ wk - y)
+        wk -= learning_rate * gradient_k
+        w_path.append(wk.copy())
+    
+    return wk, w_path
+```
+
+Ya sólo nos resta resolver el problema por medio de nuestra función. El vector de parámetros de la regresión se almacenará en la variable `w_bgd`, mientras que la trayectoria completa del algoritmo se almacenará en la variable `path_bgd`:
+
+```{python}
+# Resolvemos el problema usando el algoritmo BGD.
+w_bgd, path_bgd = batch_gradient_descent(X, y)
+
+# Imprimimos los parámetros estimados.
+print("Parámetros estimados por el método de mínimos cuadrados:")
+print(f"b = {w_bgd[0, 0]:.3f}")
+print(f"w = {w_bgd[1, 0]:.3f}")
+```
+
+Observamos que las estimaciones obtenidas de los parámetros son cercanas a las que hemos usado para generar nuestro conjunto de datos (recordemos, $w=3\wedge b=-1$). El modelo final puede representarse gráficamente como sigue:
+
+```{python}
+# Generamos las predicciones de nuestro modelo.
+y_pred = np.c_[np.ones((X.shape[0], 1)), X] @ w_bgd
+```
+
+```{python}
+#| label: fig-modelo-de-regresion-lineal-06
+#| fig-cap: "Modelo de regresión lineal construido por medio del algoritmo de gradiente descendente."
+# Graficamos los resultados del modelo.
+fig, ax = plt.subplots(figsize=(9, 5))
+ax.scatter(
+    x=X,
+    y=y,
+    color="dodgerblue",
+    label="Conjunto de puntos",
+)
+
+ax.plot(
+    X,
+    y_pred,
+    linestyle="-.",
+    color="navy",
+    label="Modelo de regresión lineal",
+)
+
+# Etiquetamos los ejes y el título de la figura.
+ax.set_title(
+    "Modelo de regresión lineal construido por medio del algoritmo de gradiente descendente",
+    fontsize=14,
+    fontweight="bold",
+    pad=10,
+)
+
+ax.set_xlabel(r"$x$", fontsize=14, labelpad=10)
+ax.set_ylabel(r"$y$", fontsize=14, labelpad=15, rotation=0)
+ax.legend(loc="best", fontsize=10, frameon=True)
+ax.grid(True)
+
+plt.tight_layout()
+```
+
+Ahora visualizaremos la trayectoria del algoritmo haciendo uso de la lista `path_bgd`. Debido a que el número de iteraciones del algoritmo es alto, mostraremos todas las rectas construidas en cada caso, pero cada cuatro iteraciones:
+
+```{python}
+#| label: fig-modelo-de-regresion-lineal-07
+#| fig-cap: "La trayectoria del algoritmo."
+# Graficamos la trayectoria del algoritmo.
+fig, ax = plt.subplots(figsize=(9, 5))
+ax.scatter(X, y, color="dodgerblue", label="Conjunto de puntos")
+ax.plot(X, y_pred, linestyle="-", color="navy", label="Modelo(s) de regresión lineal")
+
+for k in range(0, len(path_bgd), 3):
+    y_pred_k = np.c_[np.ones((X.shape[0], 1)), X] @ path_bgd[k]
+    ax.plot(X, y_pred_k, color="navy", alpha=0.15)
+
+ax.set_xlabel(r"$x$", fontsize=14, labelpad=10)
+ax.set_ylabel(r"$y$", fontsize=14, labelpad=15, rotation=0)
+ax.legend(loc="best", fontsize=10, frameon=True)
+ax.grid(True)
+
+plt.tight_layout()
+```
+
+Podemos observar que el algoritmo necesita muchísimas menos iteraciones que las `3000` que hemos definido a priori en nuestra implementación, lo que se hace evidente porque la mayoría de las rectas dibujadas en el gráfico anterior son muy cercanas a la del modelo final. Esto podemos observarlo de manera mucho más clara al graficar esta misma trayectoria en el espacio de parámetros completo:
+
+```{python}
+#| label: fig-modelo-de-regresion-lineal-08
+#| fig-cap: "Trayectoria completa del algoritmo BGD."
+# Construimos el espacio de parámetros completo.
+param_space_bgd = np.vstack(
+    [
+        [path_bgd[k][0][0] for k in range(len(path_bgd))], 
+        [path_bgd[k][1][0] for k in range(len(path_bgd))],
+    ]
+).T
+
+# Graficamos la trayectoria del algoritmo en este espacio.
+fig, ax = plt.subplots(figsize=(9, 5))
+ax.plot(
+    param_space_bgd[:, 0],
+    param_space_bgd[:, 1],
+    marker="s",
+    markersize=5,
+    color="navy",
+)
+
+# Generamos algunas anotaciones para destacar la solución inicial y
+# la solución final del algoritmo.
+ax.annotate(
+    "Solución inicial",
+    xy=(param_space_bgd[0, 0], param_space_bgd[0, 1]),
+    xytext=(-0.25, 0.0),
+    xycoords='data',
+    fontsize=12,
+    bbox=dict(boxstyle="round4,pad=.5", fc="0.9", color="black"),
+    arrowprops=dict(
+        arrowstyle="->",
+        connectionstyle="angle,angleA=0,angleB=80,rad=20",
+        color="black",
+    ),
+)
+
+ax.annotate(
+    "Solución final",
+    xy=(param_space_bgd[-1, 0], param_space_bgd[-1, 1]),
+    xytext=(-1.4, 2.5),
+    xycoords='data',
+    fontsize=12,
+    bbox=dict(boxstyle="round4,pad=.5", fc="0.9", color="black"),
+    arrowprops=dict(
+        arrowstyle="->",
+        connectionstyle="angle,angleA=0,angleB=80,rad=20",
+        color="black",
+    ),
+)
+
+# Etiquetamos los ejes y el título de la figura.
+ax.set_xlabel(r"$b$", fontsize=14, labelpad=10)
+ax.set_ylabel(r"$w$", fontsize=14, labelpad=15, rotation=0)
+ax.grid(True)
+ax.set_title(
+    "Trayectoria completa del algoritmo BGD",
+    fontsize=14,
+    fontweight="bold",
+    pad=10,
+)
+
+plt.tight_layout()
+```
+
+El algoritmo tarda muchísimo en converger, y los pasos que toma a medida que se acerca a la solución final del problema de regresión son cada vez más y más pequeños. Cuando las diferencias entre los valores de los parámetros que estimamos entre cada iteración son despreciables (es decir, menores que cierta diferencia umbral o **tolerancia**), es razonable introducir un mecanismo que rompa los bucles de cálculo al alcanzar dicha tolerancia en cada paso. Existen aplicaciones que incluso permiten que dicha tolerancia sea superada durante un total de $r$ iteraciones sucesivas, rompiendo el bucle si las diferencias entre los parámetros estimados no superan ese valor. El hiperparámetro $r$ es llamado comúnmente **paciencia** asociada a la correspondiente implementación. ◼︎
+
+### Implementación de la variante estocástica del algoritmo de GD
+
+El principal problema del algoritmo BGD, radica en el hecho de que utiliza el conjunto de entrenamiento completo para computar los gradientes en cada paso, lo que genera que dicho gradiente sea de muy lenta variación cuando el conjunto de entrenamiento es muy grande, lo que observamos en el ejemplo anterior. Para estos casos, suele ser buena idea implementar otro tipo de soluciones.
+
+El **algoritmo de gradiente descendente estocástico** (**SGD**, del inglés *stochastic gradient descent*) es una variante del algoritmo de gradiente descendente tradicional que es particularmente útil cuando se trabaja con grandes volúmenes de datos, dado que permite actualizaciones más rápidas de los parámetros del modelo en cada iteración utilizando solo un subconjunto (un lote o *batch* pequeño o incluso un solo dato) de todo el conjunto de datos de entrenamiento.
+
+Naturalmente, toda esta eficiencia no es *gratis*. En vez de generar un descenso seguro hacia el mínimo (con una convergencia garantizada), los valores estimados por el algoritmo SGD para la función de costo oscilarán en una región que contiene a su valor óptimo, generándose así un decrecimiento promedio. Una vez que se llega al mínimo, el algoritmo continuará oscilando hasta el momento de su detención. Esto genera que, en la iteración final, los ajustes logrados por el algoritmo sean muy buenos (o *eso esperamos*), pero no óptimos.
+
+Debido a la aleatorización del algoritmo, la trayectoria del mismo hacia el óptimo no es tan *bonita* como la que pudimos visualizar en el caso del algoritmo BGD, sino que suele ser muchísimo más errática, evidenciándose las oscilaciones del mismo en torno al óptimo. La ventaja, por supuesto, será (ojalá) siempre el menor número de iteraciones y el hecho de que cada iteración requiere de una menor cantidad de datos para su ejecución, lo que disminuye el tiempo que tarda el algoritmo en resolver el problema. Por regla general, a fin de reducir las oscilaciones en torno al óptimo, suele ser buena idea introducir un **procedimiento adaptativo** que permita que la tasa de aprendizaje pueda variar conforme la progresión del algoritmo, haciendo que sus valores sean cada vez más pequeños a medida que éste comienza a converger. De esta manera, **la tasa de aprendizaje se convierte en una cantidad variable** (es decir, si $k$ es el número de iteraciones del algoritmo, la tasa de aprendizaje $\gamma$ será ahora una función del tipo $\gamma(k)= \gamma_{k}$, llamada **programa de aprendizaje**), siendo su expresión dependiente de las condiciones del problema. Tales expresiones suelen depender de las propiedades geométricas locales de la función objetivo (que, en un problema de regresión lineal, siempre es convexa). Como resultado, hay dos heurísticas simples que podemos seguir (Toussaint, 2012):
+
+- Cuando el valor de la función se incrementa después de una iteración (digamos, la $r$-ésima), aquello significa que el paso $\gamma_{r}$ fue demasiado largo. Por lo tanto, requerimos rehacer esta iteración con un valor de más pequeño que el que hemos usado.
+- Cuando el valor de la función objetivo decrece después de una iteración (digamos, la $r$-ésima), siempre está la posibilidad de que el paso $\gamma_{r}$ haya sido más grande y, por tanto, que la convergencia del algoritmo sea más rápida. Por lo tanto, podemos volver atrás y aumentar el valor de $\gamma_{r}$.
+
+A pesar de que el volver atrás y mejorar los valores de $\gamma_{r}$ puede parecer un desperdicio de recursos, esta sencilla heurística garantiza que el algoritmo de gradiente descendente siempre converja al mínimo global de nuestra función objetivo.
+
+**Ejemplo 5.3 – Visualización de la trayectoria del algoritmo SGD:** Consideremos el mismo problema que resolvimos en el ejemplo (5.2) para describir la trayectoria completa del algoritmo BGD. Recordemos que el conjunto de datos es univariable, conformado por pares del tipo $\left\{ x_{i},y_{i}\right\}^{m}_{i=1}  ;x_{i}\in \mathbb{R} \wedge y_{i}\in \mathbb{R}$, donde la función generadora de estos pares es $y=4x- 3$, y a la cual agregamos algo de ruido Gaussiano para dificultar un poco la acción del algoritmo de gradiente descendente en la tarea de estimar los parámetros *reales* $w=4\wedge b=-3$:
+
+```{python}
+# Generamos un arreglo de números en el rango [-5, 5].
+X = np.linspace(start=-5, stop=5, num=100)
+
+# Y construimos nuestra variable de respuesta.
+noise = rng.normal(loc=0, scale=5, size=100)
+y = 4 * X - 3 + noise
+```
+
+Construiremos ahora una implementación (funcional) desde cero del algoritmo SGD con un control adaptativo de la tasa de aprendizaje. Dicho control, como mencionamos previamente, se logra de manera sencilla por medio de la introducción de un programa de aprendizaje, el cual no es más que una función que controla el valor de este hiperparámetro conforme el número de iteraciones del algoritmo.
+
+Dada la naturaleza estocástica del algoritmo SGD, no queremos recorrer el conjunto de datos en su totalidad, sino que tomaremos muestras aleatorias cada vez. Cada ronda de iteraciones se denominará **época** (del inglés *epoch*). En contraste con la implementación del algoritmo BGD, donde recorrimos el conjunto de datos un total de 3000 veces en el ejemplo (5.2) (3000 iteraciones en total), acá lo haremos sólo 50 veces (menos de un 2% de lo hecho en el caso del algoritmo BGD): Por esa razón, setearemos nuestra implementación con 50 épocas, y un programa de aprendizaje definido en base a la función
+
+::: {.eq-scroll}
+$$
+\gamma =\frac{t_{0}}{t+t_{r}} \  ;\  t=n_{ep}m+k
+\tag{5.17}
+$$
+:::
+
+Donde $t_{0}$ y $t_{r}$ son hiperparámetros que acotan la magnitud de la tasa de aprendizaje, $n_{ep}$ es el correspondiente número de época en un determinado momento, $m$ es el número de instancias del conjunto de entrenamiento y $k$ es la iteración propiamente tal.
+
+De esta manera:
+
+```{python}
+# Definimos la función que controlará el programa de aprendizaje del algoritmo.
+def learning_schedule(t, t0=5, tr=50):
+    return t0 / (t + tr)
+
+# Creamos una función para implementar el algoritmo SGD.
+def stochastic_gradient_descent(X, y, n_epochs=50, random_state=42):
+    # Definimos una semilla aleatoria fija.
+    rng = np.random.default_rng(random_state)
+    
+    # Añadimos una columna con 1s a la izquierda de la matriz X.
+    X_biased = np.c_[np.ones((X.shape[0], 1)), X]
+
+    # Número total de observaciones en el lote.
+    m = X_biased.shape[0]
+
+    # Adecuamos Y en un arreglo bidimensional.
+    y = y.reshape(-1, 1)
+
+    # Inicializaremos el algoritmo con un valor aleatorio para nuestros
+    # parámetros.
+    w0 = rng.normal(loc=0, scale=1, size=(2, 1))
+    w = w0.copy()
+
+    # Una lista vacía donde almacenaremos la trayectoria del algoritmo.
+    w_path = []
+    
+    # Implementación del algoritmo.
+    for epoch_r in range(n_epochs):
+        for iter_k in range(m):
+            
+            # Construimos un índice aleatorizado.
+            rand_idx = rng.integers(m)
+            
+            # Generamos la selección aleatorizada de puntos del conjunto
+            # completo.
+            X_rk = X_biased[rand_idx:rand_idx + 1]
+            y_rk = y[rand_idx:rand_idx + 1]
+            
+            # Cálculo del gradiente.
+            # No dividimos por m, para evitar errores.
+            grad_rk = 2 * X_rk.T @ (X_rk @ w - y_rk)
+            
+            # Actualización de la tasa de aprendizaje.
+            gamma_rk = learning_schedule(epoch_r * m + iter_k)
+            
+            # Actualización de parámetros.
+            w -= gamma_rk * grad_rk
+            w_path.append(w.copy())
+    
+    return w, w_path
+```
+
+Con nuestra implementación ya construida, simplemente bastará con aplicarla directamente:
+
+```{python}
+# Resolvemos el problema usando el algoritmo SGD.
+w_sgd, path_sgd = stochastic_gradient_descent(X, y)
+```
+
+La solución estimada para los parámetros de la regresión es la siguiente:
+
+```{python}
+# Imprimimos los parámetros estimados.
+print("Parámetros estimados por el método de mínimos cuadrados:")
+print(f"b = {w_sgd[0, 0]:.3f}")
+print(f"w = {w_sgd[1, 0]:.3f}")
+```
+
+Y la trayectoria del algoritmo puede graficarse de la misma forma que en el caso del ejemplo (5.2):
+
+```{python}
+#| label: fig-modelo-de-regresion-lineal-09
+#| fig-cap: "Trayectoria completa del algoritmo SGD."
+# Construimos el espacio de parámetros completo.
+param_space_sgd = np.vstack(
+    [
+        [path_sgd[k][0][0] for k in range(len(path_sgd))], 
+        [path_sgd[k][1][0] for k in range(len(path_sgd))],
+    ]
+).T
+
+# Graficamos la trayectoria del algoritmo en este espacio.
+fig, ax = plt.subplots(figsize=(9, 5))
+ax.plot(
+    param_space_sgd[:, 0],
+    param_space_sgd[:, 1],
+    marker="s",
+    markersize=5,
+    color="navy",
+)
+
+# Generamos algunas anotaciones para destacar la solución inicial y
+# la solución final del algoritmo.
+ax.annotate(
+    "Solución inicial",
+    xy=(param_space_sgd[0, 0], param_space_sgd[0, 1]),
+    xytext=(-0.25, 0.0),
+    xycoords='data',
+    fontsize=12,
+    bbox=dict(boxstyle="round4,pad=.5", fc="0.9", color="black"),
+    arrowprops=dict(
+        arrowstyle="->",
+        connectionstyle="angle,angleA=0,angleB=80,rad=20",
+        color="black",
+    ),
+)
+
+ax.annotate(
+    "Solución final",
+    xy=(param_space_sgd[-1, 0], param_space_sgd[-1, 1]),
+    xytext=(-1.4, 2.5),
+    xycoords='data',
+    fontsize=12,
+    bbox=dict(boxstyle="round4,pad=.5", fc="0.9", color="black"),
+    arrowprops=dict(
+        arrowstyle="->",
+        connectionstyle="angle,angleA=0,angleB=80,rad=20",
+        color="black",
+    ),
+)
+
+# Etiquetamos los ejes y el título de la figura.
+ax.set_xlabel(r"$b$", fontsize=14, labelpad=10)
+ax.set_ylabel(r"$w$", fontsize=14, labelpad=15, rotation=0)
+ax.grid(True)
+ax.set_title(
+    "Trayectoria completa del algoritmo SGD",
+    fontsize=14,
+    fontweight="bold",
+    pad=10,
+)
+
+plt.tight_layout()
+```
+
+Podemos observar que la trayectoria del algoritmo SGD es muchísimo más errática que la descrita por el algoritmo BGD, existiendo incluso saltos a regiones bastante más lejanas del entorno en el cual se localiza la solución del problema de interés. No obstante, la porción final de esta trayectoria tiende igualmente a oscilar en torno al óptimo. ◼︎
+
+**Ejemplo 5.4 – Gradiente descendente con moméntum:** Las implementaciones anteriores, con sus ventajas y desventajas, pueden resultar ser algo lentas cuando el conjunto de entrenamiento es demasiado grande. Para ganar algo de control respecto de aquello, podemos introducir un término adicional que permite tener un cierto nivel de **memoria** relativa al desplazamiento del algoritmo en la iteración previa a la actual. Esta memoria provoca que las oscilaciones del algoritmo se *regularicen* a medida que los valores del gradiente de la función objetivo de van actualizando. Si nos ceñimos a nuestra analogía de buscar el valle más profundo en una montaña (siendo la montaña la *gráfica* de la función objetivo), este término de memoria emula la noción de inercia al movimiento: Nos cuesta más iniciar el movimiento que frenarlo. El procedimiento así definido se denomina **gradiente descendente con moméntum** (GDM).
+
+La idea pues es disponer de un gradiente con memoria tal que sea posible implementar un movimiento promedio para el algoritmo GD. El método “recuerda”, por tanto, el desplazamiento o actualización $\triangle \mathbf{x}_{k}$ para la iteración $k$, y determina el próximo movimiento como una combinación lineal de los gradientes actual y anterior. De este modo, el algoritmo GDM toma la forma
+
+::: {.eq-scroll}
+$$
+\begin{array}{lll}\mathbf{w}^{\left( k\right)  } &=&\mathbf{w}^{\left( k-1\right)  } -\eta^{\left( k-1\right)  } \nabla L\left( \mathbf{w}^{\left( k-1\right)  } \right)  +\alpha \triangle \mathbf{w}^{\left( k-1\right)  } \\ \triangle \mathbf{w}^{\left( k-1\right)  } &=&\mathbf{w}^{\left( k-1\right)  } -\mathbf{w}^{\left( k-2\right)  } \end{array}
+\tag{5.18}
+$$
+:::
+
+Donde $\alpha$ es un hiperparámetro llamado **moméntum** del algoritmo, y es tal que $0\leq \alpha \leq 1$.
+
+Con frecuencia, sólo tendremos estimaciones para los valores del gradiente en pasos intermedios. En tales casos, el hiperparámetro de moméntum resulta ser de utilidad, dado que permite obtener promedios de estimaciones de los respectivos gradientes que muchas veces llevan consigo un nivel significativo de ruido. Una forma particular de generar estimaciones de los gradientes es mediante el uso de una aproximación estocástica, lo que de hecho hacemos al implementar el algoritmo SGD.
+
+En este ejercicio, construiremos una implementación del algoritmo SGD con moméntum, reciclando lo que más podamos de los ejercicios anteriores. Esto implica simplemente agregar una línea adicional donde se calcula el término dependiente de $\alpha$ como sigue:
+
+```{python}
+# Creamos una función para implementar el algoritmo SGD con moméntum.
+def momentum_sgd(X, y, alpha=0.9, n_epochs=50, random_state=42):
+    # Definimos una semilla aleatoria fija.
+    rng = np.random.default_rng(random_state)
+    
+    # Añadimos una columna con 1s a la izquierda de la matriz X.
+    X_biased = np.c_[np.ones((X.shape[0], 1)), X]
+
+    # Número total de observaciones en el lote.
+    m = X_biased.shape[0]
+
+    # Adecuamos Y en un arreglo bidimensional.
+    y = y.reshape(-1, 1)
+
+    # Inicializaremos el algoritmo con un valor aleatorio para nuestros
+    # parámetros.
+    w0 = rng.normal(loc=0, scale=1, size=(2, 1))
+    w = w0.copy()
+
+    # Inicializaremos igualmente un vector de moméntum (con valores nulos).
+    v = np.zeros_like(w)
+    
+    # Una lista vacía donde almacenaremos la trayectoria del algoritmo.
+    w_path = []
+    
+    # Implementación del algoritmo.
+    for epoch_r in range(n_epochs):
+        for iter_k in range(m):
+            
+            # Construimos un índice aleatorizado.
+            rand_idx = rng.integers(m)
+            
+            # Generamos la selección aleatorizada de puntos del conjunto
+            # completo.
+            X_rk = X_biased[rand_idx:rand_idx + 1]
+            y_rk = y[rand_idx:rand_idx + 1]
+            
+            # Cálculo del gradiente.
+            # No dividimos por m, para evitar errores.
+            grad_rk = 2 * X_rk.T @ (X_rk @ w - y_rk)
+            
+            # Actualización de la tasa de aprendizaje.
+            gamma_rk = learning_schedule(epoch_r * m + iter_k)
+
+            # Aplicación del moméntum.
+            v = alpha * v - gamma_rk * grad_rk
+            
+            # Actualización de parámetros.
+            w += v
+            w_path.append(w.copy())
+    
+    return w, w_path
+```
+
+```{python}
+# Resolvemos el problema usando el algoritmo SGD con moméntum.
+w_msgd, path_msgd = momentum_sgd(X, y, alpha=0.9)
+
+# Imprimimos los parámetros estimados.
+print("Parámetros estimados por el método de mínimos cuadrados:")
+print(f"b = {w_msgd[0, 0]:.3f}")
+print(f"w = {w_msgd[1, 0]:.3f}")
+```
+
+Y como siempre, graficamos la trayectoria del algoritmo:
+
+```{python}
+#| label: fig-modelo-de-regresion-lineal-10
+#| fig-cap: "Trayectoria completa del algoritmo SGD con moméntum."
+# Construimos el espacio de parámetros completo.
+param_space_msgd = np.vstack(
+    [
+        [path_msgd[k][0][0] for k in range(len(path_msgd))], 
+        [path_msgd[k][1][0] for k in range(len(path_msgd))],
+    ]
+).T
+
+# Graficamos la trayectoria del algoritmo en este espacio.
+fig, ax = plt.subplots(figsize=(9, 5))
+ax.plot(
+    param_space_msgd[:, 0],
+    param_space_msgd[:, 1],
+    marker="s",
+    markersize=5,
+    color="navy",
+)
+
+# Generamos algunas anotaciones para destacar la solución inicial y
+# la solución final del algoritmo.
+ax.annotate(
+    "Solución inicial",
+    xy=(param_space_msgd[0, 0], param_space_msgd[0, 1]),
+    xytext=(-0.25, 0.0),
+    xycoords='data',
+    fontsize=12,
+    bbox=dict(boxstyle="round4,pad=.5", fc="0.9", color="black"),
+    arrowprops=dict(
+        arrowstyle="->",
+        connectionstyle="angle,angleA=0,angleB=80,rad=20",
+        color="black",
+    ),
+)
+
+ax.annotate(
+    "Solución final",
+    xy=(param_space_msgd[-1, 0], param_space_msgd[-1, 1]),
+    xytext=(-1.4, 2.5),
+    xycoords='data',
+    fontsize=12,
+    bbox=dict(boxstyle="round4,pad=.5", fc="0.9", color="black"),
+    arrowprops=dict(
+        arrowstyle="->",
+        connectionstyle="angle,angleA=0,angleB=80,rad=20",
+        color="black",
+    ),
+)
+
+# Etiquetamos los ejes y el título de la figura.
+ax.set_xlabel(r"$b$", fontsize=14, labelpad=10)
+ax.set_ylabel(r"$w$", fontsize=14, labelpad=15, rotation=0)
+ax.grid(True)
+ax.set_title(
+    "Trayectoria completa del algoritmo SGD con moméntum",
+    fontsize=14,
+    fontweight="bold",
+    pad=10,
+)
+
+plt.tight_layout()
+```
+
+Se observan trayectorias más caóticas que en el caso del algoritmo SGD en este ejemplo particular. No obstante, el algoritmo converge igualmente a la solución deseada. ◼︎
+
+### Variante con *mini-batches* del algoritmo de GD
+
+Una última variante que analizaremos para el caso del algoritmo de gradiente descendente corresponde a un procedimiento que trabaja de la siguiente manera: En cada paso del algoritmo, en vez de calcular los gradientes de la función de costo con base en el conjunto de entrenamiento completo de manera secuencial (como ocurre con el algoritmo BGD), o bien, tomando instancias de forma aleatoria (como ocurre con el algoritmo SGD), calcularemos los correspondientes gradientes en subconjuntos *pequeños* de instancias de entrenamiento, que llamamos *"mini-lotes"* (o *mini-batches*). Naturalmente, el resultado inmediato de proceder de esta manera es un incremento consistente del tiempo de ejecución conforme las respectivas operaciones matriciales inherentes al algoritmo. Consecuentemente, este procedimiento es llamado **algoritmo de gradiente descendente por mini-batches** (**MBGD**, del inglés *mini-batch gradient descent*).
+
+El progreso del algoritmo MBGD en el espacio de parámetros del modelo es menos errático que el progreso del SGD (sobre todo en la variante con momentum), especialmente con mini-lotes de tamaño significativo. Como resultado, el algoritmo MBGD terminará oscilando, en menores magnitudes, en un entorno del mínimo global, en relación al progreso del algoritmo SGD, pero puede ser más difícil para el algoritmo MBGD escapar de mínimos locales.
+
+**Ejemplo 5.5 – Implementación desde cero del algoritmo MBGD:** Como ejemplo final previo a la revisión de las implementaciones más *sofisticadas* provistas por **<font color='darkmagenta'>Scikit-Learn</font>**, construiremos una implementación del algoritmo MBGD desde cero reciclando gran parte del código que usamos para implementar desde cero el algoritmo SGD. En este caso, mantendremos el procedimiento adaptativo por medio de la consideración de un programa de aprendizaje, y visualizaremos la trayectoria del algoritmo en el espacio de parámetros, luego de aplicarlo en el mismo conjunto de datos que la última vez:
+
+```{python}
+# Creamos una función para implementar el algoritmo MBGD.
+def mini_batch_gradient_descent(X, y, batch_size=20, n_epochs=50, random_state=42):
+    # Definimos una semilla aleatoria fija.
+    rng = np.random.default_rng(random_state)
+    
+    # Añadimos una columna con 1s a la izquierda de la matriz X.
+    X_biased = np.c_[np.ones((X.shape[0], 1)), X]
+
+    # Número total de observaciones en el "gran" lote.
+    m = X_biased.shape[0]
+
+    # Adecuamos Y en un arreglo bidimensional.
+    y = y.reshape(-1, 1)
+
+    # Inicializaremos el algoritmo con un valor aleatorio para nuestros parámetros.
+    w0 = rng.normal(loc=0, scale=1, size=(2, 1))
+    w = w0.copy()
+
+    # Una lista vacía donde almacenaremos la trayectoria del algoritmo.
+    w_path = []
+    
+    # Implementación del algoritmo.
+    for epoch_r in range(n_epochs):
+        # Mezclamos las instancias del conjunto de entrenamiento para construir
+        # los mini-lotes.
+        shuffled_indices = rng.permutation(m)
+        X_biased_shuffled = X_biased[shuffled_indices]
+        y_shuffled = y[shuffled_indices]
+
+        # Procedemos con la resolución.
+        for iter_k in range(0, m, batch_size):
+            # Definimos la matriz de diseño y el vector de valores de respuesta
+            # del mini-lote.
+            X_batch_rk = X_biased_shuffled[iter_k:iter_k + batch_size]
+            y_batch_rk = y_shuffled[iter_k:iter_k + batch_size]
+            
+            # Cálculo del gradiente.
+            grad_rk = 2 / X_batch_rk.shape[0] * X_batch_rk.T @ (X_batch_rk @ w - y_batch_rk)
+            
+            # Actualización de la tasa de aprendizaje.
+            gamma_rk = learning_schedule(epoch_r * m + iter_k // batch_size)
+            
+            # Actualización de parámetros.
+            w -= gamma_rk * grad_rk
+            w_path.append(w.copy())
+    
+    return w, w_path
+```
+
+Esta función es igual de fácil de implementar que las que hemos construido previamente:
+
+```{python}
+# Resolvemos el problema usando el algoritmo MBGD.
+w_mbgd, path_mbgd = mini_batch_gradient_descent(X, y, batch_size=20)
+
+# Imprimimos los parámetros estimados.
+print("Parámetros estimados por el método de mínimos cuadrados:")
+print(f"b = {w_mbgd[0, 0]:.3f}")
+print(f"w = {w_mbgd[1, 0]:.3f}")
+```
+
+Y la trayectoria del algoritmo puede graficarse de la misma forma que en los ejemplos anteriores:
+
+```{python}
+#| label: fig-modelo-de-regresion-lineal-11
+#| fig-cap: "Trayectoria completa del algoritmo MBGD."
+# Construimos el espacio de parámetros completo.
+param_space_mbgd = np.vstack(
+    [
+        [path_mbgd[k][0][0] for k in range(len(path_mbgd))], 
+        [path_mbgd[k][1][0] for k in range(len(path_mbgd))],
+    ]
+).T
+
+# Graficamos la trayectoria del algoritmo en este espacio.
+fig, ax = plt.subplots(figsize=(9, 5))
+ax.plot(
+    param_space_mbgd[:, 0],
+    param_space_mbgd[:, 1],
+    marker="s",
+    markersize=5,
+    color="navy",
+    label="Trayectoria",
+)
+
+# Destacamos los puntos inicial y final sin sacar texto del área del gráfico.
+ax.scatter(
+    param_space_mbgd[0, 0],
+    param_space_mbgd[0, 1],
+    s=90,
+    color="firebrick",
+    edgecolor="black",
+    zorder=5,
+    label="Solución inicial",
+)
+
+ax.scatter(
+    param_space_mbgd[-1, 0],
+    param_space_mbgd[-1, 1],
+    s=90,
+    color="gold",
+    edgecolor="black",
+    zorder=5,
+    label="Solución final",
+)
+
+# Etiquetamos los ejes y el título de la figura.
+ax.set_xlabel(r"$b$", fontsize=14, labelpad=10)
+ax.set_ylabel(r"$w$", fontsize=14, labelpad=15, rotation=0)
+ax.grid(True)
+ax.margins(x=0.08, y=0.15)
+ax.legend(loc="best", frameon=True, fontsize=10)
+ax.set_title(
+    "Trayectoria completa del algoritmo MBGD",
+    fontsize=14,
+    fontweight="bold",
+    pad=10,
+)
+
+plt.tight_layout()
+```
+
+Podemos observar que la trayectoria que toma el algoritmo MBGD está lejos de ser tan caótica que la recorrida por el algoritmo SGD para llegar a la solución óptima de este problema. Esta mayor regularidad puede apreciarse más fácilmente al comparar las trayectorias de todas las variantes del algoritmo GD en el mismo gráfico:
+
+```{python}
+#| label: fig-modelo-de-regresion-lineal-12
+#| fig-cap: "Trayectoria completa de las variantes del algoritmo de GD."
+# Comparamos las trayectorias de todas las variantes del algoritmo de gradiente descendente.
+fig, ax = plt.subplots(figsize=(9, 5))
+ax.plot(
+    param_space_bgd[:, 0],
+    param_space_bgd[:, 1],
+    marker="s",
+    markersize=5,
+    color="indianred",
+    alpha=0.5,
+)
+
+ax.plot(
+    param_space_sgd[:, 0],
+    param_space_sgd[:, 1],
+    marker="^",
+    markersize=5,
+    color="royalblue",
+    alpha=0.5,
+)
+
+ax.plot(
+    param_space_mbgd[:, 0],
+    param_space_mbgd[:, 1],
+    marker="H",
+    markersize=5,
+    color="gold",
+    alpha=0.5,
+)
+
+# Etiquetamos los ejes y el título de la figura.
+ax.set_xlabel(r"$b$", fontsize=14, labelpad=10)
+ax.set_ylabel(r"$w$", fontsize=14, labelpad=15, rotation=0)
+ax.grid(True)
+ax.set_title(
+    "Trayectoria completa de las variantes del algoritmo de GD",
+    fontsize=14,
+    fontweight="bold",
+    pad=10,
+)
+
+plt.tight_layout()
+```
+
+◼︎
+
+### Comparación entre las distintas variantes del algoritmo de GD
+
+A fin de resumir lo que hemos aprendido de las distintas variantes del algoritmo de gradiente descendente, dejaremos un cuadro comparativo.
+
+: Cuadro comparativo entre distintas variantes del algoritmo de gradiente descendente {#tbl-gd-variants}
+
+| Variante | Gradiente usado | Costo por actualización | Rasgo principal |
+| :------- | :------------- | :---------------------- | :-------------- |
+| BGD | Todo el conjunto de entrenamiento. | $O(mn)$ | Trayectoria estable, pero costosa en datasets grandes. |
+| SGD | Una instancia aleatoria. | $O(n)$ | Actualizaciones rápidas, aunque con trayectoria ruidosa. |
+| MBGD | Un mini-lote de tamaño $b$. | $O(bn)$ | Equilibrio entre estabilidad y eficiencia; exige elegir $b$. |
+
+En la @tbl-gd-variants, $m$ es el número de instancias del conjunto de entrenamiento, $n$ es el número de variables independientes y $b$ es el tamaño del mini-lote. La elección entre estas variantes depende del tamaño del problema, del costo de calcular gradientes y del nivel de oscilación que estemos dispuestos a tolerar durante la optimización.
+
+### Implementación en <font color='darkmagenta'>Scikit-Learn</font> (Parte I)
+
+Las implementaciones caseras construidas con anteriores tenían como objetivo poner a prueba nuestro entendimiento de las bases más elementales de la resolución de modelos de regresión lineal, ya sea por medio de la estimación por mínimos cuadrados o por soluciones numéricas como el algoritmo de gradiente descendente y sus variantes. Por supuesto, esto no quiere decir que nor abordaremos en detalle las implementaciones que nos provee la librería **<font color='darkmagenta'>Scikit-Learn</font>**. 
+
+La construcción de implementaciones *from scratch* se antoja incluso como necesaria a la hora de abordar implementaciones más sofisticadas como las provistas por **<font color='darkmagenta'>Scikit-Learn</font>**, fundamentalmente porque nos permite entender de mejor manera la cantidad disponible de hiperparámetros que podemos *ajustar* en cada caso, tomando mejores decisiones a la hora de entender qué aplicar y qué no desde nuestra caja de herramientas más *oficial*.
+
+Como antes, revisaremos cada implementación por medio de ejemplos.
+
+**Ejemplo 5.6 – Mínimos cuadrados**: La implementación *oficial* provista por **<font color='darkmagenta'>Scikit-Learn</font>** para el modelo de regresión lineal viene dada por la clase `LinearRegression`, cuya dependencia es el módulo `sklearn.linear_model`. Esta clase nos permitirá resolver cualquier problema de regresión lineal por medio de una estimación por mínimos cuadrados.
+
+Esta clase viene equipada con varios parámetros, entre los cuales tenemos:
+
+- `fit_intercept`: Parámetro booleano que nos permite definir si el modelo que deseamos construir llevará consigo un parámetro de sesgo o no. Cuando `fit_intercept=False`, se espera que el conjunto de entrenamiento esté estadísticamente centrado. Es decir, que cada una de las variables independientes que lo constituyen tenga una media nula (sin cambiar su dispersion).
+- `positive`: Parámetro booleano que fuerza a que los parámetros estimados para la regresión sean todos positivos. Esto puede resultar útil cuando sabemos que la variable de respuesta que queremos estimar debe ser siempre positiva. Esta opción estará disponible siempre que la matriz de diseño `X` no sea dispersa. Es decir, que la mayoría de sus entradas no sean nulas.
+
+Asimismo, la clase `LinearRegression` viene equipada con varios atributos, asumiendo que la matriz de diseño y el vector de valores observados son designados como `X` e `y`, respectivamente:
+
+- `intercept_`: Valor estimado para el parámetro de sesgo del modelo de regresión.
+- `coef_`: Valores estimados para los parámetros del modelo de regresión. Este resultado se retorna en la forma de un arreglo de **<font color='darkmagenta'>Numpy</font>**.
+- `singular_`: Valores singulares calculados para la matriz `X`, en formato de arreglo de **<font color='darkmagenta'>Numpy</font>**.
+- `rank_`: Rango de la matriz `X`.
+
+Como ocurre con todos los modelos de **<font color='darkmagenta'>Scikit-Learn</font>**, una vez definidos los conjuntos de entrenamiento y de prueba, usaremos el método `fit()` para entrenar nuestro modelo y `predict()` para predecir valores usando el modelo propiamente tal. En el caso del método `fit()`, podremos además utilizar el parámetro `sample_weight` para introducir **ponderaciones** para cada una de las instancias que constituyen el conjunto de entrenamiento, lo que nos permite introducir ciertos sesgos y/o conocimiento *a priori* a nuestro modelo.
+
+En este ejemplo, generaremos un conjunto de datos con ruido a partir de la expresión $y=2+3x_{1}-x_{2}+4x_{3}$:
+
+```{python}
+from sklearn.linear_model import LinearRegression
+```
+
+```{python}
+# Creamos un conjunto de datos con tres variables independientes.
+X = rng.normal(loc=0, scale=1, size=(1000, 3))
+y = 2 + 3 * X[:, 0] - X[:, 1] + 4 * X[:, 2] + rng.normal(loc=0, scale=2, size=1000)
+```
+
+Con los datos ya generados, construimos nuestro modelo:
+
+```{python}
+# Instanciamos nuestro modelo.
+lstq_model = LinearRegression()
+
+# Entrenamos el modelo con el conjunto de entrenamiento.
+lstq_model.fit(X, y)
+```
+
+Con el modelo ya construido, mostramos en pantalla los parámetros estimados por la regresión:
+
+```{python}
+# Imprimimos los resultados del modelo en pantalla.
+print("==================================================")
+print("Parámetros estimados por el modelo de regresión:")
+print(f"b = {lstq_model.intercept_:.3f}")
+print(f"w1 = {lstq_model.coef_[0]:.3f}")
+print(f"w2 = {lstq_model.coef_[1]:.3f}")
+print(f"w3 = {lstq_model.coef_[2]:.3f}")
+print("==================================================")
+print("Valores singulares de la matriz de diseño:")
+print(f"s1 = {lstq_model.singular_[0]:.3f}")
+print(f"s2 = {lstq_model.singular_[1]:.3f}")
+print(f"s3 = {lstq_model.singular_[2]:.3f}")
+print("==================================================")
+print(f"Rango de la matriz de diseño = {lstq_model.rank_}")
+print("==================================================")
+```
+
+Podemos ver que la construcción de un modelo de regresión lineal con base en un ajuste por mínimos cuadrados en **<font color='darkmagenta'>Scikit-Learn</font>** es más bien directa, ya que es un procedimiento que puede resolverse en sólo unas cuantas líneas de código con resultados más que razonables. Tal y como en las implementaciones que construimos desde cero, no existen muchos hiperparámetros que podamos *ajustar* y que permitan explorar muchas más alternativas de modelos, ya que sólo podremos decidir si los coeficientes de la regresión serán (o no) positivos, o bien, si existirá (o no) un parámetro de sesgo.
+◼︎
+
+Como veremos en el siguiente ejemplo, los procedimientos iterativos que dependen del algoritmo de gradiente descendente (y sus variantes) permiten un mayor *juego de piernas* en términos de la cantidad de hiperparámetros disponibles que podemos ajustar, pero en realidad la diferencia que obtengamos con respecto al ajuste por mínimos cuadrados no será demasiado significativa más allá del tiempo de ejecución, ya que este procedimiento tiene una convergencia garantizada debido a que la solución del mismo (por medio de la ecuación normal (5.12)) es algebraicamente cerrada.
+
+**Ejemplo 5.7 – Gradiente descendente estocástico:** La implementación del modelo de regresión lineal por medio del algoritmo de gradiente descendente estocástico (SGD) en **<font color='darkmagenta'>Scikit-Learn</font>** se realiza por medio de la clase `SGDRegressor`, la cual viene equipada con varios parámetros, entre los cuales consideramos:
+
+- `loss`: Nos permite definir la función de costo respecto del cual se construye la regresión. Por defecto, el valor de este hiperparámetro es `loss="squared_error"`, lo que implica que la clase implementará el algoritmo de gradiente descendente para solucionar numéricamente un ajuste por mínimos cuadrados. Naturalmente, existen más alternativas, pero producirán soluciones numéricas para otros algoritmos de aprendizaje que, por el momento, no son parte de nuestro alcance.
+- `fit_intercept`: Como en el caso de `LinearRegression`, este hiperparámetro nos permite definir si nuestro modelo incorporará o no un parámetro de sesgo. En el caso de que `fit_intercept=False`, **<font color='darkmagenta'>Scikit-Learn</font>** esperará que los datos de entrada estén centrados con respecto a la media.
+- `max_iter`: Número máximo de iteraciones que serán implementadas en el algoritmo de gradiente descendente. Por defecto, este valor es igual a `1000`.
+- `tol`: Tolerancia del algoritmo, la que se define como la mínima diferencia entre parámetros en iteraciones sucesivas. Si $L_{k}$ define el valor de la función de costo en la $k$-ésima iteración y $\mathrm{tol}$ el parámetro de tolerancia del algoritmo, entonces el procedimiento se detendrá antes de llegar al número máximo de iteraciones (`max_iter`) si $L_{k+1}-L_{k}<\mathrm{tol}$. Tal procedimiento de detención es conocido en las ciencias computacionales como **early stopping**.
+- `learning_rate`: Corresponde al setting del programa de aprendizaje del algoritmo de gradiente descendente. Por defecto, su valor es `invscaling`, el cual implementa un programa con tasa $\gamma$ variable definida por la fórmula $\gamma(k)= \gamma_{0}/k^{t}$, donde $k$ es la correspondiente iteración, $t$ es un hiperparámetro a definir y $\gamma_{0}$ es la tasa de aprendizaje inicial (en la primera iteración), y que se fija por medio del hiperparámetro `eta0`. Otras alternativas incluyen:
+    - `constant`, donde el programa es completamente estático; es decir, se usa la misma tasa de aprendizaje durante toda la progresión del algoritmo (que fijamos por medio del hiperparámetro `eta0`).
+    - `optimal`, donde el programa es del tipo $\gamma =1/\alpha \left( k+k_{0} \right)$, siendo $\alpha$ y $k_{0}$ son hiperparámetros que se definen por medio de una [heurística propuesta por Leon Bottou en su paper de 2010](https://leon.bottou.org/publications/pdf/compstat-2010.pdf).
+    - `adaptive`, donde el programa será estático (con tasa de aprendizaje `eta0`) siempre que el valor de la función de costo sea decreciente en iteraciones sucesivas. En caso de no ser así, la tasa de aprendizaje será dividida siempre por `5`, hasta que el algoritmo de gradiente descendente converja o se den las condiciones establecidas para su detención (por ejemplo, conforme un procedimiento de early stopping).
+- `eta0`: La tasa de aprendizaje inicial del algoritmo, conforme el programa de aprendizaje establecido por medio del hiperparámetro `learning_rate`.
+- `power_t`: Corresponde al valor del hiperparámetro $t$ cuando `learning_rate="invscaling"`.
+- `early_stopping`: Parámetro booleano que permite definir si se implementa o no un procedimiento de early stopping en nuestro algoritmo. Si definimos `early_stopping=True`, el algoritmo se detendrá cuando la tolerancia del mismo (`tol`) no se supere en un número determinado de iteraciones consecutivas, llamado **paciencia** del algoritmo, y definido por medio del hiperparámetro `n_iter_no_change` (cuyo valor por defecto es `5`). Por defecto, **<font color='darkmagenta'>Scikit-Learn</font>** no aplicará un procedimiento de early stopping.
+- `warm_start`: Parámetro booleano que permite al algoritmo reutilizar la solución para el problema de regresión que hayamos estimado previamente por medio del método `fit()`. Por defecto, su valor es `False`, lo que implicará que las soluciones estimadas por medio del método `fit()` siempre se eliminarán cuando entrenemos nuevamente nuestro modelo.
+
+De la misma forma que en el caso de la clase `LinearRegressor`, la clase `SGDRegressor` viene equipada con varios atributos:
+
+- `intercept_`: Valor estimado para el parámetro de sesgo del modelo de regresión. Se trata de un arreglo de **<font color='darkmagenta'>Numpy</font>** de dimensión `(1,)`.
+- `coef_`: Valores estimados para los parámetros del modelo de regresión. Este resultado se retorna en la forma de un arreglo de **<font color='darkmagenta'>Numpy</font>** de dimensión `(n_features)`, donde `n_features` es el número de variables independientes en nuestro conjunto de entrenamiento.
+
+Para el entrenamiento de un modelo de regresión por medio de la clase `SGDRegressor`, procederemos como siempre haciendo uso del método `fit()`, definiendo pesos para determinadas instancias de entrenamiento si es necesario mediante el parámetro `sample_weight` (donde, por defecto, todas las instancias tienen el mismo peso, igual a `1`). Usaremos `predict()` para obtener predicciones cuando sea necesario.
+
+Vamos a resolver el mismo problema de regresión que en el ejemplo anterior, a fin de comparar resultados. Recordemos que el conjunto de datos utilizado fue generado por medio de la expresión $y=2+3x_{1}-x_{2}+4x_{3}$, donde añadimos ruido Gaussiano sobre $y$ a fin de dificultar un poco la estimación de los correspondientes parámetros de la regresión. Implementaremos el algoritmo de gradiente descendente estocástico con un programa de aprendizaje con progresión inversa, con early stopping, tolerancia de `1e-4`, un máximo de `1500` iteraciones, paciencia de `4` iteraciones y una tasa de aprendizaje inicial de `0.01`:
+
+```{python}
+from sklearn.linear_model import SGDRegressor
+```
+
+```{python}
+# Instanciamos nuestro modelo.
+sgd_model = SGDRegressor(
+    early_stopping=True,
+    n_iter_no_change=4,
+    tol=1e-4,
+    eta0=0.01,
+    learning_rate="invscaling",
+    max_iter=1500,
+)
+
+# Y lo entrenamos.
+sgd_model.fit(X, y)
+```
+
+Con el modelo ya entrenado, ahora fijamos nuestra atención en los parámetros estimados:
+
+```{python}
+# Imprimimos los resultados del modelo en pantalla.
+print("==================================================")
+print("Parámetros estimados por el modelo de regresión:")
+print(f"b = {sgd_model.intercept_[0]:.3f}")
+print(f"w1 = {sgd_model.coef_[0]:.3f}")
+print(f"w2 = {sgd_model.coef_[1]:.3f}")
+print(f"w3 = {sgd_model.coef_[2]:.3f}")
+print("==================================================")
+```
+
+Podemos observar que la aplicación del algoritmo SGD permite obtener resultados no muy diferentes a los que obtuvimos previamente con el ajuste directo por mínimos cuadrados, y se acercan bastante a los valores *generadores* del conjunto de datos utilizado. Notemos además que esto último es un lujo que, en el mundo real, no nos podremos dar. No será común que *sepamos* los valores reales de los parámetros que deseamos estimar.
+
+Llama la atención, por supuesto, la enorme cantidad de hiperparámetros que la clase `SGDRegressor` nos permite ajustar, lo que permite formular la siguiente (importante) pregunta: ***¿Cuál es la mejor combinación de hiperparámetros que resulta en el modelo con menor costo, de entre todas las posibles opciones?*** Esta no es una pregunta *al voleo*, y constituye el pilar fundamental una de las áreas más interesantes del aprendizaje automático: La **optimización (o ajuste) de hiperparámetros**. Este es un tópico que desarrollaremos en detalle más adelante, pero al cual le echaremos un vistazo en un ejemplo posterior. ◼︎
+
+No existen implementaciones directas de las variantes BGD y MBGD del algoritmo de gradiente descendente en **<font color='darkmagenta'>Scikit-Learn</font>**, aunque sí es posible generar ciertos arreglos, a nivel programático, que permitan implementaciones sencillas. En cualquier caso, la clase `SGDRegressor` es tremendamente fiable en lo que respecta a la construcción de modelos de regresión lineal, y nos será posible resolver una enorme cantidad de problemas. Desde una perspectiva incremental, esto es tremendamente positivo, ya que poco a poco estamos poblando nuestra caja de herramientas.
+
+## Estimación de máxima verosimilitud
+
+La estimación por mínimos cuadrados es una técnica sencilla que, para un problema de regresión lineal, ofrece soluciones exactas. Valiéndonos del algoritmo de gradiente descendente (y sus correspondientes variantes), podemos construir aproximaciones de gran calidad que serán útiles para cuando los problemas de interés crezcan tanto en número de instancias como en número de variables independientes. La derivación de soluciones numéricas para el problema de ajuste por mínimos cuadrados pone de manifiesto algunas limitaciones estrechamente relacionadas a los supuestos que tomamos antes de proceder con esta técnica. Por ejemplo:
+
+- **Respecto a los errores del modelo:** La estimación por mínimos cuadrados asume que los errores del modelo están normalmente distribuidos sólo para hacer inferencias estadísticas (como pruebas de hipótesis y construcción de intervalos de confianza), aunque dicho supuesto no es estrictamente necesario para realizar la estimación de los coeficientes de regresión per se. Sin embargo, si los errores no están normalmente distribuidos, las estimaciones seguirán siendo insesgadas y consistentes, pero no necesariamente eficientes.
+- **Respecto a la eficiencia y robustez:** La estimación por mínimos cuadrados puede no ser eficiente si los errores no siguen una distribución normal, es decir, otras estimaciones podrían tener una varianza menor. Además, el método es particularmente sensible a los valores atípicos (*outliers*) debido a que la función de costo (el error cuadrático medio) representa una distancia al cuadrado (penalizando enormemente tales valores), lo que puede afectar significativamente la estimación de los coeficientes, aunque esto puede resolverse parcialmente mediante la introducción de un proceso previo de escalamiento (por ejemplo, normalización).
+- **Respecto a la flexibilidad:** La estimación por mínimos cuadrados está limitada a minimizar el error cuadrático medio de las estimaciones que realiza el modelo, lo cual es óptimo solo bajo ciertas condiciones estadísticas, como errores normalmente distribuidos e independientes con varianza constante, a fin de no sufrir de ciertos problemas en la estimación de los coeficientes de regresión.
+
+A fin de añadir una alternativa mejorada a nuestra caja de herramientas para el caso de los modelos de regresión lineal, presentaremos un método de estimación que permite sacar ventaja de las limitaciones comentadas previamente, y que se conoce como **estimación por máxima verosimilitud**. Se trata de un método cuyo alcance es mucho más general que la estimación por mínimos cuadrados, ya que su objetivo es **estimar los parámetros de una distribución de probabilidad previamente asumida**, dado un conjunto de datos observados que suponemos que pueden modelarse conforme dicha distribución. En la práctica, esto puede lograrse por medio de la **maximización** de una función que representa dicha distribución (o la familia a la que ésta pertenece) –llamada **función de verosimilitud**–, de manera tal que la probabilidad de que los datos observados pertenezcan a la distribución supuesta, conforme el modelo escogido, es la mayor posible.
+
+### Formulación
+
+Consideremos un conjunto de entrenamiento $\mathcal{D} =\left\{ \left( \mathbf{X} ,\mathbf{y} \right)  :\mathbf{X} \in \mathbb{R}^{m\times n} \wedge \mathbf{y} \in \mathbb{R}^{m} \right\}$, donde $\mathbf{x}_{i}\in \mathbb{R}^{n}$ representa una fila o instancia $i$-ésima de la matriz de datos de entrada $\mathbf{X}$, siendo $m$ el total de instancias de $\mathcal{D}$. Asumiremos que los valores que componen $\mathbf{y}$ han sido generados por una función $f:\mathcal{I} \subseteq \mathbb{R}^{n} \longrightarrow \mathbb{R}$, tal que $\mathbf{y} =f\left( \mathbf{X} \right)  +\mathbf{\varepsilon }$, donde $\mathcal{I}$ es un dominio (abierto) de $\mathbb{R}^{n}$ que aglutina a todos los posibles valores que pueden tomar las variables independientes $\mathbf{x}_{j} ;\forall j=1,...,n$, denominado **espacio de entrada**, y $\mathbf{\varepsilon }$ representa el ruido asociado a los valores observados de $\mathbf{y}$. Debido a la presencia de este ruido, vamos a adoptar un enfoque probabilístico a fin de incorporar el efecto del mismo al modelo, haciendo uso para ello de una función de verosimilitud definida (simbólicamente) como
+
+::: {.eq-scroll}
+$$
+P\left( y_{i}|\mathbf{x}_{i} \right)  =\mathcal{N} \left( y_{i}|f\left( \mathbf{x}_{i} \right)  ,\sigma^{2} \right)
+\tag{5.19}
+$$
+:::
+
+Donde $\mathcal{N}$ representa una distribución Gaussiana, siendo $i=,1...,m$. Como hemos asumido previamente una relación funcional del tipo $\mathbf{y} =f\left( \mathbf{X} \right)  +\mathbf{\varepsilon }$, supondremos que $\mathbf{\varepsilon }$ será una variable aleatoria Gaussiana con media nula y varianza $\sigma^{2}$, idéntica e independientemente distribuida, comúnmente asociada a ruido producido por errores de medición u observación. Naturalmente, nuestro objetivo será encontrar una función *"similar"* a la función generadora $f$, que es **desconocida**, y que además generalice adecuadamente lo aprendido a partir de $\mathcal{D}$ para cualquier otro conjunto de datos.
+
+En un contexto más bien general, es común enfocarnos en la búsqueda de **modelos paramétricos**. Es decir, seleccionamos una función definida a partir de un conjunto de parámetros $w_{0},w_{1},...,w_{n}$ que agrupamos en un vector $\mathbf{w}\in \mathbb{R}^{n+1}$, de manera tal que exista un vector óptimo $\mathbf{w}^{\ast}$ que cumpla con *"modelar bien"* los datos del problema de interés. Por el momento, asumiremos que la varianza $\sigma^{2}$ es **conocida**, preocupándonos únicamente de *aprender* los valores que constituyen el vector $\mathbf{w}$. Para el caso del modelo de regresión lineal, la relación que construimos entre $\mathbf{w}$ y una instancia arbitraria $\mathbf{x}_{i}$ es de tipo lineal, por lo que podemos reescribir la ecuación (5.19) como
+
+::: {.eq-scroll}
+$$
+\begin{array}{lrcl}&P\left( y_{i}|\mathbf{x}_{i} \right)  &=&\mathcal{N} \left( y_{i}|\mathbf{x}^{\top }_{i} \mathbf{w} ,\sigma^{2} \right)  \\ \Longleftrightarrow &y_i=\mathbf{x}^{\top }_{i} \mathbf{w} +\varepsilon_{i} &\wedge &\mathbf{\varepsilon } =\left( \varepsilon_{1} ,...,\varepsilon_{m} \right)  \sim \mathcal{N} \left( 0,\sigma^{2} \right)  \end{array}
+\tag{5.20}
+$$
+:::
+
+En la ecuación anterior, como antes, hemos *acondicionado* a cada instancia $\mathbf{x}_{i}$ para ser compatible con la multiplicación matricial con el vector $\mathbf{w}$, añadiendo para ello un $1$ en la primera posición de cada una. La clase de funciones que describe la segunda línea de la expresión (5.20) son, naturalmente, rectas que pasan por el punto $(0,w_{0})$. Por lo tanto, hemos escogido una **parametrización** del tipo $f\left( \mathbf{x}_{i} \right)  =\mathbf{x}^{\top }_{i} \mathbf{w}$.
+
+El **valor de verosimilitud** en la primera expresión de (5.20) corresponde a la función de densidad de probabilidad de $y_{i}$ evaluada en la parametrización $\mathbf{x}_{i}^{\top}\mathbf{w}$. Notemos que la única **fuente de incertidumbre** en este caso proviene del ruido asociado a las observaciones, porque hemos asumido que $\mathbf{w}$ y $\mathbf{x}_{i}$ ($i=1,...,m$) son conocidas en la primera ecuación de la expresión (5.20).
+
+El modelo de regresión definido en la expresión (5.20) no solamente es lineal con respecto a los correspondientes parámetros, sino que también con respecto a las instancias $\mathbf{x}_{i}$, para $i=1,...,m$. Para cada combinación de $\mathbf{w}$ y $\mathbf{x}_{i}$, el modelo $f\left( \mathbf{x}_{i} \right)  =\mathbf{x}^{\top }_{i} \mathbf{w} +\mathbf{\varepsilon}$ describe una colección de hiperplanos en $\mathbb{R}^{n}$, para los cuales el vector de parámetros $\mathbf{w}$ representa la *pendiente* de cada uno de ellos y los correspondientes parámetros de sesgo.
+
+### Estimación de parámetros
+
+Sea el conjunto de entrenamiento $\mathcal{D} =\left\{ \left( \mathbf{X} ,\mathbf{y} \right)  :\mathbf{X} \in \mathbb{R}^{m\times n} \wedge \mathbf{y} \in \mathbb{R}^{m} \right\}$, donde $\mathbf{x}_{i}\in \mathbb{R}^{n}$ representa una fila o instancia $i$-ésima de la matriz de datos de entrada $\mathbf{X}$, siendo $m$ el total de instancias de $\mathcal{D}$. Consideremos el mismo marco de referencia con el que hemos generado la expresión (5.20), para el cual las observaciones que componen $\mathbf{y}$ son independientes e idénticamente distribuidas (iid), dados los correspondientes valores de entrada que componen cada fila (instancia) de $\mathbf{X}$. Matemáticamente, esto implica que
+
+::: {.eq-scroll}
+$$
+\begin{array}{lll}P\left( \mathcal{Y} |\mathcal{X} ,\mathbf{w} \right)  &=&\displaystyle P\left( y_{1},...,y_{m}|\mathbf{x}_{1} ,...,\mathbf{x}_{m} ,\mathbf{w} \right)  \\ &=&\displaystyle P\left( y_{1}|\mathbf{x}_{1} ,\mathbf{w} \right)  P\left( y_{2}|\mathbf{x}_{2} ,\mathbf{w} \right)  \cdots P\left( y_{m}|\mathbf{x}_{m} ,\mathbf{w} \right)  \\ &=&\displaystyle \prod^{m}_{i=1} P\left( y_{i}|\mathbf{x}_{i} ,\mathbf{w} \right)  \\ &=&\displaystyle \prod^{m}_{i=1} \mathcal{N} \left( y_{i}|\mathbf{x}^{\top }_{i} \mathbf{w} ,\sigma^{2} \right)  \end{array}
+\tag{5.21}
+$$
+:::
+
+Donde $\mathcal{X} :=\left\{ \mathbf{x}_{i} \right\}^{m}_{i=1}  \wedge \mathcal{Y} :=\left\{ y_{i}\right\}^{m}_{i=1}$ son los espacios que aglutinan a las instancias de entrenamiento y sus correspondientes observaciones resultantes. En la expresión anterior, se tiene que $P\left( \mathcal{Y} |\mathcal{X} ,\mathbf{w} \right)$ es la **función de verosimilitud** de interés, la que resulta ser Gaussiana, al igual que los factores $P\left( y_{i}|\mathbf{x}_{i} ,\mathbf{w} \right)$ para todo $i=1,...,m$, debido a la presencia del ruido $\mathbf{\varepsilon}$, como se estableció en la ecuación (5.20).
+
+Como en la estimación por mínimos cuadrados, estamos interesados en encontrar un vector óptimo $\mathbf{w}^{\ast}$ de parámetros, de manera que la ecuación funcional $y_i=\mathbf{x}^{\top }_{i} \mathbf{w}^{\ast} +\varepsilon_{i}$ **generalice** adecuadamente cualquier *aprendizaje* para todo $\mathbf{x}_{i}\in \mathbb{R}^{m}$. Una vez hallado $\mathbf{w}^{\ast}$, podemos predecir los valores de $y_i$ para todo $i=1,...,m$ haciendo uso de dicha ecuación funcional. De esta manera, para cualquier punto arbitrario *de prueba* $\mathbf{x}_{t}$ (en general, tal que $\mathbf{x}_{t}\notin \mathcal{D}$), la distribución del valor objetivo respectivo es
+
+::: {.eq-scroll}
+$$
+P\left( y_{t}|\mathbf{x}_{t} ,\mathbf{w}^{\ast } \right)  =\mathcal{N} \left( y_{t}|\mathbf{x}^{\top }_{t} \mathbf{w}^{\ast } ,\sigma^{2} \right)
+\tag{5.22}
+$$
+:::
+
+En general, para estimar $\mathbf{w}^{\ast}$, procederemos por medio de la maximización de la función de verosimilitud $P\left( \mathcal{Y} |\mathcal{X} ,\mathbf{w} \right)$. La razón de esto es debido a que maximizar $P$, intuitivamente, implica maximizar la distribución predictiva de los datos de entrenamiento dado un vector de parámetros $\mathbf{w}$. En otras palabras, determinamos el valor de $\mathbf{w}$ que hace más probable la *ocurrencia* de los datos observados (las $y_i$). Es decir, $\mathbf{w}^{\ast }$ es la solución del problema no restringido
+
+::: {.eq-scroll}
+$$
+\mathbf{w}^{\ast } =\underset{\mathbf{w} }{\mathrm{argmax} } \  P\left( \mathcal{Y} |\mathcal{X} ,\mathbf{w} \right)
+\tag{5.23}
+$$
+:::
+
+Denotamos por tanto a $\mathbf{w}^{\ast }$ como la **estimación máximo verosímil (MLE)** para $\mathbf{w}$.
+
+A diferencia de la estimación por mínimos cuadrados, la MLE no nos conduce necesariamente a una solución algebraicamente cerrada en problemas generales: todo depende de la familia probabilística asumida, de la forma funcional del modelo y de los parámetros que deseamos estimar. No obstante, en el caso lineal con ruido Gaussiano independiente y varianza constante, la función objetivo adopta una forma cuadrática y sí es posible obtener una solución cerrada. Esa conexión es precisamente la que desarrollaremos a continuación.
+
+Previo a resolver el problema (5.23), es buena idea considerar algunas manipulaciones algebraicas útiles para simplificarlo. En particular:
+
+- Debido a que los algoritmos de optimización suelen trabajar sobre problemas de minimización, optaremos por considerar el problema complementario a (5.23). Es decir, en vez de maximizar la verosimilitud, minimizaremos su negativo:
+  $$
+  \mathbf{w}^{\ast }=\underset{\mathbf{w}}{\mathrm{argmin}}\left[-P\left( \mathcal{Y} |\mathcal{X} ,\mathbf{w} \right)\right]
+  $$
+  y, más convenientemente, el negativo del logaritmo de dicha verosimilitud.
+- Debido a que, conforme lo visto en la expresión (5.21), $P\left( \mathcal{Y} |\mathcal{X} ,\mathbf{w} \right)$ no es más que el resultado de multiplicaciones sucesivas de distribuciones Gaussianas, resulta adecuado aplicar una transformación logarítmica sobre $P\left( \mathcal{Y} |\mathcal{X} ,\mathbf{w} \right)$, de manera que las correspondientes multiplicaciones de estas distribuciones se *transformen* en una suma de logaritmos aplicados sobre tales distribuciones. Esto es posible por que el logaritmo es una función monótona creciente, por lo que, para todo $\mathbf{u}\in \mathbb{R^{+}}^{n}$ arbitrario, se tendrá que los extremos globales de $\mathbf{u}$ coinciden con los de $\log(\mathbf{u})$.
+
+De lo anterior, la función a optimizar es
+
+::: {.eq-scroll}
+$$
+\begin{array}{lll}-\log \left( P\left( \mathcal{Y} |\mathcal{X} ,\mathbf{w} \right)  \right)  &=&\displaystyle -\log \left[ \prod^{m}_{i=1} P\left( y_{i}|\mathbf{x}_{i} ,\mathbf{w} \right)  \right]  \\ &=&\displaystyle -\sum^{m}_{i=1} \log \left( P\left( y_{i}|\mathbf{x}_{i} ,\mathbf{w} \right)  \right)  \end{array}
+\tag{5.24}
+$$
+:::
+
+Como la función de verosimilitud se ha asumido Gaussiana, tenemos que
+
+::: {.eq-scroll}
+$$
+\begin{array}{lll}\log \left( P\left( y_{i}|\mathbf{x}_{i} ,\mathbf{w} \right)  \right)  &=&\displaystyle \log \left( \mathcal{N} \left( y_{i}|\mathbf{x}^{\top }_{i} \mathbf{w} ,\sigma^{2} \right)  \right)  \\ &=&\displaystyle \log \left( \frac{1}{\sigma \sqrt{2\pi } } e^{-\frac{1}{2} \left( \frac{y_{i}-\mathbf{x}^{\top }_{i} \mathbf{w} }{\sigma } \right)^{2}  }\right)  \\ &=&\displaystyle \log \left( \frac{1}{\sigma \sqrt{2\pi } } \right)  +\log \left( e^{-\frac{1}{2} \left( \frac{y_{i}-\mathbf{x}^{\top }_{i} \mathbf{w} }{\sigma } \right)^{2}  }\right)  \\ &=&\displaystyle -\frac{1}{2} \left( \frac{y_{i}-\mathbf{x}^{\top }_{i} \mathbf{w} }{\sigma } \right)^{2}  +\underbrace{\log \left( \frac{1}{\sigma \sqrt{2\pi } } \right)  }_{\mathrm{constante} } \\ &=&\displaystyle -\frac{1}{2\sigma^{2} } \left( y_{i}-\mathbf{x}^{\top }_{i} \mathbf{w} \right)^{2}  +C\end{array}
+\tag{5.25}
+$$
+:::
+
+Donde $C$ aglutina únicamente a todos los términos constantes que son independientes de $\mathbf{w}$. Reemplazando la última ecuación de (5.25) en (5.24), e ignorando los términos constantes, obtenemos
+
+::: {.eq-scroll}
+$$
+\begin{array}{lll}-\log \left( P\left( \mathcal{Y} |\mathcal{X} ,\mathbf{w} \right)  \right)  &:=&\displaystyle \frac{1}{2\sigma^{2} } \sum^{m}_{i=1} \left( y_{i}-\mathbf{x}^{\top }_{i} \mathbf{w} \right)^{2}  \\ &=&\displaystyle \frac{1}{2\sigma^{2} } \left( \mathbf{y} -\mathbf{X} \mathbf{w} \right)^{\top }  \left( \mathbf{y} -\mathbf{X} \mathbf{w} \right)  \\ &=&\displaystyle \frac{1}{2\sigma^{2} } \left\Vert \mathbf{y} -\mathbf{X} \mathbf{w} \right\Vert^{2}  \end{array}
+\tag{5.26}
+$$
+:::
+
+Designaremos por $LL\left( \mathbf{w} \right)$ al negativo del logaritmo de la función de verosimilitud (es decir, $LL\left( \mathbf{w} \right)  =-\log \left( P\left( \mathcal{Y} |\mathcal{X} ,\mathbf{w} \right)  \right)$). De esta forma, hemos obtenido una fórmula explícita que permite estimar el vector de parámetros óptimo $\mathbf{w}^{\ast}$ de manera directa, ya que podemos calcular rápidamente el gradiente de $LL(\mathbf{w})$ a fin de obtener los puntos en los cuales sus componentes anulan, y que constituyen los *candidatos* a solución del problema (5.23). De esta manera, calculando las correspondientes derivadas parciales, obtenemos
+
+::: {.eq-scroll}
+$$
+\begin{array}{lll}\nabla_{\mathbf{w} } LL\left( \mathbf{w} \right)  &=&\displaystyle \frac{\partial }{\partial \mathbf{w} } \left[ \frac{1}{2\sigma^{2} } \left( \mathbf{y} -\mathbf{X} \mathbf{w} \right)^{\top }  \left( \mathbf{y} -\mathbf{X} \mathbf{w} \right)  \right]  \\ &=&\displaystyle \frac{1}{2\sigma^{2} } \frac{\partial }{\partial \mathbf{w} } \left( \mathbf{y}^{\top } \mathbf{y} -2\mathbf{y}^{\top } \mathbf{X} \mathbf{w} +\mathbf{w}^{\top } \mathbf{X}^{\top } \mathbf{X} \mathbf{w} \right)  \\ &=&\displaystyle \frac{1}{2\sigma^{2} } \left( -2\mathbf{y}^{\top } \mathbf{X} +2\mathbf{w}^{\top } \mathbf{X}^{\top } \mathbf{X} \right)  \\ &&\displaystyle \frac{1}{\sigma^{2} } \left( -\mathbf{y}^{\top } \mathbf{X} +\mathbf{w}^{\top } \mathbf{X}^{\top } \mathbf{X} \right)  \end{array}
+\tag{5.27}
+$$
+:::
+
+Como antes, buscamos los puntos críticos del gradiente $\nabla_{\mathbf{w} } LL\left( \mathbf{w} \right)$ anulando las correspondientes derivadas parciales para cada componente de $\mathbf{w}$. De esta manera tenemos que
+
+::: {.eq-scroll}
+$$
+\begin{array}{lll}\nabla_{\mathbf{w} } LL\left( \mathbf{w} \right)  =\mathbf{0}^{\top } &\Longleftrightarrow &\displaystyle \frac{1}{\sigma^{2} } \left( -\mathbf{y}^{\top } \mathbf{X} +\mathbf{w}^{\top } \mathbf{X}^{\top } \mathbf{X} \right)  =\mathbf{0}^{\top } \\ &\Longleftrightarrow &\mathbf{w}^{\top } \mathbf{X}^{\top } \mathbf{X} =\mathbf{y}^{\top } \mathbf{X} \\ &\Longleftrightarrow &\mathbf{w}^{\top } =\mathbf{y}^{\top } \mathbf{X} \left( \mathbf{X}^{\top } \mathbf{X} \right)^{-1}  \\ &\Longleftrightarrow &\mathbf{w}^{\ast} =\left( \mathbf{X}^{\top } \mathbf{X} \right)^{-1}  \mathbf{X}^{\top } \mathbf{y} \end{array}
+\tag{5.28}
+$$
+:::
+
+Notemos que la solución cerrada provista por la última línea en la expresión (5.28) es equivalente a la estimación por mínimos cuadrados determinada en la ecuación (5.12) (la ecuación normal), siendo $\mathbf{w}^{\ast}$ por tanto el estimador de máxima verosimilitud para $\mathbf{w}$. De esta manera, hemos llegado a un importante resultado: **El estimador máximo verosímil para los parámetros de un modelo de regresión lineal es equivalente al correspondiente estimador por mínimos cuadrados, siempre que el ruido asociado a las observaciones de la variable sea independiente y esté normalmente distribuido**.
+
+Debido a que $LL(\mathbf{w})$ es una función convexa, la condición $\nabla_{\mathbf{w} } LL\left( \mathbf{w} \right) =\mathbf{0}^{\top }$ es necesaria y suficiente para garantizar que los puntos críticos determinados previamente en efecto constituyen un mínimo global de $LL(\mathbf{w})$.
+
+### Extensión a problemas no lineales por medio de transformaciones
+
+La estimación por máxima verosimilitud no está disponible, de manera directa, en **<font color='darkmagenta'>Scikit-Learn</font>**, ya que los modelos de regresión lineal pueden construirse rápida y eficientemente en esta librería haciendo uso del método de mínimos cuadrados y del algoritmo de gradiente descendente estocástico. Además, el estimador máximo verosímil (para los parámetros de la regresión) es equivalente al estimador de mínimos cuadrados cuando el ruido $\varepsilon$ asociado a las observaciones de la variable de respuesta está constituido por valores independientes y normalmente distribuidos.
+
+Sin embargo, hemos desarrollado los fundamentos de la estimación de máxima verosimilitud porque buscamos mayor eficiencia y generalidad en los enfoques a desarrollar. Sobre todo cuando modelos *puramente lineales* dejan de ser suficientes para resolver un problema de interés. O, equivalentemente, cuando deseamos construir predictores cuyos recorridos en $\mathbb{R}^{n}$ requieran de geometrías más complejas que las de un hiperplano. Este será el caso en la gran mayoría de los problemas a los que nos enfrentaremos en el mundo real, y en muchos casos será necesario que tomemos una (muy buena) decisión en relación a la definición de la función de verosimilitud a implementar.
+
+Debido a que el modelo de regresión lineal es (valga la redundancia) *lineal* con respecto a sus parámetros, y no con respecto al *predictor*, es posible introducir transformaciones sobre las variables independientes que constituyen el conjunto de entrenamiento de interés, donde tales transformaciones vienen representadas por funciones que hacen el papel de dichas variables, las que pueden combinarse linealmente con los parámetros a estimar para construir el valor de salida del problema (con el que intentamos estimar el valor de la variable de respuesta).
+
+Formalizaremos lo anterior como sigue: Sea el conjunto de entrenamiento $\mathcal{D} =\left\{ \left( \mathbf{X} ,\mathbf{y} \right)  :\mathbf{X} \in \mathbb{R}^{m\times n} \wedge \mathbf{y} \in \mathbb{R}^{m} \right\}$, donde $\mathbf{x}_{i}\in \mathbb{R}^{n}$ representa una fila o instancia $i$-ésima de la matriz de datos de entrada $\mathbf{X}$, siendo $m$ el total de instancias de $\mathcal{D}$. Asumimos que las observaciones que componen $\mathbf{y}$ son independientes e idénticamente distribuidas (iid), dados los correspondientes valores de entrada que componen cada fila (instancia) de $\mathbf{X}$, que designamos como $\mathbf{x}_{i}$, para $i=1,...,m$. Estamos interesados en construir un modelo de regresión lineal conforme la estructura
+
+::: {.eq-scroll}
+$$
+\begin{array}{ll}&P\left( y_{i}|\mathbf{x}_{i} \right) =\mathcal{N} \left( y_{i}|\mathbf{\phi}^{\top} \left( \mathbf{x}_{i} \right) \mathbf{w} ,\sigma^{2} \right)\\ \Longleftrightarrow&y_{i}=\mathbf{\phi}^{\top} \left( \mathbf{x}_{i} \right) \mathbf{w} +\mathbf{\varepsilon}\\ \Longleftrightarrow&\displaystyle y_{i}=\sum_{s=0}^{k-1} w_{s}\phi_{s} \left( \mathbf{x}_{i} \right) +\varepsilon_{i}\end{array}
+\tag{5.29}
+$$
+:::
+
+Donde $\mathbf{\phi} :U\subseteq \mathbb{R}^{n} \longrightarrow V\subseteq \mathbb{R}^{k}$ es un campo vectorial no lineal que transforma cada una de las $m$ instancias de entrenamiento $\mathbf{x}_{1},...,\mathbf{x}_{m}$ en los $k$ **atributos** $\phi_{0} \left( \mathbf{x}_{i} \right) ,...,\phi_{k-1} \left( \mathbf{x}_{i} \right)$. La transformación $\mathbf{\phi}$ así definida se denomina **vector de atributos** del modelo. Los conjuntos $U$ y $V$ son espacios vectoriales que definen el cambio de dimensión generado por dicho vector, el cual comúnmente es tal que $k>n$. Incluso, en algunos casos (muy ingeniosos, como veremos más adelante), $V$ puede tener dimensión infinita. Notemos además que los parámetros del modelo de regresión *transformado*, digamos $w_{0},w_{1},...,w_{k-1}$, son lineales con respecto a los atributos.
+
+Vamos a ilustrar los efectos de incorporar el vector de atributos $\mathbf{\phi}$ al implementar una estimación de máxima verosimilitud a fin de –valga la redundancia– estimar los parámetros $w_{0},w_{1},...,w_{k-1}$, aglutinados en el vector $\mathbf{w}\in \mathbb{R}^{k}$. Para el conjunto de entrenamiento $\mathcal{D}$, introducimos la **matriz de diseño extendida o transformada** $\mathbf{\Phi}$, definida como
+
+::: {.eq-scroll}
+$$
+\mathbf{\Phi} :=\left( \begin{matrix}\mathbf{\phi}^{\top} \left( \mathbf{x}_{1} \right)\\ \mathbf{\phi}^{\top} \left( \mathbf{x}_{2} \right)\\ \vdots\\ \mathbf{\phi}^{\top} \left( \mathbf{x}_{m} \right)\end{matrix} \right) =\left( \begin{matrix}\phi_{0} \left( \mathbf{x}_{1} \right)&\phi_{1} \left( \mathbf{x}_{1} \right)&\cdots&\phi_{k-1} \left( \mathbf{x}_{1} \right)\\ \phi_{0} \left( \mathbf{x}_{2} \right)&\phi_{1} \left( \mathbf{x}_{2} \right)&\cdots&\phi_{k-1} \left( \mathbf{x}_{2} \right)\\ \vdots&\vdots&\ddots&\vdots\\ \phi_{0} \left( \mathbf{x}_{m} \right)&\phi_{1} \left( \mathbf{x}_{m} \right)&\cdots&\phi_{k-1} \left( \mathbf{x}_{m} \right)\end{matrix} \right) \in \mathbb{R}^{m\times k}
+\tag{5.30}
+$$
+:::
+
+La matriz de diseño juega el mismo papel que la matriz de variables independientes $\mathbf{X}$. En efecto, el modelo de regresión *transformado* conforme la matriz de diseño $\mathbf{\Phi}$ toma ahora la forma $\mathbf{y} =\mathbf{\Phi} \mathbf{w}$. De esta manera, en la estimación de máxima versomilitud simplemente debemos reemplazar la matriz $\mathbf{X}$ por la matriz $\mathbf{\Phi}$, con lo cual
+
+::: {.eq-scroll}
+$$
+\begin{array}{lll}\log \left( P\left( \mathbf{y}|\mathbf{\Phi},\mathbf{w} \right) \right)&=&\displaystyle \log \left( \mathcal{N} \left( \mathbf{y}|\mathbf{\Phi} \mathbf{w} ,\sigma^{2} \right) \right)\\ &=&\displaystyle \log \left( \frac{1}{\sigma \sqrt{2\pi}} \exp \left( -\frac{1}{2\sigma^{2}} \left( \mathbf{y}-\mathbf{\Phi} \mathbf{w} \right)^{\top} \left( \mathbf{y}-\mathbf{\Phi} \mathbf{w} \right) \right) \right)\\ &=&\displaystyle \log \left( \frac{1}{\sigma \sqrt{2\pi}} \right) +\log \left( \exp \left( -\frac{1}{2\sigma^{2}} \left( \mathbf{y}-\mathbf{\Phi} \mathbf{w} \right)^{\top} \left( \mathbf{y}-\mathbf{\Phi} \mathbf{w} \right) \right) \right)\\ &=&\displaystyle -\frac{1}{2\sigma^{2}} \left( \mathbf{y}-\mathbf{\Phi} \mathbf{w} \right)^{\top} \left( \mathbf{y}-\mathbf{\Phi} \mathbf{w} \right) +\underbrace{\log \left( \frac{1}{\sigma \sqrt{2\pi}} \right)}_{\mathrm{constante} =C}\end{array}
+\tag{5.31}
+$$
+:::
+
+Debido a que $\mathbf{X}$ y $\mathbf{\Phi}$ son independientes del vector $\mathbf{w}$ (en cada caso), es inmediato que el estimador máximo verosímil para este problema general es
+
+::: {.eq-scroll}
+$$
+\mathbf{w}^{\ast} =\left( \mathbf{\Phi}^{\top} \mathbf{\Phi} \right)^{-1} \mathbf{\Phi}^{\top} \mathbf{y}
+\tag{5.32}
+$$
+:::
+
+Lo que resuelve el problema (5.29).
+
+**Ejemplo 5.8 – Regresión polinomial:** Consideremos el conjunto de entrenamiento $\mathcal{D} =\left\{ \left( \mathbf{X} ,\mathbf{y} \right)  :\mathbf{X} \in \mathbb{R}^{m\times n} \wedge \mathbf{y} \in \mathbb{R}^{m} \right\}$, donde $\mathbf{x}_{i}\in \mathbb{R}^{n}$ representa una fila o instancia $i$-ésima de la matriz de datos de entrada $\mathbf{X}$, siendo $m$ el total de instancias de $\mathcal{D}$. Asumimos que las observaciones que componen $\mathbf{y}$ son independientes e idénticamente distribuidas (iid), dados los correspondientes valores de entrada que componen cada fila (instancia) de $\mathbf{X}$, que designamos como $\mathbf{x}_{i}$, para $i=1,...,m$. Como cada instancia $\mathbf{x}_{i}$ del conjunto de entrenamiento $\mathcal{D}$ es un vector en $\mathbb{R}^{n+1}$, la formulación de un modelo lineal es del tipo $\mathbf{y} =\mathbf{X} \mathbf{w}$ (siempre que ignoremos el término de ruido e incorporemos el parámetro de sesgo al vector de parámetros $\mathbf{w}\in \mathbb{R}^{n}$).
+
+Supongamos que *sabemos*, de alguna manera, que la correspondencia entre los pares $(\mathbf{x}_{i},y_{i})$ no es lineal (para $i=1,...,m$). Por lo tanto, el modelo $\mathbf{y} =\mathbf{X} \mathbf{w}$ es insuficiente para representar cualquier dependencia del tipo $\mathbf{y}=f(\mathbf{X})$. Una forma de considerar correspondencias más complejas es mediante la introducción de una **transformación polinómica** que, correspondientemente, incorpore potencias enteras hasta, digamos, $d$, de los elementos de $\mathbf{x}_{i}$. Es decir, queremos que, en vez de considerar únicamente los $n+1$ elementos de $\mathbf{x}_{i}=(1,x_{i1},...,x_{in})$ en el modelo, integremos además los siguientes valores:
+
+- Las potencias enteras hasta de exponente $d$ de los elementos de $\mathbf{x}_{i}$. Es decir, $\mathbf{x}^{\left( d \right)} =\left( 1^{0},1^{1},...1^{d},x_{i1}^{0},x_{i1}^{1},...,x_{i1}^{d},...,x_{ij}^{0},x_{ij}^{1},...,x_{ij}^{d},...,x_{in}^{0},x_{in}^{1},...,x_{in}^{d} \right)$. Este caso se conoce como **transformación polinomial incompleta de grado $d$**.
+- Las potencias enteras hasta de exponente $d$ de los elementos de $\mathbf{x}_{i}$, junto a todos los productos posibles de tales elementos, desde $2$ a $d$ términos involucrados en estas multiplicaciones. Este caso es más difícil de describir en términos generales, pero lo ejemplificaremos unas líneas más adelante, y se conoce como **transformación polinomial completa de grado $d$**. Los productos cruzados son llamados **interacciones** de la transformación, las que serán de grado $r$ (con $r\leq d$) cuando hay exactamente $r$ términos involucrados en dicho producto.
+
+**CASO I – Transformación polinomial incompleta:** Nuestro objetivo entonces es añadir las potencias enteras de cada término individual de $\mathbf{x}_{i}$, hasta un exponente $d$. Por ejemplo, si $d=3$, entonces consideramos la matriz de diseño $\mathbf{\Phi}$, definida como
+
+::: {.eq-scroll}
+$$
+\mathbf{\Phi} \left( \mathbf{x}_{i} \right) =\left( \begin{matrix}1&x_{i1}&x_{i1}^{2}&x_{i1}^{3}\\ 1&x_{i2}&x_{i2}^{2}&x_{i2}^{3}\\ \vdots&\vdots&\vdots&\vdots\\ 1&x_{in}&x_{in}^{2}&x_{in}^{3}\end{matrix} \right) \in \mathbb{R}^{m\times 4}
+\tag{5.33}
+$$
+:::
+
+En efecto, notemos que
+
+::: {.eq-scroll}
+$$
+\begin{array}{lll}\mathbf{\Phi} \left( \mathbf{x}_{i} \right) \mathbf{w}&=&\displaystyle \left( \begin{matrix}1&x_{i1}&x_{i1}^{2}&x_{i1}^{3}\\ 1&x_{i2}&x_{i2}^{2}&x_{i2}^{3}\\ \vdots&\vdots&\vdots&\vdots\\ 1&x_{in}&x_{in}^{2}&x_{in}^{3}\end{matrix} \right) \left( \begin{matrix}w_{0}\\ w_{1}\\ w_{2}\\ w_{3}\end{matrix} \right)\\ &=&\displaystyle \left( \begin{matrix}w_{0}+w_{1}x_{i1}+w_{2}x_{i1}^{2}+w_{3}x_{i1}^{3}\\ w_{0}+w_{1}x_{i2}+w_{2}x_{i2}^{2}+w_{3}x_{i2}^{3}\\ \cdots\\ w_{0}+w_{1}x_{in}+w_{2}x_{in}^{2}+w_{3}x_{in}^{3}\end{matrix} \right)\\ &=&\displaystyle \left( \begin{matrix}\sum\nolimits_{s=0}^{3} w_{s}x_{i1}^{s}\\ \sum\nolimits_{s=0}^{3} w_{s}x_{i2}^{s}\\ \cdots\\ \sum\nolimits_{s=0}^{3} w_{s}x_{in}^{s}\end{matrix} \right)\end{array}
+\tag{5.34}
+$$
+:::
+
+Por lo tanto, esta transformación polinómica simplemente intercambia cada variable original $x_{ij}$ de la instancia $\mathbf{x}_{i}$ ($i=1,...,m\wedge j=1,...,n$) por las $4n$ variables $x_{ij}^{s}$, para $j=1,...,n\wedge s=0,1,2,3$. Este modelo sigue siendo lineal, porque las potencias $x_{ij}^{s}$ para $s>1$ son tratadas como variables *independientes* adicionales, todas ellas escaladas por los correspondientes parámetros de la regresión (que deseamos estimar).
+
+Un efecto importante de la transformación anterior es que genera un escalamiento muy grande del número de variables independientes de nuestro modelo original.
+
+**CASO 2 – Trasformación polinomial completa:** Vamos a ejemplificar este caso para $n=3$ y $d=3$, y consideremos $i=1,...,m$. La matriz original que aglutina los datos de entrada del problema es la siguiente
+
+::: {.eq-scroll}
+$$
+\mathbf{X} =\left( \begin{matrix}x_{11}&x_{12}&x_{13}\\ x_{21}&x_{22}&x_{23}\\ \vdots&\vdots&\vdots\\ x_{m1}&x_{m2}&x_{m3}\end{matrix} \right) \in \mathbb{R}^{m\times 3}
+\tag{5.35}
+$$
+:::
+
+En este caso, el modelo de regresión lineal puede descomponerse como
+
+::: {.eq-scroll}
+$$
+\left( \begin{matrix}y_{1}\\ y_{2}\\ \vdots\\ y_{m}\end{matrix} \right) =\left( \begin{matrix}x_{11}&x_{12}&x_{13}\\ x_{21}&x_{22}&x_{23}\\ \vdots&\vdots&\vdots\\ x_{m1}&x_{m2}&x_{m3}\end{matrix} \right) \left( w_{1},w_{2},w_{3} \right)
+\tag{5.36}
+$$
+:::
+
+Una transformación completa, además de considerar las potencias enteras de los términos de la instancia $\mathbf{x}_{i}=(x_{i1},x_{i2})$ (es decir, $x_{i1}^{s}\wedge x_{i2}^{s}$, para $s=0,1,2,3$), considera además las **interacciones cruzadas**, que en este caso son:
+
+- Cuadráticas: $x_{i1}x_{i2},x_{i1}x_{i3},x_{i2}x_{i3}$.
+- Cúbicas: $x_{i1}^{2}x_{i2},x_{i1}x_{i2}^{2},x_{i1}^{2}x_{i3},x_{i1}x_{i3}^{2},x_{i2}^{2}x_{i3},x_{i2}x_{i3}^{2},x_{i1}x_{i2}x_{i3}$.
+
+Notemos que la progresión en el número de términos considerando estas interacciones escala en una progresión combinatorial. Para este caso, la matriz de diseño toma la forma
+
+::: {.eq-scroll}
+$$
+\mathbf{\Phi}(\mathbf{x}_{i}) =\left( \underbrace{\begin{matrix}1&x_{11}&x_{12}&x_{13}\\ 1&x_{21}&x_{22}&x_{23}\\ \vdots&\vdots&\vdots&\vdots\\ 1&x_{m1}&x_{m2}&x_{m3}\end{matrix}}_{\mathrm{parte\  lineal}} \  \  \underbrace{\begin{matrix}x_{11}^{2}&x_{12}^{2}&x_{13}^{2}&x_{11}x_{12}&x_{11}x_{13}&x_{12}x_{13}\\ x_{21}^{2}&x_{22}^{2}&x_{23}^{2}&x_{21}x_{22}&x_{21}x_{23}&x_{22}x_{23}\\ \vdots&\vdots&\vdots&\vdots&\vdots&\vdots\\ x_{m1}^{2}&x_{m2}^{2}&x_{m3}^{2}&x_{m1}x_{m2}&x_{m1}x_{m3}&x_{m2}x_{m3}\end{matrix}}_{\mathrm{parte\  cuadratica}} \  \  \underbrace{\begin{matrix}x_{11}^{3}&x_{12}^{3}&x_{13}^{3}&x_{11}^{2}x_{12}&x_{11}^{2}x_{13}&x_{11}x_{12}^{2}&x_{11}x_{13}^{2}&x_{12}^{2}x_{13}&x_{12}x_{13}^{2}&x_{11}x_{12}x_{13}\\ x_{21}^{3}&x_{22}^{3}&x_{23}^{3}&x_{21}^{2}x_{22}&x_{21}^{2}x_{23}&x_{21}x_{22}^{2}&x_{21}x_{23}^{2}&x_{22}^{2}x_{23}&x_{22}x_{23}^{2}&x_{21}x_{22}x_{23}\\ \vdots&\vdots&\vdots&\vdots&\vdots&\vdots&\vdots&\vdots&\vdots&\vdots\\ x_{m1}^{3}&x_{m2}^{3}&x_{m3}^{3}&x_{m1}^{2}x_{m2}&x_{m1}^{2}x_{m3}&x_{m1}x_{m2}^{2}&x_{m1}x_{m3}^{2}&x_{m2}^{2}x_{m3}&x_{m2}x_{m3}^{2}&x_{m1}x_{m2}x_{m3}\end{matrix}}_{\mathrm{parte\  cubica}} \right) \in \mathbb{R}^{m\times 20}
+\tag{5.37}
+$$
+:::
+
+Vale decir... ¡Hemos pasado de $3$ a $20$ variables al realizar esta transformación!
+
+Conforme las fórmulas combinatorias, es posible determinar el total de variables para el caso general en el cual implementamos una transformación polinómica completa de grado $d$ sobre un conjunto de entrenamiento cuya matriz de datos de entrada consta de $n$ variables independientes (columnas). En este caso, una vez aplicada la transformación, el total de variables "independientes" considerando los términos que describen las interacciones de grado hasta $d$ será de $\frac{\left( n+d \right) !}{n!d!}$.
+
+Es claro pues que esta transformación es inviable pasado un cierto número de variables independientes y/o de un cierto grado objetivo. No sólo porque el número de variables resultantes crece enormemente (o, dicho de manera más elegante, porque la dimensión del espacio de atributos crece factorialmente), sino porque la incorporación de todas estas "nuevas" variables generará, en proporción, que nuestro modelo resultante **sobreajuste** los datos de entrenamiento. Hablaremos de este fenómeno en detalle más adelante, pero, por ahora, visualizaremos de manera sencilla el efecto de construir una transformación polinómica completa para los casos $n\leq 5\wedge d\leq 5$:
+
+```{python}
+from scipy.special import factorial
+from sklearn.preprocessing import PolynomialFeatures
+```
+
+```{python}
+# Definimos arreglos que nos permitirán generar una grilla de evaluación.
+n = np.linspace(start=1, stop=5, num=10)
+d = np.linspace(start=1, stop=5, num=10)
+
+# Construimos la grilla.
+N, D = np.meshgrid(n, d)
+
+# Calculamos el número resultante de términos en toda la grilla.
+Z = factorial(N + D) / (factorial(N) * factorial(D))
+```
+
+```{python}
+#| label: fig-modelo-de-regresion-lineal-13
+#| fig-cap: "Número de términos resultantes para un caso."
+# Construimos nuestro gráfico.
+fig, ax = plt.subplots(figsize=(9, 6))
+p1 = ax.contourf(N, D, Z, cmap="viridis", alpha=0.7)
+p2 = ax.plot([1, 3], [3, 3], "k:", lw=2.0)
+p3 = ax.plot([3, 3], [3, 1], "k:", lw=2.0)
+p4 = ax.plot(3, 3, "ko")
+
+# Etiquetamos el gráfico.
+cb = fig.colorbar(p1)
+cb.set_label("Número resultante de términos", fontsize=12, labelpad=10)
+ax.set_xlabel(r"$n$", fontsize=14, labelpad=10)
+ax.set_ylabel(r"$d$", fontsize=14, labelpad=20, rotation=0)
+ax.set_title(
+    "Número de términos resultantes para un caso\n" + r"con $n\leq 5\wedge d\leq 5$",
+    fontsize=16, fontweight="bold", pad=10,
+)
+
+plt.tight_layout()
+```
+
+**<font color='darkmagenta'>Scikit-Learn</font>** nos provee de una implementación sencilla del modelo de regresión polinomial (completo) en la forma de un transformador de variables similar a los que ya hemos usado previamente en otros ejercicios, como `StandardScaler`. En este caso, dicho transformador es `PolynomialFeatures`, y funciona de manera similar a éste último, siguiendo la filosofía de escalabilidad del API de **<font color='darkmagenta'>Scikit-Learn</font>**. Algunos parámetros de importancia para este transformador son los siguientes:
+
+- `degree`: Permite definir el grado de la transformación polinómica a aplicar. Naturalmente, debe ser un número entero (mayor que `2`).
+- `interaction_only`: Parámetro booleano que permite establecer si, como resultado de nuestra transformación polinómica, se producirán únicamente interacciones cuadríaticas (`interaction_only=True`), descartando interacciones que incluyan cuadrados, cubos, o potencias mayores de cada variable independiente. Por defecto, su valor es igual a `False`.
+- `include_bias`: Parámetro booleano que permite incluir una columna asociada a un parámetro de sesgo. Dicha columna corresponde a aquella en la matriz de diseño para la cual todas las potencias de las variables independientes a transformar son de exponente cero. Por defecto, su valor es igual a `True`.
+
+Ejemplificaremos el uso de este transformador haciendo uso de una matriz muy sencilla, de dimensión `(5, 3)`, que emulará `5` observaciones de `3` variables independientes, las que serán enteras y estarán uniformemente distribuidas entre `1` y `9`:
+
+```{python}
+# Creamos nuestro conjunto de datos.
+X = rng.integers(low=1, high=10, size=(5, 3))
+
+# Mostramos en pantalla estos datos.
+X
+```
+
+Al aplicar una transformación polinómica completa de grado `2` (o cuadrática), obtendremos el siguiente resultado:
+
+```{python}
+# Creamos el transformador de variables.
+poly = PolynomialFeatures(
+    degree=2,
+    interaction_only=False,
+    include_bias=True,
+)
+
+# Aplicamos una transformación polinómica completa de grado 2.
+Z = poly.fit_transform(X)
+
+# Mostramos en pantalla el resultado.
+Z
+```
+
+Y eso es todo. Notemos que, a partir de la matriz $\mathbf{X} =\left\{ x_{ij} \right\} \in \mathbb{R}^{5\times 3}$ hemos creado una nueva matriz transformada $\mathbf{Z} =\left\{ z_{ij} \right\} \in \mathbb{R}^{5\times \frac{\left( 3+2 \right) !}{3!2!}}$, tal que
+
+::: {.eq-scroll}
+$$
+\mathbf{Z} =\left( \begin{matrix}1&x_{11}&x_{12}&x_{13}&x_{11}^{2}&x_{11}x_{12}&x_{11}x_{13}&x_{12}^{2}&x_{12}x_{13}&x_{13}^{2}\\ 1&x_{21}&x_{22}&x_{23}&x_{21}^{2}&x_{21}x_{22}&x_{21}x_{23}&x_{22}^{2}&x_{22}x_{23}&x_{23}^{2}\\ 1&x_{31}&x_{32}&x_{33}&x_{31}^{2}&x_{31}x_{32}&x_{31}x_{33}&x_{32}^{2}&x_{32}x_{33}&x_{33}^{2}\\ 1&x_{41}&x_{42}&x_{43}&x_{41}^{2}&x_{41}x_{42}&x_{41}x_{43}&x_{42}^{2}&x_{42}x_{43}&x_{43}^{2}\\ 1&x_{51}&x_{52}&x_{53}&x_{51}^{2}&x_{51}x_{52}&x_{51}x_{53}&x_{52}^{2}&x_{52}x_{53}&x_{53}^{2}\end{matrix} \right) \in \mathbb{R}^{5\times 10}
+\tag{5.38}
+$$
+:::
+
+El orden que se muestra de los elementos en cada fila de $\mathbf{Z}$, de izquierda a derecha, es el que está seteado en **<font color='darkmagenta'>Scikit-Learn</font>** a la hora de retornar un dataset transformado por medio de `PolynomialFeatures`. Notemos además que el resultado de la transformación es una nueva matriz de datos de entrada con un total de $10$ variables independientes, porque $\frac{\left( 3+2 \right) !}{3!2!}=10$.
+
+Para ejemplificar de manera práctica el cómo implementar un modelo de regresión polinomial, volvamos a crear un conjunto de datos, pero esta vez con muchas más instancias. En concreto, generaremos un conjunto en $\mathbb{R}^{2}$ con datos uniformemente distribuidos, representados por pares del tipo $(x, y)$, donde $y=\frac{1}{2} x^{2}+x+2+\mathrm{ruido\  Gaussiano}$. De esta manera, tenemos:
+
+```{python}
+# Construimos nuestro conjunto de datos.
+X = 6 * rng.random(size=(1000, 1)) - 3
+y = (1/2) * X**2 + X + 2 + rng.normal(loc=0, scale=1, size=(1000, 1))
+```
+
+```{python}
+#| label: fig-modelo-de-regresion-lineal-14
+#| fig-cap: "Nuestro conjunto de datos."
+# Visualizamos nuestro conjunto de datos.
+fig, ax = plt.subplots(figsize=(9, 6))
+ax.scatter(X, y, color="teal", marker="o")
+
+# Etiquetamos el gráfico.
+title = "Conjunto de datos con $1000$ instancias, generado conforme\n"
+title += r"$y=\frac{1}{2} x^{2}+x+2+\mathrm{ruido\  Gaussiano}$"
+ax.set_title(
+    title,
+    fontsize=16,
+    fontweight="bold",
+    pad=10,
+)
+
+ax.set_xlabel(r"$x$", fontsize=14, labelpad=10)
+ax.set_ylabel(r"$y$", fontsize=14, labelpad=20, rotation=0)
+ax.grid(True)
+
+plt.tight_layout()
+```
+
+Podemos construir de manera sencilla un modelo de regresión polinomial para este conjunto de datos haciendo uso del transformador `PolynomialFeatures`. Para ello, generaremos una sencilla pipeline que se encargará de, al mismo tiempo, transformar nuestras variables de entrada y ajustar el modelo correspondiente por medio del método de mínimos cuadrados (es decir, usando la clase `LinearRegression`):
+
+```{python}
+from sklearn.pipeline import Pipeline
+```
+
+```{python}
+# Creamos un modelo de regresión polinomial de grado 2.
+model = Pipeline(
+    steps=[
+        ("poly_transform", PolynomialFeatures(degree=2)), 
+        ("estimator", LinearRegression()),
+    ],
+)
+
+# Entrenamos nuestro modelo.
+model.fit(X, y)
+```
+
+```{python}
+# Generamos predicciones con nuestro modelo.
+x_range = np.linspace(start=X.min(), stop=X.max(), num=100).reshape(-1, 1)
+y_pred = model.predict(x_range)
+```
+
+```{python}
+#| label: fig-modelo-de-regresion-lineal-15
+#| fig-cap: "Los resultados."
+# Visualizamos los resultados.
+fig, ax = plt.subplots(figsize=(9, 6))
+ax.scatter(X, y, color="teal", marker="o", label="Conjunto de datos")
+ax.plot(x_range, y_pred, color="navy", lw=2.0, label="Modelo polinomial")
+
+# Etiquetamos el gráfico.
+title = "Modelo de regresión polinomial de grado 2 para\nel conjunto de datos generado"
+ax.set_title(
+    title,
+    fontsize=16,
+    fontweight="bold",
+    pad=10,
+)
+
+ax.set_xlabel(r"$x$", fontsize=14, labelpad=10)
+ax.set_ylabel(r"$y$", fontsize=14, labelpad=20, rotation=0)
+ax.grid(True)
+ax.legend(loc="best", fontsize=12, frameon=True)
+
+plt.tight_layout()
+```
+
+Podemos observar que nuestro modelo tiene una calidad razonable en los datos de entrenamiento, aunque claro... aún no hemos indagado en ningún tipo de métrica de desempeño para modelos de regresión, pero paciencia, ya entraremos de lleno en eso un poco más adelante.
+
+Para finalizar este ejercicio, mostraremos los resultados obtenidos. Recordemos que los datos que hemos utilizado para este sencillo ejemplo los hemos generado a partir de una expresión del tipo $y=b+w_{1}x+w_{2}x^{2}$, con lo cual:
+
+```{python}
+# Presentamos los parámetros estimados.
+print("Parámetros estimados:")
+print(f"b = {model.named_steps['estimator'].intercept_[0]:.4f}")
+print(f"w1 = {model.named_steps['estimator'].coef_[0][1]:.4f}")
+print(f"w2 = {model.named_steps['estimator'].coef_[0][2]:.4f}")
+```
+
+Las estimaciones anteriores cumplen bastante bien con su propósito. Recordemos que, originalmente, estos valores eran $b=2,w_{1}=1$ y $w_{2}=1/2$. ◼︎
+
+**Ejemplo 5.9 – Un modelo trigonométrico:** El modelo de regresión polinomial es un ejemplo clásico de lo que, en un lenguaje más *ingenieril*, se conoce como **linealización**. La idea es esencialmente la misma: Transformar un modelo no lineal en otro "lineal" en los parámetros que deseamos estimar. La transformación es exitosa cuando podemos recuperar los parámetros originales de nuestro modelo a partir de los que construimos para el caso transformado.
+
+Un ejemplo igualmente interesante es el caso del modelamiento de una señal (o proceso) de tipo cuasi-periódico, que suele expresarse por medio de una ecuación constituida por términos sinusoidales del tipo
+
+::: {.eq-scroll}
+$$
+y\left( t \right) =b+\sum_{j=1}^{n} \sin \left( f_{j}t+w_{j} \right)
+\tag{5.39}
+$$
+:::
+
+Notemos que el modelo (5.39) es no lineal, porque los parámetros de interés ($w_{j}$ y $f_{j}$, $j=1,...,n$) son no lineales con respecto a $t$, al aparecer como parte del argumento de la función sinusoidal. Este es un ejemplo de modelo **parcialmente linealizable**, porque dependiendo del tipo de problema a resolver, podemos asumir que los $w_{j}$ o los $f_{j}$ son fijos y, en la práctica, tratarlos como *hiperparámetros*. Si asumimos que los $n$ parámetros $f_{j}$ son fijos, entonces podemos linealizar el modelo (5.39) por medio de identidades trigonométricas, a fin de obtener una expresión que sea lineal con respecto a parámetros que, una vez estimados, permitan a su vez estimar los $n$ parámetros $w_{j}, j=1,...,n$. Para ello, podemos usar la identidad trigonométrica para el seno de una suma, de manera tal que
+
+::: {.eq-scroll}
+$$
+b+\sum_{j=1}^{n} \sin \left( k_{j}t+w_{j} \right) =b+\sum_{j=1}^{n} \left( \sin \left( f_{j}t \right) \cos \left( w_{j} \right) +\sin \left( w_{j} \right) \cos \left( f_{j}t \right) \right)
+\tag{5.40}
+$$
+:::
+
+En la forma (5.40), el modelo del lado derecho es ahora lineal con respecto a los parámetros $\sin \left( w_{j} \right)$ y $\cos \left( w_{j} \right)$. A pesar de que estos "nuevos" parámetros están relacionados con los parámetros originales de manera no lineal, resulta sencillo recuperar los valores de las $w_{j}$, porque
+
+::: {.eq-scroll}
+$$
+w_{j}=\arctan \left( \frac{\sin \left( w_{j} \right)}{\cos \left( w_{j} \right)} \right)
+\tag{5.41}
+$$
+:::
+
+Notemos que el modelo del lado derecho de la ecuación (5.40) tiene como matriz de diseño a
+
+::: {.eq-scroll}
+$$
+\phi^{\top} \left( t \right) =\left( \begin{matrix}\sin \left( k_{1}t \right)\\ \cos \left( k_{1}t \right)\\ \sin \left( k_{2}t \right)\\ \cos \left( k_{2}t \right)\\ \vdots\\ \sin \left( k_{n}t \right)\\ \cos \left( k_{n}t \right)\end{matrix} \right) \in \mathbb{R}^{2n}
+\tag{5.42}
+$$
+:::
+
+Vamos a ilustrar el funcionamiento de este modelo en un caso práctico. Para ello, como antes, simularemos un conjunto de datos adecuado incorporando un nivel de ruido Gaussiano a los valores de salida:
+
+```{python}
+# Seteamos los parámetros con los que generaremos nuestros datos.
+k = 3 # Número de términos sinusoidales.
+m = 1000 # Número de instancias del conjunto de entrenamiento.
+f = [1.0, 2.0, 3.0] # Frecuencias en cada término.
+w_true = np.array([0.5, -0.7, 1.2]) # Cambios de fase originales en cada término.
+b_true = 0.3 # Parámetro de sesgo original.
+
+# Generamos un arreglo secuencial de puntos en el tiempo.
+t = np.linspace(start=0, stop=10, num=m)
+
+# Generamos los valores "reales" de salida.
+y_true = b_true + sum(np.sin(f[j] * t + w_true[j]) for j in range(k))
+```
+
+Notemos que el conjunto de datos que hemos construido es tal que el número de términos sinusoidales es igual a $3$, siendo las frecuencias asociadas a cada término fijas (como comentamos previamente), con valores $f_{1}=1,f_{2}=2$ y $f_{3}=3$. Los valores "reales" de los parámetros que deseamos estimar son $b=0.3,w_{1}=0.5,w_{2}=-0.7$ y $w_{3}=1.2$.
+
+Adicionaremos el ruido a nuestra variable de salida y visualizaremos el conjunto de datos resultante:
+
+```{python}
+# Añadimos ruido a estos valores "reales".
+noise = rng.normal(loc=0.0, scale=0.5, size=m)
+y = y_true + noise
+```
+
+```{python}
+#| label: fig-modelo-de-regresion-lineal-16
+#| fig-cap: "El conjunto de datos original."
+# Mostramos el conjunto de datos original.
+fig, ax = plt.subplots(figsize=(9, 6))
+ax.scatter(t, y, s=20, color="dodgerblue")
+
+# Etiquetamos el gráfico.
+title = "Conjunto de datos con $1000$ instancias, generado conforme\n"
+title += r"$y=b+\sum_{j=1}^{3} \sin \left( f_{j}t+w_{j} \right) +\mathrm{ruido\  Gaussiano}$"
+ax.set_title(
+    title,
+    fontsize=16,
+    fontweight="bold",
+    pad=20,
+)
+
+ax.set_xlabel(r"$t$", fontsize=12, labelpad=10)
+ax.set_ylabel(r"$y$", fontsize=12, labelpad=15, rotation=0)
+ax.grid(True)
+
+plt.tight_layout()
+```
+
+Dado el conjunto de datos anterior, procedemos a construir la matriz de diseño `X` conforme la ecuación (5.42):
+
+```{python}
+# Construimos la matriz de diseño de este problema.
+X = np.column_stack(
+    [np.sin(f[j] * t) for j in range(k)] + [np.cos(f[j] * t) for j in range(k)]
+)
+```
+
+Ya sólo resta construir nuestro modelo. Notemos que el modelo es, naturalmente, lineal, con lo cual:
+
+```{python}
+# Instanciamos nuestro modelo.
+model = LinearRegression()
+
+# Entrenamos nuestro modelo.
+model.fit(X, y)
+```
+
+Nuestro modelo lineal ha estimado los parámetros $\sin(w_{j})$ y $\cos(w_{j})$ para $j=1,2,3$. Conforme la expresión del lado derecho de la ecuación (5.40), dicho modelo permite además estimar el valor del parámetro de sesgo $b$ de manera directa. Por lo tanto, para calcular los valores estimados para las $w_{j}$, bastará con usar la ecuación (5.41):
+
+```{python}
+# Extraemos los coeficientes estimados por el modelo.
+cos_w_est = model.coef_[:k]
+sin_w_est = model.coef_[k:]
+
+# Calculamos los cambios de fase estimados por el modelo y recuperamos
+# el parámetro de sesgo.
+w_est = np.arctan2(sin_w_est, cos_w_est)
+b_est = model.intercept_
+```
+
+Finalmente, generamos predicciones usando nuestro modelo y visualizamos los resultados:
+
+```{python}
+# Obtenemos predicciones para el modelo.
+y_pred = b_est + sum(
+    cos_w_est[j] * np.sin(f[j] * t) + sin_w_est[j] * np.cos(f[j] * t) for j in range(k)
+)
+```
+
+```{python}
+#| label: fig-modelo-de-regresion-lineal-17
+#| fig-cap: "La comparación del modelo versus los datos \"reales\"."
+# Mostramos la comparación del modelo versus los datos "reales".
+fig, ax = plt.subplots(figsize=(9, 6))
+ax.scatter(
+    x=t,
+    y=y,
+    s=20,
+    color="dodgerblue",
+    alpha=0.5,
+    label="Conjunto de entrenamiento",
+)
+
+ax.plot(
+    t,
+    y_pred,
+    color="black",
+    lw=3.0,
+    label="Modelo de regresión",
+)
+
+# Etiquetamos el gráfico.
+title = "Modelo de regresión lineal para el caso de un modelo parcialmente\n"
+title += r"linealizable del tipo $y=b+\sum_{j=1}^{3} \sin \left( f_{j}t+w_{j} \right) +\mathrm{ruido\  Gaussiano}$"
+ax.set_title(
+    title,
+    fontsize=16,
+    fontweight="bold",
+    pad=10,
+)
+
+ax.set_xlabel(r"$t$", fontsize=12, labelpad=10)
+ax.set_ylabel(r"$y$", fontsize=12, labelpad=20, rotation=0)
+ax.legend(loc="best", fontsize=10, frameon=True)
+ax.grid(True)
+
+plt.tight_layout()
+```
+
+Podemos observar que el modelo así construido se ajusta bastanre bien a nuestros datos de entrenamiento. Naturalmente, esto no tiene por qué sorprendernos, puesto que lo hemos construido a partir de los valores *correctos* de frecuencias $f_{1},f_{2}$ y $f_{3}$.
+
+Mostramos en pantalla los parámetros estimados por el modelo:
+
+```{python}
+# Mostramos los parámetros estimados por nuestro modelo.
+print("Parámetros estimados:")
+print(f"b = {b_est:.4f}")
+for j in range(k):
+    print(f"w{j+1} = {w_est[j]:.4f}")
+```
+
+Podemos observar que nuestro modelo aproxima bastante bien los valores reales de los cambios de fases a partir de los cuales hemos generado nuestro conjunto de datos. Hacemos énfasis en que, para este caso, el ajuste es parcial, porque hemos partido de la base en que conocemos las frecuencias $f_{1}, f_{2}$ y $f_{3}$.
+
+Cuando no tenemos la información de las frecuencias, podemos tratarlas como hiperparámetros de manera rápida por medio de un bucle, aunque no es el procedimiento más eficiente del mundo. Sin embargo, mostraremos dicho procedimiento a modo ilustrativo:
+
+```{python}
+# Definimos una serie de rangos de frecuencias.
+f_ranges = [
+    np.linspace(start=0.5, stop=1.5, num=10),  # Rango para f1.
+    np.linspace(start=1.5, stop=2.5, num=10),  # Rango para f2.
+    np.linspace(start=2.5, stop=3.5, num=10)   # Rango para f3.
+]
+
+# Generamos una lista para almacenar todas las curvas que obtengamos.
+all_model_curves = []
+
+# Ajustamos un set de modelos para distintas combinaciones.
+for f1i in f_ranges[0]:
+    for f2j in f_ranges[1]:
+        for f3k in f_ranges[2]:
+            # Construimos la matriz de diseño X con la correspondiente 
+            # combinación de frecuencias.
+            X_ijk = np.column_stack(
+                [
+                    np.sin(f1i * t), np.cos(f1i * t), 
+                    np.sin(f2j * t), np.cos(f2j * t),
+                    np.sin(f3k * t), np.cos(f3k * t),
+                ],
+            )
+            # Ajustamos nuestro modelo.
+            model_ijk = LinearRegression()
+            model_ijk.fit(X_ijk, y)
+            
+            # EExtraemos los parámetros estimados.
+            cos_w_est_ijk = model_ijk.coef_[:3]
+            sin_w_est_ijk = model_ijk.coef_[3:]
+            b_est_ijk = model_ijk.intercept_
+            
+            # Generamos predicciones.
+            y_pred_ijk = b_est_ijk + (
+                cos_w_est_ijk[0] * np.sin(f1i * t)
+                + sin_w_est_ijk[0] * np.cos(f1i * t)
+                + cos_w_est_ijk[1] * np.sin(f2j * t)
+                + sin_w_est_ijk[1] * np.cos(f2j * t)
+                + cos_w_est_ijk[2] * np.sin(f3k * t)
+                + sin_w_est_ijk[2] * np.cos(f3k * t)
+            )
+            # Y almacenamos las correspondientes predicciones.
+            all_model_curves.append(y_pred_ijk)
+```
+
+```{python}
+#| label: fig-modelo-de-regresion-lineal-18
+#| fig-cap: "Todos los modelos ajustados."
+# Mostramos todos los modelos ajustados.
+fig, ax = plt.subplots(figsize=(9, 6))
+
+for y_pred_k in all_model_curves:
+    ax.plot(t, y_pred_k, color="dodgerblue", lw=1.0, alpha=0.1)
+
+ax.scatter(
+    x=t,
+    y=y,
+    s=20,
+    marker="x",
+    color="navy",
+    alpha=0.7,
+    label="Conjunto de entrenamiento",
+)
+
+ax.plot(
+    t,
+    y_pred,
+    color="black",
+    lw=3.0,
+    label="Mejor modelo",
+)
+
+ax.fill_between(t, 0, 0, color="dodgerblue", label="Modelos entrenados")
+
+# Etiquetamos el gráfico.
+title = "Modelos de regresión lineal para el caso de un modelo parcialmente\n"
+title += r"linealizable del tipo $y=b+\sum_{j=1}^{3} \sin \left( f_{j}t+w_{j} \right) +\mathrm{ruido\  Gaussiano}$,"
+title += "\n con $f_{j}$ desconocidos"
+ax.set_title(
+    title,
+    fontsize=16,
+    fontweight="bold",
+    pad=20,
+)
+
+ax.set_xlabel(r"$t$", fontsize=12, labelpad=10)
+ax.set_ylabel(r"$y$", fontsize=12, labelpad=15, rotation=0)
+ax.set_xlim(0, 10)
+ax.set_ylim(-3.5, 3.5)
+ax.legend(loc="lower left", fontsize=10, frameon=True)
+ax.grid(True)
+
+plt.tight_layout()
+```
+
+¿Cuál es el mejor modelo? Evidentemente, sabemos que el destacado en azul oscuro es el mejor. Pero sin saber cuáles son los valores *reales* de las frecuencias, una opción viable es evaluar el error cometido por el modelo para distintas combinaciones de frecuencias, aunque claro... Esto debiera incorporar un procedimiento de validación cruzada. Ya hablaremos de eso un poco más adelante. ◼︎
+
+### Estimación de la varianza del ruido
+
+Consideremos el conjunto de entrenamiento $\mathcal{D} =\left\{ \left( \mathbf{X} ,\mathbf{y} \right)  :\mathbf{X} \in \mathbb{R}^{m\times n} \wedge \mathbf{y} \in \mathbb{R}^{m} \right\}$, donde $\mathbf{x}_{i}\in \mathbb{R}^{n}$ representa una fila o instancia $i$-ésima de la matriz de datos de entrada $\mathbf{X}$, siendo $m$ el total de instancias de $\mathcal{D}$. Asumimos que las observaciones que componen $\mathbf{y}$ son independientes e idénticamente distribuidas (iid). Hasta ahora, hemos desarrollado el modelo de regresión lineal $\mathbf{y} =\mathbf{X} \mathbf{w} +\mathbf{\varepsilon}$ sobre la base de que la varianza $\sigma^{2}$ del ruido $\mathbf{\varepsilon}$ es conocida. Sin embargo, como cabría esperar, en el mundo real ese difícilmente será el caso, porque muchas veces querremos ajustar un modelo de este tipo a un conjunto de datos muestreados desde una distribución que es desconocida. Pero aún más importante, no estaremos en condiciones de caracterizar, en una primera instancia, el ruido $\mathbf{\varepsilon}$.
+
+Sin embargo, también es posible utilizar el método de máxima verosimilitud para obtener una estimación $\sigma^{2}_{\ast}$ de la varianza $\sigma^{2}$. Pero hay un gran detalle: Asumiremos, de todas maneras, que la función de verosimilitud sigue siendo Gaussiana. De esta manera, para obtener el estimador $\sigma^{2}_{\ast}$, simplemente añadiremos un paso adicional a nuestro procedimiento, en el cual hallaremos los puntos críticos del logaritmo de la función de verosimilitud con respecto a la varianza $\sigma^{2}$.
+
+Consideremos pues el desarrollo de la función de verosimilitud. Recordemos que habíamos definido su forma logarítmica como
+
+::: {.eq-scroll}
+$$
+\log \left( P\left( \mathcal{Y} |\mathcal{X} ,\mathbf{w} ,\sigma^{2} \right) \right) =\sum_{i=1}^{m}\log \left( \mathcal{N} \left( y_{i}|\mathbf{x}_{i}^{\top} \mathbf{w} ,\sigma^{2} \right) \right)
+\tag{5.43}
+$$
+:::
+
+Donde hemos introducido a $\sigma^{2}$ como argumento de la probabilidad condicional $P$ en el lado izquierdo de la ecuación (5.43), a fin de enfatizar que este parámetro es ahora desconocido. Para el caso general, donde incorporamos una transformación $\phi :U\subseteq \mathbb{R}^{n} \longrightarrow V\subseteq \mathbb{R}^{k}$ sobre las $n$ variables independientes que constituyen las columnas de $\mathbf{X}$, sabemos que, estructuralmente, la función de verosimilitud (5.43) no cambia, expresándose en este caso como
+
+::: {.eq-scroll}
+$$
+\log \left( P\left( \mathcal{Y} |\mathcal{X} ,\mathbf{w} ,\sigma^{2} \right) \right) =\sum_{i=1}^{m} \log \left( \mathcal{N} \left( y_{i}|\phi^{\top} \left( \mathbf{x}_{i} \right) \mathbf{w} ,\sigma^{2} \right) \right)
+\tag{5.44}
+$$
+:::
+
+Mediante algo de álgebra, podemos desarrollar la sumatoria en (5.44), obteniendo
+
+::: {.eq-scroll}
+$$
+\begin{array}{lll}\displaystyle \sum_{i=1}^{m} \log \left( \mathcal{N} \left( y_{i}|\phi^{\top} \left( \mathbf{x}_{i} \right) \mathbf{w} ,\sigma^{2} \right) \right)&=&\displaystyle \sum_{i=1}^{m} \log \left( \frac{1}{\sigma \sqrt{2\pi}} \exp \left( -\frac{1}{2} \left( \frac{y_{i}-\phi^{\top} \left( \mathbf{x}_{i} \right) \mathbf{w}}{\sigma} \right)^{2} \right) \right)\\ &=&\displaystyle \sum_{i=1}^{m} \left( \log \left( \frac{1}{\sigma \sqrt{2\pi}} \right) -\frac{1}{2} \left( \frac{y_{i}-\phi^{\top} \left( \mathbf{x}_{i} \right) \mathbf{w}}{\sigma} \right)^{2} \right)\\ &=&\displaystyle \sum_{i=1}^{m} \left( -\underbrace{\log \left( \sigma \right)}_{=\frac{1}{2} \log \left( \sigma^{2} \right)} -\underbrace{\frac{1}{2} \log \left( 2\pi \right)}_{=\mathrm{constante}} -\frac{1}{2} \left( \frac{y_{i}-\phi^{\top} \left( \mathbf{x}_{i} \right) \mathbf{w}}{\sigma} \right)^{2} \right)\\ &=&\displaystyle -\frac{m}{2} \log \left( \sigma^{2} \right) -\frac{1}{2\sigma^{2}} \sum_{i=1}^{m} \left( y_{i}-\phi^{\top} \left( \mathbf{x}_{i} \right) \mathbf{w} \right)^{2} +\mathrm{constante}\end{array}
+\tag{5.45}
+$$
+:::
+
+Pongamos $u=\sum_{i=1}^{m} \left( y_{i}-\phi^{\top} \left( \mathbf{x}_{i} \right) \mathbf{w} \right)^{2}$. De esta manera, la función de verosimilitud (logarítmica) de interés toma la forma
+
+::: {.eq-scroll}
+$$
+LL\left( \mathcal{Y} |\mathcal{X} ,\mathbf{w} ,\sigma^{2} \right) =-\frac{m}{2} \log \left( \sigma^{2} \right) -\frac{u}{2\sigma^{2}} +\mathrm{constante}
+\tag{5.46}
+$$
+:::
+
+Calculamos ahora la derivada parcial de esta función con respecto a $\sigma^{2}$,
+
+::: {.eq-scroll}
+$$
+\frac{\partial}{\partial \left( \sigma^{2} \right)} \left( LL\left( \mathcal{Y} |\mathcal{X} ,\mathbf{w} ,\sigma^{2} \right) \right) =-\frac{m}{2\sigma^{2}} +\frac{u}{2\sigma^{4}}
+\tag{5.47}
+$$
+:::
+
+Y finalmente identificamos los puntos críticos de $LL\left( \mathcal{Y} |\mathcal{X} ,\mathbf{w} ,\sigma^{2} \right)$ igualando la derivada (5.47) a cero,
+
+::: {.eq-scroll}
+$$
+\begin{array}{ll}&\displaystyle -\frac{m}{2\sigma^{2}} +\frac{u}{2\sigma^{4}} =0\\ \Longleftrightarrow&\displaystyle \frac{m}{2\sigma^{2}} =\frac{u}{2\sigma^{4}}\\ \Longleftrightarrow&2m\sigma^{4} -2u\sigma^{2} =0\\ \Longleftrightarrow&2\sigma^{2} \left( m\sigma^{2} -u \right) =0\\ \Longleftrightarrow&\sigma_{\ast}^{2} =\frac{u}{m}\end{array}
+\tag{5.48}
+$$
+:::
+
+De esta manera identificamos al estimador máximo verosímil para $\sigma^{2}$ como
+
+::: {.eq-scroll}
+$$
+\sigma_{\ast}^{2} =\frac{1}{m} \sum_{i=1}^{m} \left( y_{i}-\phi^{\top} \left( \mathbf{x}_{i} \right) \mathbf{w} \right)^{2}
+\tag{5.49}
+$$
+:::
+
+Hemos llegado pues al siguiente resultado: El estimador de máxima verosimilitud para la varianza $\sigma^{2}$ del ruido $\mathbf{\varepsilon}$ asociado a las observaciones de la variable de salida $\mathbf{y}$ corresponde a la media (empírica o muestral) de las distancias al cuadrado entre las estimaciones sin ruido de $y_{i}$ (que son iguales al producto matricial $\phi^{\top} \left( \mathbf{x}_{i} \right) \mathbf{w}$) y los correspondientes valores (reales) de $y_{i}$. En palabras menos rimbombantes, **el estimador de máxima verosimilitud para la varianza $\sigma^{2}$ del ruido $\mathbf{\varepsilon}$ no es más que el promedio del cuadrado de los residuos del modelo, siempre que estos residuos sean independientes e idénticamente distribuidos**.
+
+En general, cuando se resuelven problemas que exigen la construcción de modelos de regresión lineal, es muy común *llegar y armar el modelo rápidamente*, habiendo no pocos profesionales que no revisan determinadas condiciones iniciales y/o supuestos que indican la practicabilidad de una solución de este tipo. Muchas veces, los resultados obtenidos pueden igualmente ser aceptables, en parte porque el estimador máximo verosímil para la varianza del ruido asociado a las observaciones en el problema de interés es precisamente el promedio de los residuos al cuadrado del modelo. No obstante, aquello precisamente le da fuerza a que debamos comprobar los supuestos previos al modelo, porque los residuos son altamente sensibles a los sesgos asociados a las observaciones (por ejemplo, *outliers*).
+
+### Un breve comentario acerca del overfitting
+
+En los párrafos (y ejemplos) anteriores hemos desarrollado métodos para construir modelos lineales con especial énfasis en la estimación de máxima verosimilitud, incluyendo casos donde es posible aplicar transformaciones adecuadas para *linealizar* ciertos casos no lineales por medio de la introducción de una matriz de diseño. De este modo, antes de pasar a estudiar aspectos más interesantes que simplemente *entrenar* un modelo conforme esta ingeniosa receta, vamos a hacer algunos comentarios asociados a los **errores** que comete un modelo al comparar sus predicciones con respecto a los datos de entrenamiento, aunque el concepto de *error* es ciertamente muy relativo y nos referiremos en detalle a él más adelante.
+
+Para ilustrar lo anterior, nos valdremos del siguiente ejemplo.
+
+**Ejemplo 5.10 – Overfitting en modelos de regresión polinomial:** Consideremos un conjunto de datos generado a partir de una relación de tipo cúbica, definida explícitamente como $y=2x^{3}- 3x^{2}+ x- 6$, afecta a un nivel significativo de ruido Gaussiano. Este sencillo conjunto de datos estará definido para $0\leq x\leq 3$:
+
+```{python}
+# Generamos nuestro conjunto de datos.
+m = 10
+X = 3 * rng.random(size=(m, 1))
+y = 2 * X**3 - 3 * X**2 - X - 6 + rng.normal(loc=0.0, scale=3.0, size=(m, 1))
+```
+
+```{python}
+#| label: fig-modelo-de-regresion-lineal-19
+#| fig-cap: "Conjunto de datos con $10$ instancias, generado conforme."
+# Visualizamos nuestro conjunto de datos.
+fig, ax = plt.subplots(figsize=(9, 5))
+ax.scatter(X, y, color="dodgerblue")
+ax.set_title(
+    "Conjunto de datos con $10$ instancias, generado conforme\n"
+    r"$y=2x^{3}- 3x^{2}+ x- 6 +\mathrm{ruido\  Gaussiano}$",
+    fontsize=16,
+    fontweight="bold",
+    pad=10,
+)
+ax.set_xlabel(r"$x$", fontsize=12, labelpad=10)
+ax.set_ylabel(r"$y$", fontsize=12, labelpad=15, rotation=0)
+ax.grid(True)
+plt.tight_layout()
+```
+
+La tónica de los ejemplos mostrados en esta entrada del blog ha sido un tanto *fome*, porque nos hemos limitado únicamente a mostrar conjuntos de datos simulados para los cuales sabemos las funciones desde los cuales son mostrados y, por supuesto, este difícilmente será el caso en problemas del *mundo real*. Pero hagamos el esfuerzo de suponer que no conocemos el origen de estos datos (no sabemos de qué distribución han sido muestreados) y hagámonos la siguiente pregunta: *¿Qué pasaría si aumentamos progresivamente la complejidad de un modelo de regresión polinomial entrenado con estos datos?*
+
+Podemos ajustar distintos modelos polinómicos dependiendo del grado escogido para estos efectos. Construyamos una visualización para cuatro modelos con grados de ajuste cada vez mayores, a fin de visualizar los efectos del aumento de complejidad con respecto al conjunto de datos propiamente tal:
+
+```{python}
+# Definidos los grados de las transformaciones polinómicas a construir.
+degrees = [1, 3, 5, 10]
+
+# Ajustamos tantos modelos como grados hemos definido previamente.
+models = {}
+for degree_k in degrees:
+    model_k = Pipeline(
+        steps=[
+            ("poly_transform", PolynomialFeatures(degree=degree_k)), 
+            ("estimator", LinearRegression()),
+        ],
+    )
+    model_k.fit(X, y)
+    models.update({degree_k: model_k})
+```
+
+```{python}
+#| label: fig-modelo-de-regresion-lineal-20
+#| fig-cap: "Una visualización para nuestros modelos."
+# Construimos una visualización para nuestros modelos.
+x = np.linspace(start=0, stop=3, num=100).reshape(-1, 1)
+fig, ax = plt.subplots(nrows=2, ncols=2, sharex=True, sharey=True, figsize=(9, 7))
+
+ax[0, 0].scatter(X, y, color="black", label="Conjunto de datos")
+ax[0, 0].plot(x, models[1].predict(x), color="skyblue", label="Mod. lineal")
+ax[0, 0].legend(loc="best", fontsize=10, frameon=True)
+ax[0, 0].set_ylabel(r"$y$", fontsize=12, labelpad=15, rotation=0)
+ax[0, 0].grid(True)
+
+ax[0, 1].scatter(X, y, color="black", label="Conjunto de datos")
+ax[0, 1].plot(x, models[3].predict(x), color="dodgerblue", label="Mod. cúbico")
+ax[0, 1].legend(loc="best", fontsize=10, frameon=True)
+ax[0, 1].grid(True)
+
+ax[1, 0].scatter(X, y, color="black", label="Conjunto de datos")
+ax[1, 0].plot(x, models[5].predict(x), color="mediumslateblue", label="Mod. de grado 5")
+ax[1, 0].legend(loc="best", fontsize=10, frameon=True)
+ax[1, 0].set_xlabel(r"$x$", fontsize=12, labelpad=10)
+ax[1, 0].set_ylabel(r"$y$", fontsize=12, labelpad=15, rotation=0)
+ax[1, 0].grid(True)
+
+ax[1, 1].scatter(X, y, color="black", label="Conjunto de datos")
+ax[1, 1].plot(x, models[10].predict(x), color="blue", label="Mod. de grado 10")
+ax[1, 1].legend(loc="best", fontsize=10, frameon=True)
+ax[1, 1].set_xlabel(r"$x$", fontsize=12, labelpad=10)
+ax[1, 1].set_ylim(-20, 20)
+ax[1, 1].grid(True)
+
+plt.tight_layout()
+```
+
+Podemos observar que los modelos de grado `1` y  `3` son sencillos, cometiendo errores relativos a su **nivel de complejidad**. Sin embargo, ambos bastan capturar algo esencial del conjunto de datos: Su **tendencia**, ya que en ambos casos hemos construido un modelo que es consistente con respecto al sesgo y la varianza de los datos que deseamos ajustar, lo que se ve reflejado en el parámetro de sesgo y los coeficientes de cada modelo construido, respectivamente.
+
+El asunto comienza a cambiar drásticamente cuando observamos los modelos de la parte inferior del gráfico. Ambos presentan un **nivel de complejidad** mayor al necesario (lo que sabemos en este caso porque generamos el conjunto de datos a partir de una función cúbica), lo que se representa por medio del grado de la transformación polinómica aplicada en cada caso. En este caso, los modelos no sólo no capturan la estructura inherente al conjunto de datos, sino que incluso *aprenden* un patrón muy específico que es propio únicamente del conjunto de entrenamiento. Es decir, *aprenden* ruido y/o variaciones que no necesariamente son propias del **comportamiento general** del sistema, proceso o fenómeno subyacente a los datos de interés.
+
+Notemos que, incluso, el modelo con grado `10` pasa por casi todos los puntos que constituyen el conjunto de entrenamiento, lo que indudablemente requiere de la construcción de un polinomio cuyo recorrido experimenta grandes oscilaciones y, por tanto, sus valores de salida resultan muy variables. Esto es, literalmente, **un problema donde el ajuste se realiza de manera excesiva** y, por lo tanto, hablamos de **sobreajuste u overfitting**. El problema derivado de un modelo sobreajustado es evidente: **Tiene menos capacidad para generalizar a nuevos datos que no han sido vistos antes, ya que está demasiado adaptado a los datos específicos del conjunto de entrenamiento**. Esto es un problema común en los modelos construidos por medio de una estimación de máxima verosimilitud. 
+
+No es *tan* evidente darnos cuenta cuando existe overfitting en los modelos de regresión lineal. Una forma es observar los parámetros del modelo, verificando si sus magnitudes crecen de manera excesiva conforme el aumento de la complejidad del respectivo modelo, lo que de hecho se observa en este ejemplo, pero se deja como ejercicio al lector. Más adelante mostraremos cómo determinar fácilmente la existencia (o no) de overfitting por medio de la introducción de **curvas de aprendizaje**. ◼︎
+
+## Métricas de desempeño
+
+Hasta el momento, nos hemos dedicado a entender el problema que subyace a la construcción de un modelo de regresión lineal, desarrollando además estimaciones de los parámetros de un modelo de este tipo, comprendiendo los alcances de cada método de estimación y ayudándonos visualmente para determinar, más o menos, la calidad de nuestros modelos. Incluso hemos construido implementaciones desde cero de estos modelos, y también hemos estudiado implementaciones nativas de **<font color='darkmagenta'>Scikit-Learn</font>**. Sin embargo, aún no hemos desarrollado ningún tipo de métrica que nos permita evaluar, de manera más rigurosa, la calidad de nuestros modelos. Por esta razón, antes de profundizar más en el desarrollo de los modelos de regresión, haremos un pequeño *alto* y desarrollaremos algunas **métricas de desempeño**, de la misma forma que lo hicimos para el caso de los modelos de clasificación.
+
+Consideremos el conjunto de entrenamiento $\mathcal{D} =\left\{ \left( \mathbf{X} ,\mathbf{y} \right)  :\mathbf{X} \in \mathbb{R}^{m\times n} \wedge \mathbf{y} \in \mathbb{R}^{m} \right\}$, donde $\mathbf{x}_{i}\in \mathbb{R}^{n}$ representa una fila o instancia $i$-ésima de la matriz de datos de entrada $\mathbf{X}$, siendo $m$ el total de instancias de $\mathcal{D}$. Asumimos que las observaciones que componen $\mathbf{y}$ son independientes e idénticamente distribuidas (iid). Debido a que estamos interesados en determinar el *error* que comete un modelo en comparación con los valores reales que representan las observaciones que definen un conjunto de entrenamiento, una gran cantidad de las métricas de desempeño válidas para modelos de regresión dependen de los residuos de un modelo. Es decir, si $\hat{y}_{i}$ corresponde a la predicción de un modelo dada una instancia $\mathbf{x}_{i}$ de $\mathcal{D}$, varias de estas métricas dependerán de la cantidad $\hat{y}_{i}- y_{i}$.
+
+Conforme el contexto anterior, definiremos nuestro primer set de métricas.
+
+**<font color='blue'>Definición 5.1 – Error cuadrático medio</font>**: Consideremos el conjunto de entrenamiento $\mathcal{D} =\left\{ \left( \mathbf{X} ,\mathbf{y} \right)  :\mathbf{X} \in \mathbb{R}^{m\times n} \wedge \mathbf{y} \in \mathbb{R}^{m} \right\}$, donde $\mathbf{x}_{i}\in \mathbb{R}^{n}$ representa una fila o instancia $i$-ésima de la matriz de datos de entrada $\mathbf{X}$, siendo $m$ el total de instancias de $\mathcal{D}$. Asumimos que las observaciones que componen $\mathbf{y}$ son independientes e idénticamente distribuidas (iid). Se define el **error cuadrático medio** (o **MSE**, del inglés *mean squared error*) como el promedio de los residuos al cuadrado con respecto a nuestro modelo. Si $\hat{y}_{i}$ corresponde a la predicción de un modelo dada una instancia $\mathbf{x}_{i}$ de $\mathcal{D}$, entonces tenemos que
+
+::: {.eq-scroll}
+$$
+\mathrm{MSE} =\frac{1}{m} \sum_{i=1}^{m} \left( y_{i}-\hat{y}_{i} \right)^{2}
+\tag{5.50}
+$$
+:::
+
+Notemos que esta métrica coincide con el estimador máximo verosímil para la varianza del ruido asociado a las observaciones $y_{i}$ (para $i=1,...,m$), conforme la ecuación (5.49), bajo el supuesto de ruido Gaussiano independiente.
+
+El error cuadrático medio resulta ser una métrica universalmente utilizada para la evaluación de modelos de regresión, y el punto de partida para muchos métodos de estimación de parámetros de un modelo (por ejemplo, el método de mínimos cuadrados y el método de máxima verosimilitud). Sin embargo, debemos considerar algunos aspectos importantes relativos a esta métrica:
+
+- Debido a que depende íntegramente de los residuos del modelo, penaliza enormemente sus errores debido a que elevamos estas diferencias al cuadrado. Por lo tanto, **se trata de una métrica muy sensible a la existencia de *outliers***, lo que implica que, previo a la construcción de un modelo de estas características, es recomendable su limpieza y/o remoción mediante algún criterio adecuado.
+- El error cuadrático medio tiene, en cierto modo, unidades al cuadrado con respecto de las observaciones de interés, siempre que eso tenga sentido, razón por la cual solemos asumir que el error es adimensional (por ejemplo, si queremos modelar el tratamiento en toneladas por día –t/d– de un molino SAG, al evaluar el error cuadrático medio, éste tendrá como "unidad" [t/d]$^{2}$, lo que no necesariamente tiene sentido). Por lo tanto, es muy común hacer uso de la raíz cuadrada del error cuadrático medio (**RMSE**, del inglés *root mean squared error*), que nos entrega un valor con las mismas unidades de las observaciones de interés:
+
+::: {.eq-scroll}
+$$
+\mathrm{RMSE} =\sqrt{\frac{1}{m} \sum_{i=1}^{m} \left( y_{i}-\hat{y}_{i} \right)^{2}}
+\tag{5.51}
+$$
+:::
+
+**<font color='blue'>Definición 5.2 – Error medio absoluto</font>**: Consideremos el mismo contexto de la definición 5.1. Se define el **error medio absoluto** (o **MAE**, del inglés *mean absolute error*) de un modelo como
+
+::: {.eq-scroll}
+$$
+\mathrm{MAE} =\frac{1}{m} \sum_{i=1}^{m} \left| y_{i}-\hat{y}_{i} \right|
+\tag{5.52}
+$$
+:::
+
+**La métrica anterior es menos sensible a los outliers que el error cuadrático medio**, ya que no penaliza de forma tan grande los errores debido a que ahora no elevamos al cuadrado los residuos del modelo en la sumatoria completa. Sin embargo, resulta fácil de entender y/o comunicar, puesto que el error tiene la misma unidad de medición que las observaciones de interés.
+
+En algunos contextos, resulta muy útil considerar **diferencias o residuos relativos** a la hora de evaluar la fórmula (5.52) en vez de simples diferencias absolutas, de manera tal que ahora el término de error represente simplemente un porcentaje con respecto al valor medio de las observaciones de interés, lo que puede ser aún más sencillo de comunicar. La métrica resultante en este caso se llama **error medio porcentual absoluto** (o **MAPE**, del inglés *mean absolute percentage error*), y por consiguiente se define como
+
+::: {.eq-scroll}
+$$
+\mathrm{MAPE} =\frac{1}{m} \sum_{i=1}^{m} \left| \frac{y_{i}-\hat{y}_{i}}{y_{i}} \right|
+\tag{5.53}
+$$
+:::
+
+El MAPE es, naturalmente, muy sensible a valores de $y_{i}$ cercanos a cero debido a su uso como divisor. Por tanto, puede ser tan sensible como el error cuadrático medio a los outliers en el conjunto de entrenamiento.
+
+Este primer set de métricas (MSE, RMSE, MAE y MAPE) tiene como objetivo evaluar la **exactitud** de un modelo. Es decir, su capacidad de predecir de manera exacta un valor dado. Este es un aspecto importante a la hora de evaluar modelos de regresión, aunque luego ilustraremos la razón. Por el momento, nos basta saber que la exactitud de un modelo de regresión simplemente *mide* las distancias entre las observaciones $y_{i}$ que constituyen un conjunto de entrenamiento, y las correspondientes predicciones $\hat{y}_{i}$ realizadas por el modelo.
+
+Ahora proseguiremos definiendo nuestro último set de métricas.
+
+**<font color='blue'>Definición 5.3 – Coeficiente de determinación (*r-cuadrado*)</font>**: Consideremos el conjunto de entrenamiento $\mathcal{D} =\left\{ \left( \mathbf{X} ,\mathbf{y} \right)  :\mathbf{X} \in \mathbb{R}^{m\times n} \wedge \mathbf{y} \in \mathbb{R}^{m} \right\}$, donde $\mathbf{x}_{i}\in \mathbb{R}^{n}$ representa una fila o instancia $i$-ésima de la matriz de datos de entrada $\mathbf{X}$, siendo $m$ el total de instancias de $\mathcal{D}$. Asumimos que las observaciones que componen $\mathbf{y}$ son independientes e idénticamente distribuidas (iid). Se define el **coeficiente de determinación**, denotado como $r^{2}$ (leyéndose *r-cuadrado*), como la fracción de la varianza total en la variable dependiente que es explicada por las variables independientes incluidas en el modelo. Si $\hat{y}_{i}$ corresponde a la predicción de un modelo dada una instancia $\mathbf{x}_{i}$ de $\mathcal{D}$, entonces tenemos que
+
+::: {.eq-scroll}
+$$
+r^{2}=1-\frac{\sum\nolimits_{i=1}^{m} \left( y_{i}-\hat{y}_{i} \right)^{2}}{\sum\nolimits_{i=1}^{m} \left( y_{i}-\overline{y} \right)^{2}}
+\tag{5.54}
+$$
+:::
+
+Donde $\overline{y}$ es la media de los valores observados que constituyen el vector $\mathbf{y}$.
+
+Notemos que el propósito de esta métrica no es indicar la exactitud de las predicciones del modelo, sino que **evaluar qué tan bien tales predicciones capturan la variabilidad de los datos observados**. Es, por tanto, una métrica de bondad de ajuste.
+
+El numerador y denominador de la fracción que caracteriza el lado derecho de la ecuación (5.54) tienen, a su vez, su propia definición:
+
+- $\sum\nolimits_{i=1}^{m} \left( y_{i}-\hat{y}_{i} \right)^{2}$ es llamada **suma de cuadrados de los residuos** del modelo (comúnmente abreviada como $SS_{r}$), y que permite *medir* la variabilidad de las observaciones que componen el vector $\mathbf{y}$ que no es explicada por el modelo.
+- $\sum\nolimits_{i=1}^{m} \left( y_{i}-\overline{y} \right)^{2}$ es llamada **suma total de cuadrados** de $\mathbf{y}$ (comúnmente abreviada como $SS_{t}$), y que permite *medir* la variabilidad total de las observaciones que componen dicho vector.
+
+De esta manera, es posible reescribir la ecuación (5.54) como
+
+::: {.eq-scroll}
+$$
+r^{2}=1-\frac{SS_{r}}{SS_{t}}
+\tag{5.55}
+$$
+:::
+
+El valor de $r^{2}$ puede variar entre $-\infty$ y $1$, y su interpretación es conforme a los siguientes puntos:
+
+- Si $r^{2}= 1$, entonces nuestro modelo explica toda la variabilidad de la variable dependiente. Esto implica que el modelo pasa por todos los puntos del conjunto de entrenamiento, lo que equivale a un ajuste perfecto.
+- Si $r^{2}=0$, entonces el modelo no explica ninguna variabilidad de la variable dependiente más allá de la media de los datos observados. Las predicciones del modelo no aportan ninguna información adicional en comparación con simplemente predecir la media de $\mathbf{y}$.
+- Si $r^{2}<0$, entonces el modelo tiene una calidad peor que un supuesto aleatorio sobre la media de los datos, lo que equivale a un hiperplano "horizontal" que coincide con dicha media. Esto puede ocurrir en modelos mal especificados o inapropiados. También cuando se han aplicado restricciones sin sentido, generalmente debido a algún error en nuestro procedimiento.
+
+Cuando entrenamos un modelo de regresión, apuntamos a que su valor de $r^{2}$ sea lo más alto posible, aunque con la (sana) sospecha de que valores extremadamente cercanos (o incluso iguales) a $1$ puedan reflejar ciertos errores procedimentales, como overfitting o *data leakage*, que es un concepto que revisaremos en detalle un poco más adelante.
+
+Observamos pues que el uso del coeficiente $r^{2}$ tiene sus ventajas, entre las cuales podemos considerar su sencilla interpretabilidad, lo que permite que sea sencillo de utilizar como indicador para comparar la calidad de diversos modelos en un procedimiento de **selección** del mejor de ellos. También tiene sus desventajas. Las más importantes radican en el hecho de que no nos permite *comprender* de manera directa la **magnitud de los errores** (los residuos del modelo), siendo además muy sensible a los *outliers* por el hecho de tomar como base la suma de cuadrados de los residuos del modelo para cada instancia del conjunto de entrenamiento.
+
+Un aspecto negativo del coeficiente $r^{2}$, siendo esto algo donde entraremos en detalles un poco más adelante, es que **es particularmente sensible a las redundancias de información**: Su valor puede crecer *artificialmente* al incorporar variables al modelo que no necesariamente aporten con información importante al modelo. Por ejemplo, variables cuyos valores representen únicamente ruido, o bien, variables que estén altamente correlacionadas con otras. Existen variaciones de la fórmula (5.54) que permiten considerar el efecto de las variables **informativas** en desmedro de las que no lo son. Por ejemplo, el coeficiente $r^{2}$ ajustado,
+
+::: {.eq-scroll}
+$$
+r_{\mathrm{ajust}}^{2}=1-\left( 1-r^{2} \right) \frac{m-1}{m-p-1}
+\tag{5.56}
+$$
+:::
+
+Donde, como siempre, $m$ es el número de instancias de $\mathcal{D}$ y $p$ es el número de variables independientes del modelo, excluyendo el parámetro de sesgo. El factor $\kappa=(m-1)/(m-p-1)$ incorpora un término que castiga la complejidad del modelo en función del número de variables independientes que lo constituyen (aunque independientemente de si éstas son informativas o no). Para validar lo anterior, notemos que el valor de $\kappa$ aumenta conforme $p$ aumenta y $m$ disminuye, lo que permite identificar dos escenarios generales y un *caso borde*:
+
+- Si $m>p+1$, es decir, el número de instancias de $\mathcal{D}$ es suficientemente mayor que el número de variables independientes, entonces tendremos que $m-p-1 > 0$. Por lo tanto, $\kappa> 1$, y con ello, el valor de $r_{\mathrm{ajust}}^{2}$ es progresivamente menor al de $r^{2}$, debido a que la penalización por complejidad del modelo crecerá mientras más variables incorporemos al modelo. **Este es el escenario típico en el que la penalización por agregar más variables al modelo es razonable y apropiada**. A medida que agregamos más variables al modelo sin aumentar el número de observaciones, el valor de $\kappa$ crece, **reflejando el subsecuente riesgo de overfitting**.
+
+- Si $m<p+1$, es decir, el número de instancias de $\mathcal{D}$ es menor que la cantidad de parámetros libres del modelo, entonces tendremos que $m-p-1 < 0$. En este escenario, el coeficiente $r_{\mathrm{ajust}}^{2}$ deja de tener una interpretación útil: el modelo es demasiado flexible en relación con la cantidad de observaciones disponibles y puede alcanzar valores de $r^{2}$ artificialmente altos. Además, la matriz $\mathbf{X}^{\top}\mathbf{X}$ puede ser singular, lo que impide generar una estimación única por mínimos cuadrados o por máxima verosimilitud en el caso lineal-Gaussiano. Esto puede deberse a que existen más variables que observaciones, o a que algunas variables independientes son linealmente dependientes entre sí, problema conocido como **multicolinealidad**. Es segunda vez que mencionamos este problema en esta sección, pero ya queda poco para abordarlo en detalle. No obstante, por ahora, basta con decir que esto pone de manifiesto la necesidad de desarrollar procedimientos que permitan **seleccionar variables independientes** o **regularizar** el ajuste en función de su **poder predictivo**.
+
+- Finalmente, si $m=p+1$, estamos en un **caso borde** para el cual el denominador de $\kappa$ se anula. Por convención, este caso está fuera de la definición para esta métrica.
+
+Las métricas vistas previamente (salvo el coeficiente $r^{2}$ ajustado) pueden ser utilizadas para evaluar cualquier modelo de regresión, independientemente de si éste es lineal o no.
+
+**Ejemplo 5.11 – Implementación de métricas de desempeño para modelos de regresión en <font color='darkmagenta'>Scikit-Learn</font>:**  Las métricas revisadas previamente para modelos de regresión son provistas por **<font color='darkmagenta'>Scikit-Learn</font>** en la forma de funciones dependientes del módulo `sklearn.metrics`, de la misma forma que ocurre para el caso de las métricas aptas para modelos de clasificación. Todas estas funciones trabajan sobre el mismo esquema de parámetros: `y_true` para especificar el vector de valores de respuesta observados (con `m` filas, donde `m` es el número de instancias del conjunto de entrenamiento), e `y_pred` para especificar el vector de valores de respuesta predichos por nuestro modelo (con las mismas dimensiones que `y_true`). En particular:
+
+- Para el error cuadrático medio (MSE), usamos la función `mean_squared_error()`. El valor retornado será de tipo `float`, en unidades al cuadrado relativas a la unidad de medida de las observaciones de interés.
+- Para la raíz del error cuadrático medio (RMSE), usamos la función `root_mean_squared_error()`. El valor retornado será de tipo `float`, en la misma unidad de medida de las observaciones de interés.
+- Para el error medio absoluto (MAE), usamos la función `mean_absolute_error()`. El valor retornado será de tipo `float`, en la misma unidad de medida de las observaciones de interés.
+- Para el error medio porcentual absoluto (MAPE), usamos la función `mean_absolute_percentage_error()`. El valor retornado será de tipo `float`, en tanto por uno.
+- Para el coeficiente de determinación $r^{2}$, usamos la función `r2_score()`. El valor retornado será de tipo `float`, en tanto por uno.
+
+Para revisar el efecto de las métricas de desempeño y cómo estas nos pueden alertar de problemas relativos a overfitting, vamos a ejemplificar nuevamente el caso revisado en el ejemplo 5.10, donde ajustamos cuatro modelos de regresión polinomial de grados muy diferentes. En este caso, haremos una separación sencilla entre conjuntos de entrenamiento y de validación, a fin de chequear cómo modelos polinómicos innecesariamente complejos tienden a sobreajustar más y más los datos de entrenamiento. En este ejercicio, el conjunto de datos a utilizar tendrá más instancias:
+
+```{python}
+# Generamos nuestro conjunto de datos.
+m = 100
+X = 3 * rng.random(size=(m, 1))
+y = 2 * X**3 - 3 * X**2 - X - 6 + rng.normal(loc=0.0, scale=3.0, size=(m, 1))
+```
+
+```{python}
+#| label: fig-modelo-de-regresion-lineal-21
+#| fig-cap: "Conjunto de datos con $100$ instancias, generado conforme."
+# Y lo graficamos.
+fig, ax = plt.subplots(figsize=(9, 5))
+ax.scatter(X, y, color="dodgerblue")
+ax.set_title(
+    "Conjunto de datos con $100$ instancias, generado conforme\n"
+    r"$y=2x^{3}- 3x^{2}+ x- 6 +\mathrm{ruido\  Gaussiano}$",
+    fontsize=16,
+    fontweight="bold",
+    pad=10,
+)
+
+ax.set_xlabel(r"$x$", fontsize=12, labelpad=10)
+ax.set_ylabel(r"$y$", fontsize=12, labelpad=15, rotation=0)
+ax.grid(True)
+plt.tight_layout()
+```
+
+Como antes, construiremos modelos polinomiales de grado $d$, con $d=1, 3, 5, 10$. En primera instancia, generaremos un conjunto de validación para evaluar nuestros modelos en dichos subconjuntos de datos. En este caso, bastará con utilizar la función `train_test_split()`, la que nos permite generar una separación entre datos de entrenamiento y de prueba de forma completamente aleatorizada:
+
+```{python}
+from sklearn.model_selection import train_test_split
+```
+
+```{python}
+# Construimos los conjuntos de entrenamiento y de prueba por medio
+# de un muestreo aleatorizado.
+train_set, test_set = train_test_split(
+    np.column_stack([X, y]), test_size=0.2, random_state=42,
+)
+
+# Separamos los datos de entrada de los de salida.
+X_train, y_train = train_set[:, 0].reshape(-1, 1), train_set[:, 1]
+X_test, y_test = test_set[:, 0].reshape(-1, 1), test_set[:, 1]
+```
+
+```{python}
+#| label: fig-modelo-de-regresion-lineal-22
+#| fig-cap: "Conjunto de datos con $100$ instancias, generado conforme."
+# Y visualizamos cada subconjunto en el dominio completo.
+fig, ax = plt.subplots(figsize=(9, 5))
+ax.scatter(
+    X_train,
+    y_train,
+    color="orange",
+    label="Conjunto de entrenamiento",
+)
+
+ax.scatter(
+    X_test,
+    y_test,
+    color="dodgerblue",
+    label="Conjunto de prueba",
+)
+
+ax.set_title(
+    "Conjunto de datos con $100$ instancias, generado conforme\n"
+    r"$y=2x^{3}- 3x^{2}+ x- 6 +\mathrm{ruido\  Gaussiano}$",
+    fontsize=16,
+    fontweight="bold",
+    pad=10,
+)
+
+ax.set_xlabel(r"$x$", fontsize=12, labelpad=10)
+ax.set_ylabel(r"$y$", fontsize=12, labelpad=15, rotation=0)
+ax.grid(True)
+ax.legend(loc="best", fontsize=10, frameon=True)
+plt.tight_layout()
+```
+
+Como en el ejemplo (5.10), entrenaremos una serie de modelos sobre nuestros datos de entrenamiento. En cada caso, generaremos un listado con los valores obtenidos para las métricas de desempeño de interés, llevando luego todo a un formato de DataFrame:
+
+```{python}
+from sklearn.metrics import (
+    mean_squared_error,
+    root_mean_squared_error,
+    mean_absolute_error,
+    mean_absolute_percentage_error,
+    r2_score,
+)
+```
+
+```{python}
+# Definidos los grados de las transformaciones polinómicas a construir.
+degrees = [1, 3, 10, 50]
+
+# Ajustamos tantos modelos como grados hemos definido previamente.
+models = {}
+for degree_k in degrees:
+    model_k = Pipeline(
+        steps=[
+            ("poly_transform", PolynomialFeatures(degree=degree_k)), 
+            ("estimator", LinearRegression()),
+        ],
+    )
+    model_k.fit(X_train, y_train)
+    models.update({degree_k: model_k})
+
+# Calculamos las correspondientes métricas de desempeño en el conjunto
+# de entrenamiento.
+metrics_func = [
+    mean_squared_error,
+    root_mean_squared_error,
+    mean_absolute_error,
+    mean_absolute_percentage_error,
+    r2_score,
+]
+metrics_name = ["MSE", "RMSE", "MAE", "MAPE", "r2"]
+metrics_vals_train = {}
+for degree_i in degrees:
+    sub_dict_i = {}
+    y_pred_i = models[degree_i].predict(X_train)
+    for func_j, name_j in zip(metrics_func, metrics_name):
+        metric_ij = func_j(y_true=y_train, y_pred=y_pred_i)
+        sub_dict_i.update({name_j: metric_ij})
+    metrics_vals_train.update({degree_i: sub_dict_i})
+
+# Llevamos las métricas calculadas a un DataFrame.
+metrics_vals_train = pd.DataFrame(metrics_vals_train)
+metrics_vals_train.columns = [
+    f"Grado = {degree_k}" for degree_k in degrees
+]
+```
+
+Ahora visualizamos los resultados por medio de un gráfico sencillo:
+
+```{python}
+#| label: fig-modelo-de-regresion-lineal-23
+#| fig-cap: "Los resultados."
+# Visualizamos los resultados.
+fig, ax = plt.subplots(figsize=(9, 9))
+(
+    metrics_vals_train
+    .T
+    .plot(
+        kind="bar",
+        subplots=True,
+        sharex=True,
+        legend=False, 
+        ec="k",
+        lw=0.5,
+        xlabel="Complejidad del modelo", 
+        ylabel="Valor",
+        ax=ax,
+    ),
+)
+
+# Ajustamos los ticks del eje x.
+plt.xticks(rotation=0)
+plt.tight_layout()
+```
+
+Podemos observar que la tendencia general es que los modelos tienen un desempeño directamente proporcional a su complejidad. Sin embargo, el desempeño del modelo con `degree=3` es muy similar al de los modelos con `degree=10` y `degree=50`, por lo que, bajo esta simple inspección, podemos concluir que las dos alternativas de mayor complejidad son quizás *demasiada fuerza bruta* para resolver este problema tan sencillo. Esto podemos reafirmarlo al evaluar estos mismos modelos en datos de prueba:
+
+```{python}
+# Calculamos las correspondientes métricas de desempeño en el
+# conjunto de prueba.
+metrics_vals_test = {}
+for degree_i in degrees:
+    sub_dict_i = {}
+    y_pred_i = models[degree_i].predict(X_test)
+    for func_j, name_j in zip(metrics_func, metrics_name):
+        metric_ij = func_j(y_true=y_test, y_pred=y_pred_i)
+        sub_dict_i.update({name_j: metric_ij})
+    metrics_vals_test.update({degree_i: sub_dict_i})
+
+# Llevamos las métricas calculadas a un DataFrame.
+metrics_vals_test = pd.DataFrame(metrics_vals_test)
+metrics_vals_test.columns = [
+    f"Grado = {degree_k}" for degree_k in degrees
+]
+```
+
+```{python}
+#| label: fig-modelo-de-regresion-lineal-24
+#| fig-cap: "Los resultados."
+# Visualizamos los resultados.
+fig, ax = plt.subplots(figsize=(9, 9))
+(
+    metrics_vals_test
+    .T
+    .plot(
+        kind="bar",
+        subplots=True,
+        sharex=True,
+        legend=False,
+        ec="k",
+        lw=0.5,
+        xlabel="Complejidad del modelo",
+        ylabel="Valor",
+        ax=ax,
+    ),
+)
+
+# Ajustamos los ticks del eje x.
+plt.xticks(rotation=0)
+plt.tight_layout()
+```
+
+Podemos ver que, hasta `degree=10`, los modelos no exhiben un problema significativo para generalizar su aprendizaje, lo que se refleja en el hecho de que su desempeño es similar en los conjuntos de entrenamiento y de prueba. Cuando comparamos el modelo con `degree=3` versus el modelo con `degree=10`, aún optamos por el modelo de menor complejidad, puesto que el desempeño de ambos es parecido y el modelo con `degree=3` tiene una cantidad mucho menor de términos a su haber que debemos calcular.
+
+El modelo con `degree=50`, evidentemente, presenta un enorme problema de **overfitting**, ya que su desempeño en datos de prueba es muchísimo más pobre que en los datos de entrenamiento, lo que pone de manifiesto que dicho modelo no aprendió más que determinadas tendencias y ruido presente únicamente en el conjunto de entrenamiento, de lo que deriva su enorme incapacidad de poder generalizar su aprendizaje a datos de prueba. ◼︎
+
+## Comentarios finales
+
+En esta entrada hemos recorrido el modelo de regresión lineal desde varias perspectivas complementarias. Partimos con la formulación algebraica clásica, donde el ajuste por mínimos cuadrados aparece como un problema de proyección sobre el subespacio generado por las variables independientes. Luego vimos que la misma solución puede obtenerse desde una lectura probabilística: bajo ruido Gaussiano independiente y de varianza constante, el estimador de máxima verosimilitud para los parámetros coincide con el estimador por mínimos cuadrados. Esta coincidencia no es un simple detalle técnico; es una de las razones por las cuales la regresión lineal resulta tan útil como modelo de referencia.
+
+También revisamos que la linealidad importante no siempre está en las variables originales, sino en los parámetros. Esa idea nos permitió extender el modelo hacia transformaciones polinomiales y parcialmente linealizables, manteniendo una estructura compatible con herramientas como `LinearRegression` y `SGDRegressor`. Sin embargo, esa flexibilidad trae consigo un riesgo evidente: mientras más variables, transformaciones o grados de libertad añadimos, más fácil se vuelve ajustar el ruido del conjunto de entrenamiento en vez de capturar un patrón generalizable.
+
+Por eso cerramos con métricas de desempeño y con una advertencia práctica: Evaluar un modelo únicamente sobre los datos con los que fue entrenado puede entregar una impresión demasiado optimista. El contraste entre entrenamiento y prueba, junto con métricas como MSE, RMSE, MAE, MAPE y $r^{2}$, nos permite detectar cuándo un modelo está aprendiendo una relación robusta y cuándo simplemente está memorizando accidentes de la muestra. Esta tensión entre ajuste, complejidad y generalización será el punto de entrada natural para los siguientes temas: Multicolinealidad, selección de variables, regularización y validación cruzada.

@@ -1,0 +1,1544 @@
+---
+title: "El problema de pit final (variante 3D)"
+subtitle: "Extensión tridimensional del algoritmo de Lerchs-Grossmann para modelos de bloques"
+description: "Una continuación del problema de pit final en 2D, extendiendo la formulación de máxima clausura a modelos de bloques tridimensionales y visualizaciones geoespaciales livianas."
+categories: [Minería, Planificación Minera, Optimización Combinatorial, Teoría de Grafos, Python]
+date: 2026-06-21
+jupyter: nerdyminer
+toc: true
+toc-depth: 3
+format:
+  html:
+    code-fold: false
+    code-tools: false
+    html-math-method: mathjax
+---
+
+::: {.callout-note}
+## Idea central
+
+El problema de pit final en 3D conserva la misma estructura del caso 2D: Seleccionamos un conjunto cerrado de bloques que maximiza el beneficio económico total. La diferencia esencial está en que las precedencias ya no viven en una línea superior, sino en una vecindad completa sobre el banco inmediatamente superior.
+:::
+
+## Introducción
+
+En la primera entrada del blog dedicada al [problema de pit final](../pit-final/), estudiamos en detalle la implementación del algoritmo de máximo flujo (en la versión propuesta por Edmonds & Karp) para resolver uno de los problemas fundamentales de la planificación minera: Dado un modelo de bloques en dos dimensiones (ya sea en los planos $(x, z)$ o $(y, z)$), determinar la secuencia de extracción que maximiza el beneficio de extraer tales bloques conforme un procedimiento secuencial. El resultado último de ese procedimiento es conocido como **pit final**, porque efectivamente toma la forma de un *pit* (que es simplemente la palabra en inglés para *rajo*, como decimos en Chile) resultante de extraer todos los bloques previstos por la solución derivada del algoritmo de máximo flujo. Este pit final es **geométrico**, porque no es más que un primer *approach* que nos permite visualizar la extracción óptima sin considerar elementos operacionales propios de un rajo, como las rampas, estaciones de carga de combustible (*petroleras*) o stocks.
+
+En esta entrada, extenderemos la solución implementada al caso de modelos de bloques en 3D. Para ello, si bien nos mantendremos bien *pegados* a los fundamentos elementales del algoritmo de máximo flujo, sí nos daremos el tiempo de derivar la solución más *oficial* para resolver este problema, conocida como **algoritmo de Lerchs & Grossmann**, y que es una versión optimizada del algoritmo de máximo flujo que robustece la idea de representar el problema de extracción óptima como un problema de máxima clausura.
+
+## El algoritmo de Lerchs & Grossmann
+
+En la [entrada anterior del blog](../pit-final/), establecimos el siguiente problema: Dado un modelo de bloques que representa la composición de un yacimiento minero, cada uno de ellos etiquetado con un beneficio asociado a su extracción (que puede ser positivo o negativo, dependiendo de si el bloque correspondiente es de mineral o estéril), determinar la secuencia óptima que maximiza el beneficio total de la extracción considerando un ángulo adecuado. La solución de este problema se denomina **pit final**, porque corresponde a la geometría resultante del proceso de minería una vez removidos todos los bloques. El ángulo de extracción $\alpha$ controla el conjunto de bloques precedentes que necesitamos remover a fin de extraer un bloque de interés, con un mínimo de tres.
+
+### Aspectos contextuales
+
+El problema así definido fue resuelto asumiendo un inventario de bloques 2D, representados como $\mathcal{B} =\left\{ b_{ij}\  |\  i=0,...,m-1\wedge j=0,...,n-1 \right\}$, donde $w_{ij}\in \mathbb{R}$ es el beneficio asociado a la extracción del bloque $b_{ij}$. Tal inventario fue representado convenientemente por medio de un grafo $G=(V,E)$, en el cual cada bloque se asocia a un vértice, siendo las capacidades de los arcos equivalentes a los beneficios, a fin de resolver el problema por medio de la implementación de una variante del algoritmo de máximo flujo conocida como **método de Edmonds & Karp**. Los bloques precedentes a un bloque tal que $i>0$ (es decir, que no aflora a la superficie) se conectan con el bloque de interés por medio de arcos con una capacidad lo suficientemente grande para evitar que sean seleccionados por el corte mínimo que describe la extracción óptima.
+
+En esta entrada, extenderemos esta idea al caso más general en el cual $\mathcal{B}$ es un modelo de bloques tridimensional. Es decir, cada bloque se representa como $b_{ijk}$, donde $i,j$ y $k$ son contadores que indexan la posición de cada uno en los ejes $x$, $y$ y $z$, respectivamente. Veremos que este problema no es tan simple de resolver como el caso 2D, puesto que existen múltiples formas de definir el conjunto de bloques precedentes a un bloque de interés a fin de asegurar que el pit sea geotécnicamente consistente en las tres dimensiones espaciales. Dicho de otro modo, la solución de este problema debe considerar que los bloques precedentes a la extracción de un bloque de interés, digamos $b_{ijk}$, constituyen un dominio en el plano $(x, y)$ con un cierto patrón geométrico que mantendrá el ángulo de extracción fijo tanto en el plano $(x, z)$ como en el plano $(y, z)$. Intuitivamente, habiendo aprendido a resolver el caso 2D, uno podría verse tentado simplemente a resolver cada pit óptimo 2D para todas las "tajadas" o "cortes" de un inventario de bloques 3D, a fin de luego unir o "pegar" las soluciones. Pero mantener el ángulo de extracción fijo en ambos planos arruina este plan y nos obliga a considerar la geometría del modelo de bloques de manera íntegra en la solución.
+
+Si bien existen varias combinaciones, es común elegir entre dos configuraciones de bloques precedentes para definir una secuencia óptima de extracción:
+
+- Extraer los 9 bloques superiores al bloque $b_{ijk}$ cuando $k>0$ (denominado **patrón 1-9**).
+- Extraer los 5 bloques superiores al bloque $b_{ijk}$ cuando $k>0$, los que, al verlos en el plano $(x,y)$, forman una figura similar a una cruz sobre el bloque de interés (denominado **patrón 1-5**).
+
+Es claro pues que el patrón 1-9 es más restrictivo, pero garantiza consistencia de la solución para el pit final. El patrón 1-5 otorga flexibilidad pero será propenso a generar un fondo mina más irregular. Cualquiera sea nuestra opción, la solución óptima de este problema está lejos de ser igual de simple de obtener que el caso 2D. Pero el problema sigue siendo esencialmente el mismo: Un modelo de máximo flujo.
+
+### ¿Y por qué el cambio de nombre?
+
+En la entrada anterior dedicada a la presentación del problema de pit final y su posterior solución por medio del algoritmo de máximo flujo, comenté que mi principal motivación para escribir acerca de dicho problema tenía que ver con su presencia constante en las evaluaciones finales de la asignatura de Optimización de mi universidad. De hecho, era el caso típico de aplicación de dicho algoritmo en un contexto minero, entre varios otros ejercicios orientados a la optimización de grafos.
+
+Sin embargo, no era la única vez que dicho problema se resolvía en una evaluación. El noveno semestre de nuestra carrera en la Universidad de Santiago era conocido coloquialmente como el *"triple pack"*, debido a que tres de las cinco asignaturas de ese nivel eran particularmente temidas por los alumnos. Y eran dictadas por profesores muy populares en la época por ser muy estrictos (quizás *demasiado*...) en sus correspondientes evaluaciones. Una de las asignaturas del "triple pack" se llamaba *Diseño y Planeamiento Minero*, y era dictada por el profesor Eduardo Contreras Moreno. La mayoría de mis amigos de la universidad estarán de acuerdo conmigo en que él era uno de los mejores profesores del [Departamento de Ingeniería en Minas de la USACH](https://dimin.usach.cl/). Pero también uno de los más exigentes.
+
+La primera evaluación de la asignatura contemplaba, como no podía ser de otra manera, el abordaje del problema de pit final. Pero esta vez, desde una perspectiva menos genérica, ya que se introducían algoritmos especialmente diseñados para su resolución. Algunos de ellos son bien ingeniosos, y explotan la estructura geométrica de un inventario de bloques a fin de construir conos invertidos que emulan la geometría de un pit en base a un ángulo de extracción. Sin embargo, el más importante de los métodos revisados corresponde al llamado **algoritmo de Lerchs & Grossmann** (1965), el cual, al igual que nosotros en la entrada anterior del repo, transforma el problema de extracción en una red capacitada cuyo máximo flujo representa la solución del problema.
+
+![Un recuerdo de una pregunta relacionada al problema de pit final que debía abordarse por medio del algoritmo de Lerchs-Grossmann en su versión 3D. En su tiempo, su resolución era una verdadera incógnita. Personalmente, tuve que esperar más de 12 años después de aprobar esa asignatura para entender cómo se implementa esta solución.](images/fig_1.jpeg){#fig-pit-final-3d-01 fig-align="center" width="80%"}
+
+El algoritmo de Lerchs & Grossmann (en adelante, LG) es, esencialmente, el nombre oficial del procedimiento que implementamos en la entrada anterior. Para no estar constantemente volviendo atrás a mirar su formulación, listamos sus pasos de manera resumida como sigue:
+
+- **Entrada:** Inventario 2D de bloques $\mathcal{B} =\left\{ b_{ij}\  |\  i=0,...,m-1\wedge j=0,...,n-1 \right\}$, donde $w_{ij}\in \mathbb{R}$ es el beneficio asociado a la extracción del bloque $b_{ij}$
+- **Paso 1:** Construimos un grafo $G=(V,E)$, donde cada nodo $v_{ij}$ representa a un bloque $b_{ij}$ de $\mathcal{B}$, añadiendo además dos nodos especiales, denominados fuente $s$ y sumidero $t$ de la red.
+- **Paso 2:** Cada arco $(i,j)\in E$ se define y etiqueta de la siguiente manera:
+    - Si $w_{ij}>0$, se genera un arco dirigido desde $s$ hacia $v_{ij}$ con capacidad $c(s, v_{ij})=w_{ij}$.
+    - Si $w_{ij}\leq 0$, se genera un arco dirigido desde $v_{ij}$ hacia $t$ con capacidad $c(v_{ij}, t)=-w_{ij}$.
+- **Paso 3:** Definimos el conjunto $\mathcal{H}(b_{ij})$ que contiene a todos los bloques que preceden la extracción de $b_{ij}$, en función del ángulo de extracción $\alpha$. Comúnmente, se elige $\alpha$ de tal manera que el factor de forma $k=\left\lceil \frac{h}{L} \cot \left( \alpha \right) \right\rceil$ del diseño del rajo sea igual a 1 (donde $h$ y $L$ son la altura y la extensión horizontal de un banco, suponiendo que todos ellos son iguales). Así, $\mathcal{H} \left( b_{ij} \right) =\left\{ b_{i-1,j-i},b_{i-1,j},b_{i-1,j+1} \right\}$.
+- **Paso 4:** Definimos los arcos que conectan a $v_{ij}$ con los bloques precedentes, asignándoles una capacidad $M$ lo suficientemente grande para que todo corte mínimo ignore a dichos arcos. En general, es seguro elegir $M>\sum_{w_{ij>0}} w_{ij}$.
+- **Paso 5:** Resolvemos el problema de flujo máximo desde $s$ hacia $t$. Para ello, obtenemos un corte mínimo con capacidad $c(S,T)$ que divide a $G$ en los subconjuntos $s\in S$ y $t\in T$, extrayendo únicamente aquellos bloques tales que $v_{ij}\in T$.
+
+El algoritmo de LG es, sin duda alguna, la herramienta de optimización de pit final por antonomasia en la planificación minera. Una gran cantidad de programas de pago nos permiten construir pits optimizados en base a su implementación. Por lo tanto, su entendimiento, así como su formulación *desde cero* (con las librerías adecuadas) resulta ser un ejercicio fundamental a la hora de no sólo adentrarse en el mundo del código, sino que además comprender uno de los problemas más importantes el mundo minero y, ya en términos más generales, de la optimización de grafos.
+
+### Formulación del problema de pit final en 3D
+
+Consideremos pues un modelo de bloques en tres dimensiones, representado por el conjunto
+
+::: {.eq-scroll}
+$$
+\mathcal{B} =\left\{ b_{ijk}\  |\  i=0,...,m-1\wedge j=0,...,n-1\wedge k=0,...,p-1 \right\}
+\tag{1}
+$$
+:::
+
+Cada bloque $b_{ijk}$ viene caracterizado por una generosa cantidad de información, donde destacamos:
+
+- Las coordenadas del centroide de cada bloque: $\mathbf{r}_{ijk}=(x_{i},y_{j},z_{k})$.
+- Las dimensiones del bloque en cada dirección, a saber $d_{x},d_{y}$ y $d_{z}$. Con frecuencia, $d_{x}=d_{y}$ y $d_{z}$ es igual a la altura $h$ de diseño para los bancos del rajo.
+- Las propiedades de interés de cada bloque, las que suelen reunirse en un vector $\mathbf{p}_{ijk}$. Tal vector contendrá información clave, tal como la ley de cada bloque, su recuperación metalúrgica y otras propiedades geometalúrgicas.
+
+Para cada bloque $b_{ijk}$ se define una cantidad $w_{ijk}$ que describe el "costo" de extracción. Esta cantidad puede ser, en realidad, *cualquier cosa*. Es muy común que $w_{ijk}$ represente el beneficio de extracción de cada bloque, siendo positivo si el bloque es de mineral y negativo si el bloque es de estéril. El umbral de discriminación que permite definir si un bloque es de mineral o no corresponde a la **ley de corte**, que se define como la mínima ley de mineral que garantiza un beneficio económico resultante de la actividad minera. La determinación de dicha ley es, igualmente, un problema de optimización clave en la planificación minera.
+
+![Un esquema que muestra los dos patrones típicos que representan la extracción de un bloque $b_{ijk}$ en un modelo de bloques 3D. En (a), se observa el patrón 1-5, comúnmente denotado como $S_{5}(b_{ijk})$, y que consiste en la extracción de los bloques superiores que forman una especie de cruz soportada por el bloque ubicado inmediatamente encima de $b_{ijk}$. En (b), se observa el patrón 1-9, comúnmente denotado como $S_{9}(b_{ijk})$, y que consiste en la extracción de toda la malla de bloques ubicada arriba de $b_{ijk}$.](images/fig_2.png){#fig-pit-final-3d-02 fig-align="center" width="90%"}
+
+Como mencionamos unas líneas más arriba, la diferencia más significativa del problema de pit final en 3D con respecto al caso bidimensional corresponde a la construcción del conjunto de bloques precedentes al bloque $b_{ijk}$. Los patrones de extracción típicos corresponden a los mostrados en la Figura (2), y que denotaremos como $S_{5}(b_{ijk})$ para el patrón de extracción 1-5, y $S_{9}(b_{ijk})$ para el patrón de extracción 1-9. Formalmente, tales conjuntos de precedencias pueden describirse como
+
+::: {.eq-scroll}
+$$
+\begin{array}{l}S_{5}\left( b_{ijk} \right) =\left\{ b_{ij,k-1},b_{i-1,j,k-1},b_{i+1,j,k-1},b_{i,j-1,k-1},b_{i,j+1,k-1} \right\}\\ S_{9}\left( b_{ijk} \right) =\left\{ b_{i+r,j+r,k-1}\  :\  r=\left\{ -1,0,1 \right\} \right\}\end{array} \  \  ;\  \  k>0
+\tag{2}
+$$
+:::
+
+Consideremos ahora un grafo dirigido $G=(V,E)$, donde $V$ es el conjunto de nodos y $E$ es el conjunto de arcos de $G$. De manera análoga al caso 2D, cada bloque $b_{ijk}$ del inventario se representa como un nodo $v_{ijk}\in V$. Si $n_{x},n_{y}$ y $n_{z}$ representan el total de bloques en cada dimensión del inventario, entonces $V$ puede describirse formalmente como
+
+::: {.eq-scroll}
+$$
+V=\left\{ v_{ijk}\  :\  0\leq i\leq n_{x}\wedge 0\leq j\leq n_{y}\wedge 0\leq k\leq n_{z} \right\} \cup \left\{ s,t \right\}
+\tag{3}
+$$
+:::
+
+Donde $s$ y $t$ son los correspondientes nodos fuente y sumidero de la red, que se agregan artificialmente de manera tal que todos los bloques con $w_{ijk}>0$ (mineral) se conectan con $s$, dejando aquellos con $w_{ijk}\leq 0$ (estéril) conectados a $t$. Estos arcos, cuyas direcciones van desde la fuente $s$ hacia los bloques para el caso de mineral, y desde los bloques hacia el sumidero $t$ para el caso de estéril, se etiquetan como
+
+::: {.eq-scroll}
+$$
+E=\begin{cases}\left( s\longrightarrow v_{ijk} \right) ,u_{s,ijk}=w_{ijk}&;\  \mathrm{si} \  w_{ijk}>0\\ \left( v_{ijk}\longrightarrow t \right) ,u_{ijk,t}=-w_{ijk}&;\  \mathrm{si} \  w_{ijk}\leq 0\end{cases}
+\tag{4}
+$$
+:::
+
+Por otro lado, si $k>0$, cada nodo $v_{ijk}$ se conecta con sus nodos (o bloques) precedentes, descritos por cualquiera de los patrones $S_{5}(b_{ijk})$ o $S_{9}(b_{ijk})$, por medio de arcos de capacidad $M$ lo suficientemente grande como para que sean ignorados por cualquier algoritmo que resuelva el problema (o, dicho de otra forma, para garantizar que tales arcos siempre estén excluidos del corte mínimo). Como en el caso 2D, el valor de $M$ no tiene por qué ser infinito. Basta con que sea tal que $M>\sum_{w_{ijk}>0} w_{ijk}$.
+
+Sea $\mathcal{C}$ un corte de capacidad $c(S,T)$, donde $S$ es el conjunto de nodos que se ubican del lado de la fuente $s$, y $T$ es el conjunto de nodos que se ubican del lado del sumidero $t$. Consideremos además un subconjunto $C$ de nodos (o bloques) en $S$ que contiene tanto a los nodos (o bloques) de interés económico (con $w_{ijk}>0$) como a aquellos que los preceden, el cual se denominará **cerrado** si $v_{ijk} \in C\Longrightarrow S_{5}(b_{ijk})\subseteq C\vee S_{9}(b_{ijk})\subseteq C$, dependiendo del patrón de extracción escogido para realizar la extracción. De esta manera, el beneficio total de extraer un conjunto arbitrario de bloques puede escribirse como una función del conjunto $C$:
+
+::: {.eq-scroll}
+$$
+\phi \left( C \right) =\sum_{v_{ijk}\in C} w_{ijk}
+\tag{5}
+$$
+:::
+
+La optimalidad de la extracción se deriva de no extraer todos los bloques con beneficio $w_{ijk}$ positivo, porque algunos de ellos exigirán igualmente de la extracción de bloques con beneficio $w_{ijk}$ negativo, conforme el patrón de extracción escogido. Los bloques que se excluyen de la suma total $\phi (C)$ son aquellos discriminados por el corte $\mathcal{C}$. Es decir, la función objetivo del problema de extracción es
+
+::: {.eq-scroll}
+$$
+\begin{array}{lll}\phi \left( C \right)&=&\displaystyle \underbrace{\sum_{w_{ijk}>0,v_{ijk}\in C} w_{ijk}}_{\mathrm{bloques\  con\  beneficios\  positivos}} -\underbrace{\sum_{w_{ijk}<0,v_{ijk}\in C} \left( -w_{ijk} \right)}_{\mathrm{bloques\  que\  no\  se\  extraen}}\\ &=&W-c\left( S,T \right)\end{array}
+\tag{6}
+$$
+:::
+
+Donde $W$ es la suma de todos los beneficios positivos. Por tanto, el problema de extracción de los bloques en el inventario $\mathcal{B}$ equivale a un problema de corte mínimo (que minimiza la cantidad de bloques que son "aislados" por $\mathcal{C}$), siendo por extensión un problema de máximo flujo. La formulación completa de este problema es, por tanto,
+
+::: {.eq-scroll}
+$$
+\begin{array}{ll}\displaystyle \max_{C\in \mathcal{B}}&\phi \left( C \right) =\displaystyle \sum_{w_{ijk}>0,v_{ijk}\in C} w_{ijk}-\sum_{w_{ijk}<0,v_{ijk}\in C} \left( -w_{ijk} \right)\\ \mathrm{s.a.} :&C\  \mathrm{es\  cerrado}\end{array}
+\tag{7}
+$$
+:::
+
+Este es exactamente el mismo problema que resolvimos [en la entrada dedicada al problema de pit final en 2D](../pit-final/), pero aplicado a un problema 2D. Sin embargo, el caso es exactamente el mismo. La presencia de los índices $(i,j,k)$ es útil meramente para trabajar sobre los conjuntos de bloques precedentes y visualizar el resultado final una vez que resolvemos el problema. La única diferencia significativa en su resolución corresponde al patrón de bloques precedentes que define la extracción de cada bloque con beneficio positivo.
+
+### Patrones de extracción
+
+Como en el caso 2D, la elección de un patrón de extracción tiene consecuencias geométricas interesantes, que igualmente inciden en el posible beneficio neto resultante de la extracción de los bloques y de las condiciones geotécnicas derivadas del proceso de extracción. Supongamos que cada bloque del inventario tiene dimensiones $d_{x}\times d_{y}\times h$, donde $h$ coincide con la altura planificada para los bancos que constituyen la operación. Si $k$ designa la posición del bloque en el eje $z$, siendo $k=0$ la superficie, todo patrón de extracción definirá cómo se realiza la remoción de los bloques precedentes en la capa $k-1$ (para $k>0$), lo que a su vez definirá el ángulo $\theta$ que constituye la extracción completa (a nivel global o de la "pared" del rajo). Sin embargo, cuando los bloques no tienen las mismas dimensiones en el plano $(x, y)$, el ángulo medido en la dirección de los planos $(x, z)$ e $(y, z)$ no será el mismo: En un plano puede ser más empinado que en el otro, lo que puede implicar algunos riesgos geotécnicos importantes. Resulta común pues formular el ángulo de extracción en una dirección horizontal arbitraria.
+
+![Un sencillo esquema que muestra el movimiento de un bloque a otro en capas adyacentes. Cada bloque se representa en este caso por medio de un punto (que coincide con su centroide). El ángulo de extracción, es la resultante del movimiento de cada a capa, para cualquier par de avances de horizontales representados por $(\triangle x, \triangle y)$.](images/fig_3.png){#fig-pit-final-3d-03 fig-align="center" width="70%"}
+
+Cuando nos movemos más profundo en el pit, dicho movimiento puede representarse por medio de un vector $(\triangle x, \triangle y, -\triangle z)$, de manera análoga a la colección de índices $(i, j, k)$. Si restringimos el movimiento a que sea "capa a capa", donde las *capas* representan las filas del inventario, el avance horizontal de la extracción es una composición de los movimientos parciales $\triangle x$ y $\triangle y$ que resultan de profundizar en el rajo. De esta manera, en cualquier dirección, el ángulo de extracción $\theta$ puede calcularse como
+
+::: {.eq-scroll}
+$$
+\theta =\arctan \left( \frac{\triangle z}{\sqrt{\triangle x^{2}+\triangle y^{2}}} \right)
+\tag{8}
+$$
+:::
+
+A partir de esta fórmula, distinguimos los siguientes casos de interés: **Si los bloques son cúbicos**, entonces $d_{x}=d_{y}=z$. En las direcciones principales (planos $(x, z)$ e $(y, z)$), el ángulo $\theta$ será siempre igual a $45°$, independientemente del patrón de extracción escogido. Por otro lado, en una dirección arbitraria distinta de los planos coordenados, se tendrá que:
+
+- Si el patrón escogido es $S_{5}(b_{ijk})$, entonces $\theta =\arctan \left( \frac{h}{\sqrt{\triangle h^{2}+\triangle h^{2}}} \right) =\arctan \left( \frac{1}{\sqrt{2}} \right) \approx 54.7°$, porque este patrón permite avances diagonales entre capas sucesivas.
+- Si el patrón escogido es $S_{9}(b_{ijk})$, no podremos realizar avances diagonales, porque todo bloque exigirá siempre la remoción de todos los bloques adyacentes en la capa superior. De esta manera, el avance en todas las direcciones es siempre de $45°$.
+
+Por otro lado, **si los bloques son tales que $d_{x}\neq d_{y}$**, entonces el ángulo de extracción en la dirección de los bloques *más anchos* será mayor, lo que implicará una mayor pendiente.
+
+¿Cuál patrón de extracción es mejor? Bueno... esto dependerá de los intereses involucrados. Por ejemplo, si comparamos ambos ángulos de extracción resultantes, se tendrá que $\frac{\tan^{2} \left( 54.7^{\circ} \right)}{\tan^{2} \left( 45^{\circ} \right)} =\frac{1/\left( 1\sqrt{2} \right)^{2}}{1^{2}} =\frac{1}{2}$, lo que implica que escoger el patrón 1-5 implicará la remoción de un 50% menos de estéril para llegar a la misma profundidad que con el patrón 1-9. Naturalmente, desde una perspectiva económica, esto es algo positivo, porque implicará un beneficio neto mayor. Pero, en contraposición, esto puede aumentar el riesgo de inestabilidades geotécnicas con control estructural (como deslizamientos planos o en cuña). Por lo tanto, la elección de un patrón u otro exigirá siempre la evaluación de condiciones locales que dependen tanto de las características geológicas del yacimiento (fallas, presencia de agua o dominios geotécnicos de baja resistencia) como de la infraestructura a construir (comedores, talleres, etc.). Ángulos de extracción más grandes, en general, requerirán de mayor soporte y control geotécnico.
+
+## Un primer ejercicio práctico
+
+Y bueno, llegamos a la parte práctica de este ejercicio. Vamos a construir una implementación del algoritmo de LG para determinar la secuencia óptima de extracción para un inventario de bloques en 3D. Como antes, haremos uso de Python, apoyándonos fundamentalmente en la librería **<font color='mediumorchid'>NetworkX</font>** para formular el problema de extracción por medio de un grafo dirigido. La solución será esencialmente la misma que la aplicada para el caso 2D, pero dado que esta entrada es adicional, haremos igualmente el esfuerzo de explicar qué estamos haciendo en cada uno de los bloques de código.
+
+La librería **<font color='mediumorchid'>NetworkX</font>** dispone de una serie de objetos que nos permiten construir desde cero varios tipos de grafos. Si lo que queremos es un grafo dirigido, hacemos uso de la clase `DiGraph`. La adición de cualquier arco a este grafo puede realizarse por medio del método `add_edge()`, designando los nodos de inicio y término, y la capacidad del arco usando el parámetro `capacity`. Por último, la adición de nodos al grafo se realiza por medio del método `add_node()`.
+
+Antes de construir cualquier grafo, primero *inventaremos* un problema de escala pequeña para testear nuestra implementación. Consideraremos un modelo de bloques muy pequeño, con $9$ bloques en la dirección $x$, $5$ bloques en la dirección $y$ y $5$ en la dirección $z$ (lo que totaliza $225$ bloques). Cada bloque $b_{ijk}$ de este inventario estará etiquetado por el correspondiente beneficio $w_{ijk}$ asociado a la extracción de cada uno. La representación esquemática de cada uno de estos bloques se muestra en la Fig. (4). Cada "corte" o "tajada" 2D del inventario se realiza en el plano $(x, z)$.
+
+![Un sencillo ejercicio para testear nuestra implementación. Los bloques con beneficio $w_{ijk}$ positivo se marcan en color verde, mientras que los bloques con beneficio $w_{ijk}$ negativo se marcan en color rojo. Los bloques con beneficio nulo se marcan en color amarillo.](images/fig_4.png){#fig-pit-final-3d-04 fig-align="center" width="95%"}
+
+Asumiremos que estos bloques son cúbicos, por lo que sus dimensiones serán irrelevantes para la determinación del pit final. De esta forma, si escogemos el patrón 1-9 para la extracción de los bloques precedentes a un bloque de interés, el ángulo de extracción será igual a $45°$ en todas direcciones, mientras que si el patrón de extracción es 1-5, el ángulo en la dirección diagonal será aproximadamente igual a $54.7°$, manteniendo un perfil de $45°$ en los planos coordenados.
+
+Partimos pues con las importaciones correspondientes. En este primer ejercicio, haremos uso de la librería **<font color='mediumorchid'>Plotly</font>** para construir las visualizaciones 3D del inventario por defecto, además de los resultados óptimos para cada patrón de extracción.
+
+```{python}
+import networkx as nx
+import numpy as np
+import plotly.graph_objects as go
+import plotly.io as pio
+```
+
+```{python}
+from IPython.display import HTML
+```
+
+```{python}
+# Setting de figuras Plotly.
+pio.templates.default = "ggplot2"
+PLOTLY_FONT = "Calibri, Arial, Helvetica, sans-serif"
+```
+
+A continuación, usaremos arreglos de **<font color='darkmagenta'>Numpy</font>** para definir cada uno de los cortes individualizados en la @fig-pit-final-3d-04. Nuestro objetivo, en primera instancia, es buscar una representación adecuada para este inventario, a fin de poder visualizar la solución a la cual llegaremos una vez aplicado el algoritmo de máximo flujo (que, nuevamente, será el método de Edmonds-Karp provisto por **<font color='darkmagenta'>NetworkX</font>**). Cada arreglo será denominado como `xzj`, donde `j` denotará cada uno de los planos en la dirección del eje $y$:
+
+```{python}
+# Definición de cada uno de los cortes del inventario, representados
+# por medio de arreglos de Numpy. Cada bloque del inventario se
+# representa por su beneficio correspondiente.
+xz1 = np.array(
+    [
+        [-1, -2, -4, 0, 1, -3, -4, -1, 1],
+        [-4, -6, -4, 2, 2, -1, -1, -3, -4],
+        [-5, -5, -7, 8, 8, 12, 14, -10, -8],
+        [-12, -11, -9, 1, 18, 10, -10, -19, -20],
+    ]
+)
+xz2 = np.array(
+    [
+        [-2, -3, -4, 2, 2, 1, 0, -4, -5],
+        [-4, -19, -3, 5, 6, 8, -12, 2, -18],
+        [-5, -10, -11, -8, 12, 14, 10, -13, -22],
+        [-21, -25, -22, -18, 2, 12, -6, -12, -21],
+    ]
+)
+xz3 = np.array(
+    [
+        [-4, -2, 14, 1, 2, 1, 4, 0, -1],
+        [-8, -6, -4, 8, 1, 10, 3, -1, -14],
+        [-9, -10, -13, -12, 2, 12, -32, -12, -30],
+        [-12, -14, -14, -21, -22, 30, -12, -34, -45],
+    ]
+)
+xz4 = np.array(
+    [
+        [-12, -11, -8, 0, 2, 2, 1, -14, -4],
+        [-2, -12, -14, -15, 2, 12, 10, -4, -8],
+        [10, 22, 24, 0, -43, 28, -11, -8, -7],
+        [-32, 11, -8, -10, -33, -48, -32, -14, -14],
+    ]
+)
+xz5 = np.array(
+    [
+        [-12, 10, 0, 3, 3, 1, -5, -8, -10],
+        [-34, -12, 0, 14, 25, -4, -13, -3, -9],
+        [-34, -34, -56, -45, 40, 12, -3, -14, -16],
+        [-34, -45, -48, -12, -15, -56, -12, -17, -17],
+    ]
+)
+```
+
+Como mencionamos previamente, representaremos este inventario en una visualización adecuada. Tal representación varía de aplicación en aplicación. Personalmente, creo que el uso de diagramas de voxeles es útil para mostrar la estructura de los modelos de bloques. La palabra *voxel* es el acrónimo de *volumetric pixel*; es decir, un pixel en 3D, similar a una caja. En este ejemplo usaremos **<font color='darkmagenta'>Plotly</font>**, porque el inventario es suficientemente pequeño como para sostener una visualización interactiva sin exigir demasiado al navegador.
+
+¿El problema? La representación por medio de voxeles puede llegar a ser tremendamente exigente para la memoria RAM de una máquina, dependiendo de la cantidad de bloques que se quieran representar. Por lo tanto, es necesario ser cuidadosos a la hora de construir el inventario 3D a partir de los cortes 2D que hemos definido previamente. Para un modelo real, probablemente convendrá filtrar bloques, agregar niveles o usar una visualización especializada. Para este inventario de juguete, en cambio, **<font color='darkmagenta'>Plotly</font>** nos permite inspeccionar directamente la geometría.
+
+En primer lugar, apilaremos los cortes 2D del inventario previamente definidos. Por defecto, este apilamiento se realiza de manera tal que la primera coordenada de cada bloque será la que recorre la dirección en la cual se apilan los cortes, y que corresponde a $y$. Por lo tanto, en el inventario resultante, el orden de las posiciones será `(y, x, z)`. Podemos cambiar ese orden a `(x, y, z)` transponiendo el arreglo correspondiente:
+
+```{python}
+# Apilamos estos planos en un tensor 3D completo (ojo, esto
+# quedará con un orden (y, x, z)).
+B = np.stack([xz1, xz2, xz3, xz4, xz5], axis=0)
+
+# Transponemos B para ordenar las posiciones en (x, y, z).
+Bt = B.transpose(2, 0, 1)
+```
+
+Con el arreglo anterior, ya podemos construir nuestra representación por medio de voxeles. La mala noticia es que **<font color='darkmagenta'>Plotly</font>** no dispone de una función específica para construir este tipo de visualizaciones de manera directa. Sin embargo, con un poco de paciencia, podemos construir estos cubos por medio de superficies regladas o "*meshes*", que podemos replicar para cada bloque del inventario hasta cubrir la malla completa.
+
+La función siguiente genera esta malla cúbica liviana a partir de una máscara booleana de bloques. Cuando entregamos además un arreglo de valores, coloreará cada bloque de acuerdo con su beneficio correspondiente:
+
+```{python}
+#| echo: true
+# Definimos una función que construye una malla cúbica a partir de una
+# máscara booleana de bloques. Si se entrega un arreglo de valores,
+# coloreará cada bloque de acuerdo con su beneficio.
+def cube_mesh_from_mask(mask_xyz, values_xyz=None):
+    # Creamos una malla de cubos unitarios a partir de una máscara
+    # booleana en orden (x, y, z).
+    vertices = []
+    vertex_values = []
+    faces_i, faces_j, faces_k = [], [], []
+    edge_x, edge_y, edge_z = [], [], []
+
+    # Definimos los vérticos, caras y aristas de un cubo unitario.
+    # Replicaremos los cubos para construir la malla completa.
+    cube_vertices = np.array(
+        [
+            [0, 0, 0],
+            [1, 0, 0],
+            [1, 1, 0],
+            [0, 1, 0],
+            [0, 0, 1],
+            [1, 0, 1],
+            [1, 1, 1],
+            [0, 1, 1],
+        ]
+    )
+    cube_faces = [
+        (0, 1, 2), (0, 2, 3),
+        (4, 6, 5), (4, 7, 6),
+        (0, 4, 5), (0, 5, 1),
+        (1, 5, 6), (1, 6, 2),
+        (2, 6, 7), (2, 7, 3),
+        (3, 7, 4), (3, 4, 0),
+    ]
+    cube_edges = [
+        (0, 1), (1, 2), (2, 3), (3, 0),
+        (4, 5), (5, 6), (6, 7), (7, 4),
+        (0, 4), (1, 5), (2, 6), (3, 7),
+    ]
+
+    # Generamos un loop para cada bloque activo en la máscara,
+    # replicando la malla del cubo unitario.
+    for x, y, z in np.argwhere(mask_xyz):
+        offset = len(vertices)
+        block_vertices = cube_vertices + np.array([x, y, z])
+        vertices.extend(block_vertices)
+
+        if values_xyz is not None:
+            vertex_values.extend(
+                [float(values_xyz[x, y, z])] * len(cube_vertices)
+            )
+
+        for a, b, c in cube_faces:
+            faces_i.append(offset + a)
+            faces_j.append(offset + b)
+            faces_k.append(offset + c)
+
+        for a, b in cube_edges:
+            va, vb = block_vertices[a], block_vertices[b]
+            edge_x.extend([va[0], vb[0], None])
+            edge_y.extend([va[1], vb[1], None])
+            edge_z.extend([va[2], vb[2], None])
+
+    return (
+        np.asarray(vertices),
+        np.asarray(vertex_values),
+        faces_i,
+        faces_j,
+        faces_k,
+        edge_x,
+        edge_y,
+        edge_z,
+    )
+```
+
+A continuación, definiremos una función que construye una visualización 3D de voxeles a partir de una máscara booleana de bloques. Si se entrega un arreglo de valores, coloreará cada bloque de acuerdo con su beneficio correspondiente. También definiremos una función que nos permita agregar capas de bloques a una visualización ya existente, lo que nos permitirá comparar los resultados óptimos para cada patrón de extracción:
+
+```{python}
+# Definimos una función de graficación adecuada para los voxeles.
+def plot_voxel_mesh(
+    mask_xyz,
+    title,
+    color="dodgerblue",
+    values_xyz=None,
+    colorscale="Portland",
+    colorbar_title="<b>Valor</b>",
+    edge_color="black",
+    edge_width=1,
+):
+    # Construimos la malla de bloques.
+    vertices, vertex_values, faces_i, faces_j, faces_k, edge_x, edge_y, edge_z = (
+        cube_mesh_from_mask(mask_xyz, values_xyz)
+    )
+
+    # Construimos un diccionario de argumentos para la clase
+    # Mesh3d de Plotly, que nos permitirá construir la visualización
+    # de los bloques. Si se entregan valores, se colorearán los bloques
+    # de acuerdo con su beneficio correspondiente.
+    mesh_args = dict(
+        x=vertices[:, 0],
+        y=vertices[:, 1],
+        z=vertices[:, 2],
+        i=faces_i,
+        j=faces_j,
+        k=faces_k,
+        opacity=1.0,
+        flatshading=True,
+        name="Bloques",
+    )
+
+    # Actualizamos el diccionario de argumentos dependiendo de si se
+    # entregan valores o no. Si no se entregan valores, se colorearán los
+    # bloques con un color uniforme. Si se entregan valores, se colorearán
+    # de acuerdo con su beneficio correspondiente, usando una escala de
+    # colores.
+    if values_xyz is None:
+        mesh_args.update(color=color, showscale=False)
+    else:
+        mesh_args.update(
+            intensity=vertex_values,
+            colorscale=colorscale,
+            cmin=float(np.nanmin(values_xyz)),
+            cmax=float(np.nanmax(values_xyz)),
+            colorbar=dict(
+                title=dict(
+                    text=colorbar_title,
+                    font=dict(family=PLOTLY_FONT, size=13),
+                ),
+                tickfont=dict(family=PLOTLY_FONT, size=12),
+            ),
+            showscale=True,
+        )
+
+    # Inicializamos la figura.
+    fig = go.Figure()
+
+    # Agregamos la malla de bloques y las aristas a la figura.
+    fig.add_trace(go.Mesh3d(**mesh_args))
+
+    # Agregamos las aristas de los bloques para mejorar la visualización.
+    fig.add_trace(
+        go.Scatter3d(
+            x=edge_x,
+            y=edge_y,
+            z=edge_z,
+            mode="lines",
+            line=dict(color=edge_color, width=edge_width),
+            hoverinfo="skip",
+            showlegend=False,
+        )
+    )
+
+    # Ajustamos el layout de la figura para mejorar la visualización.
+    nx_blocks, ny_blocks, nz_blocks = mask_xyz.shape
+    fig.update_layout(
+        title=dict(text=title, x=0.5, xanchor="center"),
+        font=dict(family=PLOTLY_FONT, size=13),
+        title_font=dict(family=PLOTLY_FONT, size=20),
+        height=620,
+        margin=dict(l=10, r=10, t=70, b=20),
+        scene=dict(
+            xaxis=dict(
+                title=dict(text="x", font=dict(family=PLOTLY_FONT, size=14)),
+                tickfont=dict(family=PLOTLY_FONT, size=12),
+                range=[0, nx_blocks],
+                dtick=1,
+            ),
+            yaxis=dict(
+                title=dict(text="y", font=dict(family=PLOTLY_FONT, size=14)),
+                tickfont=dict(family=PLOTLY_FONT, size=12),
+                range=[0, ny_blocks],
+                dtick=1,
+            ),
+            zaxis=dict(
+                title=dict(text="z", font=dict(family=PLOTLY_FONT, size=14)),
+                tickfont=dict(family=PLOTLY_FONT, size=12),
+                range=[nz_blocks, 0],
+                dtick=1,
+            ),
+            aspectmode="manual",
+            aspectratio=dict(
+                x=nx_blocks / nz_blocks,
+                y=ny_blocks / nz_blocks,
+                z=1,
+            ),
+            camera=dict(
+                eye=dict(x=1.55, y=-1.75, z=1.2),
+                projection=dict(type="orthographic"),
+            ),
+        ),
+        paper_bgcolor="white",
+        plot_bgcolor="white",
+    )
+
+    return fig.to_html(
+        include_plotlyjs="cdn",
+        include_mathjax=False,
+        full_html=False,
+        config={"responsive": True, "displaylogo": False},
+    )
+
+# Definimos una función que agrega una capa de bloques a una figura ya
+# existente, lo que nos permitirá comparar los resultados óptimos para
+# cada patrón de extracción.
+def add_voxel_layer(
+    fig,
+    mask_xyz,
+    color,
+    name,
+    opacity=1.0,
+    edge_color="black",
+    edge_width=1,
+):
+    # Construimos la malla de bloques para la capa a agregar.
+    vertices, _, faces_i, faces_j, faces_k, edge_x, edge_y, edge_z = (
+        cube_mesh_from_mask(mask_xyz)
+    )
+
+    # Si no hay bloques activos en la máscara, no agregamos nada a
+    # la figura.
+    if len(vertices) == 0:
+        return
+
+    # Agregamos la malla de bloques y las aristas a la figura.
+    fig.add_trace(
+        go.Mesh3d(
+            x=vertices[:, 0],
+            y=vertices[:, 1],
+            z=vertices[:, 2],
+            i=faces_i,
+            j=faces_j,
+            k=faces_k,
+            color=color,
+            opacity=opacity,
+            flatshading=True,
+            name=name,
+            showlegend=True,
+            legendgroup=name,
+        )
+    )
+
+    # Agregamos las aristas de los bloques para mejorar la visualización.
+    fig.add_trace(
+        go.Scatter3d(
+            x=edge_x,
+            y=edge_y,
+            z=edge_z,
+            mode="lines",
+            line=dict(color=edge_color, width=edge_width),
+            hoverinfo="skip",
+            showlegend=False,
+            legendgroup=name,
+        )
+    )
+
+# Definimos una función que construye una visualización 3D de voxeles a
+# partir de una lista de capas, cada una definida por una máscara booleana
+# de bloques y un color. Esta función nos permitirá comparar los resultados
+# óptimos para cada patrón de extracción.
+def plot_voxel_layers(layers, title):
+
+    # Inicializamos la figura.
+    fig = go.Figure()
+
+    # Agregamos cada capa de bloques a la figura.
+    for layer in layers:
+        add_voxel_layer(fig, **layer)
+
+    # Y ajustamos el layout de la figura para mejorar la visualización.
+    nx_blocks, ny_blocks, nz_blocks = layers[0]["mask_xyz"].shape
+    fig.update_layout(
+        title=dict(text=title, x=0.5, xanchor="center"),
+        font=dict(family=PLOTLY_FONT, size=13),
+        title_font=dict(family=PLOTLY_FONT, size=20),
+        height=620,
+        margin=dict(l=10, r=10, t=70, b=20),
+        legend=dict(
+            x=0.02,
+            y=0.98,
+            bgcolor="rgba(255,255,255,0.78)",
+            bordercolor="black",
+            borderwidth=1,
+            font=dict(family=PLOTLY_FONT, size=12),
+        ),
+        scene=dict(
+            xaxis=dict(
+                title=dict(text="x", font=dict(family=PLOTLY_FONT, size=14)),
+                tickfont=dict(family=PLOTLY_FONT, size=12),
+                range=[0, nx_blocks],
+                dtick=1,
+            ),
+            yaxis=dict(
+                title=dict(text="y", font=dict(family=PLOTLY_FONT, size=14)),
+                tickfont=dict(family=PLOTLY_FONT, size=12),
+                range=[0, ny_blocks],
+                dtick=1,
+            ),
+            zaxis=dict(
+                title=dict(text="z", font=dict(family=PLOTLY_FONT, size=14)),
+                tickfont=dict(family=PLOTLY_FONT, size=12),
+                range=[nz_blocks, 0],
+                dtick=1,
+            ),
+            aspectmode="manual",
+            aspectratio=dict(
+                x=nx_blocks / nz_blocks,
+                y=ny_blocks / nz_blocks,
+                z=1,
+            ),
+            camera=dict(
+                eye=dict(x=1.55, y=-1.75, z=1.2),
+                projection=dict(type="orthographic"),
+            ),
+        ),
+        paper_bgcolor="white",
+        plot_bgcolor="white",
+    )
+
+    return fig.to_html(
+        include_plotlyjs="cdn",
+        include_mathjax=False,
+        full_html=False,
+        config={"responsive": True, "displaylogo": False},
+    )
+```
+
+A continuación, construimos la representación interactiva del inventario de bloques haciendo uso de las funciones anteriores:
+
+```{python}
+#| echo: false
+#| label: true-pit-final-3d-05
+#| fig-cap: "Representación interactiva del inventario 3D pequeño. El color de cada bloque indica su beneficio de extracción."
+# Generamos una máscara booleana de bloques activos para construir
+# la visualización del inventario completo.
+inventory_mask = np.ones_like(Bt, dtype=bool)
+
+# Y construimos la visualización 3D.
+HTML(
+    plot_voxel_mesh(
+        inventory_mask,
+        title="<b>Inventario 3D pequeño</b>",
+        values_xyz=Bt,
+        colorscale="Portland",
+        colorbar_title="Beneficio",
+    )
+)
+```
+
+Como comentamos unas líneas más arriba, esta representación es adecuada para visualizar inventarios pequeños, debido a que una vista de voxeles completamente interactiva puede volverse costosa cuando el número de bloques crece. Cada bloque se representa como un pixel cúbico cuyo color hace referencia al beneficio resultante de la extracción, desde los valores más negativos hasta los más positivos. Haremos uso de este mismo recurso para visualizar el pit final resultante de la aplicación del algoritmo de Lerchs & Grossmann.
+
+Ahora procederemos con la resolución el problema de determinar el pit final para este modelo. Seguiremos exactamente la misma lógica que en el caso 2D, ya que el procedimiento es esencialmente el mismo, pero documentaremos cada paso de todas maneras. Para ello, definiremos una función que construye el grafo dirigido a partir de nuestro modelo de bloques:
+
+```{python}
+def build_dense_closure_graph(values, pattern="1-5"):
+    # Recuperamos el número de bloques en cada dirección del
+    # inventario.
+    Ny, Nz, Nx = values.shape
+
+    # Inicializamos el grafo dirigido, agregamos los nodos fuente y
+    # sumidero, y definimos un valor de M suficientemente grande para
+    # evitar extracciones de bloques inconsistentes con la geometría
+    # del modelo.
+    graph = nx.DiGraph()
+    source, sink = "s", "t"
+    graph.add_nodes_from([source, sink])
+    big_m = values[values > 0].sum() + 1
+
+    # A continuación, definimos los offsets correspondientes a cada uno
+    # de los patrones de extracción. Estos offsets se usarán para definir
+    # los bloques precedentes a cada bloque de interés, dependiendo del
+    # patrón escogido para la extracción.
+    if pattern == "1-5":
+        offsets = [(0, 0), (-1, 0), (1, 0), (0, -1), (0, 1)]
+    elif pattern == "1-9":
+        offsets = [
+            (di, dj)
+            for di in (-1, 0, 1)
+            for dj in (-1, 0, 1)
+        ]
+    else:
+        msg = "Patrón de extracción debe ser del tipo '1-5' o '1-9'."
+        raise ValueError(msg)
+
+    # Función interna para construir el nodo correspondiente a cada
+    # bloque del inventario, a partir de sus coordenadas (i, j, k).
+    def node(j, k, i):
+        return (i, j, k)
+
+    # Por medio de un loop, recorremos cada bloque del inventario para
+    # construir el grafo dirigido correspondiente.
+    for j in range(Ny):
+        for k in range(Nz):
+            for i in range(Nx):
+                # Asociamos el bloque (j, k, i) con un nodo del grafo,
+                # y recuperamos el beneficio correspondiente a la extracción
+                # de dicho bloque.
+                block = node(j, k, i)
+                benefit = values[j, k, i]
+
+                # Asociamos cada bloque a una determinado subconjunto de nodos
+                # respecto del corte asociado al beneficio de cada bloque.
+                if benefit >= 0:
+                    graph.add_edge(source, block, capacity=float(benefit))
+                else:
+                    graph.add_edge(block, sink, capacity=float(-benefit))
+
+                # Por seguridad, evitamos agregar arcos de precedencia para los
+                # bloques que se encuentran en la superficie (k = 0), porque no
+                # tienen bloques precedentes.
+                if k == 0:
+                    continue
+                
+                # Finalmente, agregamos los arcos de precedencia correspondientes
+                # a cada bloque de interés, dependiendo del patrón de extracción
+                # escogido. Si un precedente cae fuera del inventario, castigamos
+                # la extracción del bloque con una arista dura hacia el sumidero.
+                # Esto evita relajar artificialmente la geometría en los bordes.
+                for di, dj in offsets:
+                    ii, jj = i + di, j + dj
+                    if 0 <= ii < Nx and 0 <= jj < Ny:
+                        graph.add_edge(block, node(jj, k - 1, ii), capacity=big_m)
+                    else:
+                        graph.add_edge(block, sink, capacity=big_m)
+
+    return graph, source, sink, big_m
+```
+
+Repasemos la estructura de la función anterior:
+
+- En primer lugar, recuperamos el número de bloques en cada dirección del inventario a partir de la forma del arreglo `values`, que corresponde al inventario completo.
+- Luego, inicializamos el grafo dirigido, agregamos los nodos fuente y sumidero, y definimos un valor de $M$ suficientemente grande para evitar extracciones de bloques inconsistentes con la geometría del modelo.
+- A continuación, definimos los offsets correspondientes a cada uno de los patrones de extracción. Estos offsets se usarán para definir los bloques precedentes a cada bloque de interés, dependiendo del patrón escogido para la extracción.
+- Luego, definimos una función interna para construir el nodo correspondiente a cada bloque del inventario, a partir de sus coordenadas $(i, j, k)$ (aunque, por conveniencia, intercambiamos el orden de las coordenadas para que coincida con la convención de índices del arreglo `values`).
+- Por último, por medio de un loop, recorremos cada bloque del inventario para construir el grafo dirigido correspondiente. Para cada bloque, asociamos el bloque con un nodo del grafo, y recuperamos el beneficio correspondiente a la extracción de dicho bloque. Luego, asociamos cada bloque a una determinado subconjunto de nodos respecto del corte asociado al beneficio de cada bloque. Por seguridad, evitamos agregar arcos de precedencia para los bloques que se encuentran en la superficie ($k = 0$), porque no tienen bloques precedentes. Finalmente, agregamos los arcos de precedencia correspondientes a cada bloque de interés, dependiendo del patrón de extracción escogido. Si un precedente cae fuera del inventario, conectamos el bloque directamente al sumidero con capacidad $M$, lo que impide que el algoritmo aproveche bordes artificialmente relajados.
+
+Como en el caso 2D, sólo nos resta resolver este problema, lo que se reduce a utilizar la función `minimum_cut()` provista por la librería **<font color='darkmagenta'>NetworkX</font>**, que, tras bambalinas, aplica el algoritmo de Edmonds-Karp para determinar el máximo flujo (beneficio neto máximo de la extracción de los bloques en el pit final). Como resultado obtendremos la capacidad del corte mínimo (`cut_value`) hallada por el algoritmo, además de los conjuntos `S` y `T`, que describen a los bloques que quedan del lado de la fuente y el sumidero, respectivamente, una vez trazado dicho corte.
+
+Para estos efectos, definiremos una función que resuelve el problema de extracción de los bloques en el inventario completo, a partir de la construcción del grafo dirigido correspondiente:
+
+```{python}
+def solve_dense_pit(values, pattern="1-5"):
+    # Construimos el grafo dirigido correspondiente al inventario completo, 
+    # a partir del patrón de extracción escogido.
+    graph, source, sink, big_m = build_dense_closure_graph(values, pattern)
+
+    # Para este grafo, aplicamos el algoritmo de Edmonds-Karp para determinar
+    # el corte mínimo que define el pit final, y recuperamos la capacidad del
+    # corte mínimo, además de los conjuntos de nodos que quedan del lado de la
+    # fuente y el sumidero, respectivamente.
+    cut_value, (source_side, _) = nx.minimum_cut(
+        graph,
+        source,
+        sink,
+        capacity="capacity",
+    )
+
+    # Construimos un arreglo indicador con las posiciones de los bloques que
+    # quedan del lado de la fuente.
+    mask = np.zeros_like(values, dtype=bool)
+    for node in source_side:
+        if isinstance(node, tuple):
+            i, j, k = node
+            mask[j, k, i] = True
+
+    # Calculamos el beneficio neto de la extracción de los bloques.
+    profit = (values * mask).sum()
+
+    return mask, profit, cut_value, graph
+```
+
+Ahora utilizaremos las funciones previamente construidas para resolver el problema de extracción de los bloques en el inventario completo, a partir de cada uno de los patrones de extracción:
+
+```{python}
+# Resolución del problema de extracción de los bloques en el inventario
+# completo, a partir de cada uno de los patrones de extracción.
+mask_pattern_15, profit_15, cut_15, graph_15 = solve_dense_pit(B, "1-5")
+mask_pattern_19, profit_19, cut_19, graph_19 = solve_dense_pit(B, "1-9")
+
+# Mostramos en pantalla los resultados obtenidos.
+print(
+    f"Patrón 1-5: nodos = {graph_15.number_of_nodes():,}, arcos = {graph_15.number_of_edges():,}"
+)
+
+print(
+    f"Patrón 1-9: nodos = {graph_19.number_of_nodes():,}, arcos = {graph_19.number_of_edges():,}"
+)
+
+print(f"Beneficio 1-5 = {profit_15:,.0f}")
+print(f"Beneficio 1-9 = {profit_19:,.0f}")
+```
+
+Como chequeo simple, validamos que los bloques extraídos satisfagan sus precedencias.
+
+```{python}
+def validate_dense_pit(mask, pattern="1-5"):
+    # Recuperamos el número de bloques en cada dirección del inventario.
+    Ny, Nz, Nx = mask.shape
+
+    # Definimos los offsets correspondientes a cada uno de los patrones
+    # de extracción.
+    if pattern == "1-5":
+        offsets = [(0, 0), (-1, 0), (1, 0), (0, -1), (0, 1)]
+    else:
+        offsets = [
+            (di, dj)
+            for di in (-1, 0, 1)
+            for dj in (-1, 0, 1)
+        ]
+
+    # Recorrimos el inventario completo para validar que cada bloque extraído
+    # satisfaga sus precedencias correspondientes.
+    for j in range(Ny):
+        for k in range(1, Nz):
+            for i in range(Nx):
+                if not mask[j, k, i]:
+                    continue
+                for di, dj in offsets:
+                    ii, jj = i + di, j + dj
+                    if not (0 <= ii < Nx and 0 <= jj < Ny):
+                        return False
+                    if not mask[jj, k - 1, ii]:
+                        return False
+    return True
+```
+
+```{python}
+# Implementamos nuestro validador y mostramos los resultados.
+print("Precedencias 1-5:", validate_dense_pit(mask_pattern_15, "1-5"))
+print("Precedencias 1-9:", validate_dense_pit(mask_pattern_19, "1-9"))
+```
+
+Finalmente, usaremos **<font color='darkmagenta'>Plotly</font>** para visualizar nuestro pit final para cada patrón de extracción. La visualización interactiva directa en este caso es posible, porque el inventario de bloques para este ejercicio tiene apenas 225 unidades de extracción. Para que el efecto de la extracción sea más evidente, mostraremos simultáneamente los bloques no extraídos y los bloques extraídos, dejando estos últimos en gris.
+
+Primero, construimos una función para graficar nuestros resultados, aprovechando las funciones de graficación de voxeles que definimos previamente:
+
+```{python}
+def plot_pit_diagnostics(mask, color, title):
+    # La máscara original identifica los bloques extraídos. Graficamos
+    # simultáneamente el pit y el remanente para facilitar la lectura.
+    extracted_xyz = mask.transpose(2, 0, 1)
+    remaining_xyz = (~mask).transpose(2, 0, 1)
+
+    return plot_voxel_layers(
+        [
+            dict(
+                mask_xyz=remaining_xyz,
+                color=color,
+                name="Bloques no extraídos",
+                opacity=1.0,
+            ),
+            dict(
+                mask_xyz=extracted_xyz,
+                color="lightgray",
+                name="Bloques extraídos",
+                opacity=0.55,
+            ),
+        ],
+        title=title,
+    )
+```
+
+Y graficamos los pits finales obtenidos para cada patrón de extracción:
+
+```{python}
+#| echo: true
+#| label: fig-pit-final-3d-07
+#| fig-cap: "Modelo de bloques después de resolver el pit final con patrón de extracción 1-5. Los bloques grises corresponden a los bloques extraídos."
+HTML(
+    plot_pit_diagnostics(
+        mask_pattern_15,
+        "forestgreen",
+        "<b>Modelo remanente, patrón 1-5</b>",
+    )
+)
+```
+
+```{python}
+#| echo: true
+#| label: fig-pit-final-3d-08
+#| fig-cap: "Modelo de bloques después de resolver el pit final con patrón de extracción 1-9. Los bloques grises corresponden a los bloques extraídos."
+HTML(
+    plot_pit_diagnostics(
+        mask_pattern_19,
+        "firebrick",
+        "<b>Modelo remanente, patrón 1-9</b>",
+    )
+)
+```
+
+Y ahí lo tenemos (nuevamente), un bonito pit final geométrico que respeta las reglas de precedencia derivadas de los patrones 1-5 y 1-9. La diferencia entre ambos es clara: El patrón 1-5 genera un pit final más "abierto", con una mayor cantidad de bloques extraídos, mientras que el patrón 1-9 genera un pit final más "cerrado", con una menor cantidad de bloques extraídos. Esto se traduce en un beneficio neto mayor para el patrón 1-5, pero también en una mayor cantidad de estéril removido, lo que puede implicar mayores costos de extracción y mayores riesgos geotécnicos. La elección entre ambos patrones dependerá de las condiciones específicas del yacimiento y de los objetivos de la operación minera.
+
+Para este ejercicio particular, el patrón 1-5 genera un beneficio neto de $113$ unidades monetarias, versus un beneficio neto de $78$ para el caso de un patrón 1-9. Estos valores son menores que los que obtendríamos si relajáramos las precedencias en los bordes del inventario, pero son geométricamente más consistentes: ningún bloque profundo puede aprovechar una pared lateral artificial para evitar la remoción de sus precedentes.
+
+## Un ejercicio más realista
+
+Naturalmente, el uso de un inventario de bloques tan pequeño como el que hemos utilizado para este ejercicio es meramente ilustrativo. En la práctica, los modelos de bloques suelen contener miles o incluso millones de unidades de extracción, lo que hace inviable la visualización directa por medio de voxeles. Sin embargo, el procedimiento para resolver el pit final es exactamente el mismo, sólo que con una escala mayor. Por supusto, eso tiene implicancias prácticas importantes, porque la construcción del grafo dirigido y la aplicación del algoritmo de Lerchs & Grossmann pueden volverse costosos en términos computacionales, dependiendo de la cantidad de bloques y del patrón de extracción escogido. Y ni hablar de la visualización. Opciones interactivas rápidas como **<font color='darkmagenta'>Plotly</font>** no son viables para modelos con algunos miles de bloques, ya que los voxeles consumen muchísima memoria al ser renderizados. Por esta razón, para este ejercicio en particular, nos limitaremos al uso de visualizaciones estáticas por medio de la librería **<font color='darkmagenta'>Matplotlib</font>**.
+
+Resolveremos un problema completamente tridimensional y más realista, considerando un archivo denominado `blocks_3d.csv`, que contiene un inventario de bloques con coordenadas en las tres dimensiones, además de la ley de cobre y los beneficios económicos por bloque. Como todos los archivos empleados en el blog, dejaremos un botón de descarga para disponibilizar el dataset a los lectores.
+
+<div class="dataset-download">
+  <a class="dataset-download-btn" href="../datasets/blocks_3d.csv" download="blocks_3d.csv">Descargar blocks_3d.csv</a>
+</div>
+
+### El modelo de interés
+
+Debido a que el modelo a trabajar ya contiene beneficios económicos asociados a cada bloque, no será necesario recalcular el modelo económico desde cero, [como hicimos en el caso 2D](../pit-final/).
+
+Procedemos pues con el acceso al inventario y su exploración inicial:
+
+```{python}
+import matplotlib.pyplot as plt
+import pandas as pd
+import seaborn as sns
+from matplotlib import colors
+```
+
+```{python}
+# Setting de figuras estáticas.
+plt.rcParams["figure.dpi"] = 90
+sns.set_theme()
+plt.style.use("bmh")
+```
+
+```{python}
+# Accedemos al inventario de bloques y mostramos sus primeras filas.
+df = pd.read_csv("../datasets/blocks_3d.csv")
+df.head()
+```
+
+Para modelos de bloques muy grandes, siempre resulta útil construir un resumen que permita validar la envergadura del inventario completo:
+
+```{python}
+# Construimos el resumen del modelo de bloques.
+summary = pd.DataFrame(
+    {
+        "magnitud": [
+            "bloques",
+            "coordenadas X",
+            "coordenadas Y",
+            "bancos Z",
+            "beneficio positivo total (KUS$)",
+        ],
+        "valor": [
+            len(df),
+            df["X"].nunique(),
+            df["Y"].nunique(),
+            df["Z"].nunique(),
+            round(df.loc[df["benefit"] > 0, "benefit"].sum(), 2),
+        ],
+    }
+)
+
+# Mostramos este resumen en pantalla.
+summary
+```
+
+De la misma forma, también resulta esencial determinar las dimensiones de cada bloque, a fin de comprender si estas unidades de extracción son cúbicas (geométricamente consistentes) o si, por el contrario, son prismas rectangulares que podrían inducir ángulos de extracción no deseados para patrones de extracción más agresivos:
+
+```{python}
+# Determinamos las dimensiones de cada bloque.
+dx = df["X"].unique()[1] - df["X"].unique()[0]
+dy = df["Y"].unique()[1] - df["Y"].unique()[0]
+dz = df["Z"].unique()[0] - df["Z"].unique()[1]
+
+# Mostramos estas dimensiones en pantalla.
+print(f"Dimensiones de cada bloque: dx = {dx}, dy = {dy}, dz = {dz}")
+```
+
+Y ahí lo tenemos: Se trata de un modelo con bloques de $10 \times 10 \times 16$ metros. Cada bajada en $z$ es un banco en el rajo completo, siendo una de las geometrías más comunes que podemos ver en la práctica.
+
+::: {.callout-warning}
+## Y otra vez... el aviso acerca de la memoria
+
+Un modelo con más de 100 mil bloques no debería visualizarse con voxels 3D completos en el navegador. **<font color='darkmagenta'>Plotly</font>** es excelente para muchas cosas, pero mandar decenas o cientos de miles de objetos 3D a una visualización embebida en HTML puede literalmente *asesinar* a nuestro navegador. Aquí usaremos visualizaciones 2D por bancos y cortes, generadas como imágenes estáticas, apoyándonos con **<font color='darkmagenta'>Matplotlib</font>**.
+:::
+
+Lo primero que haremos será asignar índices a cada uno de los bloques del modelo, con el eje $z$ orientado positivamente desde la superficie hacia el "fondo mina". Si definimos la tripleta $(i,j,k)$ como el juego de índices asociados a las coordenadas en el sistema $(x,y,z)$, entonces $k=0$ corresponderá a los bloques que se ubican en la superficie:
+
+```{python}
+# Determinamos las coordenadas únicas en cada dirección del inventario.
+x_vals = np.sort(df["X"].unique())
+y_vals = np.sort(df["Y"].unique())
+z_vals = np.sort(df["Z"].unique())[::-1]
+
+# Indexamos cada bloque del inventario con una tripleta (i, j, k) que
+# corresponde a sus coordenadas (x, y, z) en el sistema de referencia del
+# modelo. Eje z es positivo hacia abajo.
+x_to_i = {x: i for i, x in enumerate(x_vals)}
+y_to_j = {y: j for j, y in enumerate(y_vals)}
+z_to_k = {z: k for k, z in enumerate(z_vals)}
+
+df["i"] = df["X"].map(x_to_i).astype(int)
+df["j"] = df["Y"].map(y_to_j).astype(int)
+df["k"] = df["Z"].map(z_to_k).astype(int)
+
+# Calculamos el número de bloques en cada dirección espacial.
+Nx, Ny, Nz = len(x_vals), len(y_vals), len(z_vals)
+
+# Mostramos en pantalla el número de posiciones posibles en la grilla,
+# y el número de bloques presentes en el inventario.
+print(f"La grilla observada contiene {Nx} x {Ny} x {Nz} posiciones posibles.")
+print(f"Bloques presentes en el inventario: {len(df):,}.")
+```
+
+Podemos observar que el modelo no ocupa toda la caja rectangular limitada por $Nx\times Ny\times Nz$. Esto es normal, ya que un modelo de bloques realista puede venir recortado por límites geológicos, topográficos o de dominio.
+
+### Visualización estática por bancos
+
+En lugar dibujar voxeles, resulta mucho más práctico observar la disposición espacial del modelo de bloques banco a banco, a través de cortes horizontales. La idea es simple:
+
+- Para cada banco $k$, transformaremos los bloques presentes en una matriz 2D o *corte horizontal*.
+- Dibujaremos esa matriz por medio de la función `imshow()` de **<font color='darkmagenta'>Matplotlib</font>**.
+- Guardaremos cada banco como una imagen en formato `png` en memoria.
+- Incrustaremos las imágenes en un pequeño visor HTML equipado con *slider*.
+
+Esta idea es excelente para ahorrar memoria, ya que el navegador sólo tendrá que renderizar una imagen 2D a la vez, en lugar de decenas o cientos de miles de voxeles 3D. Además, el resultado es bastante intuitivo, porque cada banco se muestra como un corte horizontal del modelo, lo que facilita la lectura de la disposición espacial de los bloques.
+
+Para lograr ésto, nos apoyaremos con algunas funciones utilitarias:
+
+```{python}
+import base64
+import io
+import json
+```
+
+```{python}
+# Función para transformar los bloques presentes en un banco específico
+# en una matriz 2D o corte horizontal.
+def bank_matrix(data, value_col, bank_k, fill_value=np.nan):
+    bank = data[data["k"] == bank_k]
+    matrix = np.full((Ny, Nx), fill_value, dtype=float)
+    matrix[bank["j"].to_numpy(), bank["i"].to_numpy()] = bank[value_col].to_numpy()
+    return matrix
+
+# Función para convertir una figura de Matplotlib a una imagen en formato
+# `png` codificada en base64, para su posterior incrustación en HTML.
+def frame_to_base64(fig, dpi=180):
+    buffer = io.BytesIO()
+    fig.savefig(
+        buffer,
+        format="png",
+        dpi=dpi,
+        facecolor="white",
+    )
+    plt.close(fig)
+    return base64.b64encode(buffer.getvalue()).decode("utf-8")
+
+# Función que graficará un banco específico del modelo a través de un mapa
+# de colores, y devolverá la imagen resultante en formato `png` codificada en
+# base64 para su posterior incrustación en HTML.
+def make_bank_frame(bank_k, value_col="Cu", cmap="copper", vmin=None, vmax=None):
+    # Creamos el corte horizontal correspondiente al banco de interés.
+    matrix = bank_matrix(df, value_col=value_col, bank_k=bank_k)
+
+    # Recuperamos el valor de z correspondiente al banco de interés, para mostrarlo
+    # en el título del gráfico.
+    z_value = z_vals[bank_k]
+
+    # Inicializamos la figura.
+    fig, ax = plt.subplots(figsize=(10, 9))
+
+    # Mapa de calor estático.
+    p = ax.imshow(
+        matrix,
+        cmap=cmap,
+        origin="lower",
+        interpolation="nearest",
+        vmin=vmin,
+        vmax=vmax,
+    )
+
+    # Etiquetamos el gráfico y agregamos la barra de colores.
+    ax.set_title(
+        rf"Banco $k={bank_k}$ | $Z={z_value:.0f}$",
+        fontsize=15,
+        fontweight="bold",
+        pad=10,
+    )
+
+    ax.set_aspect("equal", adjustable="box")
+    ax.set_xlabel(r"$i$", fontsize=14, labelpad=10)
+    ax.set_ylabel(r"$j$", fontsize=14, rotation=0, labelpad=20)
+    cb = fig.colorbar(p, ax=ax, fraction=0.046, pad=0.04)
+    cb.set_label("Ley Cu (%)", fontweight="bold", labelpad=18)
+    fig.tight_layout()
+
+    return frame_to_base64(fig)
+```
+
+Para evitar que esta entrada se convierta en una clase de incrustación de imágenes estáticas en código HTML, nos limitaremos netamente a implementar una función que construiremos tras bambalinas para estos efectos. La función `make_bank_player()` recibe una lista de imágenes codificadas en base64, un ID para el visor y un texto alternativo para la imagen, y devuelve un bloque HTML con el visor completo.
+
+Por cierto, cualquier persona interesada en cómo trabaja esta función, puede revisar el código fuente en el repositorio de GitHub, donde se encuentra completamente comentada. La función hace uso de HTML, CSS y JavaScript para construir un visor con botones de navegación, un slider y un contador de bancos.
+
+```{python}
+#| echo: false
+def make_bank_player(frames, player_id, alt_text):
+    return f"""
+    <div id="{player_id}" class="pit3d-player">
+      <div class="pit3d-screen">
+        <img class="pit3d-frame" alt="{alt_text}">
+      </div>
+      <div class="pit3d-controls">
+        <button class="pit3d-button" type="button">&lsaquo;</button>
+        <button class="pit3d-button pit3d-play" type="button">Play</button>
+        <button class="pit3d-button" type="button">&rsaquo;</button>
+        <input class="pit3d-slider" type="range" min="0"
+          max="{len(frames) - 1}" value="0" step="1">
+        <span class="pit3d-counter"></span>
+      </div>
+    </div>
+
+    <style>
+      .pit3d-player {{
+        --pit3d-accent: #3f6f9f;
+        --pit3d-ink: #2f3437;
+        --pit3d-muted: #827e75;
+        --pit3d-surface: #f7f7f5;
+        --pit3d-border: #dfd9ce;
+        display: grid;
+        gap: 0.85rem;
+        margin: 1.2rem auto;
+        max-width: 920px;
+      }}
+      .pit3d-screen {{
+        background: var(--pit3d-surface);
+        border: 1px solid var(--pit3d-border);
+        border-radius: 12px;
+        box-shadow: 0 8px 24px rgb(47 52 55 / 10%);
+        box-sizing: border-box;
+        display: flex;
+        justify-content: center;
+        overflow: hidden;
+        padding: 0.75rem;
+      }}
+      .pit3d-frame {{
+        display: block;
+        image-rendering: auto;
+        margin: 0 auto;
+        max-width: 100%;
+        width: min(100%, 900px);
+        height: auto;
+      }}
+      .pit3d-controls {{
+        align-items: center;
+        background: #ffffff;
+        border: 1px solid var(--pit3d-border);
+        border-radius: 999px;
+        box-shadow: 0 6px 18px rgb(47 52 55 / 8%);
+        display: grid;
+        grid-template-columns: 40px 74px 40px 1fr auto;
+        gap: 0.55rem;
+        padding: 0.55rem 0.7rem;
+      }}
+      .pit3d-button {{
+        align-items: center;
+        background: var(--pit3d-surface);
+        border: 1px solid transparent;
+        border-radius: 999px;
+        color: var(--pit3d-ink);
+        cursor: pointer;
+        display: inline-flex;
+        font: 700 0.88rem/1 system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+        height: 36px;
+        justify-content: center;
+        transition: background 160ms ease, color 160ms ease, transform 160ms ease;
+      }}
+      .pit3d-button:hover {{
+        background: var(--pit3d-accent);
+        color: #ffffff;
+        transform: translateY(-1px);
+      }}
+      .pit3d-play {{
+        background: var(--pit3d-accent);
+        color: #ffffff;
+      }}
+      .pit3d-slider {{
+        accent-color: var(--pit3d-accent);
+        cursor: pointer;
+        width: 100%;
+      }}
+      .pit3d-counter {{
+        color: var(--pit3d-muted);
+        font: 700 0.82rem/1 system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+        min-width: 5rem;
+        text-align: right;
+      }}
+    </style>
+
+    <script>
+    (() => {{
+      const frames = {json.dumps(frames)};
+      const root = document.getElementById("{player_id}");
+      if (!root || !frames.length) return;
+
+      const image = root.querySelector(".pit3d-frame");
+      const buttons = root.querySelectorAll(".pit3d-button");
+      const prevButton = buttons[0];
+      const playButton = root.querySelector(".pit3d-play");
+      const nextButton = buttons[2];
+      const slider = root.querySelector(".pit3d-slider");
+      const counter = root.querySelector(".pit3d-counter");
+      let current = 0;
+      let timer = null;
+
+      function render(index) {{
+        current = (index + frames.length) % frames.length;
+        image.src = `data:image/png;base64,${{frames[current]}}`;
+        slider.value = current;
+        counter.textContent = `Banco ${{current + 1}}/${{frames.length}}`;
+      }}
+
+      function stop() {{
+        clearInterval(timer);
+        timer = null;
+        playButton.textContent = "Play";
+      }}
+
+      function start() {{
+        timer = setInterval(() => {{
+          render(current + 1);
+          if (current === frames.length - 1) stop();
+        }}, 650);
+        playButton.textContent = "Pausa";
+      }}
+
+      prevButton.addEventListener("click", () => {{ stop(); render(current - 1); }});
+      nextButton.addEventListener("click", () => {{ stop(); render(current + 1); }});
+      slider.addEventListener("input", event => {{ stop(); render(Number(event.target.value)); }});
+      playButton.addEventListener("click", () => {{
+        if (timer) {{
+          stop();
+        }} else {{
+          if (current === frames.length - 1) render(0);
+          start();
+        }}
+      }});
+
+      render(0);
+    }})();
+    </script>
+    """
+```
+
+```{python}
+# Generamos las imágenes correspondientes a cada banco del modelo,
+# a modo de frames,y las incrustamos en un visor HTML.
+cu_frames = [
+    make_bank_frame(
+        k,
+        value_col="Cu",
+        cmap="RdYlGn",
+        vmin=0.0,
+        vmax=2.0,
+    )
+    for k in range(Nz)
+]
+
+HTML(
+    make_bank_player(
+        cu_frames,
+        "cu-bank-player",
+        "Ley de cobre por banco"
+    ),
+)
+```
+
+Y ahí lo tenemos. El resultado no es una visualización 3D en sentido estricto, pero sí es una visualización geoespacial útil, ya que permite recorrer el modelo banco a banco sin cargar miles de objetos interactivos en el navegador, lo que facilita la exploración visual del inventario sin matar a nuestro navegador en el intento.
+
+### Solución del pit final
+
+Ahora construiremos el grafo de máxima clausura para el modelo de bloques completo. Sin embargo, hay un detalle importante: El inventario no llena toda la grilla rectangular que lo rodea. Esto es un hecho geométrico de extrema importancia: Al crear arcos de precedencia, sólo conectaremos contra bloques que efectivamente existan en el dataset. De no hacerlo, podemos terminar con soluciones que, si bien serán óptima, representarán condiciones geotécnicas inconsistentes, porque permitirán que bloques profundos aprovechen bordes artificialmente relajados para evitar la remoción de sus precedentes, dando lugar a paredes verticales que podrían cubrir 2 o más bancos.
+
+Para ello, construiremos una función acorde a un modelo de tipo *disperso*. Como antes, consideraremos dos posibles patrones de extracción: 1-5 y 1-9:
+
+```{python}
+# Función que permite construir el grafo de máxima clausura para un
+# modelo de bloques que no ocupa toda la grilla rectangular que lo
+# rodea.
+def build_sparse_closure_graph(data, pattern="1-9"):
+    # Exigimos que el dataset contenga las columnas mínimas para
+    # construir su representación en red.
+    required = {"i", "j", "k", "benefit"}
+    if not required.issubset(data.columns):
+        missing = required.difference(data.columns)
+        raise ValueError(f"Faltan columnas: {missing}")
+
+    # Definimos los offsets correspondientes a cada uno de los patrones
+    # de extracción.
+    if pattern == "1-5":
+        offsets = [(0, 0), (-1, 0), (1, 0), (0, -1), (0, 1)]
+    elif pattern == "1-9":
+        offsets = [
+            (di, dj)
+            for di in (-1, 0, 1)
+            for dj in (-1, 0, 1)
+        ]
+    else:
+        msg = "Patrón de extracción debe ser del tipo '1-5' o '1-9'."
+        raise ValueError(msg)
+
+    # Inicializamos el grafo dirigido, agregamos los nodos fuente y
+    # sumidero, y definimos un valor de M suficientemente grande para
+    # evitar extracciones de bloques inconsistentes con la geometría
+    # del modelo.
+    graph = nx.DiGraph()
+    source, sink = "s", "t"
+    big_m = data.loc[data["benefit"] > 0, "benefit"].sum() + 1
+
+    # Preparamos un conjunto con las coordenadas (i, j, k) de los bloques
+    # presentes en el inventario.
+    blocks = set(zip(data["i"], data["j"], data["k"]))
+
+    # Por medio de un loop, recorremos cada bloque del inventario para
+    # construir el grafo dirigido correspondiente. Para cada bloque,
+    # asociamos el bloque con un nodo del grafo, y recuperamos su beneficio.
+    for row in data[["i", "j", "k", "benefit"]].itertuples(index=False):
+        block = (int(row.i), int(row.j), int(row.k))
+        benefit = float(row.benefit)
+
+        if benefit >= 0:
+            graph.add_edge(source, block, capacity=benefit)
+        else:
+            graph.add_edge(block, sink, capacity=-benefit)
+
+    # Creamos las relaciones de precedencia.
+    for i, j, k in blocks:
+        if k == 0:
+            continue
+        block = (i, j, k)
+        for di, dj in offsets:
+            precedent = (i + di, j + dj, k - 1)
+            if precedent in blocks:
+                graph.add_edge(block, precedent, capacity=big_m)
+
+    return graph, source, sink
+```
+
+A continuación, construimos el grafo dirigido correspondiente al inventario completo y mostramos en pantalla el número de nodos y arcos que lo componen:
+
+```{python}
+graph_3d, source, sink = build_sparse_closure_graph(df, pattern="1-9")
+print(f"Número de nodos en el grafo = {graph_3d.number_of_nodes():,}")
+print(f"Número de arcos en el grafo = {graph_3d.number_of_edges():,}")
+```
+
+¡Guau! El grafo dirigido que describe este modelo de bloques junto con sus restricciones geométricas (topológicas y de extracción) tiene más de 1 millón de conexiones. Esto es un número considerable, pero no es nada que no pueda manejar una computadora moderna, siempre y cuando se utilicen algoritmos eficientes para resolver el problema de máxima clausura.
+
+Y bueno, ya sólo nos resta implementar el algoritmo de Lerchs & Grossman para construir el pit final. Procederemos como en el caso 2D, aplicando la función `minimum_cut()` provista por la librería **<font color='darkmagenta'>NetworkX</font>**, y recuperando el número de bloques extraídos, el beneficio neto de la extracción y la capacidad del corte mínimo:
+
+```{python}
+# Implementamos el algoritmo de Lerchs & Grossman para construir el pit final.
+# (recordemos que este es el nombre de la implementación del algoritmo de
+# Edmonds-Karp para resolver el problema de máxima clausura).
+cut_value, (source_side, sink_side) = nx.minimum_cut(
+    graph_3d,
+    source,
+    sink,
+    capacity="capacity",
+)
+
+# Determinamos el número de bloques extraídos, y el beneficio neto de la extracción.
+extracted_blocks = {node for node in source_side if isinstance(node, tuple)}
+df["extracted"] = [
+    (i, j, k) in extracted_blocks
+    for i, j, k in zip(df["i"], df["j"], df["k"])
+]
+
+pit_profit = df.loc[df["extracted"], "benefit"].sum()
+
+# Mostramos en pantalla los resultados obtenidos.
+print(f"Corte mínimo = MUS$ {cut_value / 1000:,.2f}")
+print(f"Beneficio bruto del pit = MUS$ {pit_profit / 1000:,.2f}")
+print(f"Bloques extraídos = {df['extracted'].sum():,}")
+```
+
+El conjunto extraído queda definido por los bloques ubicados del lado de la fuente. Si el grafo y las precedencias están bien construidos, este conjunto es cerrado: ningún bloque profundo aparece extraído sin que sus precedentes existan también dentro del pit. Para validar esto, construiremos una función que recorra el inventario completo y verifique que cada bloque extraído satisfaga sus precedencias correspondientes:
+
+```{python}
+# Función para validar que los bloques extraídos satisfacen sus precedencias.
+def validate_sparse_pit(data, pattern="1-9"):
+    # Definimos los offsets correspondientes a cada uno de los patrones de
+    # extracción.
+    if pattern == "1-5":
+        offsets = [(0, 0), (-1, 0), (1, 0), (0, -1), (0, 1)]
+    else:
+        offsets = [
+            (di, dj)
+            for di in (-1, 0, 1)
+            for dj in (-1, 0, 1)
+        ]
+
+    # Preparamos un conjunto con las coordenadas (i, j, k) de los bloques
+    # extraídos, y otro conjunto con las coordenadas de los bloques presentes
+    # en el inventario.
+    extracted = set(
+        zip(
+            data.loc[data["extracted"], "i"],
+            data.loc[data["extracted"], "j"],
+            data.loc[data["extracted"], "k"],
+        )
+    )
+
+    blocks = set(zip(data["i"], data["j"], data["k"]))
+
+    # Y validamos que cada bloque extraído satisfaga sus precedencias
+    # correspondientes.
+    for i, j, k in extracted:
+        if k == 0:
+            continue
+        for di, dj in offsets:
+            precedent = (i + di, j + dj, k - 1)
+            if precedent in blocks and precedent not in extracted:
+                return False
+    return True
+```
+
+Y verificamos que las precedencias estén satisfechas para el pit final obtenido:
+
+```{python}
+print("Precedencias satisfechas:", validate_sparse_pit(df, "1-9"))
+```
+
+Algunos comentarios:
+
+- El corte mínimo para este modelo es de US$ 246.51 millones. Este valor considera el costo de extracción de los bloques precedentes a los bloques con beneficio positivo.
+- El beneficio bruto asociado a los bloques extraídos es MUS$ 13,707 millones. Esta es la suma total de los beneficios económicos de los bloques extraídos, sin considerar los costos de extracción.
+- El total de bloques extraídos es de 109,011. Debido a que el modelo contiene un total de 117,114 bloques, esto implica que el pit final extrae aproximadamente el 93% del inventario completo, lo que es un resultado bastante agresivo, pero que se justifica por la alta concentración de bloques con beneficio positivo en el modelo.
+
+### Visualización del pit final
+
+Para visualizar el pit resultante reutilizamos la idea del visor por bancos, pero ahora coloreamos cada bloque según si fue extraído o no. Para esto, modificamos la función `make_bank_frame()`, de tal forma que reciba un nuevo argumento `value_col`, que corresponde a la columna del DataFrame que contiene el valor a graficar. En este caso, esta columna será la columna `extracted`, que es un indicador booleano de si el bloque fue extraído o no. Para mejorar la visualización, usaremos un mapa de colores discreto con sólo dos colores: uno para los bloques no extraídos y otro para los bloques extraídos.
+
+```{python}
+# Función para graficar un banco específico del modelo, coloreando cada bloque
+# según si fue extraído o no, y devolver la imagen resultante en formato `png`
+# codificada en base64 para su posterior incrustación en HTML.
+def make_extraction_frame(bank_k):
+    # Creamos el corte horizontal correspondiente al banco de interés, usando la
+    # columna "extracted" para determinar el valor a graficar.
+    matrix = bank_matrix(
+        df,
+        value_col="extracted",
+        bank_k=bank_k,
+        fill_value=np.nan,
+    )
+
+    # Recuperamos el valor de z correspondiente al banco de interés, para
+    # mostrarlo en el gráfico.
+    z_value = z_vals[bank_k]
+
+    # Creamos el mapa de colores y la normalización para los valores de extracción.
+    cmap = colors.ListedColormap(["#d8d3c8", "#3f6f9f"])
+    norm = colors.BoundaryNorm([-0.5, 0.5, 1.5], cmap.N)
+
+    # Creamos nuestra figura.
+    fig, ax = plt.subplots(figsize=(10, 9))
+    p = ax.imshow(
+        matrix,
+        cmap=cmap,
+        norm=norm,
+        origin="lower",
+    )
+
+    # Etiquetamos el gráfico y agregamos la barra de colores.
+    ax.set_title(
+        rf"Banco $k={bank_k}$ | $Z={z_value:.0f}$",
+        fontsize=15,
+        fontweight="bold",
+        pad=10,
+    )
+
+    ax.set_aspect("equal", adjustable="box")
+    ax.set_xlabel(r"$i$", fontsize=14, labelpad=10)
+    ax.set_ylabel(r"$j$", fontsize=14, rotation=0, labelpad=20)
+    cb = fig.colorbar(
+        p,
+        ax=ax,
+        fraction=0.046,
+        pad=0.04,
+        ticks=[0, 1],
+    )
+
+    cb.ax.set_yticklabels(["No extraído", "Extraído"])
+    fig.tight_layout()
+
+    return frame_to_base64(fig)
+```
+
+A continuación, mostramos el pit final banco a banco, usando el visor HTML que construimos previamente:
+
+```{python}
+#| echo: true
+extraction_frames = [make_extraction_frame(k) for k in range(Nz)]
+HTML(
+    make_bank_player(
+        extraction_frames,
+        "extraction-bank-player",
+        "Pit final por banco",
+    ),
+)
+```
+
+Y ahí lo tenemos. El pit final se muestra banco a banco, con los bloques extraídos en azul y los bloques no extraídos en beige. Esta visualización permite apreciar la disposición espacial del pit final, y cómo se distribuyen los bloques extraídos a lo largo de los bancos. Esto refleja, en gran medida, cómo se toman decisiones de extracción en la práctica, donde se planifica la extracción banco a banco, y se evalúa la viabilidad de cada banco antes de proceder con su extracción.
+
+También podemos revisar secciones verticales. Por ejemplo, una sección central en dirección $x$ y otra en dirección $y$. Para ello, construimos una función que reciba el eje fijo y el índice fijo, y retorne la matriz correspondiente a esa sección, junto con la etiqueta del eje fijo para su posterior graficación:
+
+```{python}
+# Función para extraer la matriz correspondiente a una sección vertical del modelo
+# de bloques, dada una dirección fija (i o j) y un índice fijo.
+def section_matrix(data, fixed_axis, fixed_index):
+    # Validamos que el eje fijo sea válido.
+    # Por defecto, esta función será definida para la extracción de secciones
+    # verticales.
+    if fixed_axis == "i":
+        section = data[data["i"] == fixed_index]
+        matrix = np.full((Nz, Ny), np.nan)
+        matrix[section["k"].to_numpy(), section["j"].to_numpy()] = section[
+            "extracted"
+        ].to_numpy()
+        xlabel = r"$j$"
+    else:
+        section = data[data["j"] == fixed_index]
+        matrix = np.full((Nz, Nx), np.nan)
+        matrix[section["k"].to_numpy(), section["i"].to_numpy()] = section[
+            "extracted"
+        ].to_numpy()
+        xlabel = r"$i$"
+
+    return matrix, xlabel
+```
+
+A continuación, extraemos las matrices correspondientes a las secciones centrales en dirección $x$ e $y$:
+
+```{python}
+matrix_x, xlabel_x = section_matrix(df, fixed_axis="i", fixed_index=Nx // 2)
+matrix_y, xlabel_y = section_matrix(df, fixed_axis="j", fixed_index=Ny // 2)
+```
+
+Y construimos la visualización de la sección vertical:
+
+```{python}
+cmap = colors.ListedColormap(["#d8d3c8", "#3f6f9f"])
+norm = colors.BoundaryNorm([-0.5, 0.5, 1.5], cmap.N)
+
+fig, ax = plt.subplots(nrows=2, figsize=(9, 6), sharex=False)
+for ax_k, matrix_k, xlabel_k, title_k in [
+    (ax[0], matrix_x, xlabel_x, r"Sección central $XZ$"),
+    (ax[1], matrix_y, xlabel_y, r"Sección central $YZ$"),
+]:
+    ax_k.imshow(
+        matrix_k,
+        cmap=cmap,
+        norm=norm,
+        origin="upper",
+        aspect="auto",
+    )
+
+    ax_k.set_title(title_k, fontsize=12, fontweight="bold")
+    ax_k.set_xlabel(xlabel_k)
+    ax_k.set_ylabel(r"$k$", fontsize=12, rotation=0, labelpad=15)
+    ax_k.set_aspect("equal", adjustable="box")
+
+plt.tight_layout()
+```
+
+## Conclusiones
+
+La extensión del problema de pit final desde dos a tres dimensiones no cambia su estructura matemática de fondo: Seguimos buscando un conjunto cerrado de bloques que maximice el beneficio económico derivado de la propia extracción. Lo que cambia es la geometría inducida por las restricciones de precedencia y la topología del modelo de bloques, la que suele estar limitada por la topografía del terreno o la geología del yacimiento en cuestión.
+
+En dos dimensiones, cada bloque profundo exige remover una vecindad sobre una línea. En tres dimensiones, esa vecindad vive sobre un plano y, por lo tanto, cada decisión local afecta la geometría del rajo en dos direcciones horizontales. Esta diferencia, que parece menor en notación, es enorme en términos prácticos, ya que aumenta el tamaño del grafo dirigido que describe al problema de extracción, exige más memoria, complica la visualización y vuelve más importante elegir correctamente el patrón de precedencia.
+
+También vimos que visualizar modelos 3D grandes requiere cierto pragmatismo. Los voxeles completos son muy atractivos para ejemplos pequeños, pero para modelos reales conviene usar vistas por bancos, cortes verticales o representaciones simplificadas. A veces, una visualización menos espectacular pero más estable es la que realmente permite analizar el problema.
+
+Como siempre, esta solución sigue siendo geométrica. Un pit final operativo incorpora rampas, anchos mínimos, fases, restricciones de mezcla, capacidad mina-planta, destinos, stockpiles y criterios temporales. Aun así, el modelo de máxima clausura sigue siendo una base conceptual preciosa: Nos muestra que detrás de una decisión minera aparentemente geométrica vive un problema elegante de teoría de grafos. O, como les digo a alumnos, colegas y jefes: Todo son matemáticas, viejo. Y las matemáticas son hermosas. Y la minería también, por cierto.
