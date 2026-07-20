@@ -1,4 +1,5 @@
 ---
+jupyter: nerdyminer
 title: "Modelos de clasificación - Parte I"
 subtitle: "Pérdida, optimización, muestreo estratificado y métricas de desempeño"
 section_href: "/clases/machine-learning/aprendizaje-supervisado/modelos-lineales/"
@@ -138,7 +139,7 @@ Pero aún así calcular diferencias entre valores estimados y reales no tiene se
 
 Introduciremos la primera de las funciones de pérdida que son propias de los modelos de clasificación por medio de un ejemplo sencillo.
 
-**Ejemplo 3.3 – El conjunto de datos <font color='forestgreen'>MOONS</font>:** La discusión anterior motiva la necesidad de formular una función de pérdida adecuada para abordar un problema de clasificación. Para ello, vamos a considerar un problema binario derivado de un conjunto de datos *de juguete* (o *toyset*) muy conocido en la ciencia de datos, llamado **<font color='forestgreen'>MOONS</font>**. Dicho conjunto de datos está definido en un dominio arbitrario $U$ de $\mathbb{R}^{2}$, y está compuesto por dos subconjuntos de puntos con formas (aproximadamente) de medialuna que se enfrentan entre sí, siendo $\mathcal{M}_{1}$ la medialuna superior y $\mathcal{M}_{2}$ la inferior (de tal forma que $U=\mathcal{M}_{1}\cup \mathcal{M}_{2}$). Cada medialuna se colorea de forma distinta, de manera tal que, para todo $(x_{1},x_{2})\in U$, definimos
+**Ejemplo 3.3 – El conjunto de datos <font color='forestgreen'>MOONS</font>:** La discusión anterior motiva la necesidad de formular una función de pérdida adecuada para abordar un problema de clasificación. Para ello, vamos a considerar un problema binario derivado de un conjunto de datos *de juguete* (o *toyset*) muy conocido en la ciencia de datos, llamado <strong><font color='forestgreen'>MOONS</font></strong>. Dicho conjunto de datos está definido en un dominio arbitrario $U$ de $\mathbb{R}^{2}$, y está compuesto por dos subconjuntos de puntos con formas (aproximadamente) de medialuna que se enfrentan entre sí, siendo $\mathcal{M}_{1}$ la medialuna superior y $\mathcal{M}_{2}$ la inferior (de tal forma que $U=\mathcal{M}_{1}\cup \mathcal{M}_{2}$). Cada medialuna se colorea de forma distinta, de manera tal que, para todo $(x_{1},x_{2})\in U$, definimos
 
 ::: {.eq-scroll}
 $$
@@ -147,7 +148,7 @@ y=\begin{cases}1&;\  \mathrm{si} \  \left( x_{1},x_{2}\right)  \in \mathcal{M}_{
 $$
 :::
 
-Este *toyset* es tan famoso que, por supuesto, es posible construirlo haciendo uso de la librería **<font color='darkmagenta'>Scikit-Learn</font>**. Para ello, haremos uso de la función `make_moons()`, cuya dependencia es el módulo `sklearn.datasets`. Haremos uso también de **<font color='darkmagenta'>Numpy</font>** para manipular algunos arreglos y **<font color='darkmagenta'>Matplotlib</font>** para visualizar este conjunto de datos:
+Este *toyset* es tan famoso que, por supuesto, es posible construirlo haciendo uso de la librería <strong><font color='darkmagenta'>Scikit-Learn</font></strong>. Para ello, haremos uso de la función `make_moons()`, cuya dependencia es el módulo `sklearn.datasets`. Haremos uso también de <strong><font color='darkmagenta'>Numpy</font></strong> para manipular algunos arreglos y <strong><font color='darkmagenta'>Matplotlib</font></strong> para visualizar este conjunto de datos:
 
 ```{python}
 import matplotlib.pyplot as plt
@@ -187,13 +188,13 @@ La función `make_moons()` acepta varios argumentos, entre los cuales consideram
 
 - `n_samples`: Total de instancias del conjunto de datos resultante (en nuestra implementación, un total de `2000`). Dicho conjunto es siempre bidimensional, por lo que la geometría del arreglo resultante (que llamamos `X`) que constituye la matriz de diseño será siempre `(n_samples, 2)`. La mitad de los valores tendrá una etiqueta `y` igual a `1`, mientras que la otra mitad tendrá una etiqueta `y` igual a `0`.
 - `noise`: Parámetro de tipo flotante que especifica la desviación estándar de los puntos `X`. Mientras mayor sea este valor, más difícil será diferenciar a cuál medialuna pertenece cada punto, porque habrá mayor dispersión. En nuestro ejemplo, `noise=0.1`, lo que implica una dispersión relativamente baja, lo que permite diferenciar inmediatamente a qué clase pertenece cada punto en un gráfico.
-- `random_state`: Parámetro que permite fijar la semilla aleatoria que genera estos puntos. Como suele ocurrir en **<font color='darkmagenta'>Scikit-Learn</font>**, este parámetro permite garantizar la **reproducibilidad** de los resultados obtenidos a partir de la construcción de este conjunto de datos.
+- `random_state`: Parámetro que permite fijar la semilla aleatoria que genera estos puntos. Como suele ocurrir en <strong><font color='darkmagenta'>Scikit-Learn</font></strong>, este parámetro permite garantizar la **reproducibilidad** de los resultados obtenidos a partir de la construcción de este conjunto de datos.
 
 Si graficamos estos puntos, podremos identificar al instantes ambas medialunas:
 
 ```{python}
 #| label: fig-modelos-de-clasificacion-parte-i-01
-#| fig-cap: "Conjunto de datos MOONS."
+#| fig-cap: "Dos medialunas entrelazadas que forman un problema binario no separable mediante una única frontera lineal."
 # Gráfico de nuestro conjunto de datos.
 fig, ax = plt.subplots(figsize=(9, 7))
 ax.scatter(X[:, 0], X[:, 1], c=y, marker="o", cmap="Dark2")
@@ -218,7 +219,7 @@ f\left( x_{1},x_{2}\right)  =w_{1} x_{1}+w_{2} x_{2}+b
 $$
 :::
 
-De esta manera, si $f(x_{1},x_{2})\geq 0$, entonces la estimación $\hat{y}$ será igual a 1, mientras que, si $f(x_{1},x_{2})<0$, entonces $\hat{y}$ será igual a 0. Esta capacidad de $f$ para poder **discriminar** las clases estimadas por un modelo de clasificación dota a nuestra hipótesis de un poder de decisión importante en un contexto práctico, razón por la cual solemos llamar igualmente a $f$, en un marco de referencia como éste, como **función de decisión**. Esta es una nomenclatura muy usada por varios paquetes computacionales, incluyendo a **<font color='darkmagenta'>Scikit-Learn</font>**.
+De esta manera, si $f(x_{1},x_{2})\geq 0$, entonces la estimación $\hat{y}$ será igual a 1, mientras que, si $f(x_{1},x_{2})<0$, entonces $\hat{y}$ será igual a 0. Esta capacidad de $f$ para poder **discriminar** las clases estimadas por un modelo de clasificación dota a nuestra hipótesis de un poder de decisión importante en un contexto práctico, razón por la cual solemos llamar igualmente a $f$, en un marco de referencia como éste, como **función de decisión**. Esta es una nomenclatura muy usada por varios paquetes computacionales, incluyendo a <strong><font color='darkmagenta'>Scikit-Learn</font></strong>.
 
 Consideremos la función $\phi:\mathbb{R}\longrightarrow (0,1)$, definida como
 
@@ -231,7 +232,7 @@ $$
 
 Dicha función es la **función logística**, y tiene la particularidad de que su dominio es todo $\mathbb{R}$, pero su recorrido es el conjunto $(0,1)$, siendo simétrica con respecto a la recta $y=0$. De esta forma, la función $\phi$ puede interpretarse como una **función de probabilidad**, la que puede usarse para estimar, por consiguiente, las probabilidades $P(y_{i}=1)$ o $P(y_{i}=0)$, para $1\leq i\leq 2000$.
 
-Utilizaremos la librería **<font color='darkmagenta'>Numpy</font>** para generar un gráfico sencillo de la función logística como sigue:
+Utilizaremos la librería <strong><font color='darkmagenta'>Numpy</font></strong> para generar un gráfico sencillo de la función logística como sigue:
 
 ```{python}
 # Definimos la función logística.
@@ -249,9 +250,9 @@ phi = logistic(u)
 
 ```{python}
 #| label: fig-modelos-de-clasificacion-parte-i-02
-#| fig-cap: "La función logística."
+#| fig-cap: "Transformación logística de puntajes reales en valores comprendidos entre cero y uno, interpretables como probabilidades."
 # Gráfico de la función logística.
-fig, ax = plt.subplots(figsize=(10, 5))
+fig, ax = plt.subplots(figsize=(9, 5))
 ax.plot(u, phi, color="royalblue", label=r"$\phi(u)  =\frac{1}{1+\exp(-u)}$")
 ax.set_xlabel(r"$u$", fontsize=14, labelpad=10)
 ax.set_ylabel(r"$\phi(u)$", fontsize=14, labelpad=25, rotation=0)
@@ -330,20 +331,20 @@ negative_loss = log_loss(p=p, y=0.0)
 
 ```{python}
 #| label: fig-modelos-de-clasificacion-parte-i-03
-#| fig-cap: "Costo cuando $y_{i}=1$."
+#| fig-cap: "Pérdida logarítmica para observaciones positivas y negativas: Las predicciones seguras pero incorrectas reciben una penalización divergente."
 # Graficamos los valores de esta función para cada valor de y.
 fig, ax = plt.subplots(ncols=2, sharey=True, figsize=(9, 6))
 
 ax[0].plot(p, positive_loss, color="royalblue", lw=2.0)
 ax[0].set_xlabel(r"$p_{i}$", fontsize=14, labelpad=10)
 ax[0].set_ylabel(r"$\ell(p_{i})$", fontsize=12, labelpad=25, rotation=0)
-ax[0].set_title(r"Costo cuando $y_{i}=1$", fontsize=12, pad=10)
+ax[0].set_title(r"Costo cuando $y_{i}=1$", fontsize=13, pad=10)
 
 ax[1].plot(p, negative_loss, color="firebrick", lw=2.0)
 ax[1].set_xlabel(r"$p_{i}$", fontsize=12, labelpad=10)
 ax[1].set_title(r"Costo cuando $y_{i}=0$", fontsize=13, pad=10)
 
-fig.suptitle(r"Valores de $\ell(p_{i})$", fontsize=14, fontweight="bold")
+fig.suptitle(r"Valores de $\ell(p_{i})$", fontsize=15, fontweight="bold")
 plt.tight_layout()
 ```
 
@@ -375,7 +376,7 @@ La expresión (3.15) es la **función de pérdida** más común en la construcci
 
 Vamos a formalizar lo que hemos aprendido del ejemplo anterior por medio de una definición.
 
-**<font color='blue'>Definición 3.1 – Función de verosimilitud logarítmica</font>**: Consideremos un conjunto de entrenamiento $\mathcal{D}$ definido como
+<strong><font color='blue'>Definición 3.1 – Función de verosimilitud logarítmica</font></strong>: Consideremos un conjunto de entrenamiento $\mathcal{D}$ definido como
 
 ::: {.eq-scroll}
 $$
@@ -404,7 +405,7 @@ es llamada **función de verosimilitud logarítmica** para $p_{i}$ dado el valor
 
 Vamos a retomar el ejemplo anterior, a fin de motivar un desarrollo un tanto más ambicioso que una simple función de costo. Ahora queremos darle forma al proceso que nos permitirá obtener los parámetros $\theta_{1},\theta_{2}$ y $b=\theta_{0}$. Para ello, haremos uso del algoritmo de gradiente descendente, que ya ilustramos en detalle en la [entrada dedicada a la implementación de algoritmos de optimización en el contexto del aprendizaje automático](/apuntes/calculo-incertidumbre-y-optimizacion/optimizacion-aplicada-al-aprendizaje-automatico/).
 
-**Ejemplo 3.4 – El modelo de regresión logística binaria:** Prosigamos pues con el ejercicio de las medialunas y el conjunto de datos **<font color='forestgreen'>MOONS</font>**. Conforme la ecuación (3.15), si reemplazamos la probabilidad $p_{i}$ por la expresión (3.12), obtendremos
+**Ejemplo 3.4 – El modelo de regresión logística binaria:** Prosigamos pues con el ejercicio de las medialunas y el conjunto de datos <strong><font color='forestgreen'>MOONS</font></strong>. Conforme la ecuación (3.15), si reemplazamos la probabilidad $p_{i}$ por la expresión (3.12), obtendremos
 
 ::: {.eq-scroll}
 $$
@@ -464,9 +465,9 @@ Para $j=1,2,3$, donde el hiperparámetro $\eta$ es la **tasa de aprendizaje** de
 
 El modelo de clasificación resultante de este procedimiento es un caso particular de **modelo lineal generalizado**, muy conocido en el aprendizaje automático, conocido como **modelo de regresión logística binaria**. Más adelante definiremos formalmente a este tipo de modelos.
 
-**<font color='darkmagenta'>Scikit-Learn</font>** cuenta con una implementación nativa del algoritmo de gradiente descendente en su versión estocástica (SGD) tanto para modelos de clasificación como para modelos de regresión, estando ambos disponibles en el módulo `sklearn.linear_model`. Sin embargo, a fin de *entrenar los dedos* escribiendo algo de código, crearemos una implementación desde cero que seguirá absolutamente todas las reglas de la API estimadora de **<font color='darkmagenta'>Scikit-Learn</font>** a la hora de entrenar el correspondiente modelo y obtener predicciones. Nos valdremos, para ello, de la librería **<font color='darkmagenta'>Numpy</font>**, que es especialmente útil para trabajar con operaciones matriciales.
+<strong><font color='darkmagenta'>Scikit-Learn</font></strong> cuenta con una implementación nativa del algoritmo de gradiente descendente en su versión estocástica (SGD) tanto para modelos de clasificación como para modelos de regresión, estando ambos disponibles en el módulo `sklearn.linear_model`. Sin embargo, a fin de *entrenar los dedos* escribiendo algo de código, crearemos una implementación desde cero que seguirá absolutamente todas las reglas de la API estimadora de <strong><font color='darkmagenta'>Scikit-Learn</font></strong> a la hora de entrenar el correspondiente modelo y obtener predicciones. Nos valdremos, para ello, de la librería <strong><font color='darkmagenta'>Numpy</font></strong>, que es especialmente útil para trabajar con operaciones matriciales.
 
-Debido a que la API estimadora de **<font color='darkmagenta'>Scikit-Learn</font>** está orientada a objetos, nuestro modelo se instanciará por medio del uso de una clase que, consecuentemente, llamaremos `BinaryLogisticRegression`, a fin de diferenciarla de la implementación nativa de **<font color='darkmagenta'>Scikit-Learn</font>**, denominada `LogisticRegression`, y que ejemplificaremos más adelante en detalle:
+Debido a que la API estimadora de <strong><font color='darkmagenta'>Scikit-Learn</font></strong> está orientada a objetos, nuestro modelo se instanciará por medio del uso de una clase que, consecuentemente, llamaremos `BinaryLogisticRegression`, a fin de diferenciarla de la implementación nativa de <strong><font color='darkmagenta'>Scikit-Learn</font></strong>, denominada `LogisticRegression`, y que ejemplificaremos más adelante en detalle:
 
 ```{python}
 from tqdm import tqdm
@@ -664,7 +665,7 @@ full_set = np.hstack([X, y.reshape(-1, 1)])
 
 ```{python}
 #| label: fig-modelos-de-clasificacion-parte-i-04
-#| fig-cap: "Donde se encuentran los valores de $x_{1}$ con respecto a las clases."
+#| fig-cap: "Distribución de la primera variable explicativa en cada clase, antes de incorporar la información aportada por la segunda variable."
 # Graficamos los valores de la primera variable independiente en términos de la correspondiente etiqueta de clase.
 fig, ax = plt.subplots(figsize=(9, 5))
 ax.scatter(
@@ -703,7 +704,7 @@ p = 1 / (1 + np.exp(-u))
 
 ```{python}
 #| label: fig-modelos-de-clasificacion-parte-i-05
-#| fig-cap: "Donde se encuentran los valores de $x_{1}$ con respecto a las clases."
+#| fig-cap: "Solapamiento de las clases al observar únicamente $x_1$, que justifica construir la frontera con más de una variable."
 # Añadimos estos valores de probabilidad al gráfico anterior.
 fig, ax = plt.subplots(figsize=(9, 5))
 ax.scatter(
@@ -770,7 +771,7 @@ preds = np.hstack([X, y_pred.reshape(-1, 1)])
 
 ```{python}
 #| label: fig-modelos-de-clasificacion-parte-i-06
-#| fig-cap: "Frontera de decisión de nuestro modelo."
+#| fig-cap: "Frontera lineal aprendida por el modelo de regresión logística binaria sobre el dataset MOONS y regiones asignadas a cada clase."
 # Graficamos los resultados del modelo.
 fig, ax = plt.subplots(figsize=(9, 6))
 ax.scatter(
@@ -799,21 +800,21 @@ La gráfica de la función de decisión deja claro que su interpretación geomé
 
 ## Muestreo estratificado
 
-La implementación construida previamente del modelo de regresión logística binaria es simple y muy efectiva, porque en realidad es agnóstica respecto del tipo de problema a resolver, siempre que éste sea binario. No obstante, cometimos (a propósito) un error importante en en entrenamiento del modelo anterior, que discutiremos en detalle a continuación: No separamos el conjunto de datos **<font color='forestgreen'>MOONS</font>** en los correspondientes conjuntos de entrenamiento y de prueba. Por lo tanto, a la hora de estimar el desempeño del modelo (más allá de los resultados visuales obtenidos al graficar su función de decisión), no podremos determinar su **capacidad de generalizar su aprendizaje**.
+La implementación construida previamente del modelo de regresión logística binaria es simple y muy efectiva, porque en realidad es agnóstica respecto del tipo de problema a resolver, siempre que éste sea binario. No obstante, cometimos (a propósito) un error importante en en entrenamiento del modelo anterior, que discutiremos en detalle a continuación: No separamos el conjunto de datos <strong><font color='forestgreen'>MOONS</font></strong> en los correspondientes conjuntos de entrenamiento y de prueba. Por lo tanto, a la hora de estimar el desempeño del modelo (más allá de los resultados visuales obtenidos al graficar su función de decisión), no podremos determinar su **capacidad de generalizar su aprendizaje**.
 
 Por esta razón, es necesario generar una división del conjunto de datos que hemos construido. Sin embargo, para el caso de los modelos de clasificación, es importante tener algunas consideraciones importantes relativas a la **representatividad** de los conjuntos de entrenamiento y de prueba. Y es ahí donde cobre especial relevancia la técnica de **muestreo estratificado**.
 
 El muestreo estratificado es un procedimiento utilizado comúnmente en el contexto del aprendizaje automático para asegurar que cualquier subgrupo (o *estrato*) de un conjunto de datos $\mathcal{D}$ esté adecuadamente representado dentro de una muestra. Para un problema de clasificación binaria, donde únicamente la variable de salida es categórica, el correspondiente conjunto de datos puede dividirse en dos estratos, digamos $\mathcal{D}_{0}$ y $\mathcal{D}_{1}$. Queremos pues muestrear de cada estrato proporcionalmente a su representación en el conjunto de datos completo $\mathcal{D}$ para **mantener la distribución de las etiquetas de salida** en el subconjunto muestreado. Esta técnica es particularmente útil cuando el conjunto de datos está **desbalanceado**, es decir, **cuando una clase supera significativamente a la otra** (algo que, en el *mundo real*, sucede con frecuencia).
 
-**<font color='blue'>Definición 3.2 – Muestreo estratificado (problema binario)</font>**: Dado un conjunto de datos $\mathcal{D}$ descrito por la matriz de datos de entrada $\mathbf{X}\in \mathbb{R}^{m\times n}$, donde $m$ es el número de instancias y $n$ es el número de atributos o variables independientes, y el vector de salida de etiquetas o categorías $\mathbf{y}\in \mathbb{R}^{m}$ para un problema de clasificación, donde $\mathbf{y}$ solo puede tomar dos valores, $0$ o $1$, el proceso de muestreo estratificado puede definirse secuencialmente de la siguiente manera:
+<strong><font color='blue'>Definición 3.2 – Muestreo estratificado (problema binario)</font></strong>: Dado un conjunto de datos $\mathcal{D}$ descrito por la matriz de datos de entrada $\mathbf{X}\in \mathbb{R}^{m\times n}$, donde $m$ es el número de instancias y $n$ es el número de atributos o variables independientes, y el vector de salida de etiquetas o categorías $\mathbf{y}\in \mathbb{R}^{m}$ para un problema de clasificación, donde $\mathbf{y}$ solo puede tomar dos valores, $0$ o $1$, el proceso de muestreo estratificado puede definirse secuencialmente de la siguiente manera:
 
-1) **Particionar $\mathcal{D}$:** Dividir $\mathbf{X}$ en dos subconjuntos, $\mathbf{X}^{\left( 0\right)  } $ y $\mathbf{X}^{\left( 1\right)  } $, basados en las etiquetas en $\mathbf{y}$. $\mathbf{X}^{\left( 0\right)  } $ contiene todas las instancias donde la etiqueta correspondiente en $\mathbf{y}$ es $0$, y $\mathbf{X}^{\left( 1\right)  } $ contiene todas las instancias donde la etiqueta correspondiente en $\mathbf{y}$ es $1$. Así, para cualquier instancia $i$, si $y_i = 0$, entonces $\mathbf{x}_{i} \in \mathbf{X}^{\left( 0\right)  } $; si $y_i = 1$, entonces $\mathbf{x}_{i} \in \mathbf{X}^{\left( 1\right)  } $.
-2) **Determinar los tamaños de la muestra:** Sean $m_0$ y $m_1$ el número de instancias en $\mathbf{X}^{\left( 0\right)  } $ y $\mathbf{X}^{\left( 1\right)  } $, respectivamente, tal que $m_0 + m_1 = m$. Determinamos los tamaños de muestra $s_0$ y $s_1$ para cada estrato. Estos tamaños pueden determinarse basados en la **fracción de muestreo** deseada $f$ (siendo por tanto $f$ un **hiperparámetro**), donde $f =s/m$, y $s = s_0 + s_1$ es el **tamaño total de la muestra**. Los tamaños de muestra también pueden ser directamente proporcionales a los tamaños de los estratos en el conjunto de datos completo: $s_0 = f m_0$ y $s_1 = f m_1$.
+1) **Particionar $\mathcal{D}$:** Dividir $\mathbf{X}$ en dos subconjuntos, $\mathbf{X}^{\left( 0\right)  }$ y $\mathbf{X}^{\left( 1\right)  }$, basados en las etiquetas en $\mathbf{y}$. $\mathbf{X}^{\left( 0\right)  }$ contiene todas las instancias donde la etiqueta correspondiente en $\mathbf{y}$ es $0$, y $\mathbf{X}^{\left( 1\right)  }$ contiene todas las instancias donde la etiqueta correspondiente en $\mathbf{y}$ es $1$. Así, para cualquier instancia $i$, si $y_i = 0$, entonces $\mathbf{x}_{i} \in \mathbf{X}^{\left( 0\right)  }$; si $y_i = 1$, entonces $\mathbf{x}_{i} \in \mathbf{X}^{\left( 1\right)  }$.
+2) **Determinar los tamaños de la muestra:** Sean $m_0$ y $m_1$ el número de instancias en $\mathbf{X}^{\left( 0\right)  }$ y $\mathbf{X}^{\left( 1\right)  }$, respectivamente, tal que $m_0 + m_1 = m$. Determinamos los tamaños de muestra $s_0$ y $s_1$ para cada estrato. Estos tamaños pueden determinarse basados en la **fracción de muestreo** deseada $f$ (siendo por tanto $f$ un **hiperparámetro**), donde $f =s/m$, y $s = s_0 + s_1$ es el **tamaño total de la muestra**. Los tamaños de muestra también pueden ser directamente proporcionales a los tamaños de los estratos en el conjunto de datos completo: $s_0 = f m_0$ y $s_1 = f m_1$.
 3) **Muestrear cada estrato:** Muestrear **aleatoriamente** $s_0$ instancias de $\mathbf{X}^{\left( 0\right)  }$ y $s_1$ instancias de $\mathbf{X}^{\left( 1\right)  }$. Esto se puede hacer **sin reemplazo** para asegurar que cada instancia se seleccione como máximo una vez.
 
 La muestra resultante es un subconjunto de $\mathbf{X}$, denotado como $\mathbf{X}_{\text{sample}} \in \mathbb{R}^{s\times n}$, y las etiquetas correspondientes $\mathbf{y}_{\text{sample}} \in \mathbb{R}^{s}$, donde $s = s_0 + s_1$. Este muestreo asegura que la proporción de cada clase en la muestra coincida estrechamente con la proporción en el conjunto de datos completo, lo cual es crucial para mantener las propiedades estadísticas del conjunto de datos y para la efectividad de los modelos de aprendizaje automático entrenados con los datos muestreados.
 
-**Ejemplo 3.5 – El efecto del muestreo estratificado:** Vamos a considerar, en esta oportunidad, otro conjunto de datos. En **<font color='darkmagenta'>Scikit-Learn</font>**, es posible, como vimos en la [entrada anterior](/clases/machine-learning/aprendizaje-supervisado/modelos-lineales/introduccion-a-scikit-learn/), separar cualquier conjunto de datos en conjuntos de entrenamiento y de prueba haciendo uso de la función `train_test_split()`. Esta función recibe los siguientes argumentos:
+**Ejemplo 3.5 – El efecto del muestreo estratificado:** Vamos a considerar, en esta oportunidad, otro conjunto de datos. En <strong><font color='darkmagenta'>Scikit-Learn</font></strong>, es posible, como vimos en la [entrada anterior](/clases/machine-learning/aprendizaje-supervisado/modelos-lineales/introduccion-a-scikit-learn/), separar cualquier conjunto de datos en conjuntos de entrenamiento y de prueba haciendo uso de la función `train_test_split()`. Esta función recibe los siguientes argumentos:
 
 - `*arrays`: Conjunto de arreglos sobre los cuales aplicamos el muestreo.
 - `test_size`: Número flotante, entre `0` y `1`, que representa la proporción (en tanto por uno) de datos que pasarán al conjunto de prueba. Por ejemplo, `test_size=0.2` implica que el 20% de las instancias de nuestro conjunto de datos serán las que utilizaremos para construir nuestro conjunto de prueba.
@@ -821,7 +822,7 @@ La muestra resultante es un subconjunto de $\mathbf{X}$, denotado como $\mathbf{
 - `stratify`: Parámetro que permite asignar la etiqueta del atributo que se usará como base para construir un **muestreo estratificado**. Es aquí donde diferenciamos el tipo de muestreo que realizamos para construir los conjuntos de entrenamiento y de prueba.
 - `random_state`: Como siempre, la semilla aleatoria fija que permite reproducir eel resultado de la separación.
 
-Para ejemplificar el efecto del tipo de muestreo, haremos uso de otro conjunto de datos, llamado **<font color='forestgreen'>MNIST</font>**, el cual corresponde a un conjunto de 70000 imágenes de dígitos manuscritos escritos por estudiantes de secundaria y empleados de la Oficina del Censo de los Estados Unidos. Cada imagen está etiquetada con un dígito que ésta representa. Este conjunto de datos se ha estudiado y analizado tantas veces que, con frecuencia, es llamado el *“¡Hola mundo!”* de los modelos de clasificación. Su uso es aún más común que el del *toyset* **<font color='forestgreen'>IRIS</font>**, porque además permite que los estudiantes se hagan una idea de cómo es trabajar con modelos que aceptan *imágenes** como datos de entrada.
+Para ejemplificar el efecto del tipo de muestreo, haremos uso de otro conjunto de datos, llamado <strong><font color='forestgreen'>MNIST</font></strong>, el cual corresponde a un conjunto de 70000 imágenes de dígitos manuscritos escritos por estudiantes de secundaria y empleados de la Oficina del Censo de los Estados Unidos. Cada imagen está etiquetada con un dígito que ésta representa. Este conjunto de datos se ha estudiado y analizado tantas veces que, con frecuencia, es llamado el *“¡Hola mundo!”* de los modelos de clasificación. Su uso es aún más común que el del *toyset* <strong><font color='forestgreen'>IRIS</font></strong>, porque además permite que los estudiantes se hagan una idea de cómo es trabajar con modelos que aceptan *imágenes** como datos de entrada.
 
 Para cargar este conjunto de datos, haremos uso de la función `fetch_openml()`, cuya dependencia es –por supuesto– el módulo `sklearn.datasets`. Esta función puede cargar una serie de conjuntos de datos desde el laboratorio abierto de machine learning llamado [OpenML](https://www.openml.org/search?type=data&sort=runs&status=active), cuyo objetivo es el mejoramiento, en un ambiente libre, de modelos (y datasets) por parte de los practicantes, entusiastas y profesionales del mundo de los datos:
 
@@ -836,8 +837,8 @@ from sklearn.model_selection import train_test_split
 
 La función `fetch_openml()` trabaja con los siguientes parámetros:
 
-- `name`: El nombre del dataset. Estos deben consultarse en la base de datos de OpenML. Para el caso del conjunto de datos **<font color='forestgreen'>MNIST</font>**, bastará con usar el string `"mnist_784"`, donde el número `784` hace referencia al total de pixeles que constituye cada imagen (24$\times$24).
-- `as_frame`: Parámetro que permite definir si el conjunto de datos vendrá en un formato de arreglo de **<font color='darkmagenta'>Numpy</font>**, o de DataFrame de **<font color='darkmagenta'>Pandas</font>**.
+- `name`: El nombre del dataset. Estos deben consultarse en la base de datos de OpenML. Para el caso del conjunto de datos <strong><font color='forestgreen'>MNIST</font></strong>, bastará con usar el string `"mnist_784"`, donde el número `784` hace referencia al total de pixeles que constituye cada imagen (24 $\times$ 24).
+- `as_frame`: Parámetro que permite definir si el conjunto de datos vendrá en un formato de arreglo de <strong><font color='darkmagenta'>Numpy</font></strong>, o de DataFrame de <strong><font color='darkmagenta'>Pandas</font></strong>.
 - `return_X_y`: Parámetro booleano que permite especificar si el dataset se retornará separado ya en una matriz de atributos de entrada `X` y en un vector/arreglo de valores de respuesta `y`.
 
 De esta manera, cargar este dataset es muy sencillo:
@@ -859,7 +860,7 @@ A fin de entender cómo son las imágenes que comprenden este dataset, grafiquem
 mnist_data["data"].head()
 ```
 
-Vemos pues que cada columna de la matriz de atributos de entrada está etiquetada con el nombre `"pixelj"`, donde `j` hace referencia al pixel propiamente tal. Por otro lado, el vector de valores de salida (expresado como una serie de **<font color='darkmagenta'>Pandas</font>**) tiene la siguiente estructura:
+Vemos pues que cada columna de la matriz de atributos de entrada está etiquetada con el nombre `"pixelj"`, donde `j` hace referencia al pixel propiamente tal. Por otro lado, el vector de valores de salida (expresado como una serie de <strong><font color='darkmagenta'>Pandas</font></strong>) tiene la siguiente estructura:
 
 ```{python}
 # Las etiquetas asociadas a las primeras cinco imágenes.
@@ -870,7 +871,7 @@ Con esta información, ya podemos construir la visualización deseada para las p
 
 ```{python}
 #| label: fig-modelos-de-clasificacion-parte-i-07
-#| fig-cap: "Primeras 100 imágenes del dataset MNIST."
+#| fig-cap: "Primeras cien imágenes de dígitos manuscritos de MNIST utilizadas para presentar la clasificación de alta dimensión."
 # Primeras 100 imágenes del dataset MNIST.
 fig, ax = plt.subplots(
     nrows=10,
@@ -911,7 +912,7 @@ Notemos que la distribución de frecuencias de cada uno de los dígitos no es la
 mnist_data["target"].value_counts()
 ```
 
-El conjunto de datos **<font color='forestgreen'>MNIST</font>** es frecuentemente utilizado para testear **modelos de clasificación multinomial**, debido a que la variable de respuesta especifica el número al que representa cada una de las imágenes. De esta manera, en un caso general, estamos interesados en construir un modelo capaz de discriminar a qué dígito corresponde cada imagen. Sin embargo, trataremos el subproblema relativo a intentar clasificar un único número de los 10 disponibles en el dataset, que sí es un problema binario.
+El conjunto de datos <strong><font color='forestgreen'>MNIST</font></strong> es frecuentemente utilizado para testear **modelos de clasificación multinomial**, debido a que la variable de respuesta especifica el número al que representa cada una de las imágenes. De esta manera, en un caso general, estamos interesados en construir un modelo capaz de discriminar a qué dígito corresponde cada imagen. Sin embargo, trataremos el subproblema relativo a intentar clasificar un único número de los 10 disponibles en el dataset, que sí es un problema binario.
 
 Probemos con el número `7`. De este modo, creamos una variable `y` que tendrá el valor `1` si el correspondiente dígito representa un `7`, y `0` en cualquier otro caso:
 
@@ -988,7 +989,7 @@ Y ahora sí la proporción de 7s en todos los conjuntos respectivos es la misma.
 
 Construir un muestreo estratificado en un problema binario es relativamente sencillo. Si disponemos de suficientes datos y sólo hay variables continuas en la matriz de datos de entrada, siempre podremos asegurar un muestreo representativo. Naturalmente, la dificultad del muestreo aumenta progresivamente con el número de clases, puesto que, si no tenemos muchos datos, las clases tendrán a dispersarse más y más.
 
-Para finalizar este ejemplo, consideremos entonces el caso multinomial que originalmente describe el problema de clasificación subyacente al conjunto de datos **<font color='forestgreen'>MNIST</font>**. Recordemos que la variable de respuesta original comprende un total de 10 clases:
+Para finalizar este ejemplo, consideremos entonces el caso multinomial que originalmente describe el problema de clasificación subyacente al conjunto de datos <strong><font color='forestgreen'>MNIST</font></strong>. Recordemos que la variable de respuesta original comprende un total de 10 clases:
 
 ```{python}
 # Capturamos toda la estructura del conjunto de datos MNIST.
@@ -1053,11 +1054,11 @@ Y, en efecto, hemos logrado un muestreo 100% representativo, incluso en el caso 
 
 ## Implementación del algoritmo de gradiente descendente en <font color='darkmagenta'>Scikit-Learn</font>
 
-Vamos a formalizar la implementación del algoritmo de gradiente descendente (GD) en Python, haciendo uso de la librería **<font color='darkmagenta'>Scikit-Learn</font>**, para el caso de los modelos de clasificación. Como vimos en el ejemplo (3.4), se trata de un algoritmo de optimización muy útil en la derivación del modelo de regresión logística (y no solamente para el caso de problemas binarios), aunque también es común su aplicación en el contexto de muchos otros algoritmos de aprendizaje, incluyendo a modelos muy sofisticados, como las redes neuronales.
+Vamos a formalizar la implementación del algoritmo de gradiente descendente (GD) en Python, haciendo uso de la librería <strong><font color='darkmagenta'>Scikit-Learn</font></strong>, para el caso de los modelos de clasificación. Como vimos en el ejemplo (3.4), se trata de un algoritmo de optimización muy útil en la derivación del modelo de regresión logística (y no solamente para el caso de problemas binarios), aunque también es común su aplicación en el contexto de muchos otros algoritmos de aprendizaje, incluyendo a modelos muy sofisticados, como las redes neuronales.
 
-Se tiene pues que, en estricto rigor, que el algoritmo GD no es más que una técnica que permite aproximar las soluciones propias de un problema de optimización, y no un modelo propiamente tal. Es decir, simplemente corresponde a una *manera* determinada de entrenar un modelo. Como tal, su uso puede resultar equivalente a otras implementaciones específicas de **<font color='darkmagenta'>Scikit-Learn</font>**, aunque es posible que tales implementaciones recurran a otras técnicas específicas de optimización. Por ejemplo, **<font color='darkmagenta'>Scikit-Learn</font>** cuenta con una implementación del modelo de regresión logística por medio del objeto `LogisticRegression` (que estudiaremos en detalle un poco más adelante). La implementación del algoritmo GD en **<font color='darkmagenta'>Scikit-Learn</font>** para modelos de clasificación (que se realiza por medio de la variante estocástica, o **SGD**) se realiza igualmente por medio del objeto `SGDClassifier`. De esta manera, si aplicamos `SGDClassifier` para construir un modelo de clasificación tomando como costo una función de entropía cruzada (*log-loss*), llegaremos al mismo resultado que aplicando `LogisticRegression`, como ya vimos en los ejemplos anteriores.
+Se tiene pues que, en estricto rigor, que el algoritmo GD no es más que una técnica que permite aproximar las soluciones propias de un problema de optimización, y no un modelo propiamente tal. Es decir, simplemente corresponde a una *manera* determinada de entrenar un modelo. Como tal, su uso puede resultar equivalente a otras implementaciones específicas de <strong><font color='darkmagenta'>Scikit-Learn</font></strong>, aunque es posible que tales implementaciones recurran a otras técnicas específicas de optimización. Por ejemplo, <strong><font color='darkmagenta'>Scikit-Learn</font></strong> cuenta con una implementación del modelo de regresión logística por medio del objeto `LogisticRegression` (que estudiaremos en detalle un poco más adelante). La implementación del algoritmo GD en <strong><font color='darkmagenta'>Scikit-Learn</font></strong> para modelos de clasificación (que se realiza por medio de la variante estocástica, o **SGD**) se realiza igualmente por medio del objeto `SGDClassifier`. De esta manera, si aplicamos `SGDClassifier` para construir un modelo de clasificación tomando como costo una función de entropía cruzada (*log-loss*), llegaremos al mismo resultado que aplicando `LogisticRegression`, como ya vimos en los ejemplos anteriores.
 
-La implementación del algoritmo SGD en **<font color='darkmagenta'>Scikit-Learn</font>** se basa en un procedimiento general que se describe a continuación: Dado un conjunto de instancias de entrenamiento $\left( \mathbf{x}_{1} ,y_{1}\right)  ,...,\left( \mathbf{x}_{m} ,y_{m}\right)$, donde $\mathbf{x}_{i}\in \mathbb{R}^{n}$ e $y_{i}$ únicamente puede tomar dos valores distintos, los que por convención, en **<font color='darkmagenta'>Scikit-Learn</font>**, son $y_{i}=-1$ o $y_{i}=1$ (para $i=1,...,m$), el objetivo es aprender una **función de decisión** lineal $f$, del tipo $f(\mathbf{x}_{i})=\mathbf{w}^{\top} \mathbf{x}_{i}+ b$, donde $\mathbf{w}\in \mathbb{R}^{n}$ y $b\in \mathbb{R}$ son parámetros que deben ser estimados, llamados **coeficientes** y **parámetro de sesgo o intercepción** del modelo, respectivamente. 
+La implementación del algoritmo SGD en <strong><font color='darkmagenta'>Scikit-Learn</font></strong> se basa en un procedimiento general que se describe a continuación: Dado un conjunto de instancias de entrenamiento $\left( \mathbf{x}_{1} ,y_{1}\right)  ,...,\left( \mathbf{x}_{m} ,y_{m}\right)$, donde $\mathbf{x}_{i}\in \mathbb{R}^{n}$ e $y_{i}$ únicamente puede tomar dos valores distintos, los que por convención, en <strong><font color='darkmagenta'>Scikit-Learn</font></strong>, son $y_{i}=-1$ o $y_{i}=1$ (para $i=1,...,m$), el objetivo es aprender una **función de decisión** lineal $f$, del tipo $f(\mathbf{x}_{i})=\mathbf{w}^{\top} \mathbf{x}_{i}+ b$, donde $\mathbf{w}\in \mathbb{R}^{n}$ y $b\in \mathbb{R}$ son parámetros que deben ser estimados, llamados **coeficientes** y **parámetro de sesgo o intercepción** del modelo, respectivamente. 
 
 Para un modelo de clasificación, las estimaciones $\hat{y}_{i}$ (para $i=1,...,m$) de $y_{i}$ se realizan conforme el signo de $f$, de manera tal que $\hat{y}_{i}=1$ si $f(\mathbf{x}_{i})\geq 0$, y $\hat{y}_{i}=-1$ si $f(\mathbf{x}_{i})<0$. A fin de estimar los parámetros $\mathbf{w}$ y $b$, se resuelve el siguiente problema de optimización no restringido,
 
@@ -1109,7 +1110,7 @@ $$
 $$
 :::
 
-para la iteración $k+1$, donde $\eta$ es la **tasa de aprendizaje** del algoritmo, la cual controla el tamaño del paso en cada una de las iteraciones del algoritmo en el espacio de búsqueda. Para un problema de clasificación, **<font color='darkmagenta'>Scikit-Learn</font>** utiliza por defecto la siguiente tasa de aprendizaje
+para la iteración $k+1$, donde $\eta$ es la **tasa de aprendizaje** del algoritmo, la cual controla el tamaño del paso en cada una de las iteraciones del algoritmo en el espacio de búsqueda. Para un problema de clasificación, <strong><font color='darkmagenta'>Scikit-Learn</font></strong> utiliza por defecto la siguiente tasa de aprendizaje
 
 ::: {.eq-scroll}
 $$
@@ -1118,11 +1119,11 @@ $$
 $$
 :::
 
-Donde $t$ es llamado **paso en el tiempo** o **época**. Si $m$ es el número de instancias de entrenamiento y $p$ el número de iteraciones, entonces $t=mp$. El parámetro $t_{0}$ es seteado por la API de **<font color='darkmagenta'>Scikit-Learn</font>** mediante una [heurística inherente](https://leon.bottou.org/projects/sgd) a la implementación de la clase `SGDClassifier`. Cuando la tasa de aprendizaje es determinada a medida que el algoritmo progresa, y no es constante, la trayectoria de este parámetro en el espacio de búsqueda se denomina **programa de aprendizaje**.
+Donde $t$ es llamado **paso en el tiempo** o **época**. Si $m$ es el número de instancias de entrenamiento y $p$ el número de iteraciones, entonces $t=mp$. El parámetro $t_{0}$ es seteado por la API de <strong><font color='darkmagenta'>Scikit-Learn</font></strong> mediante una [heurística inherente](https://leon.bottou.org/projects/sgd) a la implementación de la clase `SGDClassifier`. Cuando la tasa de aprendizaje es determinada a medida que el algoritmo progresa, y no es constante, la trayectoria de este parámetro en el espacio de búsqueda se denomina **programa de aprendizaje**.
 
 Dicho lo anterior, se tiene entonces que la clase `SGDClassifier` acepta, entre otros, los siguientes argumentos:
 
-- `loss`: La función de pérdida $L$ a implementar. Para un modelo de regresión logística, es común usar la función de entropía cruzada, representada en **<font color='darkmagenta'>Scikit-Learn</font>** como `"log_loss"`. Sin embargo, hay otras opciones, como `"hinge"`, que representa a la llamada **función de costo de Hinge** y permite construir un modelo lineal denominado **máquina de soporte vectorial** (que abordaremos en detalle [en su correspondiente entrada](/clases/machine-learning/aprendizaje-supervisado/modelos-lineales/maquinas-de-soporte-vectorial/)); o `"modified_huber"`, que permite construir un modelo que soporta probabilidades de pertenencia a una determinada clase.
+- `loss`: La función de pérdida $L$ a implementar. Para un modelo de regresión logística, es común usar la función de entropía cruzada, representada en <strong><font color='darkmagenta'>Scikit-Learn</font></strong> como `"log_loss"`. Sin embargo, hay otras opciones, como `"hinge"`, que representa a la llamada **función de costo de Hinge** y permite construir un modelo lineal denominado **máquina de soporte vectorial** (que abordaremos en detalle [en su correspondiente entrada](/clases/machine-learning/aprendizaje-supervisado/modelos-lineales/maquinas-de-soporte-vectorial/)); o `"modified_huber"`, que permite construir un modelo que soporta probabilidades de pertenencia a una determinada clase.
 - `penalty`: Tipo de regularización aplicable a nuestro algoritmo. Puede tomar los valores `"l1"`, `"l2"` o `"elasticnet"`, dependiendo de si deseamos incorporar un término de regularización de tipo $\ell_{1}$, $\ell_{2}$ o elástico neto, respectivamente. Si ponemos `penalty=None`, no se aplica ningún tipo de regularización.
     - Si `penalty="elasticnet"`, debemos además definir el hiperparámetro `l1_ratio`, que corresponde al ponderador de la componente de regularización $\ell_{1}$ para nuestro modelo (lo que implica que el correspondiente ponderador para la componente de regularización $\ell_{2}$ será `1 - l1_ratio`).
 - `alpha`: Potencia del término regularizador. Se corresponde con el hiperparámetro $\alpha$ en la ecuación (3.24) y puede tomar cualquier valor no negativo. Un valor `alpha=0.0` anula el término de regularización.
@@ -1131,7 +1132,7 @@ Dicho lo anterior, se tiene entonces que la clase `SGDClassifier` acepta, entre 
 
 Hay varios otros argumentos que podemos imputar. Sin embargo, son propios de cierto tipo de probalemas que abordaremos un poco más adelante.
 
-**Ejemplo 3.6 – Implementación de `SGDClassifier` al dataset <font color='forestgreen'>MOONS</font>:** Vamos a volver a resolver el problema de clasificación propio del dataset **<font color='forestgreen'>MOONS</font>**, pero ahora utilizando la clase `SGDClassifier`, haciendo uso de la potencia del API estimadora de **<font color='darkmagenta'>Scikit-Learn</font>**, y también siguiendo los pasos de muestreo adecuados para construir los correspondientes conjuntos de entrenamiento y de prueba.
+**Ejemplo 3.6 – Implementación de `SGDClassifier` al dataset <font color='forestgreen'>MOONS</font>:** Vamos a volver a resolver el problema de clasificación propio del dataset <strong><font color='forestgreen'>MOONS</font></strong>, pero ahora utilizando la clase `SGDClassifier`, haciendo uso de la potencia del API estimadora de <strong><font color='darkmagenta'>Scikit-Learn</font></strong>, y también siguiendo los pasos de muestreo adecuados para construir los correspondientes conjuntos de entrenamiento y de prueba.
 
 Partimos entonces construyendo el conjunto de datos completo:
 
@@ -1180,7 +1181,7 @@ Vamos a graficar ambos conjuntos, a fin de diferenciarlos de manera visual:
 
 ```{python}
 #| label: fig-modelos-de-clasificacion-parte-i-08
-#| fig-cap: "Situación de los conjuntos de entrenamiento y de prueba."
+#| fig-cap: "Partición de las observaciones en subconjuntos de entrenamiento y prueba, preservando la distribución espacial de ambas clases."
 # Situación de los conjuntos de entrenamiento y de prueba.
 fig, ax = plt.subplots(figsize=(9, 6))
 ax.scatter(
@@ -1266,7 +1267,7 @@ test_preds = np.hstack([X_test, y_test_pred.reshape(-1, 1)])
 
 ```{python}
 #| label: fig-modelos-de-clasificacion-parte-i-09
-#| fig-cap: "Datos de entrenamiento."
+#| fig-cap: "Clases predichas y frontera lineal del clasificador sobre los subconjuntos de entrenamiento y prueba."
 # Graficamos los resultados del modelo.
 fig, ax = plt.subplots(figsize=(9, 5), ncols=2, sharey=True)
 
@@ -1316,13 +1317,13 @@ fig.suptitle(
 plt.tight_layout()
 ```
 
-Podemos observar que, indudablemente, la implementación de **<font color='darkmagenta'>Scikit-Learn</font>** para el algoritmo de gradiente descendente aplicado sobre la función de entropía cruzada resulta en un modelo con un desempeño bastante mejor que el logrado por nuestra implementación casera del modelo de regresión logística binaria.
+Podemos observar que, indudablemente, la implementación de <strong><font color='darkmagenta'>Scikit-Learn</font></strong> para el algoritmo de gradiente descendente aplicado sobre la función de entropía cruzada resulta en un modelo con un desempeño bastante mejor que el logrado por nuestra implementación casera del modelo de regresión logística binaria.
 
 Por supuesto, el trabajo resultó ser igualmente mucho más compacto. Los hiperparámetros adicionales de la clase `SGDClassifier` podrían ajustarse para obtener una mejora (no muy significativa en este caso, dado que el conjunto de datos claramente no puede separarse por medio de una función de decisión lineal) del desempeño del modelo. Pero, por ahora, dejaremos nuestro ejemplo hasta aquí, ya que, por el momento, no hemos discutido nada acerca de las **métricas de desempeño** aplicables a los modelos de clasificación. Eso es algo que haremos a continuación. ◼︎
 
 ## Métricas de desempeño
 
-Hasta ahora, hemos avanzado en entender el problema que subyace a la construcción de un modelo de clasificación binaria. Hemos derivado el algoritmo de gradiente descendente conforme una función de costo apta, construido una implementación desde cero, aprendido a separar nuestros datos adecuadamente en conjuntos de entrenamiento y de prueba, y además hemos probado ya una implementación nativa para modelos de clasificación sencillos de **<font color='darkmagenta'>Scikit-Learn</font>** con base en dicho enfoque. Sin embargo, aún no disponemos de una métrica adecuada para medir el desempeño de un modelo de este tipo, y nos hemos limitado a generar simplemente evaluaciones netamente visuales.
+Hasta ahora, hemos avanzado en entender el problema que subyace a la construcción de un modelo de clasificación binaria. Hemos derivado el algoritmo de gradiente descendente conforme una función de costo apta, construido una implementación desde cero, aprendido a separar nuestros datos adecuadamente en conjuntos de entrenamiento y de prueba, y además hemos probado ya una implementación nativa para modelos de clasificación sencillos de <strong><font color='darkmagenta'>Scikit-Learn</font></strong> con base en dicho enfoque. Sin embargo, aún no disponemos de una métrica adecuada para medir el desempeño de un modelo de este tipo, y nos hemos limitado a generar simplemente evaluaciones netamente visuales.
 
 Vamos a formular varias métricas de desempeño aptas para modelos de clasificación. Para ello, motivaremos su uso por medio de la implementación del procedimiento de **validación cruzada** para entrenar nuestros modelos.
 
@@ -1387,7 +1388,7 @@ La tabla mostrada en la #fig-cmatrix se denomina **matriz de confusión** (para 
 
 El ejemplo anterior nos permite, por tanto, formalizar la siguiente definición.
 
-**<font color='blue'>Definición 3.3 – Matriz de confusión (para un problema binario)</font>**: Sea $\mathcal{D} =\{ \left( \mathbf{X} ,\mathbf{y} \right) :\mathbf{X} \in \mathbb{R}^{m\times n}$ $\wedge \ \mathbf{y} \in \mathbb{R}^{m} \}$ un conjunto de entrenamiento tal que $\mathbf{y}$ únicamente puede tomar dos valores (sin pérdida de generalidad, asumiremos que tales valores serán $y_{i}=0$ e $y_{i}=1$, para todo $i=1,...,m$), donde $m$ es el número de instancias que lo constituyen y $n$ el número correspondiente de atributos o variables independientes. Sea $f:\mathcal{F}\longrightarrow \left\{ 0,1\right\}  $ un modelo de clasificación entrenado en $\mathcal{D}$, cuyas estimaciones $\hat{y}_{i}$, naturalmente, también son binarias, tales que $\hat{y}_{i}=1$ o $\hat{y}_{i}=0$, para cada $i=1,...,m$. La **matriz de confusión** para $f$ con respecto a $\mathcal{D}$, que denotamos como $\mathbf{C}_{f}$, es una matriz de $2\times 2$, cuyos elementos $c_{rq}$ ($r,q=1,2$) se definen como sigue:
+<strong><font color='blue'>Definición 3.3 – Matriz de confusión (para un problema binario)</font></strong>: Sea $\mathcal{D} =\{ \left( \mathbf{X} ,\mathbf{y} \right) :\mathbf{X} \in \mathbb{R}^{m\times n}$ $\wedge \ \mathbf{y} \in \mathbb{R}^{m} \}$ un conjunto de entrenamiento tal que $\mathbf{y}$ únicamente puede tomar dos valores (sin pérdida de generalidad, asumiremos que tales valores serán $y_{i}=0$ e $y_{i}=1$, para todo $i=1,...,m$), donde $m$ es el número de instancias que lo constituyen y $n$ el número correspondiente de atributos o variables independientes. Sea $f:\mathcal{F}\longrightarrow \left\{ 0,1\right\}$ un modelo de clasificación entrenado en $\mathcal{D}$, cuyas estimaciones $\hat{y}_{i}$, naturalmente, también son binarias, tales que $\hat{y}_{i}=1$ o $\hat{y}_{i}=0$, para cada $i=1,...,m$. La **matriz de confusión** para $f$ con respecto a $\mathcal{D}$, que denotamos como $\mathbf{C}_{f}$, es una matriz de $2\times 2$, cuyos elementos $c_{rq}$ ($r,q=1,2$) se definen como sigue:
 
 - $c_{11}$ es la suma de todas las instancias tales que $y_{i}= \hat{y}_{i}=0$, llamadas **verdaderos negativos**, y denotada como $VN$. De este modo, $VN=\sum^{m}_{i=1} \mathbf{1} \left( y_{i}=0\wedge \hat{y}_{i} =0\right)$.
 - $c_{12}$ es la suma de todas las instancias tales que $y_{i}=0$ e $\hat{y}_{i}=1$, llamadas **falsos positivos**, y denotada como $FP$. De este modo, $FP=\sum^{m}_{i=1} \mathbf{1} \left( y_{i}=0\wedge \hat{y}_{i} =1\right)$.
@@ -1405,9 +1406,9 @@ $$
 
 Donde $U$, en el caso de la matriz de confusión, es el conjunto constituido por las posibles combinaciones de valores entre $y_{i}$ e $\hat{y}_{i}$.
 
-En el campo de la estadística, y en textos más clásicos, los **errores que comete el modelo**, diferenciados conforme falsos positivos o negativos, suelen ser llamados igualmente **errores del tipo I y II**, respectivamente, haciendo referencia a sobreestimaciones o falsas alarmas en el caso de los falsos positivos, y a *errores* (sin coletillas) o infraestimaciones en el caso de los falsos negativos. Estos términos son comunes en la bioestadística, porque en el campo de los  **ensayos clínicos**, siempre se derivan problemas de clasificación. Por eso también muchos conjuntos de datos disponibles en **<font color='darkmagenta'>Scikit-Learn</font>** u otros paquetes computacionales son de naturaleza clínica.
+En el campo de la estadística, y en textos más clásicos, los **errores que comete el modelo**, diferenciados conforme falsos positivos o negativos, suelen ser llamados igualmente **errores del tipo I y II**, respectivamente, haciendo referencia a sobreestimaciones o falsas alarmas en el caso de los falsos positivos, y a *errores* (sin coletillas) o infraestimaciones en el caso de los falsos negativos. Estos términos son comunes en la bioestadística, porque en el campo de los  **ensayos clínicos**, siempre se derivan problemas de clasificación. Por eso también muchos conjuntos de datos disponibles en <strong><font color='darkmagenta'>Scikit-Learn</font></strong> u otros paquetes computacionales son de naturaleza clínica.
 
-**Ejemplo 3.8 – Implementación en <font color='darkmagenta'>Scikit-Learn</font>:** Volvamos al modelo de clasificación que construimos por medio de la clase `SGDClassifier` para resolver el problema derivado del conjunto de datos **<font color='forestgreen'>MOONS</font>**. Vamos a verificar la matriz de confusión asociada a las predicciones del modelo sobre el conjunto de entrenamiento, chequeando de este modo el error asociado a las estimaciones. Para ello, usaremos la función `confusion_matrix()`, del módulo `sklearn.metrics`. En general, todas las funciones disponibles en **<font color='darkmagenta'>Scikit-Learn</font>** que representan métricas de desempeño funcionan bajo la misma lógica: Requieren de un vector de valores reales (`y_true`) y de un vector de valores predichos (`y_pred`), ambos en un formato de arreglo 1D:
+**Ejemplo 3.8 – Implementación en <font color='darkmagenta'>Scikit-Learn</font>:** Volvamos al modelo de clasificación que construimos por medio de la clase `SGDClassifier` para resolver el problema derivado del conjunto de datos <strong><font color='forestgreen'>MOONS</font></strong>. Vamos a verificar la matriz de confusión asociada a las predicciones del modelo sobre el conjunto de entrenamiento, chequeando de este modo el error asociado a las estimaciones. Para ello, usaremos la función `confusion_matrix()`, del módulo `sklearn.metrics`. En general, todas las funciones disponibles en <strong><font color='darkmagenta'>Scikit-Learn</font></strong> que representan métricas de desempeño funcionan bajo la misma lógica: Requieren de un vector de valores reales (`y_true`) y de un vector de valores predichos (`y_pred`), ambos en un formato de arreglo 1D:
 
 ```{python}
 from sklearn.metrics import confusion_matrix
@@ -1446,7 +1447,7 @@ Y, al parecer, así es, aunque es mínimo. Sea como sea, pareciera ser que nuest
 
 Vamos a considerar un paso adicional en la evaluación de nuestros modelos considerando el procedimiento de validación cruzada, del cual tuvimos la oportunidad de hablar en la [entrada anterior](/clases/machine-learning/aprendizaje-supervisado/modelos-lineales/introduccion-a-scikit-learn/). Para ello, siguiendo la tónica de esta entrada, motivaremos esta discusión con un ejemplo.
 
-**Ejemplo 3.9 – El efecto de la validación cruzada:** Vamos a retomar el ejemplo del conjunto de datos **<font color='forestgreen'>MNIST</font>**. Recordemos que, por defecto, la implementación de este dataset en **<font color='darkmagenta'>Scikit-Learn</font>** es tal que podemos construir una separación entre conjunto de entrenamiento y de prueba asignando las primeras 60000 imágenes al primero, y las restantes 10000 al último. Originalmente, almacenamos este conjunto de datos en la variable `mnist_data`:
+**Ejemplo 3.9 – El efecto de la validación cruzada:** Vamos a retomar el ejemplo del conjunto de datos <strong><font color='forestgreen'>MNIST</font></strong>. Recordemos que, por defecto, la implementación de este dataset en <strong><font color='darkmagenta'>Scikit-Learn</font></strong> es tal que podemos construir una separación entre conjunto de entrenamiento y de prueba asignando las primeras 60000 imágenes al primero, y las restantes 10000 al último. Originalmente, almacenamos este conjunto de datos en la variable `mnist_data`:
 
 ```{python}
 # Obtenemos los correspondientes conjuntos de entrenamiento 
@@ -1455,7 +1456,7 @@ X_train, y_train = mnist_data["data"].iloc[:60000].copy(), mnist_data["target"].
 X_test, y_test = mnist_data["data"].iloc[60000:].copy(), mnist_data["target"].iloc[60000:].copy()
 ```
 
-Como ya habíamos comentado previamente, el conjunto de datos **<font color='forestgreen'>MNIST</font>** consta de una serie de dígitos manuscritos etiquetados con el número al que éstos representan. Por lo tanto, el problema inherente a este conjunto de datos es de tipo multinomial, porque lo ideal es construir un modelo que clasifique a cada imagen conforme cada número. Como aún no llegamos a ese punto, simplifiquemos este problema y construyamos un modelo que sea capaz de *detectar* un dígito específico, digamos el `7`. De esta manera, modificamos los arreglos de salida como sigue:
+Como ya habíamos comentado previamente, el conjunto de datos <strong><font color='forestgreen'>MNIST</font></strong> consta de una serie de dígitos manuscritos etiquetados con el número al que éstos representan. Por lo tanto, el problema inherente a este conjunto de datos es de tipo multinomial, porque lo ideal es construir un modelo que clasifique a cada imagen conforme cada número. Como aún no llegamos a ese punto, simplifiquemos este problema y construyamos un modelo que sea capaz de *detectar* un dígito específico, digamos el `7`. De esta manera, modificamos los arreglos de salida como sigue:
 
 ```{python}
 # Cambiamos la variable de salida a una binaria, a fin de construir un "clasificador de 7s".
@@ -1499,7 +1500,7 @@ Lo anterior puede o no ser un resultado aceptable, y dependerá del contexto de 
 
 Podemos intentar algo como esto si implementamos un procedimiento de **validación cruzada** que, como aprendimos en la [entrada anterior](/clases/machine-learning/aprendizaje-supervisado/modelos-lineales/introduccion-a-scikit-learn/), se trata de un procedimiento que permite evaluar la capacidad estimativa de un predictor (en este caso, un modelo de clasificación) al dividir el conjunto de entrenamiento en $k$ subconjuntos o *dobleces*, usando cada uno de ellos como subconjunto de validación al entrenar nuestro modelo en los $k-1$ subconjuntos restantes.
 
-La implementación en **<font color='darkmagenta'>Scikit-Learn</font>** del procedimiento de validación cruzada puede variar dependiendo de nuestros intereses. En este ejemplo particular, optaremos por entrenar nuestro modelo ya instanciado en la variable `model` en un total de `5` subconjuntos de validación (es decir, aplicaremos una validación cruzada con 5 subconjuntos). Para ello, haremos uso de la función `cross_val_predict()`, que permite entregar las correspondientes predicciones agregadas sobre los correspondientes subconjuntos de validación directamente, a fin de evaluar la métrica que deseemos después.
+La implementación en <strong><font color='darkmagenta'>Scikit-Learn</font></strong> del procedimiento de validación cruzada puede variar dependiendo de nuestros intereses. En este ejemplo particular, optaremos por entrenar nuestro modelo ya instanciado en la variable `model` en un total de `5` subconjuntos de validación (es decir, aplicaremos una validación cruzada con 5 subconjuntos). Para ello, haremos uso de la función `cross_val_predict()`, que permite entregar las correspondientes predicciones agregadas sobre los correspondientes subconjuntos de validación directamente, a fin de evaluar la métrica que deseemos después.
 
 La función `cross_val_predict()` nos pide varios argumentos, entre los cuales podemos considerar:
 
@@ -1532,7 +1533,7 @@ Notemos que el resultado ahora es mucho más *balanceado*. El modelo comete una 
 
 El ejemplo anterior motiva por tanto la siguiente definición.
 
-**<font color='blue'>Definición 3.4 – Validación cruzada con $k$ subconjuntos</font>**: Sea $\mathcal{D} =\left\{ \left( \mathbf{X} ,\mathbf{y} \right)  :\mathbf{X} \in \mathbb{R}^{m\times n} \wedge \mathbf{y} \in \mathbb{R}^{m} \right\} $ un conjunto de entrenamiento, donde $m$ es el número de instancias u observaciones del conjunto de entrenamiento, $n$ es el número de atributos o variables independientes, y $\mathbf{y}$ tiene elementos que únicamente pueden tomar los valores $0$ o $1$ (aunque esta definición no cambia cuando $\mathbf{y}$ tiene únicamente valores continuos). La **validación cruzada** es un procedimiento estadístico que se describe como sigue:
+<strong><font color='blue'>Definición 3.4 – Validación cruzada con $k$ subconjuntos</font></strong>: Sea $\mathcal{D} =\{ \left( \mathbf{X} ,\mathbf{y} \right)  :\mathbf{X} \in \mathbb{R}^{m\times n} \wedge$ $\mathbf{y} \in \mathbb{R}^{m} \}$ un conjunto de entrenamiento, donde $m$ es el número de instancias u observaciones del conjunto de entrenamiento, $n$ es el número de atributos o variables independientes, y $\mathbf{y}$ tiene elementos que únicamente pueden tomar los valores $0$ o $1$ (aunque esta definición no cambia cuando $\mathbf{y}$ tiene únicamente valores continuos). La **validación cruzada** es un procedimiento estadístico que se describe como sigue:
 
 1. **División del conjunto de entrenamiento:** El conjunto $\mathcal{D}$, de tamaño $m$, se divide **aleatoriamente** en un total de $k$ **subconjuntos de validación** o *dobleces*, que llamamos $\mathcal{D}_{1},...,\mathcal{D}_{k}$, con el mismo número de instancias cada uno (dentro de lo posible, truncando el valor de $m/k$ cuando corresponda).
 2. **Proceso de validación cruzada:** Para cada $p=1,...,k$:
@@ -1559,7 +1560,7 @@ $$
 
 Podemos formalizar este concepto por medio de la siguiente definición.
 
-**<font color='blue'>Definición 3.5 – Exactitud</font>**: Sea $\mathcal{D} =\left\{ \left( \mathbf{X} ,\mathbf{y} \right)  :\mathbf{X} \in \mathbb{R}^{m\times n} \wedge \mathbf{y} \in \mathbb{R}^{m} \right\}$ un conjunto de entrenamiento, donde $m$ es el número de instancias u observaciones del conjunto de entrenamiento, $n$ es el número de atributos o variables independientes, y $\mathbf{y}$ tiene elementos que únicamente pueden tomar los valores $0$ o $1$. Sea $f$ un modelo o *predictor* que genera las correspondientes estimaciones $\hat{y}_{i}=f(\mathbf{x}_{i})$, donde $\mathbf{x}_{i}\in \mathbb{R}^{n}$ es una instancia (fila) de $\mathbf{X}$. Se define la **exactitud** del modelo $f$ como
+<strong><font color='blue'>Definición 3.5 – Exactitud</font></strong>: Sea $\mathcal{D} =\left\{ \left( \mathbf{X} ,\mathbf{y} \right)  :\mathbf{X} \in \mathbb{R}^{m\times n} \wedge \mathbf{y} \in \mathbb{R}^{m} \right\}$ un conjunto de entrenamiento, donde $m$ es el número de instancias u observaciones del conjunto de entrenamiento, $n$ es el número de atributos o variables independientes, y $\mathbf{y}$ tiene elementos que únicamente pueden tomar los valores $0$ o $1$. Sea $f$ un modelo o *predictor* que genera las correspondientes estimaciones $\hat{y}_{i}=f(\mathbf{x}_{i})$, donde $\mathbf{x}_{i}\in \mathbb{R}^{n}$ es una instancia (fila) de $\mathbf{X}$. Se define la **exactitud** del modelo $f$ como
 
 ::: {.eq-scroll}
 $$
@@ -1572,9 +1573,9 @@ Donde $\mathbf{1}$ representa, nuevamente, a la función indicatriz.
 
 Notamos pues que la exactitud es una métrica **relativa** y no absoluta, como la matriz de confusión, ya que puede expresarse como un porcentaje y, por tanto, resulta mucho más intuitiva, aunque tiene sus *problemas*, los que verificaremos en el siguiente ejemplo.
 
-**Ejemplo 3.10 – Implementación de la exactitud (y sus problemas) en <font color='darkmagenta'>Scikit-Learn</font>:** La exactitud puede implementarse en **<font color='darkmagenta'>Scikit-Learn</font>** por medio de la función `accuracy_score()`. Como todas las métricas de desempeño, dicha función tiene como dependencia el módulo `sklearn.metrics` y, del mismo modo, acepta como argumentos los parámetros `y_true` e `y_pred`, que corresponden a los valores reales de las etiquetas asociadas a cada instancia y las predicciones realizadas por nuestro modelo, respectivamente.
+**Ejemplo 3.10 – Implementación de la exactitud (y sus problemas) en <font color='darkmagenta'>Scikit-Learn</font>:** La exactitud puede implementarse en <strong><font color='darkmagenta'>Scikit-Learn</font></strong> por medio de la función `accuracy_score()`. Como todas las métricas de desempeño, dicha función tiene como dependencia el módulo `sklearn.metrics` y, del mismo modo, acepta como argumentos los parámetros `y_true` e `y_pred`, que corresponden a los valores reales de las etiquetas asociadas a cada instancia y las predicciones realizadas por nuestro modelo, respectivamente.
 
-Tomemos como base el modelo que construimos en el ejemplo (3.9), que es, en esencia, un *detector de 7s* para el conjunto de datos **<font color='forestgreen'>MNIST</font>**. Vamos a determinar la exactitud del modelo para el mismo caso de validación cruzada anterior. De esta manera, tenemos:
+Tomemos como base el modelo que construimos en el ejemplo (3.9), que es, en esencia, un *detector de 7s* para el conjunto de datos <strong><font color='forestgreen'>MNIST</font></strong>. Vamos a determinar la exactitud del modelo para el mismo caso de validación cruzada anterior. De esta manera, tenemos:
 
 ```{python}
 from sklearn.metrics import accuracy_score
@@ -1592,7 +1593,7 @@ print(f"Exactitud del modelo: {acc:.2f}")
 
 Uno podría parecer extrañado de un resultado tan bueno. En un buen día, y siendo muy ingenuos (subrayemos este calificativo, pero no seamos tan peyorativos), podríamos incluso sentirnos bendecidos por un resultado como éste. Pero no nos alegremos aún e investiguemos un poco más *por qué* estamos obteniendo un resultado así de bueno.
 
-Para ello, construyamos un *modelo tonto*, que lo único que hará, será devolver predicciones iguales a $0$. Es decir, simplemente dirá *siempre* que toda imagen que suministremos (del conjunto de datos **<font color='forestgreen'>MNIST</font>**) no representará un dígito igual a `7`. Para ello, haremos uso de la clase `BaseEstimator`, de tal forma que este "modelo tonto" pueda instanciarse de la misma forma que cualquier otro modelo suministrado por **<font color='darkmagenta'>Scikit-Learn</font>**:
+Para ello, construyamos un *modelo tonto*, que lo único que hará, será devolver predicciones iguales a $0$. Es decir, simplemente dirá *siempre* que toda imagen que suministremos (del conjunto de datos <strong><font color='forestgreen'>MNIST</font></strong>) no representará un dígito igual a `7`. Para ello, haremos uso de la clase `BaseEstimator`, de tal forma que este "modelo tonto" pueda instanciarse de la misma forma que cualquier otro modelo suministrado por <strong><font color='darkmagenta'>Scikit-Learn</font></strong>:
 
 ```{python}
 from sklearn.base import BaseEstimator
@@ -1628,7 +1629,7 @@ acc_fool = accuracy_score(y_true=y_train, y_pred=y_train_pred_fool)
 print(f"Exactitud del modelo 'tonto': {acc_fool:.2f}")
 ```
 
-Y ya con esto nos damos cuenta que una exactitud del 98% no es taaaaan impresionante, porque el "modelo tonto" que construimos previamente simplemente asume que cualquier imagen del conjunto de entrenamiento no representa a un `7`. Esto ocurre porque sólo un 10%, aproximadamente, de las imágenes del conjunto de datos **<font color='forestgreen'>MNIST</font>** representan al dígito `7`. Por lo tanto, si tratamos de adivinar si una imagen no corresponde a un `7`, estaremos en lo correcto, en promedio, un 90% de las veces (si el número de veces en que hacemos este experimento es lo suficientemente grande, conforme a la **ley de los grandes números**). Esto demuestra que, en general, **la exactitud no es la métrica de calidad deseada para este tipo de problemas**, especialmente cuando nos vemos enfrentados a **conjuntos de datos no balanceados** (es decir, conjuntos en los cuales unas clases son mucho más frecuentes que otras). ◼︎
+Y ya con esto nos damos cuenta que una exactitud del 98% no es taaaaan impresionante, porque el "modelo tonto" que construimos previamente simplemente asume que cualquier imagen del conjunto de entrenamiento no representa a un `7`. Esto ocurre porque sólo un 10%, aproximadamente, de las imágenes del conjunto de datos <strong><font color='forestgreen'>MNIST</font></strong> representan al dígito `7`. Por lo tanto, si tratamos de adivinar si una imagen no corresponde a un `7`, estaremos en lo correcto, en promedio, un 90% de las veces (si el número de veces en que hacemos este experimento es lo suficientemente grande, conforme a la **ley de los grandes números**). Esto demuestra que, en general, **la exactitud no es la métrica de calidad deseada para este tipo de problemas**, especialmente cuando nos vemos enfrentados a **conjuntos de datos no balanceados** (es decir, conjuntos en los cuales unas clases son mucho más frecuentes que otras). ◼︎
 
 ### Precisión y sensibilidad
 
@@ -1654,7 +1655,7 @@ $$
 
 Matemáticamente, tienen entonces sentido las siguientes definiciones.
 
-**<font color='blue'>Definición 3.6 – Precisión</font>**: Sea $\mathcal{D} =\left\{ \left( \mathbf{X} ,\mathbf{y} \right)  :\mathbf{X} \in \mathbb{R}^{m\times n} \wedge \mathbf{y} \in \mathbb{R}^{m} \right\}$ un conjunto de entrenamiento, donde $m$ es el número de instancias u observaciones del conjunto de entrenamiento, $n$ es el número de atributos o variables independientes, y $\mathbf{y}$ tiene elementos que únicamente pueden tomar los valores $0$ o $1$. Sea $f$ un modelo o *predictor* que genera las correspondientes estimaciones $\hat{y}_{i}=f(\mathbf{x}_{i})$, donde $\mathbf{x}_{i}\in \mathbb{R}^{n}$ es una instancia (fila) de $\mathbf{X}$. Se define la **precisión** del modelo $f$ como
+<strong><font color='blue'>Definición 3.6 – Precisión</font></strong>: Sea $\mathcal{D} =\left\{ \left( \mathbf{X} ,\mathbf{y} \right)  :\mathbf{X} \in \mathbb{R}^{m\times n} \wedge \mathbf{y} \in \mathbb{R}^{m} \right\}$ un conjunto de entrenamiento, donde $m$ es el número de instancias u observaciones del conjunto de entrenamiento, $n$ es el número de atributos o variables independientes, y $\mathbf{y}$ tiene elementos que únicamente pueden tomar los valores $0$ o $1$. Sea $f$ un modelo o *predictor* que genera las correspondientes estimaciones $\hat{y}_{i}=f(\mathbf{x}_{i})$, donde $\mathbf{x}_{i}\in \mathbb{R}^{n}$ es una instancia (fila) de $\mathbf{X}$. Se define la **precisión** del modelo $f$ como
 
 ::: {.eq-scroll}
 $$
@@ -1663,7 +1664,7 @@ P=\frac{\sum^{m}_{i=1} \mathbf{1} \left( y_{i}=1\wedge \hat{y}_{i} =1\right)  }{
 $$
 :::
 
-**<font color='blue'>Definición 3.7 – Sensibilidad</font>**: Consideremos el mismo contexto de la definición (3.6). Se define la **sensibilidad** del modelo $f$ como
+<strong><font color='blue'>Definición 3.7 – Sensibilidad</font></strong>: Consideremos el mismo contexto de la definición (3.6). Se define la **sensibilidad** del modelo $f$ como
 
 ::: {.eq-scroll}
 $$
@@ -1674,7 +1675,7 @@ $$
 
 Ambas métricas, al igual que la exactitud, también son **relativas**. En conjunto, nos proveen de un marco de referencia para entender rápidamente qué tan bueno es nuestro modelo, como veremos en el siguiente ejemplo.
 
-**Ejemplo 3.11 – Implementación de la precisión y sensibilidad en <font color='darkmagenta'>Scikit-Learn</font>**: En **<font color='darkmagenta'>Scikit-Learn</font>**, la precisión y la sensibilidad pueden implementarse por medio de las funciones `precision_score()` y `recall_score()`, respectivamente, funcionando ambas de la misma forma que las métricas revisadas previamente. Para el modelo entrenado previamente vía validación cruzada en el ejemplo (3.9), calcularemos ambos valores a fin de evaluar realmente qué tan bueno es nuestro modelo *que detecta 7s*:
+<strong>Ejemplo 3.11 – Implementación de la precisión y sensibilidad en <font color='darkmagenta'>Scikit-Learn</font></strong>: En <strong><font color='darkmagenta'>Scikit-Learn</font></strong>, la precisión y la sensibilidad pueden implementarse por medio de las funciones `precision_score()` y `recall_score()`, respectivamente, funcionando ambas de la misma forma que las métricas revisadas previamente. Para el modelo entrenado previamente vía validación cruzada en el ejemplo (3.9), calcularemos ambos valores a fin de evaluar realmente qué tan bueno es nuestro modelo *que detecta 7s*:
 
 ```{python}
 from sklearn.metrics import precision_score, recall_score
@@ -1716,7 +1717,7 @@ Para entender este trade-off, veamos como el modelo construido en el ejemplo (3.
 
 ![Un esquema sencillo que permite visualizar el efecto de cambiar probabilidades de corte (o umbrales de discriminación) en términos de la precisión y la sensibilidad de un modelo, dando como resultado un trade-off (ejemplo adaptado del maravilloso libro "Hands-on Machine Learning with Scikit-Learn, Keras and Tensorflow", de Aurélien Géron)](images/fig_3_4.png){#fig-prtradeoff fig-align="center" width="100%"}
 
-**Ejemplo 3.12 – Elección de un umbral de discriminación en <font color='darkmagenta'>Scikit-Learn</font>:** La librería **<font color='darkmagenta'>Scikit-Learn</font>** no permite establecer de manera directa el valor umbral de decisión de un modelo de clasificación, pero sí nos permite el acceso a los puntajes de decisión que utilizan dichos modelos. Para ello, en vez de utilizar el método `predict()`, usamos el método `decision_function()`, que retorna un puntaje por cada instancia, para así luego elegir el umbral que deseamos para hacer predicciones, basándonos en tales puntajes.
+**Ejemplo 3.12 – Elección de un umbral de discriminación en <font color='darkmagenta'>Scikit-Learn</font>:** La librería <strong><font color='darkmagenta'>Scikit-Learn</font></strong> no permite establecer de manera directa el valor umbral de decisión de un modelo de clasificación, pero sí nos permite el acceso a los puntajes de decisión que utilizan dichos modelos. Para ello, en vez de utilizar el método `predict()`, usamos el método `decision_function()`, que retorna un puntaje por cada instancia, para así luego elegir el umbral que deseamos para hacer predicciones, basándonos en tales puntajes.
 
 Para considerar el procedimiento de validación cruzada dentro de este análisis, podemos usar la función `cross_val_predict()` para obtener todos los puntajes asociados a las instancias de entrenamiento, indicando a esta función que deseamos que retorne los puntajes calculados por medio de la correspondiente función de decisión haciendo uso del argumento `method`. De esta manera, tenemos:
 
@@ -1825,7 +1826,7 @@ Y construimos nuestra visualización:
 
 ```{python}
 #| label: fig-modelos-de-clasificacion-parte-i-10
-#| fig-cap: "Visualización generada para la sección El trade-off entre precisión y sensibilidad."
+#| fig-cap: "Variación conjunta de precisión y sensibilidad al desplazar el umbral de decisión del clasificador."
 fig, ax = plt.subplots(figsize=(9, 5))
 plot_precision_recall_threshold(
     precisions,
@@ -1850,7 +1851,7 @@ Y graficamos los valores obtenidos:
 
 ```{python}
 #| label: fig-modelos-de-clasificacion-parte-i-11
-#| fig-cap: "Visualización generada para la sección El trade-off entre precisión y sensibilidad."
+#| fig-cap: "Umbral requerido para alcanzar una precisión de 95 % y sensibilidad resultante bajo esa política de clasificación."
 fig, ax = plt.subplots(figsize=(9, 5))
 plot_precision_recall_threshold(
     precisions,
@@ -1900,7 +1901,7 @@ Como podemos observar, es sencillo construir un modelo de clasificación que –
 
 El ejemplo anterior motiva la siguiente definición.
 
-**<font color='blue'>Definición 3.8 – Valor umbral de discriminación</font>**: Sea $\mathcal{D} =\left\{ \left( \mathbf{X} ,\mathbf{y} \right)  :\mathbf{X} \in \mathbb{R}^{m\times n} \wedge \mathbf{y} \in \mathbb{R}^{m} \right\}$ un conjunto de entrenamiento, donde $m$ es el número de instancias u observaciones del mismo, $n$ es el número de atributos o variables independientes, e $\mathbf{y}$ tiene elementos que únicamente pueden tomar los valores $0$ o $1$. Sea $f$ un modelo o *predictor* que genera las correspondientes estimaciones $\hat{y}_{i}=f(\mathbf{x}_{i})$, donde $\mathbf{x}_{i}\in \mathbb{R}^{n}$ es una instancia (fila) de $\mathbf{X}$. Se define el **valor umbral de discriminación** para el modelo $f$, que separa las clases positiva y negativa, como aquel valor $\theta$ tal que
+<strong><font color='blue'>Definición 3.8 – Valor umbral de discriminación</font></strong>: Sea $\mathcal{D} =\left\{ \left( \mathbf{X} ,\mathbf{y} \right)  :\mathbf{X} \in \mathbb{R}^{m\times n} \wedge \mathbf{y} \in \mathbb{R}^{m} \right\}$ un conjunto de entrenamiento, donde $m$ es el número de instancias u observaciones del mismo, $n$ es el número de atributos o variables independientes, e $\mathbf{y}$ tiene elementos que únicamente pueden tomar los valores $0$ o $1$. Sea $f$ un modelo o *predictor* que genera las correspondientes estimaciones $\hat{y}_{i}=f(\mathbf{x}_{i})$, donde $\mathbf{x}_{i}\in \mathbb{R}^{n}$ es una instancia (fila) de $\mathbf{X}$. Se define el **valor umbral de discriminación** para el modelo $f$, que separa las clases positiva y negativa, como aquel valor $\theta$ tal que
 
 ::: {.eq-scroll}
 $$
@@ -1929,7 +1930,7 @@ La estructura general de una curva ROC se observa en la @fig-roccurve. El mejor 
 
 Un indicador fiable para evaluar la calidad de un modelo es, por tanto, el **área bajo la curva ROC** (denotado como $AUC$, del inglés *area under curve*). Debido a que el espacio ROC es equivalente a un cuadrado de lado igual a $1$, resulta evidente que $0.5\leq AUC\leq 1.0$, siendo $0.5$ el área de la curva ROC asociada a la línea de no discriminación. En otras palabras, buscamos que nuestros modelos sean tales que su $AUC$ sea lo más cercana posible a $1$.
 
-**Ejemplo 3.13 – La curva ROC en <font color='darkmagenta'>Scikit-Learn</font>:** La implementación de una curva ROC en **<font color='darkmagenta'>Scikit-Learn</font>** se realiza por medio de la función `roc_curve()`, la que trabaja de forma muy similar a la función `precision_recall_curve()` que revisamos previamente. La función `roc_curve()` recibe igualmente como argumentos las clases o etiquetas reales de nuestro conjunto de entrenamiento y los puntajes de decisión asociados a cada uno, retornando también tres arreglos 1D: Las tasas de falsos positivos (`fpr`), las tasas de verdaderos positivos (`tpr`) y los valores umbrales de discriminación correspondientes para cada combinación (`thresholds`). De este modo, podemos ejemplificar rápidamente su uso con el modelo construido en el ejemplo (3.9) (nuestro detector de 7s para el conjunto de datos **<font color='forestgreen'>MNIST</font>**):
+**Ejemplo 3.13 – La curva ROC en <font color='darkmagenta'>Scikit-Learn</font>:** La implementación de una curva ROC en <strong><font color='darkmagenta'>Scikit-Learn</font></strong> se realiza por medio de la función `roc_curve()`, la que trabaja de forma muy similar a la función `precision_recall_curve()` que revisamos previamente. La función `roc_curve()` recibe igualmente como argumentos las clases o etiquetas reales de nuestro conjunto de entrenamiento y los puntajes de decisión asociados a cada uno, retornando también tres arreglos 1D: Las tasas de falsos positivos (`fpr`), las tasas de verdaderos positivos (`tpr`) y los valores umbrales de discriminación correspondientes para cada combinación (`thresholds`). De este modo, podemos ejemplificar rápidamente su uso con el modelo construido en el ejemplo (3.9) (nuestro detector de 7s para el conjunto de datos <strong><font color='forestgreen'>MNIST</font></strong>):
 
 ```{python}
 from sklearn.metrics import roc_curve
@@ -2007,7 +2008,7 @@ Y ya estamos en condiciones de visualizar la curva ROC de nuestro modelo:
 
 ```{python}
 #| label: fig-modelos-de-clasificacion-parte-i-12
-#| fig-cap: "Curva ROC de nuestro modelo."
+#| fig-cap: "Desempeño discriminativo del clasificador al recorrer todos los umbrales, expresado como sensibilidad frente a la tasa de falsos positivos."
 # Curva ROC de nuestro modelo.
 fig, ax = plt.subplots(figsize=(9, 6))
 plot_roc_curve(fpr, tpr, ax=ax, label="Curva ROC")
@@ -2015,7 +2016,7 @@ ax.set_aspect("equal", adjustable="box")
 plt.tight_layout()
 ```
 
-Visualmente, nuestro modelo se ve bastante bien. Esto lo podemos comprobar con el cálculo del área bajo la curva ROC ($AUC$), que podemos realizar en **<font color='darkmagenta'>Scikit-Learn</font>** mediante el uso de la función `roc_auc_score()`, la que funciona como cualquier otra de las métricas revisadas previamente:
+Visualmente, nuestro modelo se ve bastante bien. Esto lo podemos comprobar con el cálculo del área bajo la curva ROC ($AUC$), que podemos realizar en <strong><font color='darkmagenta'>Scikit-Learn</font></strong> mediante el uso de la función `roc_auc_score()`, la que funciona como cualquier otra de las métricas revisadas previamente:
 
 ```{python}
 from sklearn.metrics import roc_auc_score

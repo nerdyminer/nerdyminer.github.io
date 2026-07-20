@@ -1,4 +1,5 @@
 ---
+jupyter: nerdyminer
 title: "Optimización de redes computacionales"
 subtitle: "Redes dirigidas acíclicas, diferenciación automática y retropropagación"
 section_href: "/apuntes/grafos-e-informacion/"
@@ -41,11 +42,11 @@ Finalmente, usaremos las redes neuronales como caso de estudio. En ellas, los pa
 
 ## Una (breve) introducción a <font color='darkmagenta'>NetworkX</font>
 
-Antes de entrar en la optimización de redes computacionales, será conveniente introducir una herramienta práctica para construir, manipular y visualizar grafos en Python. En este apunte usaremos **<font color='darkmagenta'>NetworkX</font>**, una librería ampliamente utilizada para trabajar con grafos y redes. De esta manera, nos ahorraremos algunas líneas de código representando visualmente nuestros resultados usando únicamente **<font color='darkmagenta'>Matplotlib</font>**.
+Antes de entrar en la optimización de redes computacionales, será conveniente introducir una herramienta práctica para construir, manipular y visualizar grafos en Python. En este apunte usaremos <strong><font color='darkmagenta'>NetworkX</font></strong>, una librería ampliamente utilizada para trabajar con grafos y redes. De esta manera, nos ahorraremos algunas líneas de código representando visualmente nuestros resultados usando únicamente <strong><font color='darkmagenta'>Matplotlib</font></strong>.
 
-Sin embargo, es importante aclarar desde el comienzo cuál será el rol de esta librería. **<font color='darkmagenta'>NetworkX</font>** será usada principalmente como herramienta de apoyo para representar la estructura de la red computacional de interés: Ya sea nodos, arcos, dependencias, predecesores, sucesores y orden topológico. Los cálculos matemáticos relevantes, como propagación hacia adelante, derivadas locales, regla de la cadena y retropropagación, serán desarrollados explícitamente con **<font color='darkmagenta'>NumPy</font>**, a fin de que la lógica matemática del algoritmo permanezca visible.
+Sin embargo, es importante aclarar desde el comienzo cuál será el rol de esta librería. <strong><font color='darkmagenta'>NetworkX</font></strong> será usada principalmente como herramienta de apoyo para representar la estructura de la red computacional de interés: Ya sea nodos, arcos, dependencias, predecesores, sucesores y orden topológico. Los cálculos matemáticos relevantes, como propagación hacia adelante, derivadas locales, regla de la cadena y retropropagación, serán desarrollados explícitamente con <strong><font color='darkmagenta'>NumPy</font></strong>, a fin de que la lógica matemática del algoritmo permanezca visible.
 
-Dicho de otra forma, **<font color='darkmagenta'>NetworkX</font>** nos ayudará a dibujar y recorrer la red de interés; no ocultará la optimización. No queremos, por ningún motivo, que los procesos que aprendamos en este apunte sean *cajas negras*.
+Dicho de otra forma, <strong><font color='darkmagenta'>NetworkX</font></strong> nos ayudará a dibujar y recorrer la red de interés; no ocultará la optimización. No queremos, por ningún motivo, que los procesos que aprendamos en este apunte sean *cajas negras*.
 
 Si no tenemos instalada la librería, podemos instalarla desde la terminal mediante:
 
@@ -53,7 +54,7 @@ Si no tenemos instalada la librería, podemos instalarla desde la terminal media
 pip install networkx
 ```
 
-Esta librería suele importarse en Python por medio del alias `nx`. Por supuesto, conforme lo establecido previamente, trabajaremos igualmente con **<font color='darkmagenta'>NumPy</font>** y **<font color='darkmagenta'>Matplotlib</font>**, además de **<font color='darkmagenta'>Seaborn</font>** para aprovechar su tema por defecto (que resulta especialmente bonito):
+Esta librería suele importarse en Python por medio del alias `nx`. Por supuesto, conforme lo establecido previamente, trabajaremos igualmente con <strong><font color='darkmagenta'>NumPy</font></strong> y <strong><font color='darkmagenta'>Matplotlib</font></strong>, además de <strong><font color='darkmagenta'>Seaborn</font></strong> para aprovechar su tema por defecto (que resulta especialmente bonito):
 
 ```{python}
 import matplotlib.pyplot as plt
@@ -69,7 +70,7 @@ sns.set_theme()
 plt.style.use("bmh")
 ```
 
-En **<font color='darkmagenta'>NetworkX</font>**, un grafo no dirigido se construye mediante la clase `nx.Graph()`, mientras que un grafo dirigido se construye mediante la clase `nx.DiGraph()`. Como las redes computacionales representan dependencias entre operaciones, normalmente trabajaremos con grafos dirigidos. Si una variable $u$ se usa como entrada para calcular una variable $v$, representaremos esta dependencia mediante un arco dirigido, digamos $u \longrightarrow v$, lo que pone de manifiesto que $v$ depende de $u$ (y no al revés).
+En <strong><font color='darkmagenta'>NetworkX</font></strong>, un grafo no dirigido se construye mediante la clase `nx.Graph()`, mientras que un grafo dirigido se construye mediante la clase `nx.DiGraph()`. Como las redes computacionales representan dependencias entre operaciones, normalmente trabajaremos con grafos dirigidos. Si una variable $u$ se usa como entrada para calcular una variable $v$, representaremos esta dependencia mediante un arco dirigido, digamos $u \longrightarrow v$, lo que pone de manifiesto que $v$ depende de $u$ (y no al revés).
 
 A modo de ejemplo, consideremos la siguiente función escalar simple:
 
@@ -91,7 +92,7 @@ Aunque la expresión completa es simple, podemos descomponerla en operaciones el
 
 Esta descomposición define un grafo computacional. Las variables $x,w,b,y$ son nodos de entrada o parámetros; las variables $a,\hat{y},r$ son nodos intermedios; y $L$ es el nodo final que representa la función objetivo.
 
-Construyamos este grafo en **<font color='darkmagenta'>NetworkX</font>**:
+Construyamos este grafo en <strong><font color='darkmagenta'>NetworkX</font></strong>:
 
 ```{python}
 # Inicializamos nuestro grafo dirigido.
@@ -199,9 +200,9 @@ La figura anterior muestra que la evaluación de $L$ puede verse como un flujo d
 
 Una red computacional típica no sólo es dirigida, sino también acíclica. Esto significa que sus arcos tienen dirección y que no existe una secuencia de dependencias que permita volver al mismo nodo. De forma intuitiva, esto es necesario porque el cálculo debe tener un orden lógico. Si una variable depende de sí misma de manera circular, no queda claro cómo evaluarla directamente sin resolver una ecuación implícita o sin introducir recurrencia temporal. Esto motiva la siguiente definición.
 
-**<font color='blue'>Definición 2.1 – Grafo dirigido acíclico:</font>** Un **grafo (o red) dirigido acíclico** o **DAG** (del inglés *directed acyclic graph*) es un grafo dirigido que no contiene ciclos dirigidos. Es decir, no existe una secuencia de nodos del tipo $v_{1}\rightarrow v_{2}\rightarrow \cdots \rightarrow v_{k}\rightarrow v_{1}$, que represente un proceso de *feedback* o *loop*.
+<strong><font color='blue'>Definición 2.1 – Grafo dirigido acíclico:</font></strong> Un **grafo (o red) dirigido acíclico** o **DAG** (del inglés *directed acyclic graph*) es un grafo dirigido que no contiene ciclos dirigidos. Es decir, no existe una secuencia de nodos del tipo $v_{1}\rightarrow v_{2}\rightarrow \cdots \rightarrow v_{k}\rightarrow v_{1}$, que represente un proceso de *feedback* o *loop*.
 
-En un DAG, podemos ordenar los nodos de tal manera que todas las dependencias de un nodo aparezcan antes que él, lo que comúnmente se denomina como **orden topológico**. En **<font color='darkmagenta'>NetworkX</font>** podemos verificar rápidamente si un grado es, en efecto, un DAG, por medio de la función `nx.is_directed_acyclic_graph()`:
+En un DAG, podemos ordenar los nodos de tal manera que todas las dependencias de un nodo aparezcan antes que él, lo que comúnmente se denomina como **orden topológico**. En <strong><font color='darkmagenta'>NetworkX</font></strong> podemos verificar rápidamente si un grado es, en efecto, un DAG, por medio de la función `nx.is_directed_acyclic_graph()`:
 
 ```{python}
 # Verificamos si nuestra red computacional es un DAG.
@@ -249,7 +250,7 @@ Dicho de manera informal:
 
 ### Evaluación hacia adelante del grafo
 
-Aunque **<font color='darkmagenta'>NetworkX</font>** permite representar la estructura del grafo, la evaluación numérica la haremos explícitamente. Consideremos valores concretos: $x=2,\  w=3,\  b=1,\  y=8$. Entonces:
+Aunque <strong><font color='darkmagenta'>NetworkX</font></strong> permite representar la estructura del grafo, la evaluación numérica la haremos explícitamente. Consideremos valores concretos: $x=2,\  w=3,\  b=1,\  y=8$. Entonces:
 
 - $a=wx=3\cdot 2= 6$.
 - $\hat{y} = a+b = 6+1 = 7$.
@@ -281,7 +282,7 @@ Este pequeño ejemplo deja ver la idea más fundamental de este apunte: Una func
 
 ### Una matriz de adyacencia para la red computacional
 
-Como vimos en el apunte anterior, todo grafo puede representarse mediante una matriz de adyacencia. En el caso de nuestra red computacional, la entrada $a_{ij}$ será igual a $1$ si existe un arco desde el nodo $i$ hacia el nodo $j$. **<font color='darkmagenta'>NetworkX</font>** permite construir esta matriz directamente, siempre que fijemos un orden para los nodos:
+Como vimos en el apunte anterior, todo grafo puede representarse mediante una matriz de adyacencia. En el caso de nuestra red computacional, la entrada $a_{ij}$ será igual a $1$ si existe un arco desde el nodo $i$ hacia el nodo $j$. <strong><font color='darkmagenta'>NetworkX</font></strong> permite construir esta matriz directamente, siempre que fijemos un orden para los nodos:
 
 ```{python}
 # Orden de nodos que usaremos para construir la matriz de adyacencia.
@@ -298,7 +299,7 @@ Ahora visualizamos esta matriz de forma gráfica:
 
 ```{python}
 #| label: fig-optimizacion-de-grafos-02
-#| fig-cap: "Matriz de adyacencia de nuestra red computacional."
+#| fig-cap: "Matriz de adyacencia del grafo computacional, cuya estructura dispersa identifica las dependencias directas entre operaciones."
 # Visualización de la matriz de adyacencia para nuestra red computacional.
 fig, ax = plt.subplots(figsize=(7, 6))
 
@@ -332,7 +333,7 @@ plt.tight_layout()
 
 La matriz de adyacencia resume las dependencias del cálculo. Por ejemplo, la fila correspondiente a `w` tiene un valor igual a $1$ en la columna correspondiente a `a`, porque $w$ participa en el cálculo de $a=wx$. Del mismo modo, la fila correspondiente a `r` tiene un valor igual a $1$ en la columna correspondiente a `L`, porque $L=r^2$.
 
-Con esto cerramos nuestra introducción a **<font color='darkmagenta'>NetworkX</font>** como herramienta de manipulación y representación de grafos. Podemos observar que esta librería nos entrega una forma cómoda de representar, inspeccionar y visualizar redes computacionales. Sin embargo, no usaremos **<font color='darkmagenta'>NetworkX</font>** como una caja negra para calcular derivadas. La retropropagación será desarrollada explícitamente usando la regla de la cadena, tal y como hemos venido practicando hasta ahora. La razón es sencillamente pedagógica: Queremos ver cómo la información fluye hacia adelante para evaluar una función, y cómo las sensibilidades fluyen hacia atrás para calcular gradientes.
+Con esto cerramos nuestra introducción a <strong><font color='darkmagenta'>NetworkX</font></strong> como herramienta de manipulación y representación de grafos. Podemos observar que esta librería nos entrega una forma cómoda de representar, inspeccionar y visualizar redes computacionales. Sin embargo, no usaremos <strong><font color='darkmagenta'>NetworkX</font></strong> como una caja negra para calcular derivadas. La retropropagación será desarrollada explícitamente usando la regla de la cadena, tal y como hemos venido practicando hasta ahora. La razón es sencillamente pedagógica: Queremos ver cómo la información fluye hacia adelante para evaluar una función, y cómo las sensibilidades fluyen hacia atrás para calcular gradientes.
 
 En la siguiente sección formalizaremos esta idea. Veremos que, cuando un grafo computacional es dirigido y acíclico, sus operaciones pueden evaluarse en orden topológico, y sus derivadas pueden propagarse en orden inverso. Esa observación será la base matemática de la diferenciación automática en modo reverso y, en particular, del algoritmo de retropropagación usado en redes neuronales.
 
@@ -391,7 +392,7 @@ $$
 
 Este ejemplo es deliberadamente pequeño, pero ya contiene toda la lógica general de una red computacional: Una variable de entrada, un nodo intermedio y un nodo de salida. Si quisiéramos optimizar una función definida sobre esta red, necesitaríamos calcular derivadas de la salida con respecto a la entrada, o bien de una pérdida con respecto a parámetros que aparezcan en alguno de los nodos. El problema es que, aunque la composición sea conceptualmente simple, el número de caminos de dependencia puede crecer rápidamente cuando la red aumenta de tamaño.
 
-Construyamos primero la representación gráfica de este pequeño DAG usando **<font color='darkmagenta'>NetworkX</font>**.
+Construyamos primero la representación gráfica de este pequeño DAG usando <strong><font color='darkmagenta'>NetworkX</font></strong>.
 
 ```{python}
 # Construimos un DAG simple con tres nodos.
@@ -472,7 +473,7 @@ y_x = sigma(g_x)
 
 ```{python}
 #| label: fig-optimizacion-de-grafos-04
-#| fig-cap: "El efecto de componer dos funciones logísticas."
+#| fig-cap: "Respuesta de una composición de funciones logísticas y cambio de sensibilidad respecto de una sola transformación sigmoidal."
 # Visualizamos el efecto de una composición de dos funciones
 # logísticas.
 fig, ax = plt.subplots(figsize=(9, 5))
@@ -541,7 +542,7 @@ dy_dx = sigma(u) * (1 - sigma(u)) * sigma(x) * (1 - sigma(x))
 
 ```{python}
 #| label: fig-optimizacion-de-grafos-05
-#| fig-cap: "Derivada de $y=\\sigma(\\sigma(x))$ respecto de $x$."
+#| fig-cap: "Sensibilidad de la salida compuesta $y=\\sigma(\\sigma(x))$ respecto de la entrada, obtenida al propagar las derivadas locales mediante la regla de la cadena."
 # Visualización de la derivada.
 fig, ax = plt.subplots(figsize=(9, 5))
 ax.plot(x, dy_dx, linewidth=2.5, color="dodgerblue")
@@ -763,7 +764,7 @@ labels3 = nx.get_node_attributes(G3, "label")
 
 ```{python}
 #| label: fig-optimizacion-de-grafos-07
-#| fig-cap: "Ejemplo de un DAG con sub-cálculos compartidos."
+#| fig-cap: "Grafo acíclico dirigido con subcálculos reutilizados, que evita representar como ramas independientes operaciones comunes."
 # Dibujamos nuestra red.
 fig, ax = plt.subplots(figsize=(9, 5))
 
@@ -1317,7 +1318,7 @@ $$
 $$
 :::
 
-Visualicemos estas funciones y sus derivadas apoyándonos de **<font color='darkmagenta'>Matplotlib</font>**:
+Visualicemos estas funciones y sus derivadas apoyándonos de <strong><font color='darkmagenta'>Matplotlib</font></strong>:
 
 ```{python}
 # Definimos funciones de activación típicas en aprendizaje profundo.
@@ -1354,7 +1355,7 @@ x_grid = np.linspace(-6, 6, 500)
 
 ```{python}
 #| label: fig-optimizacion-de-grafos-10
-#| fig-cap: "Funciones de activación típicas en deep learning."
+#| fig-cap: "Comparación de funciones de activación y de sus respuestas no lineales sobre un dominio común."
 # Visualizamos los gráficos de estas funciones.
 fig, ax = plt.subplots(figsize=(9, 5))
 
@@ -1396,7 +1397,7 @@ plt.tight_layout()
 
 ```{python}
 #| label: fig-optimizacion-de-grafos-11
-#| fig-cap: "Derivadas de funciones de activación típicas."
+#| fig-cap: "Comparación de las derivadas locales de funciones de activación habituales; su magnitud determina cuánto gradiente puede propagarse hacia capas anteriores."
 # Y visualizamos los gráficos de sus derivadas.
 fig, ax = plt.subplots(figsize=(9, 5))
 
@@ -1695,7 +1696,7 @@ edge_labels_nn = nx.get_edge_attributes(G_nn, "weight")
 
 ```{python}
 #| label: fig-optimizacion-de-grafos-12
-#| fig-cap: "Red computacional que describe nuestro problema."
+#| fig-cap: "Grafo computacional del problema, con las dependencias necesarias para propagar valores hacia adelante y derivadas en sentido inverso."
 # Visualizamos nuestra red computacional.
 fig, ax = plt.subplots(figsize=(9, 5))
 

@@ -166,7 +166,7 @@ p_{\mathrm{norm}}(t) = \frac{C(p(t), p_{\mathrm{min}}, p_{\mathrm{max}}) - p_{\m
 $$
 :::
 
-Donde la función $C(p(t), p_{\mathrm{min}}, p_{\mathrm{max}})$ limita el valor de $p(t)$ dentro del rango $[p_{\mathrm{min}}, p_{\mathrm{max}}]$, y es análoga a la función `clip()` de **<font color='darkmagenta'>Numpy</font>** y **<font color='darkmagenta'>Pandas</font>**. Es decir,
+Donde la función $C(p(t), p_{\mathrm{min}}, p_{\mathrm{max}})$ limita el valor de $p(t)$ dentro del rango $[p_{\mathrm{min}}, p_{\mathrm{max}}]$, y es análoga a la función `clip()` de <strong><font color='darkmagenta'>Numpy</font></strong> y <strong><font color='darkmagenta'>Pandas</font></strong>. Es decir,
 
 :::{.eq-scroll}
 $$
@@ -318,7 +318,7 @@ En control operacional, la razón de llenado es valiosa porque conecta decisione
 
 ## Un ejercicio práctico en Python
 
-Y bueno... Ya estamos listos para implementar toda esta teoría en un ejercicio práctico. Haremos uso pues de Python para construir un modelo de nivel de llenado de un molino SAG, valiéndonos fundamentalmente de librerías clásicas para el análisis de datos y visualización, como **<font color='darkmagenta'>Numpy</font>**, **<font color='darkmagenta'>Pandas</font>** y **<font color='darkmagenta'>Plotly</font>**. La razón de nuestra preferencia por **<font color='darkmagenta'>Plotly</font>** en este ejercicio es más bien práctica: Queremos aprovechar la interactividad de sus gráficos para explorar los datos y el comportamiento del modelo, además de otras relaciones de interés que veremos en el camino.
+Y bueno... Ya estamos listos para implementar toda esta teoría en un ejercicio práctico. Haremos uso pues de Python para construir un modelo de nivel de llenado de un molino SAG, valiéndonos fundamentalmente de librerías clásicas para el análisis de datos y visualización, como <strong><font color='darkmagenta'>Numpy</font></strong>, <strong><font color='darkmagenta'>Pandas</font></strong> y <strong><font color='darkmagenta'>Plotly</font></strong>. La razón de nuestra preferencia por <strong><font color='darkmagenta'>Plotly</font></strong> en este ejercicio es más bien práctica: Queremos aprovechar la interactividad de sus gráficos para explorar los datos y el comportamiento del modelo, además de otras relaciones de interés que veremos en el camino.
 
 Haremos uso de un dataset simulado que describe la operación de un molino SAG a partir de un conjunto de sensores típicos de alimentación fresca y total, potencia de motor, presión de los descansos, densidad de pulpa y velocidad de rotación. Datos como éstos son los típicos que obtendremos al consultar historizadores de planta, como PI System, y suele ser necesario implementar previamente un procedimiento de limpieza y filtrado de datos para eliminar valores atípicos, errores de medición y otros problemas que puedan afectar la calidad del análisis.
 
@@ -342,7 +342,7 @@ Los archivos quedan disponibles para descarga directa:
 
 ### Exploración inicial
 
-Accedemos pues a estos archivos y cargamos los datos en un DataFrame de **<font color='darkmagenta'>Pandas</font>** para su análisis:
+Accedemos pues a estos archivos y cargamos los datos en un DataFrame de <strong><font color='darkmagenta'>Pandas</font></strong> para su análisis:
 
 ```{python}
 import numpy as np
@@ -416,7 +416,7 @@ pi_data.info()
 
 Vemos pues que se trata de un DataFrame con `9` columnas:
 
-- `timestamp`: Columna que detalla el `timestamp` de cada medición, con una granularidad de 15 minutos. Notemos que esta columna ha sido "traducida" por **<font color='darkmagenta'>Pandas</font>** a una del tipo `str`, por lo que necesitaremos convertirla a un tipo `datetime` para poder trabajar con ella de manera más eficiente.
+- `timestamp`: Columna que detalla el `timestamp` de cada medición, con una granularidad de 15 minutos. Notemos que esta columna ha sido "traducida" por <strong><font color='darkmagenta'>Pandas</font></strong> a una del tipo `str`, por lo que necesitaremos convertirla a un tipo `datetime` para poder trabajar con ella de manera más eficiente.
 - `sag_power_kw`: Variable que representa la potencia de motor del molino SAG, medida en kW.
 - `sag_speed_rpm`: Variable que representa la velocidad de rotación del molino SAG, medida en rpm.
 - `bearing_pressure_psi`: Variable que representa la presión de carga del molino SAG, medida en psi. Se trata de un promedio resultante de la presión ejercida por el molino (su peso más la carga interna) sobre los *pads* o descansos del molino, que suelen estar equipados con sensores de presión.
@@ -478,6 +478,8 @@ pi_data["timestamp"] = pd.to_datetime(pi_data["timestamp"])
 ```
 
 ```{python}
+#| label: fig-sag-bearing-pressure-campaigns
+#| fig-cap: "Evolución diaria de la presión de los descansos durante las campañas de revestimientos. La tendencia de largo plazo permite separar el efecto acumulado del desgaste de las fluctuaciones operacionales de corto plazo."
 # Gráfico de evolución de la presión conforme tiempo de campaña.
 # Inicializamos la figura.
 fig = go.Figure()
@@ -529,7 +531,7 @@ Desde una mirada operacional, esta tendencia es una primera señal de salud del 
 
 A continuación, vamos a caracterizar el comportamiento del par potencia–presión del molino SAG a lo largo de la campaña, a fin de encontrar la "región" de la misma en la cual el rendimiento de molino (o **throughput**) es máximo. En general, esperamos que exista una correlación positiva entre la potencia del motor y la presión de carga, ya que a mayor carga interna del molino, mayor será la demanda de potencia para mantener su operación. Sin embargo, las detenciones y otros eventos operacionales pueden degradar, en cierta medida, esta relación.
 
-Tomaremos una campaña cualquiera del registro entregado, digamos la segunda, y construiremos un gráfico que nos permita visualizar los isocontornos de throughput en el espacio definido por la potencia del motor y la presión de carga. Formatearemos las fechas del DataFrame `reliner_data` para poder filtrar las mediciones correspondientes a la campaña seleccionada, y luego construiremos un gráfico de dispersión con isocontornos de throughput, utilizando **<font color='darkmagenta'>Plotly</font>** para aprovechar su interactividad:
+Tomaremos una campaña cualquiera del registro entregado, digamos la segunda, y construiremos un gráfico que nos permita visualizar los isocontornos de throughput en el espacio definido por la potencia del motor y la presión de carga. Formatearemos las fechas del DataFrame `reliner_data` para poder filtrar las mediciones correspondientes a la campaña seleccionada, y luego construiremos un gráfico de dispersión con isocontornos de throughput, utilizando <strong><font color='darkmagenta'>Plotly</font></strong> para aprovechar su interactividad:
 
 ```{python}
 # Llevamos a formato `datetime` las fechas de las campañas.
@@ -681,6 +683,8 @@ def plot_campaign_domain(campaign_index: int):
 Vamos pues con la campaña número `1`:
 
 ```{python}
+#| label: fig-sag-power-pressure-domain-campaign-1
+#| fig-cap: "Dominio potencia-presión de la campaña 1. El gradiente de rendimiento distingue las combinaciones que convierten con mayor eficiencia la energía aplicada en toneladas tratadas."
 # Mostramos el dominio de la campaña 1.
 show_plotly(plot_campaign_domain(campaign_index=1))
 ```
@@ -692,6 +696,8 @@ Operacionalmente, este tipo de mapa es útil porque separa dos preguntas que sue
 No todas las campañas presentan un comportamiento tan estable como la que acabamos de analizar. En general, es común encontrar campañas con un comportamiento más errático, con variaciones significativas en la presión de carga y la potencia del motor, lo que puede deberse a cambios en las condiciones operacionales, el tipo de mineral y la calidad de los revestimientos. Por ejemplo, para la campaña número `4`:
 
 ```{python}
+#| label: fig-sag-power-pressure-domain-campaign-4
+#| fig-cap: "Dominio potencia-presión de la campaña 4. La dispersión de los niveles de rendimiento revela un régimen operacional menos estable que el observado en la campaña 1."
 # Mostramos el dominio de la campaña 4.
 show_plotly(plot_campaign_domain(campaign_index=4))
 ```
@@ -924,6 +930,8 @@ print(f"Molino SAG - Orientación escogida: {chosen_or} | Correlación: {max(cor
 A continuación, inspeccionamos visualmente el resultado obtenido para el nivel de llenado total que acabamos de estimar:
 
 ```{python}
+#| label: fig-sag-jc-time-series
+#| fig-cap: "Evolución del nivel de llenado total estimado mediante la inversión calibrada del modelo de Hogg y Fuerstenau. El remuestreo cada cuatro horas expone cambios de régimen sin confundirlos con ruido instantáneo."
 # Inicializamos la figura.
 fig = go.Figure()
 
@@ -965,6 +973,8 @@ La curva resultante debe leerse como una señal suavizada de estado interno, no 
 Verificamos además la distribución observada de los valores de $J_{c}$ por medio de un histograma, para corroborar que los valores estimados se encuentran dentro de un rango razonable:
 
 ```{python}
+#| label: fig-sag-jc-distribution
+#| fig-cap: "Distribución del nivel de llenado total estimado. La mediana y el rango intercuartílico permiten comprobar que la reconstrucción permanece concentrada en una banda operacionalmente plausible."
 # Inicializamos la figura.
 fig = go.Figure()
 
@@ -1036,6 +1046,8 @@ El histograma funciona como una prueba rápida de plausibilidad operacional. Si 
 Resulta fundamental, una vez estimado el nivel de llenado total del molino SAG, comparar sus valores con respecto a los valores medidos para el resto de las variables operacionales del molino, a fin de verificar la coherencia de los resultados obtenidos:
 
 ```{python}
+#| label: fig-sag-jc-operational-dependencies
+#| fig-cap: "Densidad conjunta del nivel de llenado total estimado con potencia, velocidad, edad del revestimiento y presión. Los paneles muestran los regímenes operacionales que sostienen la señal reconstruida."
 # Inicializamos la figura.
 fig = psub.make_subplots(
     rows=2,
@@ -1361,6 +1373,8 @@ df_filt["calc_jb_cal_sag"] = np.where(
 Como antes, inspeccionamos visualmente la evolución del nivel de llenado de bolas estimado, $J_{b}$, a lo largo de las distintas campañas:
 
 ```{python}
+#| label: fig-sag-jb-time-series
+#| fig-cap: "Evolución temporal del nivel de llenado de bolas reconstruido mediante el balance de masa interna y el proxy de presión. Las oscilaciones permiten contrastar cambios de campaña con eventos de reposición y desgaste de medios."
 # Inicializamos la figura.
 fig = go.Figure()
 
@@ -1397,6 +1411,8 @@ El modelo calibrado de $J_{b}$ muestra una señal bastante más ruidosa que la d
 Verificamos además la distribución observada de los valores de $J_{b}$ por medio de un histograma, para corroborar que los valores estimados se encuentran dentro de un rango operacionalmente coherente:
 
 ```{python}
+#| label: fig-sag-jb-distribution
+#| fig-cap: "Distribución del nivel de llenado de bolas estimado. Las referencias de mediana y cuartiles permiten evaluar la estabilidad del inventario equivalente de medios de molienda."
 # Inicializamos la figura.
 fig = go.Figure()
 
@@ -1490,6 +1506,8 @@ df_filt["calc_jb_jc_sag"] = np.where(
 A continuación, inspeccionamos visualmente la evolución de la razón de llenado estimada, $\Gamma_{b}$, a lo largo de las distintas campañas:
 
 ```{python}
+#| label: fig-sag-filling-ratio-time-series
+#| fig-cap: "Evolución de la razón de llenado Jb/Jc. La serie revela cambios en la composición relativa de medios de molienda y carga total entre campañas."
 # Inicializamos la figura.
 fig = go.Figure()
 
@@ -1661,6 +1679,8 @@ def plot_filling_ratio_domain(campaign_index: int):
 Veamos primero el dominio resultante para la campaña número `1`:
 
 ```{python}
+#| label: fig-sag-filling-ratio-domain-campaign-1
+#| fig-cap: "Superficie de control de la campaña 1. Los isocontornos localizan las combinaciones de razón de llenado y potencia asociadas con mayor rendimiento del molino."
 show_plotly(plot_filling_ratio_domain(campaign_index=1))
 ```
 
@@ -1669,6 +1689,8 @@ Este gráfico debe leerse como una superficie operacional (o, en la jerga más t
 Repitamos el ejercicio para la campaña número `4`, que previamente mostró un comportamiento más disperso en el mapa potencia-presión:
 
 ```{python}
+#| label: fig-sag-filling-ratio-domain-campaign-4
+#| fig-cap: "Superficie de control de la campaña 4. La posición de sus máximos muestra que la banda eficiente de razón de llenado depende del estado de campaña y no de un único valor universal."
 show_plotly(plot_filling_ratio_domain(campaign_index=4))
 ```
 
@@ -1919,6 +1941,8 @@ def plot_filling_ratio_dashboard():
 ```
 
 ```{python}
+#| label: fig-sag-filling-ratio-dashboard
+#| fig-cap: "Tablero interactivo para explorar superficies de rendimiento por campaña. Los controles permiten comparar bandas robustas de razón de llenado y potencia, además del soporte observacional de cada región."
 show_plotly(plot_filling_ratio_dashboard())
 ```
 
@@ -2041,6 +2065,8 @@ comparison_summary.round(4)
 Una visualización directa ayuda a entender si el modelo está siguiendo la tendencia general de las mediciones puntuales. En el gráfico siguiente, cada punto corresponde a una medición manual. La línea segmentada representa el caso ideal, donde el valor modelado coincide exactamente con el valor medido:
 
 ```{python}
+#| label: fig-sag-fill-level-point-comparison
+#| fig-cap: "Concordancia entre las estimaciones de Jc, Jb y Jb/Jc y las mediciones puntuales de terreno. La diagonal representa coincidencia perfecta y permite identificar sesgo y dispersión en cada magnitud."
 # Inicializamos una figura comparativa.
 fig = psub.make_subplots(
     rows=1,
@@ -2171,6 +2197,8 @@ show_plotly(fig)
 Finalmente, también es útil mirar el contraste en el eje temporal, manteniendo claro que los puntos de terreno son observaciones discretas:
 
 ```{python}
+#| label: fig-sag-fill-level-temporal-validation
+#| fig-cap: "Series modeladas de Jc y Jb frente a las mediciones manuales disponibles. La comparación conserva el carácter puntual de las observaciones de terreno y evita interpretarlas como sensores continuos."
 # Inicializamos una figura temporal.
 fig = psub.make_subplots(
     rows=2,

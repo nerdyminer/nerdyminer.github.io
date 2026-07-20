@@ -18,6 +18,20 @@ execute:
 Los modelos de ensamble especializados extienden la lógica de *gradient boosting* hacia implementaciones diseñadas para trabajar mejor con datos tabulares reales: muchas observaciones, muchas variables, valores faltantes, variables categóricas, relaciones no lineales e interacciones de alto orden. En esta entrada estudiaremos dos herramientas modernas que se han vuelto particularmente relevantes en aplicaciones industriales y competiciones de modelamiento: LightGBM, que prioriza eficiencia computacional y escalabilidad, y CatBoost, que incorpora un tratamiento especialmente cuidadoso de variables categóricas y sesgos inducidos por codificaciones ingenuas. La pregunta de fondo será práctica y conceptual a la vez: cómo ganar desempeño y velocidad sin perder control sobre validación, interpretabilidad y sobreajuste.
 :::
 
+::: {.class-keywords}
+[Gradient boosting]{.class-keyword}
+[LightGBM]{.class-keyword}
+[CatBoost]{.class-keyword}
+[Búsqueda por histogramas]{.class-keyword}
+[GOSS]{.class-keyword}
+[EFB]{.class-keyword}
+[Crecimiento hoja-a-hoja]{.class-keyword}
+[Variables categóricas]{.class-keyword}
+[Fuga de información]{.class-keyword}
+[Boosting ordenado]{.class-keyword}
+[Árboles simétricos]{.class-keyword}
+:::
+
 ## Introducción
 
 En la entrada anterior estudiamos la idea general de los modelos de ensamble: En vez de confiar en un único predictor, combinamos muchos modelos relativamente simples para construir un sistema predictivo más estable, flexible y robusto. Dentro de esa familia, los métodos de *boosting* ocupan un lugar muy especial, porque no entrenan todos sus componentes de manera independiente, sino que los construyen de forma secuencial. Cada nuevo modelo intenta corregir, al menos parcialmente, los errores cometidos por el ensamble acumulado hasta ese momento.
@@ -391,7 +405,7 @@ La lectura conceptual del @alg-lightgbm es bastante directa. GOSS reduce el núm
 
 ### Instalación y uso de la librería en Python
 
-La librería **<font color='darkmagenta'>LightGBM</font>** puede utilizarse en Python mediante una API propia, basada en objetos como `Dataset`, `train` y `Booster`, o mediante una API compatible con **<font color='darkmagenta'>Scikit-Learn</font>**, basada en estimadores como `LGBMRegressor` y `LGBMClassifier`. En estos apuntes usaremos preferentemente esta segunda alternativa, porque nos permite reutilizar casi todo el ecosistema que ya conocemos: El objeto `Pipeline` para encadenar pasos secuenciales en un modelo, validación cruzada, búsqueda de hiperparámetros, métricas de desempeño y separación entre conjunto de entrenamiento y prueba.
+La librería <strong><font color='darkmagenta'>LightGBM</font></strong> puede utilizarse en Python mediante una API propia, basada en objetos como `Dataset`, `train` y `Booster`, o mediante una API compatible con <strong><font color='darkmagenta'>Scikit-Learn</font></strong>, basada en estimadores como `LGBMRegressor` y `LGBMClassifier`. En estos apuntes usaremos preferentemente esta segunda alternativa, porque nos permite reutilizar casi todo el ecosistema que ya conocemos: El objeto `Pipeline` para encadenar pasos secuenciales en un modelo, validación cruzada, búsqueda de hiperparámetros, métricas de desempeño y separación entre conjunto de entrenamiento y prueba.
 
 La instalación estándar puede realizarse en nuestra terminal a partir del índice de paquetes de Python:
 
@@ -399,30 +413,30 @@ La instalación estándar puede realizarse en nuestra terminal a partir del índ
 pip install lightgbm
 ```
 
-En Windows, esto es suficiente para trabajar con la librería. Sin embargo, en MacOS, puede aparecer un error asociado a un paquete adicional denominado `libomp.dylib`, porque **<font color='darkmagenta'>LightGBM</font>** utiliza `OpenMP` para paralelizar operaciones internas. En ese caso, normalmente basta con instalar `libomp` vía Homebrew:
+En Windows, esto es suficiente para trabajar con la librería. Sin embargo, en MacOS, puede aparecer un error asociado a un paquete adicional denominado `libomp.dylib`, porque <strong><font color='darkmagenta'>LightGBM</font></strong> utiliza `OpenMP` para paralelizar operaciones internas. En ese caso, normalmente basta con instalar `libomp` vía Homebrew:
 
 ```bash
 brew install libomp
 ```
 
-Y ya estamos listos para trabajar. **<font color='darkmagenta'>LightGBM</font>** nos provee, en su API compatible con <strong><font color='darkmagenta'>Scikit-Learn</font></strong>, de los objetos `LGBMRegressor` y `LGBMClassifier`, que implementan regresión y clasificación, respectivamente. Ambos objetos aceptan hiperparámetros propios de **<font color='darkmagenta'>LightGBM</font>**, como `num_leaves`, `min_child_samples`, `subsample`, `colsample_bytree`, `reg_alpha` y `reg_lambda`. La [documentación oficial](https://lightgbm.readthedocs.io/en/stable/) de la librería describe en detalle cada uno de ellos, incluyendo sus valores por defecto y rangos recomendados. En esta entrada, haremos uso de `LGBMRegressor` por medio de un ejemplo:
+Y ya estamos listos para trabajar. <strong><font color='darkmagenta'>LightGBM</font></strong> nos provee, en su API compatible con <strong><font color='darkmagenta'>Scikit-Learn</font></strong>, de los objetos `LGBMRegressor` y `LGBMClassifier`, que implementan regresión y clasificación, respectivamente. Ambos objetos aceptan hiperparámetros propios de <strong><font color='darkmagenta'>LightGBM</font></strong>, como `num_leaves`, `min_child_samples`, `subsample`, `colsample_bytree`, `reg_alpha` y `reg_lambda`. La [documentación oficial](https://lightgbm.readthedocs.io/en/stable/) de la librería describe en detalle cada uno de ellos, incluyendo sus valores por defecto y rangos recomendados. En esta entrada, haremos uso de `LGBMRegressor` por medio de un ejemplo:
 
 ```{python}
 from lightgbm import LGBMRegressor
 ```
 
-Por cierto, **<font color='darkmagenta'>LightGBM</font>** suele importarse usando el alias `lgb` cuando deseamos acceso a todas sus herramientas de manera explícita. No será el caso para el flujo de trabajo que desarrollaremos aquí.
+Por cierto, <strong><font color='darkmagenta'>LightGBM</font></strong> suele importarse usando el alias `lgb` cuando deseamos acceso a todas sus herramientas de manera explícita. No será el caso para el flujo de trabajo que desarrollaremos aquí.
 
 Volvamos a lo nuestro: El objeto `LGBMRegressor` se comporta, en términos generales, como un estimador de <strong><font color='darkmagenta'>Scikit-Learn</font></strong>:
 
 - Implementa métodos `fit()`, `predict()`, `get_params()` y `set_params()`.
 - Puede usarse como paso final de una `Pipeline`.
 - Puede optimizarse con `GridSearchCV`, `RandomizedSearchCV` o esquemas más modernos.
-- Acepta hiperparámetros con nombres propios de **<font color='darkmagenta'>LightGBM</font>**, como `num_leaves`, `min_child_samples`, `subsample`, `colsample_bytree`, `reg_alpha` y `reg_lambda`.
+- Acepta hiperparámetros con nombres propios de <strong><font color='darkmagenta'>LightGBM</font></strong>, como `num_leaves`, `min_child_samples`, `subsample`, `colsample_bytree`, `reg_alpha` y `reg_lambda`.
 
-La diferencia importante es que, aunque el objeto se integre muy bien con <strong><font color='darkmagenta'>Scikit-Learn</font></strong>, el motor interno no es el de <strong><font color='darkmagenta'>Scikit-Learn</font></strong>. Es decir, al llamar `fit()`, no estamos usando tras bambalinas la clase `GradientBoostingRegressor`, sino la implementación especializada provista por la librería **<font color='darkmagenta'>LightGBM</font>** que hace uso del algoritmo homónimo, con histogramas, crecimiento hoja-a-hoja, tratamiento nativo de valores faltantes y todas las optimizaciones que discutimos previamente. La interfaz se parece; el corazón computacional es distinto.
+La diferencia importante es que, aunque el objeto se integre muy bien con <strong><font color='darkmagenta'>Scikit-Learn</font></strong>, el motor interno no es el de <strong><font color='darkmagenta'>Scikit-Learn</font></strong>. Es decir, al llamar `fit()`, no estamos usando tras bambalinas la clase `GradientBoostingRegressor`, sino la implementación especializada provista por la librería <strong><font color='darkmagenta'>LightGBM</font></strong> que hace uso del algoritmo homónimo, con histogramas, crecimiento hoja-a-hoja, tratamiento nativo de valores faltantes y todas las optimizaciones que discutimos previamente. La interfaz se parece; el corazón computacional es distinto.
 
-<strong>Ejemplo 3.1 – Predicción de tratamiento en molienda SAG con la librería <font color='darkmagenta'>LightGBM</font>:</strong> Retomemos el caso de predicción de tratamiento de mineral en un molino SAG que utilizamos [en la entrada dedicada a modelos de ensamble](/clases/machine-learning/aprendizaje-supervisado/modelos-no-lineales/modelos-de-ensamble/). El objetivo sigue siendo estimar el rendimiento del molino, medido en toneladas por hora (tph), a partir de variables operacionales del circuito. Usaremos el archivo **<font color='forestgreen'>`sag_mill_data.csv`</font>**, disponible para descarga directa:
+<strong>Ejemplo 3.1 – Predicción de tratamiento en molienda SAG con la librería <font color='darkmagenta'>LightGBM</font>:</strong> Retomemos el caso de predicción de tratamiento de mineral en un molino SAG que utilizamos [en la entrada dedicada a modelos de ensamble](/clases/machine-learning/aprendizaje-supervisado/modelos-no-lineales/modelos-de-ensamble/). El objetivo sigue siendo estimar el rendimiento del molino, medido en toneladas por hora (tph), a partir de variables operacionales del circuito. Usaremos el archivo <strong><font color='forestgreen'>`sag_mill_data.csv`</font></strong>, disponible para descarga directa:
 
 <div class="dataset-download">
   <a class="dataset-download-btn" href="datasets/sag_mill_data.csv" download="sag_mill_data.csv">Descargar sag_mill_data.csv</a>
@@ -430,7 +444,7 @@ La diferencia importante es que, aunque el objeto se integre muy bien con <stron
 
 ![Esquema simplificado de un circuito de molienda SAG usado como caso de estudio.](images/fig_3_1.png){#fig-sag-mill-circuit fig-align="center" width="900px"}
 
-Partiremos con las importaciones generales. A diferencia de un ejemplo puramente basado en <strong><font color='darkmagenta'>Scikit-Learn</font></strong>, aquí importaremos `LGBMRegressor` desde **<font color='darkmagenta'>LightGBM</font>**. Todo lo demás sigue siendo parte del flujo clásico: Imputación, pipeline, validación cruzada, búsqueda aleatorizada y métricas.
+Partiremos con las importaciones generales. A diferencia de un ejemplo puramente basado en <strong><font color='darkmagenta'>Scikit-Learn</font></strong>, aquí importaremos `LGBMRegressor` desde <strong><font color='darkmagenta'>LightGBM</font></strong>. Todo lo demás sigue siendo parte del flujo clásico: Imputación, pipeline, validación cruzada, búsqueda aleatorizada y métricas.
 
 ```{python}
 import matplotlib.pyplot as plt
@@ -618,7 +632,7 @@ class DataQualityFilter(BaseEstimator, TransformerMixin):
         return X[self.selected_features_]
 ```
 
-Ahora definimos el estimador base. Aquí aparece el primer paralelismo fuerte con <strong><font color='darkmagenta'>Scikit-Learn</font></strong>: `LGBMRegressor` puede ser tratado como cualquier estimador compatible con la API. Sin embargo, sus hiperparámetros reflejan la lógica interna de la librería **<font color='darkmagenta'>LightGBM</font>**:
+Ahora definimos el estimador base. Aquí aparece el primer paralelismo fuerte con <strong><font color='darkmagenta'>Scikit-Learn</font></strong>: `LGBMRegressor` puede ser tratado como cualquier estimador compatible con la API. Sin embargo, sus hiperparámetros reflejan la lógica interna de la librería <strong><font color='darkmagenta'>LightGBM</font></strong>:
 
 - `n_estimators`: Entero que representa el número de árboles que constituyen el ensamble.
 - `learning_rate`: Tasa de aprendizaje o *shrinkage* usada por cada árbol.
@@ -629,7 +643,7 @@ Ahora definimos el estimador base. Aquí aparece el primer paralelismo fuerte co
 - `colsample_bytree`: Fracción de columnas usadas por árbol. También es importante para introducir aleatoriedad y reducir la varianza del modelo.
 - `reg_alpha` y `reg_lambda`: Hiperparámetros que permiten incorporar un procedimiento de regularización por norma $\ell_{1}$ y $\ell_{2}$ sobre los pesos de las hojas, a fin de controlar la eventual ocurrencia de overfitting.
 
-Procedemos pues con la construcción de nuestra pipeline, que incluye el filtro de calidad de datos, la imputación de valores faltantes vía el algoritmo de $k$-vecinos más cercanos y el estimador final, basado en la librería **<font color='darkmagenta'>LightGBM</font>**:
+Procedemos pues con la construcción de nuestra pipeline, que incluye el filtro de calidad de datos, la imputación de valores faltantes vía el algoritmo de $k$-vecinos más cercanos y el estimador final, basado en la librería <strong><font color='darkmagenta'>LightGBM</font></strong>:
 
 ```{python}
 # Definimos el estimador LightGBM para regresión.
@@ -649,7 +663,7 @@ model_pipe = Pipeline(
 )
 ```
 
-La pipeline anterior ilustra muy bien la convivencia entre **<font color='darkmagenta'>LightGBM</font>** y <strong><font color='darkmagenta'>Scikit-Learn</font></strong>. Los pasos de limpieza e imputación son objetos de <strong><font color='darkmagenta'>Scikit-Learn</font></strong>, mientras que el estimador final es de **<font color='darkmagenta'>LightGBM</font>**. La clase `RandomizedSearchCV` no necesita saber demasiado sobre esa diferencia: Sólo requiere que el estimador implemente la interfaz esperada.
+La pipeline anterior ilustra muy bien la convivencia entre <strong><font color='darkmagenta'>LightGBM</font></strong> y <strong><font color='darkmagenta'>Scikit-Learn</font></strong>. Los pasos de limpieza e imputación son objetos de <strong><font color='darkmagenta'>Scikit-Learn</font></strong>, mientras que el estimador final es de <strong><font color='darkmagenta'>LightGBM</font></strong>. La clase `RandomizedSearchCV` no necesita saber demasiado sobre esa diferencia: Sólo requiere que el estimador implemente la interfaz esperada.
 
 Para ajustar hiperparámetros, usaremos validación cruzada temporal mediante `TimeSeriesSplit`. Esto es importante, porque las observaciones del molino no son intercambiables: Vienen ordenadas en el tiempo y pueden tener autocorrelación, cambios de campaña, variaciones de mineral y estados operacionales persistentes. Usar una partición aleatoria sería más optimista de lo razonable:
 
@@ -919,13 +933,13 @@ El QQ plot confirma una lectura bastante típica en datos industriales: La parte
 
 En conjunto, los resultados son buenos, pero no perfectos, que es justamente lo esperable en una aplicación realista de molienda SAG. El modelo captura una fracción alta de la variabilidad del rendimiento, generaliza bien hacia un período posterior y mantiene errores típicos razonables para la escala del proceso. Sus principales debilidades están en los eventos transitorios, en la cola negativa de residuos y en una ligera tendencia a sobreestimar en algunos regímenes de alto tratamiento. Por lo tanto, LightGBM queda bien posicionado como modelo de monitoreo, simulación local o apoyo a decisiones, pero no como reemplazo directo de criterio operacional ni como predictor infalible de eventos abruptos.
 
-Este ejercicio deja ver el valor práctico de la librería **<font color='darkmagenta'>LightGBM</font>** en problemas industriales tabulares. Desde la perspectiva del flujo de trabajo, casi todo se parece a <strong><font color='darkmagenta'>Scikit-Learn</font></strong>: Cargamos datos, definimos una pipeline, construimos una grilla de hiperparámetros, aplicamos validación cruzada y evaluamos métricas. La diferencia está en el estimador final: En vez de usar un objeto `GradientBoostingRegressor` clásico, usamos un motor especializado que discretiza variables en histogramas, crece árboles hoja-a-hoja y está diseñado para entrenar rápido en matrices de datos grandes.
+Este ejercicio deja ver el valor práctico de la librería <strong><font color='darkmagenta'>LightGBM</font></strong> en problemas industriales tabulares. Desde la perspectiva del flujo de trabajo, casi todo se parece a <strong><font color='darkmagenta'>Scikit-Learn</font></strong>: Cargamos datos, definimos una pipeline, construimos una grilla de hiperparámetros, aplicamos validación cruzada y evaluamos métricas. La diferencia está en el estimador final: En vez de usar un objeto `GradientBoostingRegressor` clásico, usamos un motor especializado que discretiza variables en histogramas, crece árboles hoja-a-hoja y está diseñado para entrenar rápido en matrices de datos grandes.
 
 Hay, sin embargo, una advertencia importante. Precisamente porque LightGBM es rápido y flexible, puede sobreajustar con mucha facilidad si se le permite construir demasiadas hojas, demasiados árboles o particiones demasiado específicas. En este tipo de problemas, `num_leaves`, `min_child_samples`, `learning_rate`, `subsample` y `colsample_bytree` no son detalles cosméticos: Son controles directos sobre la complejidad efectiva del modelo. En molienda SAG, donde las señales contienen ruido operacional, cambios de mineral, detenciones, campañas y condiciones de proceso que no siempre están completamente medidas, validar con cuidado no es una formalidad estadística: Es la diferencia entre un modelo útil y una máquina elegante para memorizar historia. ◼︎
 
 ## Categorical boosting (o *CatBoost*)
 
-El segundo modelo especializado que revisaremos se denomina **Boosting Categórico** o **CatBoost** (del inglés *Categorical Boosting*), el cual es una variante del algoritmo de *gradient boosting* diseñada explícitamente para trabajar con datos tabulares donde las variables categóricas constituyen una parte central del problema. Este modelo fue presentado por primera vez [en un paper de Prokhorenkova et al. (2018)](https://arxiv.org/pdf/1706.09516) y ha sido implementado en la librería de código abierto **<font color='darkmagenta'>CatBoost</font>** de Python.
+El segundo modelo especializado que revisaremos se denomina **Boosting Categórico** o **CatBoost** (del inglés *Categorical Boosting*), el cual es una variante del algoritmo de *gradient boosting* diseñada explícitamente para trabajar con datos tabulares donde las variables categóricas constituyen una parte central del problema. Este modelo fue presentado por primera vez [en un paper de Prokhorenkova et al. (2018)](https://arxiv.org/pdf/1706.09516) y ha sido implementado en la librería de código abierto <strong><font color='darkmagenta'>CatBoost</font></strong> de Python.
 
 El algoritmo CatBoost se introduce poniendo énfasis en dos ideas que, en problemas reales, suelen pasarse por alto con suma facilidad:
 
@@ -2079,7 +2093,7 @@ bank_target_balance
 
 ```{python}
 #| label: fig-bank-target-balance
-#| fig-cap: "Distribución de clases en UCI Bank Marketing."
+#| fig-cap: "Desbalance de la respuesta en UCI Bank Marketing entre clientes que aceptaron y rechazaron el depósito a plazo."
 # Graficamos la distribución de las clases para este problema.
 fig, ax = plt.subplots(figsize=(9, 4))
 ax.bar(
@@ -2311,7 +2325,7 @@ axes[1].axhline(
 
 axes[1].set_xlabel("Recall", fontsize=10, labelpad=8)
 axes[1].set_ylabel("Precisión", fontsize=10, labelpad=8)
-axes[1].set_title("Curva precision-recall", fontsize=11, fontweight="bold")
+axes[1].set_title("Curva de precisión versus sensibilidad", fontsize=11, fontweight="bold")
 axes[1].legend(loc="upper right", fontsize=9)
 
 plt.tight_layout()

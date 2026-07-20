@@ -27,6 +27,19 @@ crossref:
 Las máquinas de soporte vectorial construyen clasificadores a partir de una idea geométrica muy simple y poderosa: separar clases mediante un hiperplano con el mayor margen posible. En esta entrada desarrollaremos esa intuición desde la formulación primal, la extenderemos a márgenes blandos mediante variables de holgura y pérdida de Hinge, y luego construiremos la formulación dual que permite introducir kernels. El objetivo será conectar geometría, optimización convexa y modelamiento predictivo, para entender por qué las SVM pueden resolver tanto problemas lineales como no lineales, e incluso adaptarse a tareas de regresión.
 :::
 
+::: {.class-keywords}
+[Máquinas de soporte vectorial]{.class-keyword}
+[Hiperplanos]{.class-keyword}
+[Margen máximo]{.class-keyword}
+[Margen rígido]{.class-keyword}
+[Margen blando]{.class-keyword}
+[Pérdida hinge]{.class-keyword}
+[Problema dual]{.class-keyword}
+[Condiciones KKT]{.class-keyword}
+[Funciones kernel]{.class-keyword}
+[Clasificación]{.class-keyword}
+:::
+
 ## Introducción
 
 Como ya hemos tenido la oportunidad de revisar en la [entrada correspondiente](/clases/machine-learning/aprendizaje-supervisado/modelos-lineales/modelos-de-clasificacion-parte-i/), en muchas situaciones estaremos interesados en construir modelos de clasificación. Vale decir, querremos que un modelo prediga uno de varios resultados (discretos) posibles. Ya hemos ilustrado que un ejemplo típico de un problema de este tipo lo podemos ver a diario a la hora de abrir nuestro cliente favorito de correo electrónico, ya que éste es capaz de clasificar sin mayor problema los correos importantes de aquellos que posiblemente no sean de interés (categorizándolos como *spam*). Otros ejemplos más sofisticados incluyen clasificadores de imágenes que permiten diferenciar elementos de interés –por ejemplo, personas– en un set de imágenes dado. Sea cual sea el caso, es normal que exista un pequeño número de resultados posibles para un fenómeno de interés, y en muchas ocasiones, la resolución de tales problemas por medio de modelos de clasificación podrá agregar mucho valor en un contexto de negocio. 
@@ -48,13 +61,22 @@ A diferencia de [la entrada anterior](/clases/machine-learning/aprendizaje-super
 
 Las máquinas de soporte vectorial nos proveen de resultados poderosos en muchísimas aplicaciones académicas e industriales relativas a problemas de clasificación, apoyándose de teoremas bien fundamentados. Se trata además de un modelo que aprovecha algunas cuestiones geométricas inherentes a los problemas de clasificación y que permiten ilustrar su implementación (y calidad) de manera relativamente sencilla. Por lo tanto, **se trata de un enfoque esencial en el modelamiento predictivo y que debemos siempre tener disponible en nuestra caja de herramientas**. Además, es un excelente caso de ejemplo en lo que respecta a la formulación de un problema de optimización desde la perspectiva de la dualidad.
 
-Consideremos pues un problema de clasificación binaria representado por el conjunto de entrenamiento $\mathcal{D}$. Cada par $\left( \mathbf{x}_{i} ,y_{i}\right)$, donde $\mathbf{x}_{i}$ es una matriz fila que simplemente representa la instancia $i$-ésima asociada a la matriz de atributos $\mathbf{X}$, hace corresponder a un ejemplo observado $\mathbf{x}_{i}$ una etiqueta o clase $y_{i}$ (siendo $1\leq i\leq m$). Si $x_{i}\in \mathbb{R}^{2}$, el problema puede ilustrarse geométricamente en el plano $\mathbb{R}^{2}$ *pintando* cada punto $x_{i}$ de un color si $y_{i}=1$ (la clase positiva), y de otro color si $y_{i}=0$ (la clase negativa). Notemos que, en este ejemplo práctico, hemos asignado el valor $0$ a la clase negativa, fundamentalmente porque, en **<font color='darkmagenta'>Scikit-Learn</font>**, las clases en un problema de clasificación suelen empezar a numerarse precisamente desde el cero. Ejemplifiquemos esto haciendo uso de algo de código, tomando como base la función `make_blobs()` del módulo `sklearn.datasets`. Para ello, haremos uso de las importaciones usuales:
+Consideremos pues un problema de clasificación binaria representado por el conjunto de entrenamiento $\mathcal{D}$. Cada par $\left( \mathbf{x}_{i} ,y_{i}\right)$, donde $\mathbf{x}_{i}$ es una matriz fila que simplemente representa la instancia $i$-ésima asociada a la matriz de atributos $\mathbf{X}$, hace corresponder a un ejemplo observado $\mathbf{x}_{i}$ una etiqueta o clase $y_{i}$ (siendo $1\leq i\leq m$). Si $x_{i}\in \mathbb{R}^{2}$, el problema puede ilustrarse geométricamente en el plano $\mathbb{R}^{2}$ *pintando* cada punto $x_{i}$ de un color si $y_{i}=1$ (la clase positiva), y de otro color si $y_{i}=0$ (la clase negativa). Notemos que, en este ejemplo práctico, hemos asignado el valor $0$ a la clase negativa, fundamentalmente porque, en <strong><font color='darkmagenta'>Scikit-Learn</font></strong>, las clases en un problema de clasificación suelen empezar a numerarse precisamente desde el cero. Ejemplifiquemos esto haciendo uso de algo de código, tomando como base la función `make_blobs()` del módulo `sklearn.datasets`. Para ello, haremos uso de las importaciones usuales:
 
 ```{python}
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import seaborn as sns
+
+import warnings
+```
+
+```{python}
+# Suprimimos advertencias para mantener salidas limpias.
+# NOTA: Nunca hacer esto en un entorno de producción, ya que
+# puede ocultar errores importantes.
+warnings.filterwarnings("ignore")
 ```
 
 ```{python}
@@ -80,7 +102,7 @@ La función `make_blobs()` retorna una tupla de arreglos que hemos denominado co
 
 ```{python}
 #| label: fig-maquinas-de-soporte-vectorial-01
-#| fig-cap: "Visualización generada para la sección Introducción."
+#| fig-cap: "Dos clases linealmente separables generadas como nubes Gaussianas para motivar el margen máximo de una SVM."
 fig, ax = plt.subplots(figsize=(9, 5))
 p = ax.scatter(x=X[:, 0], y=X[:, 1], c=y, cmap="Dark2")
 ax.set_xlabel(r"$x_{1}$", fontsize=16, labelpad=10)
@@ -112,7 +134,7 @@ $$
 
 donde $\mathbf{w}\in \mathbb{R}^{n}$ y $b\in \mathbb{R}$ son parámetros. Tiene sentido entonces la siguiente definición.
 
-**<font color='blue'>Definición 7.1 – Hiperplano de separación:</font>** Sea $\mathcal{D} =\left\{ \left( \mathbf{X} ,\mathbf{y} \right)  :\mathbf{X} =\left\{ x_{ij}\right\}  \in \mathbb{R}^{m\times n} \wedge \mathbf{y} \in \mathbb{R}^{m} \right\}$ un conjunto de entrenamiento tal que $\mathbf{y}$ únicamente puede tomar los valores $+1$ o $-1$, y sea $\mathbf{x}\in \mathbb{R}^{n}$ una instancia (fila) de $\mathbf{X}$. Se define el hiperplano que separa las clases $y_{i}=+1$ e $y_{i}=-1$, llamado **hiperplano de separación**, como el conjunto
+<strong><font color='blue'>Definición 7.1 – Hiperplano de separación:</font></strong> Sea $\mathcal{D} =\left\{ \left( \mathbf{X} ,\mathbf{y} \right)  :\mathbf{X} =\left\{ x_{ij}\right\}  \in \mathbb{R}^{m\times n} \wedge \mathbf{y} \in \mathbb{R}^{m} \right\}$ un conjunto de entrenamiento tal que $\mathbf{y}$ únicamente puede tomar los valores $+1$ o $-1$, y sea $\mathbf{x}\in \mathbb{R}^{n}$ una instancia (fila) de $\mathbf{X}$. Se define el hiperplano que separa las clases $y_{i}=+1$ e $y_{i}=-1$, llamado **hiperplano de separación**, como el conjunto
 
 ::: {.eq-scroll}
 $$
@@ -173,9 +195,9 @@ y que es equivalente a multiplicar ambas ecuaciones anteriores por $y_{k}=+1$ y 
 
 Basándonos en la idea de distancia de un punto a un hiperplano mencionada previamente, y considerando el marco de referencia geométrico que hemos construido para motivar la conceptualización de las máquinas de soporte vectorial, ya estamos en condiciones de discutir en profundidad su formulación en términos más rigurosos. Partiremos estableciendo la siguiente definición. 
 
-**<font color='blue'>Definición 7.2 – Separabilidad lineal</font>**: Consideremos un conjunto de entrenamiento $\mathcal{D} =\left\{ \left( \mathbf{X} ,\mathbf{y} \right)  :\mathbf{X} =\left\{ x_{ij}\right\}  \in \mathbb{R}^{m\times n} \wedge \mathbf{y} \in \mathbb{R}^{m} \right\}$ tal que $\mathbf{y}$ es una variable binaria que puede tomar los valores $-1$ y $+1$ para cada instancia $\mathbf{x}_{i}\in \mathbb{R}^{n}$ de $\mathcal{D}$ (siendo $1\leq i\leq m$). Sean $\mathcal{D}_{+1}$ y $\mathcal{D}_{-1}$ los subconjuntos que contienen todos los puntos que pertenecen a la clase positiva y negativa, respectivamente. Diremos que $\mathcal{D}_{+1}$ y $\mathcal{D}_{-1}$ son **linealmente separables** si existen $n+1$ números reales $w_{1},...,w_{n}, b$, tales que cada punto $\mathbf{u}=(u_{1},\dots, u_{n})\in \mathcal{D}_{+1}$ satisface la expresión $\sum^{n}_{j=1} w_{j}u_{j}>b$, y cada punto $\mathbf{v}=(v_{1},\dots, v_{n})\in \mathcal{D}_{-1}$ satisface la expresión $\sum^{n}_{j=1} w_{j}v_{j}<b$.
+<strong><font color='blue'>Definición 7.2 – Separabilidad lineal</font></strong>: Consideremos un conjunto de entrenamiento $\mathcal{D} =\left\{ \left( \mathbf{X} ,\mathbf{y} \right)  :\mathbf{X} =\left\{ x_{ij}\right\}  \in \mathbb{R}^{m\times n} \wedge \mathbf{y} \in \mathbb{R}^{m} \right\}$ tal que $\mathbf{y}$ es una variable binaria que puede tomar los valores $-1$ y $+1$ para cada instancia $\mathbf{x}_{i}\in \mathbb{R}^{n}$ de $\mathcal{D}$ (siendo $1\leq i\leq m$). Sean $\mathcal{D}_{+1}$ y $\mathcal{D}_{-1}$ los subconjuntos que contienen todos los puntos que pertenecen a la clase positiva y negativa, respectivamente. Diremos que $\mathcal{D}_{+1}$ y $\mathcal{D}_{-1}$ son **linealmente separables** si existen $n+1$ números reales $w_{1},...,w_{n}, b$, tales que cada punto $\mathbf{u}=(u_{1},\dots, u_{n})\in \mathcal{D}_{+1}$ satisface la expresión $\sum^{n}_{j=1} w_{j}u_{j}>b$, y cada punto $\mathbf{v}=(v_{1},\dots, v_{n})\in \mathcal{D}_{-1}$ satisface la expresión $\sum^{n}_{j=1} w_{j}v_{j}<b$.
 
-La definición (7.2) establece simplemente que dos conjuntos de datos son linealmente separables si existe un hiperplano que aísle los puntos que constituyen uno de los conjuntos con respecto a los puntos que pertenecen al otro. Naturalmente, si $\mathcal{D}$ es un conjunto de entrenamiento caracterizado por una variable dependiente binaria, existirán infinitos hiperplanos que separen a los datos que pertenecen a la clase positiva de aquellos que pertenecen a la clase negativa. Para ilustrar aquello, consideremos el *conjunto de datos* **<font color='forestgreen'>IRIS</font>**, el cual ya hemos usado previamente para ilustrar algunos modelos de clasificación provistos por **<font color='darkmagenta'>Scikit-Learn</font>**. Recordemos que podemos descargar dicho conjunto de datos haciendo uso del módulo `sklearn.datasets` como sigue:
+La definición (7.2) establece simplemente que dos conjuntos de datos son linealmente separables si existe un hiperplano que aísle los puntos que constituyen uno de los conjuntos con respecto a los puntos que pertenecen al otro. Naturalmente, si $\mathcal{D}$ es un conjunto de entrenamiento caracterizado por una variable dependiente binaria, existirán infinitos hiperplanos que separen a los datos que pertenecen a la clase positiva de aquellos que pertenecen a la clase negativa. Para ilustrar aquello, consideremos el *conjunto de datos* <strong><font color='forestgreen'>IRIS</font></strong>, el cual ya hemos usado previamente para ilustrar algunos modelos de clasificación provistos por <strong><font color='darkmagenta'>Scikit-Learn</font></strong>. Recordemos que podemos descargar dicho conjunto de datos haciendo uso del módulo `sklearn.datasets` como sigue:
 
 ```{python}
 from sklearn.datasets import load_iris
@@ -187,7 +209,7 @@ iris = load_iris(as_frame=True)
 iris_df = iris["frame"]
 ```
 
-Como ya hemos observado en entradas anteriores, el *conjunto de datos* **<font color='forestgreen'>IRIS</font>** es famoso en el mundo de los algoritmos de aprendizaje porque es perfecto para probar cualquier modelo de clasificación, ya que sus atributos son todos separables. Tomemos el caso de las variables relativas a las dimensiones de los pétalos de cada flor Iris y grafiquemos todos los puntos tales que `y` hace referencia a una subespecie Iris Versicolor o Setosa:
+Como ya hemos observado en entradas anteriores, el *conjunto de datos* <strong><font color='forestgreen'>IRIS</font></strong> es famoso en el mundo de los algoritmos de aprendizaje porque es perfecto para probar cualquier modelo de clasificación, ya que sus atributos son todos separables. Tomemos el caso de las variables relativas a las dimensiones de los pétalos de cada flor Iris y grafiquemos todos los puntos tales que `y` hace referencia a una subespecie Iris Versicolor o Setosa:
 
 ```{python}
 # Definimos el conjunto de datos (X, y).
@@ -197,7 +219,7 @@ y = iris_df[iris_df["target"] != 2]["target"]
 
 ```{python}
 #| label: fig-maquinas-de-soporte-vectorial-02
-#| fig-cap: "Visualización generada para la sección Formulación del problema primal."
+#| fig-cap: "Separación de las especies Setosa y Versicolor en el plano definido por el largo y el ancho de sus pétalos."
 fig, ax = plt.subplots(figsize=(9, 5))
 p = ax.scatter(X.iloc[:, 2], X.iloc[:, 3], c=y, cmap="Set1")
 ax.set_xlabel("Largo de pétalo (cm)", fontsize=12, labelpad=10)
@@ -209,7 +231,7 @@ cb.set_label("Clase", fontsize=12, labelpad=10)
 plt.tight_layout()
 ```
 
-Podemos observar que, con respecto únicamente a las variables "largo de pétalo" y "ancho de pétalo", el *conjunto de datos* **<font color='forestgreen'>IRIS</font>** es, en efecto, linealmente separable. Existen pues infinitas rectas que permiten aislar cada subespecie de flor Iris a cada lado de las mismas. Por ejemplo, en los siguientes dos bloques de código, mostraremos tres líneas de separación arbitrarias y construida mediante simple inspección del gráfico anterior:
+Podemos observar que, con respecto únicamente a las variables "largo de pétalo" y "ancho de pétalo", el *conjunto de datos* <strong><font color='forestgreen'>IRIS</font></strong> es, en efecto, linealmente separable. Existen pues infinitas rectas que permiten aislar cada subespecie de flor Iris a cada lado de las mismas. Por ejemplo, en los siguientes dos bloques de código, mostraremos tres líneas de separación arbitrarias y construida mediante simple inspección del gráfico anterior:
 
 ```{python}
 # Algunas fronteras de separación sub-óptimas.
@@ -221,7 +243,7 @@ y3 = 0.1 * x_range + 0.5
 
 ```{python}
 #| label: fig-maquinas-de-soporte-vectorial-03
-#| fig-cap: "Visualización generada para la sección Formulación del problema primal."
+#| fig-cap: "Tres hiperplanos que separan correctamente las especies, pero dejan márgenes distintos frente a las observaciones más cercanas."
 fig, ax = plt.subplots(figsize=(9, 5))
 p1 = ax.scatter(X.iloc[:, 2], X.iloc[:, 3], c=y, cmap="Set1")
 p2 = ax.plot(x_range, y1, linestyle="--", color="dodgerblue")
@@ -242,7 +264,7 @@ Las tres líneas de separación son válidas, porquen con el objetivo de separar
 
 En lo que sigue, formalizaremos la noción de frontera óptima de separación introduciendo un nuevo concepto, denominado **margen**, y que es intuitivamente simple: Corresponde a la **distancia** de un hiperplano de separación con respecto a los puntos que representan las instancias más cercanas al mismo, para cada clase, en el dominio donde éstas se encuentran definidas. Formalmente, se tiene pues la siguiente definición.
 
-**<font color='blue'>Definición 7.3 – Margen de separación:</font>** Sea $\mathcal{D} =\left\{ \left( \mathbf{X} ,\mathbf{y} \right)  :\mathbf{X} =\left\{ x_{ij}\right\}  \in \mathbb{R}^{m\times n} \wedge \mathbf{y} \in \mathbb{R}^{m} \right\}$ un conjunto de entrenamiento tal que $\mathbf{y}$ es una variable binaria que puede tomar los valores $-1$ y $+1$ para cada instancia $\mathbf{x}_{i}\in \mathbb{R}^{n}$ de $\mathcal{D}$ (siendo $1\leq i\leq m$). Supongamos que $\mathcal{D}$ es linealmente separable y que el conjunto $\mathcal{H} =\left\{ \mathbf{x} \in \mathbb{R}^{n} :\left< \mathbf{w} ,\mathbf{x} \right>  +b=0\right\}$, para el par de parámetros $\mathbf{w}\in \mathbb{R}^{n}$ y $b\in \mathbb{R}$, define al correspondiente hiperplano de separación entre las clases. Si $\mathbf{x}^{+}$ y $\mathbf{x}^{-}$ son las instancias más cercanas a dicho hiperplano, para las clases positiva y negativa, respectivamente, entonces las distancias $d(\mathcal{H},\mathbf{x}^{+})$ y $d(\mathcal{H},\mathbf{x}^{-})$ serán llamadas **márgenes de separación** asociados al hiperplano $\mathcal{H}$.
+<strong><font color='blue'>Definición 7.3 – Margen de separación:</font></strong> Sea $\mathcal{D} =\left\{ \left( \mathbf{X} ,\mathbf{y} \right)  :\mathbf{X} =\left\{ x_{ij}\right\}  \in \mathbb{R}^{m\times n} \wedge \mathbf{y} \in \mathbb{R}^{m} \right\}$ un conjunto de entrenamiento tal que $\mathbf{y}$ es una variable binaria que puede tomar los valores $-1$ y $+1$ para cada instancia $\mathbf{x}_{i}\in \mathbb{R}^{n}$ de $\mathcal{D}$ (siendo $1\leq i\leq m$). Supongamos que $\mathcal{D}$ es linealmente separable y que el conjunto $\mathcal{H} =\left\{ \mathbf{x} \in \mathbb{R}^{n} :\left< \mathbf{w} ,\mathbf{x} \right>  +b=0\right\}$, para el par de parámetros $\mathbf{w}\in \mathbb{R}^{n}$ y $b\in \mathbb{R}$, define al correspondiente hiperplano de separación entre las clases. Si $\mathbf{x}^{+}$ y $\mathbf{x}^{-}$ son las instancias más cercanas a dicho hiperplano, para las clases positiva y negativa, respectivamente, entonces las distancias $d(\mathcal{H},\mathbf{x}^{+})$ y $d(\mathcal{H},\mathbf{x}^{-})$ serán llamadas **márgenes de separación** asociados al hiperplano $\mathcal{H}$.
 
 De la definición (7.3) podemos observar inmediatamente un problema técnico que puede relativizar enormemente la definición de un margen de separación, y éste radica en la **escala** de los puntos que constituyen el conjunto de entrenamiento $\mathcal{D}$. Dicho de otro modo, si las $n$ variables $\mathbf{x}_{1},\mathbf{x}_{2},\dots,\mathbf{x}_{n}$ tienen órdenes de magnitud distintos, entonces los márgenes de separación correspondientes serán dependientes de tales magnitudes y, por tanto, los cambios de unidades en las variables influirán en las distancias entre las respectivas instancias y los hiperplanos de separación que podamos determinar.
 
@@ -403,9 +425,9 @@ Donde,
 - $\mathbf{c}\in \mathbb{R}^{n}$ es el vector de coeficientes lineales de la función objetivo.
 - El resto de los elementos estructurales y variables cumplen la misma función que en el programa lineal (7.19).
 
-En general, el problema (7.20) sólo puede resolverse por medio de métodos iterativos, dependiendo del número de variables e iteraciones del mismo. En Python, es posible resolver un programa cuadrático de manera realtivamente sencilla utilizando varias librerías. En este ejercicio, introduciremos a **<font color='darkmagenta'>CVXPY</font>** (acrónimo de *convex Python*), que es una librería especializada en la resolución de problemas de optimización gobernados por funciones convexas, y viene equipada con una serie de métodos de solución o *solvers*. La belleza de esta librería radica en que permite mantener coherencia en la definición estándar de un programa cuadrático y en su compatibilidad con los arreglos de **<font color='mediumorchid'>Numpy</font>**, lo que añade versatilidad y rapidez.
+En general, el problema (7.20) sólo puede resolverse por medio de métodos iterativos, dependiendo del número de variables e iteraciones del mismo. En Python, es posible resolver un programa cuadrático de manera realtivamente sencilla utilizando varias librerías. En este ejercicio, introduciremos a <strong><font color='darkmagenta'>CVXPY</font></strong> (acrónimo de *convex Python*), que es una librería especializada en la resolución de problemas de optimización gobernados por funciones convexas, y viene equipada con una serie de métodos de solución o *solvers*. La belleza de esta librería radica en que permite mantener coherencia en la definición estándar de un programa cuadrático y en su compatibilidad con los arreglos de <strong><font color='mediumorchid'>Numpy</font></strong>, lo que añade versatilidad y rapidez.
 
-En **<font color='darkmagenta'>CVXPY</font>**, los programas cuadráticos suelen expresarse separando las restricciones de desigualdad de aquellas que son únicamente de igualdad. Por lo tanto, modificaremos ligeramente la estructura del programa (7.20) como sigue:
+En <strong><font color='darkmagenta'>CVXPY</font></strong>, los programas cuadráticos suelen expresarse separando las restricciones de desigualdad de aquellas que son únicamente de igualdad. Por lo tanto, modificaremos ligeramente la estructura del programa (7.20) como sigue:
 
 ::: {.eq-scroll}
 $$
@@ -414,7 +436,7 @@ $$
 $$
 :::
 
-Vamos pues a mostrar cómo resolver un programa cuadrático, usando **<font color='darkmagenta'>CVXPY</font>**, considerando el siguiente ejemplo:
+Vamos pues a mostrar cómo resolver un programa cuadrático, usando <strong><font color='darkmagenta'>CVXPY</font></strong>, considerando el siguiente ejemplo:
 
 ::: {.eq-scroll}
 $$
@@ -423,7 +445,7 @@ $$
 $$
 :::
 
-En primer lugar, debemos reescribir el problema (7.22) en la *forma estándar* (7.21) a fin de poder resolverlo usando la librería **<font color='darkmagenta'>CVXPY</font>**. Como la función objetivo es $z(x_{1},x_{2})=5x_{1}^{2}+2x_{2}^{2}+3x_{1}-x_{2}+10$, tenemos que
+En primer lugar, debemos reescribir el problema (7.22) en la *forma estándar* (7.21) a fin de poder resolverlo usando la librería <strong><font color='darkmagenta'>CVXPY</font></strong>. Como la función objetivo es $z(x_{1},x_{2})=5x_{1}^{2}+2x_{2}^{2}+3x_{1}-x_{2}+10$, tenemos que
 
 ::: {.eq-scroll}
 $$
@@ -448,7 +470,7 @@ De esta manera, identificamos rápidamente, conforme la estructura (7.21):
 - La matriz $\mathbf{G} =\left( \begin{matrix}1&1\\ -2&3\\ -1&0\\ 0&-1\end{matrix} \right)$.
 - El vector $\mathbf{h} =\left( \begin{matrix}2\\ 0\\ 0\\ 0\end{matrix} \right)$.
 
-Con esto, ya estamos listos para resolver el problema en **<font color='darkmagenta'>CVXPY</font>**. Primero definimos los arreglos (vectoriales y matriciales) calculados previamente haciendo uso de **<font color='darkmagenta'>Numpy</font>** como sigue:
+Con esto, ya estamos listos para resolver el problema en <strong><font color='darkmagenta'>CVXPY</font></strong>. Primero definimos los arreglos (vectoriales y matriciales) calculados previamente haciendo uso de <strong><font color='darkmagenta'>Numpy</font></strong> como sigue:
 
 ```{python}
 import cvxpy as cp
@@ -476,14 +498,14 @@ c = np.array([3, -1])
 h = np.array([2, 0, 0, 0])
 ```
 
-Partimos definiendo un objeto que contendrá las variables de decisión del problema. Tal objeto es llamado `Variable`, y su creación es muy sencilla. Debido a que **<font color='darkmagenta'>CVXPY</font>** tiene una filosofía de uso que intenta respetar la escritura simbólica de los problemas de optimización (convexa), bastará con definir el número de dimensiones de esta variable y *bautizarla* con un nombre adecuado. Es decir:
+Partimos definiendo un objeto que contendrá las variables de decisión del problema. Tal objeto es llamado `Variable`, y su creación es muy sencilla. Debido a que <strong><font color='darkmagenta'>CVXPY</font></strong> tiene una filosofía de uso que intenta respetar la escritura simbólica de los problemas de optimización (convexa), bastará con definir el número de dimensiones de esta variable y *bautizarla* con un nombre adecuado. Es decir:
 
 ```{python}
 # Definimos las variables de decisión.
 x = cp.Variable(2, name="x")
 ```
 
-A continuación definimos la función objetivo del problema. Como **<font color='darkmagenta'>CVXPY</font>** sigue una estructura cuasi-simbólica, usamos algunos objetos adecuados para construir dicha función. Como éste es un programa cuadrático, la función objetivo está compuesta por la suma de una forma cuadrática y una forma lineal. Para el caso de la forma cuadrática, podemos usar la función `quad_form()`, tomando como argumentos `x` y `Q`. Finalmente, como el sentido de la optimización es de minimización, la función objetivo se definirá por medio de la clase `Minimize`:
+A continuación definimos la función objetivo del problema. Como <strong><font color='darkmagenta'>CVXPY</font></strong> sigue una estructura cuasi-simbólica, usamos algunos objetos adecuados para construir dicha función. Como éste es un programa cuadrático, la función objetivo está compuesta por la suma de una forma cuadrática y una forma lineal. Para el caso de la forma cuadrática, podemos usar la función `quad_form()`, tomando como argumentos `x` y `Q`. Finalmente, como el sentido de la optimización es de minimización, la función objetivo se definirá por medio de la clase `Minimize`:
 
 ```{python}
 # Construimos nuestra función objetivo.
@@ -516,7 +538,7 @@ print(f"Estado: {prob.status}")
 
 Vemos pues que la solución óptima del programa cuadrático se localiza en el origen del espacio $\mathbb{R}^{2}$, siendo por tanto el valor mínimo de la función objetivo igual al término constante $10$. 
 
-La resolución de un programa cuadrático por medio de **<font color='darkmagenta'>CVXPY</font>** no reviste mayores dificultades, independiente del número de variables. En general, el mayor contratiempo será llevar el problema de interés a su forma estándar. Más adelante, como es la tónica en estos apuntes, construiremos una implementación desde cero de una máquina de soporte vectorial para la cual haremos uso de **<font color='darkmagenta'>CVXPY</font>**, una vez que demostremos que este modelo puede expresarse por medio de un programa cuadrático.
+La resolución de un programa cuadrático por medio de <strong><font color='darkmagenta'>CVXPY</font></strong> no reviste mayores dificultades, independiente del número de variables. En general, el mayor contratiempo será llevar el problema de interés a su forma estándar. Más adelante, como es la tónica en estos apuntes, construiremos una implementación desde cero de una máquina de soporte vectorial para la cual haremos uso de <strong><font color='darkmagenta'>CVXPY</font></strong>, una vez que demostremos que este modelo puede expresarse por medio de un programa cuadrático.
 
 Para darle un contexto más didáctico al problema que hemos resuelto, construiremos un gráfico donde visualizaremos la función objetivo y las restricciones del problema (7.22):
 
@@ -543,7 +565,7 @@ feasible_space = constr_1 & constr_2 & (X1 >= 0) & (X2 >= 0)
 
 ```{python}
 #| label: fig-maquinas-de-soporte-vectorial-04
-#| fig-cap: "Programa cuadrático (7.22) que hemos resuelto en CVXPY."
+#| fig-cap: "Geometría del programa cuadrático resuelto con CVXPY, mostrando la función objetivo y las restricciones que determinan la solución factible."
 # Finalmente, construimos nuestro gráfico.
 fig = plt.figure(figsize=(9, 8))
 ax = plt.axes(projection="3d")
@@ -701,7 +723,7 @@ Sea $t_{i}=y_{i}\left( \left< \mathbf{w} ,\mathbf{x}_{i} \right>  +b\right)  $. 
 
 Esta función de pérdida es muy conocida en la teoría del aprendizaje automático clásico, por lo que, previo a continuar, estableceremos la siguiente definición.
 
-**<font color='blue'>Definición 7.4 – Función de pérdida de Hinge:</font>** Consideremos un problema de clasificación binario arbitrario caracterizado por un conjunto de entrenamiento $\mathcal{D} =\left\{ \left( \mathbf{X} ,\mathbf{y} \right)  :\mathbf{X} =\left\{ x_{ij}\right\}  \in \mathbb{R}^{m\times n} \wedge \mathbf{y} \in \mathbb{R}^{m} \right\}$, tal que $\mathbf{y}$ es una variable binaria que puede tomar los valores $-1$ y $+1$ para cada instancia $\mathbf{x}_{i}\in \mathbb{R}^{n}$ de $\mathcal{D}$ (siendo $1\leq i\leq m$). Para cada instancia $\mathbf{x}_{i}$ y un predictor $f:\mathcal{D}\longrightarrow \mathbb{R}$ con resultado $t_{i}=f(\mathbf{x}_{i})$, se define la **función de pérdida de Hinge** como
+<strong><font color='blue'>Definición 7.4 – Función de pérdida de Hinge:</font></strong> Consideremos un problema de clasificación binario arbitrario caracterizado por un conjunto de entrenamiento $\mathcal{D} =\left\{ \left( \mathbf{X} ,\mathbf{y} \right)  :\mathbf{X} =\left\{ x_{ij}\right\}  \in \mathbb{R}^{m\times n} \wedge \mathbf{y} \in \mathbb{R}^{m} \right\}$, tal que $\mathbf{y}$ es una variable binaria que puede tomar los valores $-1$ y $+1$ para cada instancia $\mathbf{x}_{i}\in \mathbb{R}^{n}$ de $\mathcal{D}$ (siendo $1\leq i\leq m$). Para cada instancia $\mathbf{x}_{i}$ y un predictor $f:\mathcal{D}\longrightarrow \mathbb{R}$ con resultado $t_{i}=f(\mathbf{x}_{i})$, se define la **función de pérdida de Hinge** como
 
 ::: {.eq-scroll}
 $$
@@ -735,7 +757,7 @@ l = hinge_loss(t)
 
 ```{python}
 #| label: fig-maquinas-de-soporte-vectorial-05
-#| fig-cap: "Función de pérdida de Hinge."
+#| fig-cap: "Pérdida hinge en función del margen firmado: sólo se penalizan observaciones dentro del margen o clasificadas incorrectamente."
 # Finalmente, construimos el gráfico de la función de pérdida de Hinge.
 fig, ax = plt.subplots(figsize=(9, 5))
 ax.plot(t, l, color="dodgerblue", lw=2, label=r"$\ell(t)=\max(0,1-t)$")
@@ -774,17 +796,17 @@ $$
 
 Si sustituimos la expresión (7.38) en (7.37) y aplicamos algo de álgebra sobre las restricciones resultantes, obtenemos exactamente el problema mostrado en (7.32).
 
-**Ejemplo 7.2 – Visualización de una clasificación con márgenes blandos en <font color='darkmagenta'>Scikit-Learn</font>:** Vamos a ilustrar visualmente lo que ocurre al implementar un modelo con márgenes blandos haciendo uso, nuevamente, de la librería **<font color='darkmagenta'>Scikit-Learn</font>**. Este ejemplo versará, mayormente, sobre el uso del hiperparámetro $C$ que caracteriza al término de error en el problema (7.37) y su efecto a un nivel más práctico. A diferencia de las secciones anteriores, mostraremos la implementación de la máquina de soporte vectorial en **<font color='darkmagenta'>Scikit-Learn</font>** de manera previa a su construcción desde cero, ya que será útil para observar los efectos de la regularización inducida por la flexibilización de los márgenes de separación (aunque, por supuesto, construiremos nuestra implementación *from scratch* más adelante).
+**Ejemplo 7.2 – Visualización de una clasificación con márgenes blandos en <font color='darkmagenta'>Scikit-Learn</font>:** Vamos a ilustrar visualmente lo que ocurre al implementar un modelo con márgenes blandos haciendo uso, nuevamente, de la librería <strong><font color='darkmagenta'>Scikit-Learn</font></strong>. Este ejemplo versará, mayormente, sobre el uso del hiperparámetro $C$ que caracteriza al término de error en el problema (7.37) y su efecto a un nivel más práctico. A diferencia de las secciones anteriores, mostraremos la implementación de la máquina de soporte vectorial en <strong><font color='darkmagenta'>Scikit-Learn</font></strong> de manera previa a su construcción desde cero, ya que será útil para observar los efectos de la regularización inducida por la flexibilización de los márgenes de separación (aunque, por supuesto, construiremos nuestra implementación *from scratch* más adelante).
 
-En **<font color='darkmagenta'>Scikit-Learn</font>**, las máquinas de soporte vectorial se encuentran disponibles en el módulo `sklearn.svm`, y vienen en dos *sabores*. Si nos enfocamos en los problemas de clasificación, las opciones son `SVC` y `LinearSVC`. Y como los nombres de estos objetos lo indican, la diferencia fundamental entre ambos es que uno de los modelos soporta únicamente fronteras de separación lineales entre las clases de interés (`LinearSVC`), mientras que el otro nos da la opción de construir fronteras de separación más generales por medio de la introducción de funciones kernel (`SVC`). Esto es algo que veremos más adelante, una vez que dejemos sentadas las bases del caso lineal.
+En <strong><font color='darkmagenta'>Scikit-Learn</font></strong>, las máquinas de soporte vectorial se encuentran disponibles en el módulo `sklearn.svm`, y vienen en dos *sabores*. Si nos enfocamos en los problemas de clasificación, las opciones son `SVC` y `LinearSVC`. Y como los nombres de estos objetos lo indican, la diferencia fundamental entre ambos es que uno de los modelos soporta únicamente fronteras de separación lineales entre las clases de interés (`LinearSVC`), mientras que el otro nos da la opción de construir fronteras de separación más generales por medio de la introducción de funciones kernel (`SVC`). Esto es algo que veremos más adelante, una vez que dejemos sentadas las bases del caso lineal.
 
-Cuando creamos una máquina de soporte vectorial utilizando el objeto `LinearSVC`, podemos especificar varios argumentos para instanciar dicho modelo, entre los cuales se destaca el hiperparámetro `C`. En efecto, se trata de un **parámetro de regularización** que penaliza las pérdidas asociadas a las instancias que residen en el lado incorrecto del hiperplano de separación, haciendo uso de una norma determinada a su vez por el hiperparámetro `penalty`, y que naturalmente puede ser `"l1"` o `"l2"`, en referencia a las normas $\ell_{1}$ y $\ell_{2}$, respectivamente. Por defecto, **<font color='darkmagenta'>Scikit-Learn</font>** define este valor en `C=1.0` con una penalización con norma `"l2"`. Reducir `C` aumenta la regularización efectiva, porque disminuye el peso relativo de las violaciones de margen; aumentarlo hace lo contrario.
+Cuando creamos una máquina de soporte vectorial utilizando el objeto `LinearSVC`, podemos especificar varios argumentos para instanciar dicho modelo, entre los cuales se destaca el hiperparámetro `C`. En efecto, se trata de un **parámetro de regularización** que penaliza las pérdidas asociadas a las instancias que residen en el lado incorrecto del hiperplano de separación, haciendo uso de una norma determinada a su vez por el hiperparámetro `penalty`, y que naturalmente puede ser `"l1"` o `"l2"`, en referencia a las normas $\ell_{1}$ y $\ell_{2}$, respectivamente. Por defecto, <strong><font color='darkmagenta'>Scikit-Learn</font></strong> define este valor en `C=1.0` con una penalización con norma `"l2"`. Reducir `C` aumenta la regularización efectiva, porque disminuye el peso relativo de las violaciones de margen; aumentarlo hace lo contrario.
 
-Es posible, además, definir el hiperparámetro booleano `dual`, el cual permite seleccionar el algoritmo que resolverá el problema de optimización inherente a nuestro modelo. En **<font color='darkmagenta'>Scikit-Learn</font>**, la elección de este algoritmo dependerá fundamentalmente de las dimensiones del conjunto de entrenamiento (basadas en el número de instancias y atributos del mismo, $m$ y $n$) y el tipo de penalización seleccionada para las instancias que residan en el lado incorrecto del hiperplano de separación. De este modo, pondremos `dual=False` cuando $m>n$. Siempre podemos forzar a **<font color='darkmagenta'>Scikit-Learn</font>** a tomar esta decisión definiendo este parámetro como `dual="auto"`.
+Es posible, además, definir el hiperparámetro booleano `dual`, el cual permite seleccionar el algoritmo que resolverá el problema de optimización inherente a nuestro modelo. En <strong><font color='darkmagenta'>Scikit-Learn</font></strong>, la elección de este algoritmo dependerá fundamentalmente de las dimensiones del conjunto de entrenamiento (basadas en el número de instancias y atributos del mismo, $m$ y $n$) y el tipo de penalización seleccionada para las instancias que residan en el lado incorrecto del hiperplano de separación. De este modo, pondremos `dual=False` cuando $m>n$. Siempre podemos forzar a <strong><font color='darkmagenta'>Scikit-Learn</font></strong> a tomar esta decisión definiendo este parámetro como `dual="auto"`.
 
 Finalmente, debemos definir la función de pérdida a utilizar por nuestro modelo haciendo uso del parámetro `loss`. Por supuesto, debido a que queremos implementar la función de pérdida de Hinge como base de nuestro modelo, lo definiremos como `loss="hinge"`.
 
-Para este ejercicio en particular, construiremos un clasificador binario basado en una sencilla máquina de soporte vectorial que aplicaremos sobre el conjunto de datos **<font color='forestgreen'>IRIS</font>**. Para ello, construiremos una variable de respuesta que simplemente discriminará aquellas instancias que se corresponden con flores del tipo Iris Virginica (codificada con el número entero `2`) de aquellas que no lo son. Para disponer de una visualización sencilla, nos limitaremos a usar dos variables independientes solamente de este conjunto de datos, y que corresponden a las dimensiones de los pétalos de cada flor:
+Para este ejercicio en particular, construiremos un clasificador binario basado en una sencilla máquina de soporte vectorial que aplicaremos sobre el conjunto de datos <strong><font color='forestgreen'>IRIS</font></strong>. Para ello, construiremos una variable de respuesta que simplemente discriminará aquellas instancias que se corresponden con flores del tipo Iris Virginica (codificada con el número entero `2`) de aquellas que no lo son. Para disponer de una visualización sencilla, nos limitaremos a usar dos variables independientes solamente de este conjunto de datos, y que corresponden a las dimensiones de los pétalos de cada flor:
 
 ```{python}
 # Definimos nuestro conjunto de entrenamiento en la forma (X, y).
@@ -843,7 +865,7 @@ model_2 = Pipeline(
 )
 ```
 
-La implementación de las máquinas de soporte vectorial en **<font color='darkmagenta'>Scikit-Learn</font>** es intuitiva y fácil de utilizar, pero tiene la desventaja de tener un tiempo de ejecución potencialmente lento, ya que, como veremos más adelante, no es particularmente trivial la resolución del problema de optimización inherente a este modelo. Por eso, suele ser una buena idea controlar el número máximo de iteraciones del algoritmo de solución mediante el parámetro `max_iter`, como lo hicimos en el bloque de código anterior.
+La implementación de las máquinas de soporte vectorial en <strong><font color='darkmagenta'>Scikit-Learn</font></strong> es intuitiva y fácil de utilizar, pero tiene la desventaja de tener un tiempo de ejecución potencialmente lento, ya que, como veremos más adelante, no es particularmente trivial la resolución del problema de optimización inherente a este modelo. Por eso, suele ser una buena idea controlar el número máximo de iteraciones del algoritmo de solución mediante el parámetro `max_iter`, como lo hicimos en el bloque de código anterior.
 
 A continuación, entrenamos nuestros modelos:
 
@@ -853,7 +875,7 @@ model_1.fit(X, y)
 model_2.fit(X, y)
 ```
 
-Cuando estudiamos los modelos de clasificación (desde una perspectiva más general), aprendimos que, en **<font color='darkmagenta'>Scikit-Learn</font>**, muchos modelos disponen del método `decision_function()`, y que –como su nombre lo indica– permiten evaluar la **función de decisión** asociada a tales modelos en determinadas instancias de un conjunto de datos. Naturalmente, esta función de decisión dependerá de nuestro modelo, pero suele ser consistente con las funciones de hipótesis que se derivan del principio de minimización de riesgo empírico. En el caso del objeto `LinearSVC`, que hace referencia a una máquina de soporte vectorial que traza fronteras de decisión lineales (hiperplanos), la función de decisión será la ecuación que describe a dicha frontera. Por lo tanto, podemos extraer rápidamente la ecuación del hiperplano de separación haciendo uso de este método (teniendo cuidado de considerar el efecto del escalamiento en cada caso):
+Cuando estudiamos los modelos de clasificación (desde una perspectiva más general), aprendimos que, en <strong><font color='darkmagenta'>Scikit-Learn</font></strong>, muchos modelos disponen del método `decision_function()`, y que –como su nombre lo indica– permiten evaluar la **función de decisión** asociada a tales modelos en determinadas instancias de un conjunto de datos. Naturalmente, esta función de decisión dependerá de nuestro modelo, pero suele ser consistente con las funciones de hipótesis que se derivan del principio de minimización de riesgo empírico. En el caso del objeto `LinearSVC`, que hace referencia a una máquina de soporte vectorial que traza fronteras de decisión lineales (hiperplanos), la función de decisión será la ecuación que describe a dicha frontera. Por lo tanto, podemos extraer rápidamente la ecuación del hiperplano de separación haciendo uso de este método (teniendo cuidado de considerar el efecto del escalamiento en cada caso):
 
 ```{python}
 # Usamos la función de decisión de nuestro modelo para determinar los parámetros
@@ -1134,7 +1156,7 @@ Lo que finaliza este ejercicio. Podemos observar que la derivación del problema
 
 Vamos a desarrollar un último enfoque para formular el problema de optimización inherente a las máquinas de soporte vectorial, y que guarda relación con un concepto conocido en matemáticas como **envolvente convexa**, y que motivaremos partiendo desde la siguiente idea: Dado un conjunto de entrenamiento $\mathcal{D} =\left\{ \left( \mathbf{X} ,\mathbf{y} \right)  :\mathbf{X} =\left\{ x_{ij}\right\}  \in \mathbb{R}^{m\times n} \wedge \mathbf{y} \in \mathbb{R}^{m} \right\}$, donde $\mathbf{y}$ puede tomar únicamente los valores $-1$ y $+1$, queremos construir un conjunto convexo que contenga todas las instancias tales que $y_{i}=+1$ para todo $i=1,...,m$. Tal conjunto será la mencionada envolvente convexa para la clase positiva, y que definiremos formalmente a continuación.
 
-**<font color='blue'>Definición 7.5 – Envolvente convexa:</font>** Consideremos un conjunto de puntos $\left\{ \mathbf{x}_{k} \right\}^{n}_{k=1}  \in U$, donde $U$ es un subconjunto convexo de $\mathbb{R}^{n}$ (es decir, es posible conectar cualquier par de puntos de $U$ mediante rectas cuyas trazas siempre pertenecen a $U$). Las siguientes definiciones de **envolvente convexa** para un subconjunto $X$ de $U$ son equivalentes:
+<strong><font color='blue'>Definición 7.5 – Envolvente convexa:</font></strong> Consideremos un conjunto de puntos $\left\{ \mathbf{x}_{k} \right\}^{n}_{k=1}  \in U$, donde $U$ es un subconjunto convexo de $\mathbb{R}^{n}$ (es decir, es posible conectar cualquier par de puntos de $U$ mediante rectas cuyas trazas siempre pertenecen a $U$). Las siguientes definiciones de **envolvente convexa** para un subconjunto $X$ de $U$ son equivalentes:
 
 - **(D1):** Es el mínimo conjunto convexo que contiene a $X$.
 - **(D2):** Es la intersección de todos los conjuntos convexos que contienen a $X$.
@@ -1295,7 +1317,7 @@ $$
 
 La función $K(\mathbf{x},\mathbf{x}_{i})$ es llamada **función kernel** o, simplemente, *kernel*. Esto motiva la siguiente definición.
 
-**<font color='blue'>Definición 7.6 – Kernel:</font>** Sea $\mathcal{D}$ un conjunto no vacío arbitrario. Una función simétrica $K:\mathcal{D}\times \mathcal{D}\longrightarrow \mathbb{R}$ es llamada **kernel** (definido positivo) sobre $\mathcal{D}$ si la desigualdad
+<strong><font color='blue'>Definición 7.6 – Kernel:</font></strong> Sea $\mathcal{D}$ un conjunto no vacío arbitrario. Una función simétrica $K:\mathcal{D}\times \mathcal{D}\longrightarrow \mathbb{R}$ es llamada **kernel** (definido positivo) sobre $\mathcal{D}$ si la desigualdad
 
 ::: {.eq-scroll}
 $$
@@ -1388,7 +1410,7 @@ Existen ciertas condiciones que debe cumplir un kernel $K$ para que exista una f
 
 Vamos a enunciar el teorema de Mercer únicamente con propósitos ilustrativos. No ahondaremos en su demostración ni fundamentos más elementales, a fin de no desviarnos del alcance de esta sección.
 
-**<font color='crimson'>Teorema 7.2 – Condiciones de Mercer:</font>** *Sea $\mathcal{D}$ un conjunto de entrenamiento, con $\mathbf{u}$ y $\mathbf{v}$ instancias de $\mathcal{D}$. Sea $K(\mathbf{u},\mathbf{v})$ un kernel simétrico definido en la celda cerrada $R=\left\{ \mathbf{a} \wedge \mathbf{b} \in \mathcal{D} :\mathbf{a} \leq \mathbf{u} \leq \mathbf{b} \wedge \mathbf{a} \leq \mathbf{v} \leq \mathbf{b} \right\}$. Entonces $K$ puede expandirse por medio de la serie infinita*
+<strong><font color='crimson'>Teorema 7.2 – Condiciones de Mercer:</font></strong> *Sea $\mathcal{D}$ un conjunto de entrenamiento, con $\mathbf{u}$ y $\mathbf{v}$ instancias de $\mathcal{D}$. Sea $K(\mathbf{u},\mathbf{v})$ un kernel simétrico definido en la celda cerrada $R=\left\{ \mathbf{a} \wedge \mathbf{b} \in \mathcal{D} :\mathbf{a} \leq \mathbf{u} \leq \mathbf{b} \wedge \mathbf{a} \leq \mathbf{v} \leq \mathbf{b} \right\}$. Entonces $K$ puede expandirse por medio de la serie infinita*
 
 ::: {.eq-scroll}
 $$
@@ -1582,7 +1604,7 @@ $$
 $$
 :::
 
-De esta manera, hemos transformado el problema (7.86) en un programa cuadrático estándar como el mostrado en la expresión (7.85). Esta formulación tiene la ventaja de ser relativamente sencilla de construir en Python, haciendo uso de **<font color='darkmagenta'>Numpy</font>** para manipular los arreglos de interés, y **<font color='darkmagenta'>CVXPY</font>** para resolver el programa cuadrático resultante de manera directa. Muchas implementaciones de las máquinas de soporte vectorial hacen uso de la expresión (7.85) para llevar a cabo el proceso de entrenamiento, y estos apuntes no serán la excepción, como veremos en un ejercicio más adelante.
+De esta manera, hemos transformado el problema (7.86) en un programa cuadrático estándar como el mostrado en la expresión (7.85). Esta formulación tiene la ventaja de ser relativamente sencilla de construir en Python, haciendo uso de <strong><font color='darkmagenta'>Numpy</font></strong> para manipular los arreglos de interés, y <strong><font color='darkmagenta'>CVXPY</font></strong> para resolver el programa cuadrático resultante de manera directa. Muchas implementaciones de las máquinas de soporte vectorial hacen uso de la expresión (7.85) para llevar a cabo el proceso de entrenamiento, y estos apuntes no serán la excepción, como veremos en un ejercicio más adelante.
 
 ### Problema primal
 Llevar el problema primal (7.87) a una formulación estándar de programa cuadrático como la mostrada en la expresión (7.85) es un tanto más complicado. En este caso, definiremos a un vector $\mathbf{x}$ como variable de decisión, y será tal que
@@ -1677,19 +1699,19 @@ $$
 $$
 :::
 
-Como antes, hemos transformado el problema primal (7.87) en un programa cuadrático con la estructura estándar (7.85). Con estas transformaciones, la construcción de una implementación propia de una máquina de soporte vectorial será mucho más sencilla, tomando como base una resolución del problema resultante por medio de la librería **<font color='darkmagenta'>CVXPY</font>**. La elección, en este caso, se reducirá a simplemente escoger qué problema planteamos en el proceso de entrenamiento.
+Como antes, hemos transformado el problema primal (7.87) en un programa cuadrático con la estructura estándar (7.85). Con estas transformaciones, la construcción de una implementación propia de una máquina de soporte vectorial será mucho más sencilla, tomando como base una resolución del problema resultante por medio de la librería <strong><font color='darkmagenta'>CVXPY</font></strong>. La elección, en este caso, se reducirá a simplemente escoger qué problema planteamos en el proceso de entrenamiento.
 
-**Ejemplo 7.5 – Una implementación desde cero de un modelo de clasificación con márgenes blandos:** Partiremos construyendo una implementación sencilla de una máquina de soporte vectorial apta para problemas con márgenes blandos (lineales), basada en **<font color='darkmagenta'>Numpy</font>**, que siga la filosofía de la API de **<font color='darkmagenta'>Scikit-Learn</font>** (vale decir, equiparemos a esta implementación con métodos tales como `fit()` y `predict()`). Llamaremos a esta implementación `LinearSoftMarginSVM`.
+**Ejemplo 7.5 – Una implementación desde cero de un modelo de clasificación con márgenes blandos:** Partiremos construyendo una implementación sencilla de una máquina de soporte vectorial apta para problemas con márgenes blandos (lineales), basada en <strong><font color='darkmagenta'>Numpy</font></strong>, que siga la filosofía de la API de <strong><font color='darkmagenta'>Scikit-Learn</font></strong> (vale decir, equiparemos a esta implementación con métodos tales como `fit()` y `predict()`). Llamaremos a esta implementación `LinearSoftMarginSVM`.
 
-Previo a su construcción, y debido a que las máquinas de soporte vectorial requieren siempre de un proceso de escalamiento previo, nos aseguraremos de que nuestra clase `LinearSoftMarginSVM` sea compatible con cualquier otro objeto que pueda hacer uso de un modelo típico de **<font color='darkmagenta'>Scikit-Learn</font>**, lo que nos permitirá incorporar nuestra implementación en una pipeline de manera natural. Para ello, haremos uso de dos objetos especializados:
+Previo a su construcción, y debido a que las máquinas de soporte vectorial requieren siempre de un proceso de escalamiento previo, nos aseguraremos de que nuestra clase `LinearSoftMarginSVM` sea compatible con cualquier otro objeto que pueda hacer uso de un modelo típico de <strong><font color='darkmagenta'>Scikit-Learn</font></strong>, lo que nos permitirá incorporar nuestra implementación en una pipeline de manera natural. Para ello, haremos uso de dos objetos especializados:
 
-- `BaseEstimator`: Corresponde a una **clase de base** para todos los modelos de **<font color='darkmagenta'>Scikit-Learn</font>**. Con "base" nos referimos a que, cualquier objeto que herede sus métodos y atributos, disfrutará de propiedades deseables conforme la API de **<font color='darkmagenta'>Scikit-Learn</font>**. Por ejemplo, podrá ser utilizada por cualquier objeto especializado en la optimización de hiperparámetros (como `RandomSearchCV` y similares), dispondrá de representaciones de texto informativo en formatos idóneos (incluso HTML) en IDEs y terminales, podrá serializarse, podrá incorporarse en pipelines y podrá validarse con cualquier método de **<font color='darkmagenta'>Scikit-Learn</font>**.
-- `ClassifierMixin`: Otra clase de base, que puede utilizarse para heredar algunas propiedades muy útiles de los modelos de clasificación provistos por **<font color='darkmagenta'>Scikit-Learn</font>**. Estas funcionalidades incluyen un método `score()` que permitirá calcular rápidamente la exactitud del modelo a construir, y reforzar que el método `fit()` (que debemos construir) exija siempre un arreglo unidimensional `y` respecto del cual entrenaremos nuestro modelo.
+- `BaseEstimator`: Corresponde a una **clase de base** para todos los modelos de <strong><font color='darkmagenta'>Scikit-Learn</font></strong>. Con "base" nos referimos a que, cualquier objeto que herede sus métodos y atributos, disfrutará de propiedades deseables conforme la API de <strong><font color='darkmagenta'>Scikit-Learn</font></strong>. Por ejemplo, podrá ser utilizada por cualquier objeto especializado en la optimización de hiperparámetros (como `RandomSearchCV` y similares), dispondrá de representaciones de texto informativo en formatos idóneos (incluso HTML) en IDEs y terminales, podrá serializarse, podrá incorporarse en pipelines y podrá validarse con cualquier método de <strong><font color='darkmagenta'>Scikit-Learn</font></strong>.
+- `ClassifierMixin`: Otra clase de base, que puede utilizarse para heredar algunas propiedades muy útiles de los modelos de clasificación provistos por <strong><font color='darkmagenta'>Scikit-Learn</font></strong>. Estas funcionalidades incluyen un método `score()` que permitirá calcular rápidamente la exactitud del modelo a construir, y reforzar que el método `fit()` (que debemos construir) exija siempre un arreglo unidimensional `y` respecto del cual entrenaremos nuestro modelo.
 
 Además, validaremos la estructura de nuestra implementación usando algunas funciones utilitarias:
 
-- `check_X_y()`: Función que acepta como parámetros a dos arreglos, denominados genéricamente `X` e `y`, que representan típicamente la matriz de diseño y el vector de valores observados para un conjunto de entrenamiento de interés, y que permite chequear la consistencia de estos arreglos conforme las reglas de **<font color='darkmagenta'>Scikit-Learn</font>** para la imputación de datos de entrenamiento en sus modelos. Esto fuerza a que `X` sea un arreglo bidimensional y a que `y` sea un arreglo unidimensional. Este método también chequea que `X` e `y` sean arreglos no vacíos y con entradas finitas.
-- `check_array()`: Función que permite chequear que un arreglo cumpla con ciertas características importantes en cualquier método o clase de **<font color='darkmagenta'>Scikit-Learn</font>**, conforme las reglas de la API estimadora. En particular, tales reglas incluyen que el arreglo sea no vacío y que contenga entradas finitas.
+- `check_X_y()`: Función que acepta como parámetros a dos arreglos, denominados genéricamente `X` e `y`, que representan típicamente la matriz de diseño y el vector de valores observados para un conjunto de entrenamiento de interés, y que permite chequear la consistencia de estos arreglos conforme las reglas de <strong><font color='darkmagenta'>Scikit-Learn</font></strong> para la imputación de datos de entrenamiento en sus modelos. Esto fuerza a que `X` sea un arreglo bidimensional y a que `y` sea un arreglo unidimensional. Este método también chequea que `X` e `y` sean arreglos no vacíos y con entradas finitas.
+- `check_array()`: Función que permite chequear que un arreglo cumpla con ciertas características importantes en cualquier método o clase de <strong><font color='darkmagenta'>Scikit-Learn</font></strong>, conforme las reglas de la API estimadora. En particular, tales reglas incluyen que el arreglo sea no vacío y que contenga entradas finitas.
 - `check_is_fitted()`: Función que permite chequear que un modelo haya sido entrenado. Este chequeo es importante cuando intentamos aplicar métodos que no tienen sentido si un modelo aún no se entrena (como `predict()`), levantando en este caso un error.
 
 Esta implementación, por simplicidad, se construirá usando el algoritmo de gradiente descendente en su variante estocástica (sobre un batch o lote completo de datos):
@@ -1893,9 +1915,9 @@ class LinearSoftMarginSVM(BaseEstimator, ClassifierMixin):
 
 Hemos documentado todos los pasos de manera concienzuda, a fin de que haya claridad respecto del paso a paso del código anterior. Naturalmente, el método más interesante es `fit()`, porque es allí donde resolvemos el problema de márgenes blandos.
 
-Debido a que el método `decision_function()` calcula las distancias de cada punto con respecto al margen de separación, es posible graficar de forma sencilla dicho margen evaluando esta función de decisión sobre una grilla regular de puntos que contenga a nuestro conjunto de datos, a fin de chequear visualmente la calidad de nuestro modelo. Para realizar este prueba, haremos uso del conjunto de datos **<font color='forestgreen'>MOONS</font>** que, como sabemos, se trata de un conjunto en $\mathbb{R}^{2}$ donde cada clase de puntos (`y == 0` e `y == 1`) tiene una forma similar a una medialuna, las que se enfrentan de forma invertida. Este conjunto de datos no es linealmente separable, por lo que es perfecto para trazar los márgenes de separación y chequear todos los puntos que caen en el lado incorrecto del hiperplano de separación estimado por el modelo.
+Debido a que el método `decision_function()` calcula las distancias de cada punto con respecto al margen de separación, es posible graficar de forma sencilla dicho margen evaluando esta función de decisión sobre una grilla regular de puntos que contenga a nuestro conjunto de datos, a fin de chequear visualmente la calidad de nuestro modelo. Para realizar este prueba, haremos uso del conjunto de datos <strong><font color='forestgreen'>MOONS</font></strong> que, como sabemos, se trata de un conjunto en $\mathbb{R}^{2}$ donde cada clase de puntos (`y == 0` e `y == 1`) tiene una forma similar a una medialuna, las que se enfrentan de forma invertida. Este conjunto de datos no es linealmente separable, por lo que es perfecto para trazar los márgenes de separación y chequear todos los puntos que caen en el lado incorrecto del hiperplano de separación estimado por el modelo.
 
-Partimos pues construyendo este conjunto de datos. Recordemos que está disponible en **<font color='darkmagenta'>Scikit-Learn</font>** por medio de la función `make_moons()`:
+Partimos pues construyendo este conjunto de datos. Recordemos que está disponible en <strong><font color='darkmagenta'>Scikit-Learn</font></strong> por medio de la función `make_moons()`:
 
 ```{python}
 #from matplotlib.colors import ListedColormap
@@ -1919,7 +1941,7 @@ El conjunto de datos tiene la siguiente forma:
 
 ```{python}
 #| label: fig-maquinas-de-soporte-vectorial-07
-#| fig-cap: "Este conjunto de datos."
+#| fig-cap: "Conjunto MOONS con clases entrelazadas y frontera no lineal empleado para comparar distintas funciones kernel."
 # Visualizamos este conjunto de datos.
 fig, ax = plt.subplots(figsize=(9, 5.4))
 p = ax.scatter(X[:, 0], X[:, 1], marker="x", c=y_updt, cmap="bwr")
@@ -2017,7 +2039,7 @@ print(
 print(f"Exactitud del modelo (datos de prueba) = {linear_svm.score(X_test, y_test)}")
 ```
 
-Naturalmente, observamos que todas las isodistancias son paralelas al hiperplano de separación. Las instancias que son incorrectamente clasificadas tienden a estar en las porciones de cada medialuna más cercanas la una a la otra, con rendimientos muy similares a los obtenidos por medio de modelos lineales generalizados, como el caso de la regresión logística binaria. El efecto del hiperparámetro `C` simplemente afinará la magnitud del margen, como ya comprobamos en la implementación oficial de **<font color='darkmagenta'>Scikit-Learn</font>**, aunque vale la pena validar en nuestra implementación:
+Naturalmente, observamos que todas las isodistancias son paralelas al hiperplano de separación. Las instancias que son incorrectamente clasificadas tienden a estar en las porciones de cada medialuna más cercanas la una a la otra, con rendimientos muy similares a los obtenidos por medio de modelos lineales generalizados, como el caso de la regresión logística binaria. El efecto del hiperparámetro `C` simplemente afinará la magnitud del margen, como ya comprobamos en la implementación oficial de <strong><font color='darkmagenta'>Scikit-Learn</font></strong>, aunque vale la pena validar en nuestra implementación:
 
 ```{python}
 # Aumentamos el valor de C a 10.0, para regularizar aún más el margen del modelo.
@@ -2034,9 +2056,9 @@ print(
 print(f"Exactitud del modelo (datos de prueba) = {linear_svm.score(X_test, y_test)}")
 ```
 
-Y ahí tenemos un margen más reducido. Sin embargo, esto no asegura que los indicadores del modelo mejoren (como es el caso de la exactitud). Debido a que nuestra implementación es compatible con todos los métodos de ajuste de hiperparámetros provistos por **<font color='darkmagenta'>Scikit-Learn</font>**, es posible calcular el valor óptimo de `C`, aunque eso se deja como ejercicio al lector. ◼︎
+Y ahí tenemos un margen más reducido. Sin embargo, esto no asegura que los indicadores del modelo mejoren (como es el caso de la exactitud). Debido a que nuestra implementación es compatible con todos los métodos de ajuste de hiperparámetros provistos por <strong><font color='darkmagenta'>Scikit-Learn</font></strong>, es posible calcular el valor óptimo de `C`, aunque eso se deja como ejercicio al lector. ◼︎
 
-**Ejemplo 7.6 – Una implementación desde cero de una máquina de soporte vectorial con funciones kernel:** Vamos a extender nuestra implementación anterior a fin de poder construir fronteras de separación no lineales haciendo uso del truco del kernel. Para ello, aprovecharemos el hecho de que la máquina de soporte vectorial, en su forma más general, se fundamenta en un programa cuadrático, con la estructura (7.79), la cual es posible expresar conforme la forma estándar (7.85). Es aquí donde utilizaremos la librería **<font color='darkmagenta'>CVXPY</font>** para resolver este problema. La razón es simple: La aplicación del algoritmo de gradiente descendente para abordar un programa cuadrático con ciertos kernels puede tomar una enorme cantidad de tiempo.
+**Ejemplo 7.6 – Una implementación desde cero de una máquina de soporte vectorial con funciones kernel:** Vamos a extender nuestra implementación anterior a fin de poder construir fronteras de separación no lineales haciendo uso del truco del kernel. Para ello, aprovecharemos el hecho de que la máquina de soporte vectorial, en su forma más general, se fundamenta en un programa cuadrático, con la estructura (7.79), la cual es posible expresar conforme la forma estándar (7.85). Es aquí donde utilizaremos la librería <strong><font color='darkmagenta'>CVXPY</font></strong> para resolver este problema. La razón es simple: La aplicación del algoritmo de gradiente descendente para abordar un programa cuadrático con ciertos kernels puede tomar una enorme cantidad de tiempo.
 
 Intentaremos mantener una estructura similar a la de la clase `LinearSoftMarginSVM`:
 
@@ -2302,9 +2324,9 @@ La aplicación del truco del kernel se realiza por medio del método `_compute_k
 
 - Para un kernel de base radial (es decir, `kernel="rbf"`), aplicamos el método `_rbf_kernel()`, el que opera sobre las instancias $\mathbf{x}_{i}$ y $\mathbf{x}_{s}$, y se define consecuentemente (conforme la @tbl-kernel-functions) como $K(\mathbf{x}_{i}, \mathbf{x}_{s})= \exp \left( -\gamma \left\Vert \mathbf{x}_{i} -\mathbf{x}_{s} \right\Vert^{2} \right)$. El hiperparámetro $\gamma$ controla la *potencia* de la transformación.
 - Para un kernel polinómico (es decir, `kernel="poly"`), aplicamos el método `_polynomial_kernel()`, el que opera sobre las instancias $\mathbf{x}_{i}$ y $\mathbf{x}_{s}$, y se define consecuentemente (conforme la @tbl-kernel-functions) como $K(\mathbf{x}_{i}, \mathbf{x}_{s})= \left( \gamma \left< \mathbf{x}_{i} ,\mathbf{x}_{s} \right> +c \right)^{d}$, donde $\left< \mathbf{x}_{i} ,\mathbf{x}_{s} \right>$ es el producto interno usual en $\mathbb{R}^{m}$ ($i,s=1,...,m$). Como antes, el hiperparámetro $\gamma$ controla la *potencia* de la transformación. Los hiperparámetros $c$ y $d$ controlan el sesgo inicial y el grado de la transformación polinómica, respectivamente, y se corresponden con los parámetros `coef0` y `degree` en nuestra implementación.
-- Para un kernel de tipo sigmoide (es decir, `kernel="sigmoid"`), aplicamos el método `_sigmoid_kernel()`, el que opera sobre las instancias $\mathbf{x}_{i}$ y $\mathbf{x}_{s}$, y se define consecuentemente (conforme la @tbl-kernel-functions) como $K(\mathbf{x}_{i}, \mathbf{x}_{s})= \tanh \left( \gamma \left< \mathbf{x}_{i} ,\mathbf{x}_{s} \right> +c \right)$. Nuevamente el hiperparámetro $\gamma$ controla la potencia de la transformación. En este caso, la matriz de Gram $\mathbf{K}$ resultante de la transformación corre el riesgo de no ser semi-definida positiva, porque las funciones hiperbólicas son no lineales e introducen ciertas peculiaridades en sus recorridos. De ser así, el programa cuadrático resultante del planteamiento del modelo no será convexo y, por tanto, no podrá resolverse usando la librería **<font color='darkmagenta'>CVXPY</font>**.
+- Para un kernel de tipo sigmoide (es decir, `kernel="sigmoid"`), aplicamos el método `_sigmoid_kernel()`, el que opera sobre las instancias $\mathbf{x}_{i}$ y $\mathbf{x}_{s}$, y se define consecuentemente (conforme la @tbl-kernel-functions) como $K(\mathbf{x}_{i}, \mathbf{x}_{s})= \tanh \left( \gamma \left< \mathbf{x}_{i} ,\mathbf{x}_{s} \right> +c \right)$. Nuevamente el hiperparámetro $\gamma$ controla la potencia de la transformación. En este caso, la matriz de Gram $\mathbf{K}$ resultante de la transformación corre el riesgo de no ser semi-definida positiva, porque las funciones hiperbólicas son no lineales e introducen ciertas peculiaridades en sus recorridos. De ser así, el programa cuadrático resultante del planteamiento del modelo no será convexo y, por tanto, no podrá resolverse usando la librería <strong><font color='darkmagenta'>CVXPY</font></strong>.
 
-Naturalmente, la mayor parte del trabajo se realiza en el método `fit()`. De manera secuencial, chequeamos que la matriz de diseño `X` y el arreglo de valores observados `y` tengan una geometría compatible con el API de **<font color='darkmagenta'>Scikit-Learn</font>**, para luego verificar que `y` solamente esté compuesto por valores binarios, cambiando tales valores a `-1` y `+1` de no ser el caso. Luego se calcula la matriz de Gram `K` aplicando la función kernel escogida y se arma la matriz `Q` que define la forma cuadrática en la función objetivo:
+Naturalmente, la mayor parte del trabajo se realiza en el método `fit()`. De manera secuencial, chequeamos que la matriz de diseño `X` y el arreglo de valores observados `y` tengan una geometría compatible con el API de <strong><font color='darkmagenta'>Scikit-Learn</font></strong>, para luego verificar que `y` solamente esté compuesto por valores binarios, cambiando tales valores a `-1` y `+1` de no ser el caso. Luego se calcula la matriz de Gram `K` aplicando la función kernel escogida y se arma la matriz `Q` que define la forma cuadrática en la función objetivo:
 
 ::: {.eq-scroll}
 $$
@@ -2324,7 +2346,7 @@ G = np.vstack([-np.eye(m), np.eye(m)])
 h = np.hstack([np.zeros(m), np.ones(m) * self.C])
 ```
 
-Por lo cual, una vez definidos los elementos estructurales correspondientes, sólo resta formular el programa cuadrático en **<font color='darkmagenta'>CVXPY</font>**. Una vez ajustado el modelo (esto es, resuelto el programa cuadrático), calculamos el término de sesgo del hiperplano de decisión en el espacio de atributos como
+Por lo cual, una vez definidos los elementos estructurales correspondientes, sólo resta formular el programa cuadrático en <strong><font color='darkmagenta'>CVXPY</font></strong>. Una vez ajustado el modelo (esto es, resuelto el programa cuadrático), calculamos el término de sesgo del hiperplano de decisión en el espacio de atributos como
 
 ::: {.eq-scroll}
 $$
@@ -2337,7 +2359,7 @@ Donde las instancias y multiplicadores involucrados están asociados a los vecto
 
 El resto de los métodos definidos para nuestra implementación son más sencillos de entender conforme la documentación del código.
 
-Probaremos nuestra implementación, al igual que el caso lineal, haciendo uso del conjunto de datos **<font color='forestgreen'>MOONS</font>**, usando un kernel de tipo radial Gaussiano, a fin de comparar las fronteras de separación resultantes y los correspondientes márgenes de decisión. Esto es más bien directo:
+Probaremos nuestra implementación, al igual que el caso lineal, haciendo uso del conjunto de datos <strong><font color='forestgreen'>MOONS</font></strong>, usando un kernel de tipo radial Gaussiano, a fin de comparar las fronteras de separación resultantes y los correspondientes márgenes de decisión. Esto es más bien directo:
 
 ```{python}
 # Instanciamos nuestro modelo.
@@ -2359,26 +2381,26 @@ Podemos observar que el efecto de la transformación de tipo radial genera una f
 
 ## Ejemplos de implementación en <font color='darkmagenta'>Scikit-Learn</font>
 
-Hemos tenido un enorme cuidado en desarrollar, con el mayor detalle posible, la teoría subyacente a las máquinas de soporte vectorial. Hemos edificado dicha teoría de el caso más simple, correspondiente a un problema de márgenes rígidos, hasta el caso más general, donde hemos introducido el truco del kernel para construir fronteras de separación no lineales entre clases en un problema binario, permitiendo violaciones del márgen de separación (es decir, errores de clasificación). Hemos introducido de forma muy somera una implementación de las máquinas de soporte vectorial provista por **<font color='darkmagenta'>Scikit-Learn</font>**, y hemos construido nuestra implementación desde cero, a fin de probar nuestro aprendizaje. Por lo tanto, en esta sección, nos dedicaremos a desarrollar algunos ejemplos más sofisticados que nos permitan aprender a utilizar de manera eficiente las herramientas provistas por **<font color='darkmagenta'>Scikit-Learn</font>** para la construcción de este tipo de modelos.
+Hemos tenido un enorme cuidado en desarrollar, con el mayor detalle posible, la teoría subyacente a las máquinas de soporte vectorial. Hemos edificado dicha teoría de el caso más simple, correspondiente a un problema de márgenes rígidos, hasta el caso más general, donde hemos introducido el truco del kernel para construir fronteras de separación no lineales entre clases en un problema binario, permitiendo violaciones del márgen de separación (es decir, errores de clasificación). Hemos introducido de forma muy somera una implementación de las máquinas de soporte vectorial provista por <strong><font color='darkmagenta'>Scikit-Learn</font></strong>, y hemos construido nuestra implementación desde cero, a fin de probar nuestro aprendizaje. Por lo tanto, en esta sección, nos dedicaremos a desarrollar algunos ejemplos más sofisticados que nos permitan aprender a utilizar de manera eficiente las herramientas provistas por <strong><font color='darkmagenta'>Scikit-Learn</font></strong> para la construcción de este tipo de modelos.
 
-**Ejemplo 7.7 – Una introducción a las SVMs en <font color='darkmagenta'>Scikit-Learn</font>:** Como ya habíamos comentado en un principio, en el ejemplo (7.2), las máquinas de soporte vectorial en **<font color='darkmagenta'>Scikit-Learn</font>** están disponibles en el módulo `sklearn.svm`. Para problemas de clasificación, existen tres tipos de implementación, dependiendo de nuestras necesidades:
+**Ejemplo 7.7 – Una introducción a las SVMs en <font color='darkmagenta'>Scikit-Learn</font>:** Como ya habíamos comentado en un principio, en el ejemplo (7.2), las máquinas de soporte vectorial en <strong><font color='darkmagenta'>Scikit-Learn</font></strong> están disponibles en el módulo `sklearn.svm`. Para problemas de clasificación, existen tres tipos de implementación, dependiendo de nuestras necesidades:
 
 - `LinearSVC`, para la implementación de un modelo con márgenes blandos que estima fronteras de separación lineales.
 - `SVC`, para la implementación de un modelo que admite fronteras no lineales mediante la implementación de funciones kernel.
 - `NuSVC`, para la implementación de un modelo no lineal con un número limitado de vectores de soporte.
 
-Independientemente de la implementación que escojamos, todas ellas son aptas para ser aplicadas en conjuntos de datos de alta dimensión, versátiles (dependiendo del tipo de frontera de separación a construir) y muy útiles cuando el número $n$ de variables independientes es mayor que el número $m$ de instancias de entrenamiento. No obstante, presentan una gran desventaja: No son capaces de estimar probabilidades de pertenencia a una clase determinada (como sí ocurre, de forma natural, con otros modelos, como el de regresión logística). **<font color='darkmagenta'>Scikit-Learn</font>** nos permite, sin embargo, estimar tales probabilidades de manera automática (es decir, las clases previamente listadas vienen equipadas con un método `predict_proba()`), pero aplicando un costoso procedimiento de validación cruzada con 5 subconjuntos, como veremos más adelante.
+Independientemente de la implementación que escojamos, todas ellas son aptas para ser aplicadas en conjuntos de datos de alta dimensión, versátiles (dependiendo del tipo de frontera de separación a construir) y muy útiles cuando el número $n$ de variables independientes es mayor que el número $m$ de instancias de entrenamiento. No obstante, presentan una gran desventaja: No son capaces de estimar probabilidades de pertenencia a una clase determinada (como sí ocurre, de forma natural, con otros modelos, como el de regresión logística). <strong><font color='darkmagenta'>Scikit-Learn</font></strong> nos permite, sin embargo, estimar tales probabilidades de manera automática (es decir, las clases previamente listadas vienen equipadas con un método `predict_proba()`), pero aplicando un costoso procedimiento de validación cruzada con 5 subconjuntos, como veremos más adelante.
 
 Todas las clases previamente listadas son, además, viables para la resolución de problemas multinomiales.
 
-Probaremos pues las tres clases en el conjunto de datos **<font color='forestgreen'>MOONS</font>**, de la misma forma en que probamos nuestras implementaciones caseras en los ejemplos previos. Para ello, primero definiremos tal conjunto de datos desde cero:
+Probaremos pues las tres clases en el conjunto de datos <strong><font color='forestgreen'>MOONS</font></strong>, de la misma forma en que probamos nuestras implementaciones caseras en los ejemplos previos. Para ello, primero definiremos tal conjunto de datos desde cero:
 
 ```{python}
 # Construimos nuestro conjunto de datos.
 X, y = make_moons(n_samples=500, noise=0.1, random_state=42)
 ```
 
-Los parámetros típicos que deben ser imputados en la clase `LinearSVC` ya fueron estudiados en el ejemplo (7.2), así que no redundaremos al respecto. Sin embargo, sí explicaremos los parámetros a ingresar en las clases `SVC` y `NuSVC`, los que son ligeramente diferentes. Debido a que `SVC` es la implementación más general de la máquina de soporte vectorial en **<font color='darkmagenta'>Scikit-Learn</font>** (para un problema de clasificación), haremos especial énfasis en sus argumentos, discutiendo mayormente las diferencias con respecto a `NuSVC`. De esta manera, para la clase `SVC`, típicamente ingresaremos los siguientes parámetros:
+Los parámetros típicos que deben ser imputados en la clase `LinearSVC` ya fueron estudiados en el ejemplo (7.2), así que no redundaremos al respecto. Sin embargo, sí explicaremos los parámetros a ingresar en las clases `SVC` y `NuSVC`, los que son ligeramente diferentes. Debido a que `SVC` es la implementación más general de la máquina de soporte vectorial en <strong><font color='darkmagenta'>Scikit-Learn</font></strong> (para un problema de clasificación), haremos especial énfasis en sus argumentos, discutiendo mayormente las diferencias con respecto a `NuSVC`. De esta manera, para la clase `SVC`, típicamente ingresaremos los siguientes parámetros:
 
 - `C`: Corresponde al parámetro de regularización para controlar el margen de separación resultante del entrenamiento de nuestro modelo. Como ya establecimos al construir el problema de optimización subyacente al entrenamiento de una máquina de soporte vectorial, este parámetro es inversamente proporcional a la potencia de la regularización conforme dicho margen. Es decir, mientras menor sea el valor de `C`, mayor será la regularización.
 - `kernel`: Como su nombre lo indica, se trata de un string que permite especificar el tipo de función kernel a aplicar sobre nuestros datos de entrenamiento para la construcción de fronteras de separación entre las distintas clases de interés. Las opciones son:
@@ -2391,18 +2413,18 @@ Los parámetros típicos que deben ser imputados en la clase `LinearSVC` ya fuer
 - `degree`: Permite controlar el grado de un kernel polinomial. Este parámetro se aplicará solo cuando `kernel="poly"`, y por defecto su valor es `degree=3`.
 - `gamma`: Permite controlar la potencia de una transformación inducida por el truco del kernel, correspondiendo al parámetro $\gamma$ en las ecuaciones anteriores. Por defecto, su valor es `gamma="scale"`, lo que permite fijar el valor de `gamma` en `1 / (n - X.var())`, donde `n` es el número de variables independientes de la matriz de diseño `X` y `X.var()` hace referencia a la varianza de `X`. También es posible definer `gamma="auto"`, que fija el valor de `gamma` en `1 / n`. También es posible especificar el valor numérico de este hiperparámetro con cualquier número de punto flotante (no negativo).
 - `coef0`: Parámetro independiente de los kernels polinómicos y sigmoidal, según corresponda. Por defecto, su valor es `coef0=0.0`, y debe ser un número de punto flotante no negativo.
-- `probability`: Parámetro Booleano que permite activar (o no) la estimación de probabilidades de pertenencia a una clase. Esto debe activarse de manera previa a la aplicación del método `fit()`. Sin embargo, como comentamos previamente, esto ralentizará significativamente el entrenamiento del modelo, ya que *tras bambalinas* **<font color='darkmagenta'>Scikit-Learn</font>** aplicará un procedimiento de validación cruzada con 5 subconjuntos. Los resultados de `predict_proba()`, una vez realizado el entrenamiento, pueden no ser consistentes con los resultados del método `predict()`.
-- `class_weight`: Parámetro que permite especificar los pesos de las clases de interés, lo que permite (con limitaciones) manejar problemas no balanceados. Es posible definer su valor en `class_weight="balanced"` para que **<font color='darkmagenta'>Scikit-Learn</font>** asigne un peso de forma automática a cada clase de manera inversamente proporcional a su frecuencia. También es posible especificar dichos pesos por medio de un diccionario de Python (mapeando cada clase a su peso). Por defecto, el valor de este parámetro es `class_weight=None`.
+- `probability`: Parámetro Booleano que permite activar (o no) la estimación de probabilidades de pertenencia a una clase. Esto debe activarse de manera previa a la aplicación del método `fit()`. Sin embargo, como comentamos previamente, esto ralentizará significativamente el entrenamiento del modelo, ya que *tras bambalinas* <strong><font color='darkmagenta'>Scikit-Learn</font></strong> aplicará un procedimiento de validación cruzada con 5 subconjuntos. Los resultados de `predict_proba()`, una vez realizado el entrenamiento, pueden no ser consistentes con los resultados del método `predict()`.
+- `class_weight`: Parámetro que permite especificar los pesos de las clases de interés, lo que permite (con limitaciones) manejar problemas no balanceados. Es posible definer su valor en `class_weight="balanced"` para que <strong><font color='darkmagenta'>Scikit-Learn</font></strong> asigne un peso de forma automática a cada clase de manera inversamente proporcional a su frecuencia. También es posible especificar dichos pesos por medio de un diccionario de Python (mapeando cada clase a su peso). Por defecto, el valor de este parámetro es `class_weight=None`.
 
 Algunos atributos de esta clase, además de los típicos:
 
-- `support_`: Índices asociados a los vectores de soporte estimados por el modelo (una vez entrenado). Se trata de un arreglo de **<font color='darkmagenta'>Numpy</font>** de tamaño `(n_SV,)`, donde `n_SV` es el número de vectores de soporte.
-- `support_vectors_`: Arreglo de **<font color='darkmagenta'>Numpy</font>** de tamaño `(n_SV, n)`, donde `n_SV` es el número de vectores de soporte y `n` es el número de variables independientes en la matriz de diseño `X`, en el cual se especifican los vectores de soporte estimados por el modelo.
-- `n_support_`: Arreglo de **<font color='darkmagenta'>Numpy</font>** donde se especifica el número de vectores de soporte para cada clase.
+- `support_`: Índices asociados a los vectores de soporte estimados por el modelo (una vez entrenado). Se trata de un arreglo de <strong><font color='darkmagenta'>Numpy</font></strong> de tamaño `(n_SV,)`, donde `n_SV` es el número de vectores de soporte.
+- `support_vectors_`: Arreglo de <strong><font color='darkmagenta'>Numpy</font></strong> de tamaño `(n_SV, n)`, donde `n_SV` es el número de vectores de soporte y `n` es el número de variables independientes en la matriz de diseño `X`, en el cual se especifican los vectores de soporte estimados por el modelo.
+- `n_support_`: Arreglo de <strong><font color='darkmagenta'>Numpy</font></strong> donde se especifica el número de vectores de soporte para cada clase.
 
 La gran diferencia de `SVC` con `NuSVC` es que, en la última, disponemos de un parámetro denominado `nu`, que nos permite definer la cota superior de tolerancia para errores de clasificación (violaciones de margen). Este número se expresa como una fracción (es decir, varía entre `0` y `1`).
 
-Con la información anterior, ya estamos listos para entrenar cualquier modelo. Usaremos la clase `SVC` y entrenaremos distintos modelos en el conjunto de datos **<font color='forestgreen'>MOONS</font>**, usando los distintos kernels pre-definedos por **<font color='darkmagenta'>Scikit-Learn</font>** (lineal –no se aplica ninguna transformación–, de base radial, polinomial y sigmoidal). Luego visualizaremos el margen de separación y la frontera decisión resultante de la implementación de cada kernel:
+Con la información anterior, ya estamos listos para entrenar cualquier modelo. Usaremos la clase `SVC` y entrenaremos distintos modelos en el conjunto de datos <strong><font color='forestgreen'>MOONS</font></strong>, usando los distintos kernels pre-definedos por <strong><font color='darkmagenta'>Scikit-Learn</font></strong> (lineal –no se aplica ninguna transformación–, de base radial, polinomial y sigmoidal). Luego visualizaremos el margen de separación y la frontera decisión resultante de la implementación de cada kernel:
 
 ```{python}
 from sklearn.svm import SVC
@@ -2470,7 +2492,7 @@ def plot_decision_margin(X, y, model, ax):
 
 ```{python}
 #| label: fig-maquinas-de-soporte-vectorial-08
-#| fig-cap: "SVM con frontera lineal."
+#| fig-cap: "Fronteras y márgenes aprendidos sobre el dataset MOONS por SVMs de tipo lineal, polinomial, radial y sigmoidal."
 # Graficamos los márgenes de decisión resultantes en cada caso.
 fig, ax = plt.subplots(figsize=(9, 7.5), nrows=2, ncols=2, sharex=True, sharey=True)
 
@@ -2512,7 +2534,7 @@ for kernel_k in kernels:
 
 Podemos observar que las transformaciones polinómica y de base radial son las que consiguen una mejor separación entre las clases para este conjunto de datos. En general, estas son las opciones más comunes a la hora de enfrentar problemas de clasificación donde la separación entre las clases tiene un aspecto geométrico favorable en términos de la suavidad o regularidad de la frontera a construir, lo que puede explotarse de gran manera con estas transformaciones. Por otro lado, el kernel sigmoidal presenta ciertas limitaciones que guardan relación, como comentamos previamente, con la no linealidad que introduce cualquier transformación hiperbólica en un conjunto de datos, lo que puede provocar incluso que la matriz de Gram resultante de la aplicación del truco del kernel no sea semi-definida positiva, lo que condiciona el problema inherente al entrenamiento de una máquina de soporte vectorial. El kernel sigmoidal, en general, no es muy utilizado y es extremadamente sensible a los valores de `coef0` y `gamma`.
 
-Vamos a replicar el ejercicio anterior con otro conjunto de datos *de juguete*, denominado **<font color='forestgreen'>CIRCLES</font>**, y que resulta muy útil para probar la eficiencia de los modelos de clasificación binaria, al igual que el conjunto de datos **<font color='forestgreen'>MOONS</font>**. En este caso, dicho conjunto es también un dominio en $\mathbb{R}^{2}$, y está constituido por dos nubes de puntos caracterizadas por dos clases. La primera tiene la forma de un círculo y la segunda tiene la forma de un anillo que es concéntrico con respecto a dicho círculo:
+Vamos a replicar el ejercicio anterior con otro conjunto de datos *de juguete*, denominado <strong><font color='forestgreen'>CIRCLES</font></strong>, y que resulta muy útil para probar la eficiencia de los modelos de clasificación binaria, al igual que el conjunto de datos <strong><font color='forestgreen'>MOONS</font></strong>. En este caso, dicho conjunto es también un dominio en $\mathbb{R}^{2}$, y está constituido por dos nubes de puntos caracterizadas por dos clases. La primera tiene la forma de un círculo y la segunda tiene la forma de un anillo que es concéntrico con respecto a dicho círculo:
 
 ```{python}
 from sklearn.datasets import make_circles
@@ -2531,7 +2553,7 @@ X, y = make_circles(
 
 ```{python}
 #| label: fig-maquinas-de-soporte-vectorial-09
-#| fig-cap: "Nuestro conjunto de datos."
+#| fig-cap: "Conjunto CIRCLES formado por dos clases concéntricas, cuya separación requiere una transformación no lineal del espacio."
 # Visualizamos nuestro conjunto de datos
 fig, ax = plt.subplots(figsize=(9, 5.4))
 p = ax.scatter(X[:, 0], X[:, 1], marker="x", c=y, cmap="bwr")
@@ -2569,7 +2591,7 @@ for kernel_k in kernels:
 
 ```{python}
 #| label: fig-maquinas-de-soporte-vectorial-10
-#| fig-cap: "SVM con frontera lineal."
+#| fig-cap: "Fronteras y márgenes de cuatro SVM sobre CIRCLES; los kernels no lineales recuperan la geometría concéntrica de las clases."
 # Graficamos los márgenes de decisión resultantes en cada caso.
 fig, ax = plt.subplots(figsize=(9, 7.5), nrows=2, ncols=2, sharex=True, sharey=True)
 
@@ -2722,7 +2744,7 @@ df_feats = df[features].copy()
 
 ```{python}
 #| label: fig-maquinas-de-soporte-vectorial-11
-#| fig-cap: "Condición real de los pilares en el nivel de producción."
+#| fig-cap: "Patrón espacial observado de daño en pilares, utilizado como referencia para evaluar las fronteras construidas por las SVMs."
 # Graficamos la situación de los pilares.
 fig, ax = plt.subplots(figsize=(9, 4.8))
 p = ax.scatter(x=df["coord_x"], y=df["coord_y"], c=df["collapse_flag"], cmap="bwr")
@@ -2879,7 +2901,7 @@ for kernel_name_k, estimator_k in best_estimators.items():
 
 ```{python}
 #| label: fig-maquinas-de-soporte-vectorial-12
-#| fig-cap: "Nuestros resultados."
+#| fig-cap: "Distribución espacial de pilares clasificados como dañados o estables por SVMs de tipo lineal, polinomial, radial y sigmoidal."
 # Graficamos nuestros resultados.
 titles = [
     "SVM con kernel lineal",
@@ -2955,7 +2977,7 @@ common_params = {
 
 ```{python}
 #| label: fig-maquinas-de-soporte-vectorial-13
-#| fig-cap: "Curvas de aprendizaje para distintas máquinas de soporte vectorial."
+#| fig-cap: "Desempeño de entrenamiento y validación de distintas SVMs al aumentar el tamaño muestral, con sus respectivas brechas de generalización."
 # Construimos nuestras curvas de aprendizaje.
 models_info = [
     {
@@ -3031,7 +3053,7 @@ Una curva de calibración (o **diagrama de confiabilidad**) de un modelo muestra
 
 Notemos que las curvas de calibración solamente evalúan la capacidad del modelo para asignar probabilidades en un esquema que coincida con la fracción de verdaderos positivos correspondiente a cada intervalo de clase, siendo incapaz, por tanto, de evaluar lo bien que el modelo discrimina las instancias pertenecientes a cada clase (para eso están las curvas ROC o de *trade-off* entre precisión y sensibilidad).
 
-La construcción de curvas de calibración en **<font color='darkmagenta'>Scikit-Learn</font>** es sencilla y suele realizarse por medio de la aplicación de dos objetos especializados: `CalibratedClassifierCV`, que permite implementar un proceso de validación cruzada (definido por el método `cv`) a fin de poder calibrar un modelo de clasificación para luego construir las correspondientes curvas de confiabilidad; y `CalibrationDisplay`, el cual es un objeto de tipo `display` propio de **<font color='darkmagenta'>Scikit-Learn</font>**. similar a otros como `LearningCurveDisplay`, y que permite construir directamente las curvas de interés. En particular, lo haremos directamente a partir de los modelos, usando el método `from_estimator()`:
+La construcción de curvas de calibración en <strong><font color='darkmagenta'>Scikit-Learn</font></strong> es sencilla y suele realizarse por medio de la aplicación de dos objetos especializados: `CalibratedClassifierCV`, que permite implementar un proceso de validación cruzada (definido por el método `cv`) a fin de poder calibrar un modelo de clasificación para luego construir las correspondientes curvas de confiabilidad; y `CalibrationDisplay`, el cual es un objeto de tipo `display` propio de <strong><font color='darkmagenta'>Scikit-Learn</font></strong>. similar a otros como `LearningCurveDisplay`, y que permite construir directamente las curvas de interés. En particular, lo haremos directamente a partir de los modelos, usando el método `from_estimator()`:
 
 ```{python}
 from sklearn.calibration import CalibratedClassifierCV, CalibrationDisplay
@@ -3063,7 +3085,7 @@ calib_svm_sigmoid = CalibratedClassifierCV(
 
 ```{python}
 #| label: fig-maquinas-de-soporte-vectorial-14
-#| fig-cap: "Nuestros resultados."
+#| fig-cap: "Curvas de confiabilidad e histogramas de probabilidad para evaluar la calibración de las cuatro SVMs aplicadas al daño de pilares."
 # Graficamos nuestros resultados.
 # Definimos una lista con los nombres de los modelos.
 names = [
@@ -3308,7 +3330,7 @@ Donde $\mathbf{w} =\sum\nolimits_{i=1}^{m} \left( \alpha_{i}^{\ast} -\alpha_{i} 
 
 Los desarrollos anteriores difieren ligeramente de los que hicimos para construir la formulación del problema de clasificación de márgenes blandos. En el problema primal (7.109) se establece como elemento estructural fundamental la banda de ancho $2\epsilon$, denominada **banda $\epsilon$-insensible**, que geométricamente *rodea* al recorrido o *traza* de la función predictora. Todas las instancias del conjunto de entrenamiento $\mathcal{D}$ que "caigan" dentro de esta banda no contribuyen a la pérdida del modelo, mientras que las que sí se localizan fuera de ella, contribuyen con una penalización proporcional a la distancia con respecto a dicha banda de acuerdo a la holgura $\xi_{i}$ (por exceso, ya que $y_{i}>\epsilon$) o $\xi_{i}^{\ast}$ (por defecto, ya que $y_{i}<\epsilon$). Por lo tanto, $\epsilon$ se trata de un hiperparámetro que suele ajustarse por medio de un procedimiento adecuado. Normalmente, validación cruzada.
 
-**Ejemplo 7.9 – Visualizando la banda $\epsilon$-insensible en un modelo de regresión:** Finalizaremos esta sección mostrando la implementación de la máquina de soporte vectorial para problemas de regresión (*SVR*, del inglés *support vector regressor*) provista por **<font color='darkmagenta'>Scikit-Learn</font>**. En rigor, tal implementación, denominada `SVR` difiere de la utilizada para abordar problemas de clasificación (`SVC`), fundamentalmente, en la introducción del hiperparámetro `epsilon`, el cual, como cabría esperar, permite definir el ancho de la banda de sensibilidad de nuestro modelo. De esta manera, algunos de los parámetros aceptados por este objeto son:
+**Ejemplo 7.9 – Visualizando la banda $\epsilon$-insensible en un modelo de regresión:** Finalizaremos esta sección mostrando la implementación de la máquina de soporte vectorial para problemas de regresión (*SVR*, del inglés *support vector regressor*) provista por <strong><font color='darkmagenta'>Scikit-Learn</font></strong>. En rigor, tal implementación, denominada `SVR` difiere de la utilizada para abordar problemas de clasificación (`SVC`), fundamentalmente, en la introducción del hiperparámetro `epsilon`, el cual, como cabría esperar, permite definir el ancho de la banda de sensibilidad de nuestro modelo. De esta manera, algunos de los parámetros aceptados por este objeto son:
 
 - `C`: Corresponde al parámetro de regularización para controlar el margen de separación resultante del entrenamiento de nuestro modelo. Como ya establecimos al construir el problema de optimización subyacente al entrenamiento de una máquina de soporte vectorial, este parámetro es inversamente proporcional a la potencia de la regularización conforme dicho margen. Es decir, mientras menor sea el valor de `C`, mayor será la regularización.
 - `epsilon`: Parámetro que permite definir el ancho de la banda de sensibilidad del modelo. Todas las instancias que se ubiquen fuera de esta banda serán usadas como penalizaciones sobre la pérdida durante el entrenamiento, siendo sus valores proporcionales a la distancia de tales instancias a esta banda. Un menor valor de `epsilon` implica una banda más ajustada, lo que favorece las violaciones de margen.
@@ -3323,7 +3345,7 @@ Los desarrollos anteriores difieren ligeramente de los que hicimos para construi
 - `gamma`: Permite controlar la potencia de una transformación inducida por el truco del kernel, correspondiendo al parámetro $\gamma$ en las ecuaciones anteriores. Por defecto, su valor es `gamma="scale"`, lo que permite fijar el valor de `gamma` en `1 / (n - X.var())`, donde `n` es el número de variables independientes de la matriz de diseño `X` y `X.var()` hace referencia a la varianza de `X`. También es posible definer `gamma="auto"`, que fija el valor de `gamma` en `1 / n`. También es posible especificar el valor numérico de este hiperparámetro con cualquier número de punto flotante (no negativo).
 - `coef0`: Parámetro independiente de los kernels polinómicos y sigmoidal, según corresponda. Por defecto, su valor es `coef0=0.0`, y debe ser un número de punto flotante no negativo.
 
-Como en el caso de la implementación propia para abordar problemas de clasificación (`SVC`), **<font color='darkmagenta'>Scikit-Learn</font>** también nos provee las mismas variantes para el caso de problemas de regresión, como `LinearSVR` y `NuSVR`, con las mismas características explicadas previamente para `LinearSVC` y `NuSVC`.
+Como en el caso de la implementación propia para abordar problemas de clasificación (`SVC`), <strong><font color='darkmagenta'>Scikit-Learn</font></strong> también nos provee las mismas variantes para el caso de problemas de regresión, como `LinearSVR` y `NuSVR`, con las mismas características explicadas previamente para `LinearSVC` y `NuSVC`.
 
 En este ejercicio, entrenaremos primero un modelo de regresión con base en una máquina de soporte vectorial con margen de tipo lineal, sobre un conjunto de datos del tipo $(x_{i},y_{i})\in \mathbb{R}^{2}$, donde $0\leq x_{i}\leq 2$, para el cual generamos $y_{i}$ conforme la ecuación $y_{i}= 4 + 3x_{i}+ \mathrm{ruido\ uniforme}$, que construimos a continuación:
 
@@ -3372,7 +3394,7 @@ support_vectors_svr2 = linear_svr2["estimator"].support_
 
 ```{python}
 #| label: fig-maquinas-de-soporte-vectorial-16
-#| fig-cap: "Modelo SVM de tipo lineal, $\\epsilon=0.5$."
+#| fig-cap: "Región de tolerancia y vectores de soporte de una regresión conforme una SVM lineal ajustada con $\\epsilon=0.5$."
 # Visualizamos nuestros resultados.
 fig, ax = plt.subplots(figsize=(9, 7), nrows=2, sharex=True)
 
@@ -3561,7 +3583,7 @@ for kernel_name_k, estimator_k in best_estimators.items():
 
 ```{python}
 #| label: fig-maquinas-de-soporte-vectorial-17
-#| fig-cap: "Nuestros resultados."
+#| fig-cap: "Funciones de decisión aprendidas por cuatro SVMs con distintas funciones kernel sobre el dominio unidimensional de nuestro ejemplo."
 # Graficamos nuestros resultados.
 titles = [
     "SVM con kernel lineal",

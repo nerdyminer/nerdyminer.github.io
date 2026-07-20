@@ -1,0 +1,2450 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.9.37">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="dcterms.date" content="2026-07-17">
+<meta name="description" content="Una derivación minera y matemática de los modelos de Vickers y Lane para determinar leyes de corte, administrar restricciones de capacidad y construir estrategias de consumo de reservas.">
+
+<title>Leyes de corte y estrategia de consumo de reservas – NerdyMiner</title>
+<style>
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="https://cdn.jsdelivr.net/npm/jquery@3.5.1/dist/jquery.min.js" integrity="sha384-ZvpUoO/+PpLXR1lu4jmpXWu80pZlYUAfxl5NsBMWOEPSjUn/6Z/hRTt8+pR6L4N2" crossorigin="anonymous"></script><script src="../../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../../">
+<script src="../../site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="../../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../../site_libs/quarto-html/popper.min.js"></script>
+<script src="../../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../../site_libs/quarto-html/quarto-syntax-highlighting-b16add4d910ff6038463ffc00184b1c1.css" rel="stylesheet" class="quarto-color-scheme" id="quarto-text-highlighting-styles">
+<link href="../../site_libs/quarto-html/quarto-syntax-highlighting-dark-e3b8bbca183a7d6761657ecb5c5aa65f.css" rel="stylesheet" class="quarto-color-scheme quarto-color-alternate" id="quarto-text-highlighting-styles">
+<link href="../../site_libs/quarto-html/quarto-syntax-highlighting-b16add4d910ff6038463ffc00184b1c1.css" rel="stylesheet" class="quarto-color-scheme-extra" id="quarto-text-highlighting-styles">
+<script src="../../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../../site_libs/bootstrap/bootstrap-90c4d6e1a211284576f1e90b432f199b.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
+<link href="../../site_libs/bootstrap/bootstrap-dark-4838705bf5813864f0d4e43b6a5f1976.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
+<link href="../../site_libs/bootstrap/bootstrap-90c4d6e1a211284576f1e90b432f199b.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+<style>html{ scroll-behavior: smooth; }</style>
+<script src="../../site_libs/quarto-diagram/mermaid.min.js"></script>
+<script src="../../site_libs/quarto-diagram/mermaid-init.js"></script>
+<link href="../../site_libs/quarto-diagram/mermaid.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/requirejs@2.3.6/require.min.js" integrity="sha384-c9c+LnTbwQ3aujuU7ULEPVvgLs+Fn6fJUvIGTsuu1ZcCf11fiEubah0ttpca4ntM sha384-6V1/AdqZRWk1KAlWbKBlGhN7VG4iE/yAZcO6NZPMF8od0vukrvr0tg4qY6NSrItx" crossorigin="anonymous"></script>
+
+<script type="application/javascript">define('jquery', [],function() {return window.jQuery;})</script>
+
+  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
+  <script defer="" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN" && texText && texText.data) {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
+
+</head>
+
+<body class="nav-fixed quarto-light"><script id="quarto-html-before-body" type="application/javascript">
+    const toggleBodyColorMode = (bsSheetEl) => {
+      const mode = bsSheetEl.getAttribute("data-mode");
+      const bodyEl = window.document.querySelector("body");
+      if (mode === "dark") {
+        bodyEl.classList.add("quarto-dark");
+        bodyEl.classList.remove("quarto-light");
+      } else {
+        bodyEl.classList.add("quarto-light");
+        bodyEl.classList.remove("quarto-dark");
+      }
+    }
+    const toggleBodyColorPrimary = () => {
+      const bsSheetEl = window.document.querySelector("link#quarto-bootstrap:not([rel=disabled-stylesheet])");
+      if (bsSheetEl) {
+        toggleBodyColorMode(bsSheetEl);
+      }
+    }
+    const setColorSchemeToggle = (alternate) => {
+      const toggles = window.document.querySelectorAll('.quarto-color-scheme-toggle');
+      for (let i=0; i < toggles.length; i++) {
+        const toggle = toggles[i];
+        if (toggle) {
+          if (alternate) {
+            toggle.classList.add("alternate");
+          } else {
+            toggle.classList.remove("alternate");
+          }
+        }
+      }
+    };
+    const toggleColorMode = (alternate) => {
+      // Switch the stylesheets
+      const primaryStylesheets = window.document.querySelectorAll('link.quarto-color-scheme:not(.quarto-color-alternate)');
+      const alternateStylesheets = window.document.querySelectorAll('link.quarto-color-scheme.quarto-color-alternate');
+      manageTransitions('#quarto-margin-sidebar .nav-link', false);
+      if (alternate) {
+        // note: dark is layered on light, we don't disable primary!
+        enableStylesheet(alternateStylesheets);
+        for (const sheetNode of alternateStylesheets) {
+          if (sheetNode.id === "quarto-bootstrap") {
+            toggleBodyColorMode(sheetNode);
+          }
+        }
+      } else {
+        disableStylesheet(alternateStylesheets);
+        enableStylesheet(primaryStylesheets)
+        toggleBodyColorPrimary();
+      }
+      manageTransitions('#quarto-margin-sidebar .nav-link', true);
+      // Switch the toggles
+      setColorSchemeToggle(alternate)
+      // Hack to workaround the fact that safari doesn't
+      // properly recolor the scrollbar when toggling (#1455)
+      if (navigator.userAgent.indexOf('Safari') > 0 && navigator.userAgent.indexOf('Chrome') == -1) {
+        manageTransitions("body", false);
+        window.scrollTo(0, 1);
+        setTimeout(() => {
+          window.scrollTo(0, 0);
+          manageTransitions("body", true);
+        }, 40);
+      }
+    }
+    const disableStylesheet = (stylesheets) => {
+      for (let i=0; i < stylesheets.length; i++) {
+        const stylesheet = stylesheets[i];
+        stylesheet.rel = 'disabled-stylesheet';
+      }
+    }
+    const enableStylesheet = (stylesheets) => {
+      for (let i=0; i < stylesheets.length; i++) {
+        const stylesheet = stylesheets[i];
+        if(stylesheet.rel !== 'stylesheet') { // for Chrome, which will still FOUC without this check
+          stylesheet.rel = 'stylesheet';
+        }
+      }
+    }
+    const manageTransitions = (selector, allowTransitions) => {
+      const els = window.document.querySelectorAll(selector);
+      for (let i=0; i < els.length; i++) {
+        const el = els[i];
+        if (allowTransitions) {
+          el.classList.remove('notransition');
+        } else {
+          el.classList.add('notransition');
+        }
+      }
+    }
+    const isFileUrl = () => {
+      return window.location.protocol === 'file:';
+    }
+    const hasAlternateSentinel = () => {
+      let styleSentinel = getColorSchemeSentinel();
+      if (styleSentinel !== null) {
+        return styleSentinel === "alternate";
+      } else {
+        return false;
+      }
+    }
+    const setStyleSentinel = (alternate) => {
+      const value = alternate ? "alternate" : "default";
+      if (!isFileUrl()) {
+        window.localStorage.setItem("quarto-color-scheme", value);
+      } else {
+        localAlternateSentinel = value;
+      }
+    }
+    const getColorSchemeSentinel = () => {
+      if (!isFileUrl()) {
+        const storageValue = window.localStorage.getItem("quarto-color-scheme");
+        return storageValue != null ? storageValue : localAlternateSentinel;
+      } else {
+        return localAlternateSentinel;
+      }
+    }
+    const toggleGiscusIfUsed = (isAlternate, darkModeDefault) => {
+      const baseTheme = document.querySelector('#giscus-base-theme')?.value ?? 'light';
+      const alternateTheme = document.querySelector('#giscus-alt-theme')?.value ?? 'dark';
+      let newTheme = '';
+      if(authorPrefersDark) {
+        newTheme = isAlternate ? baseTheme : alternateTheme;
+      } else {
+        newTheme = isAlternate ? alternateTheme : baseTheme;
+      }
+      const changeGiscusTheme = () => {
+        // From: https://github.com/giscus/giscus/issues/336
+        const sendMessage = (message) => {
+          const iframe = document.querySelector('iframe.giscus-frame');
+          if (!iframe) return;
+          iframe.contentWindow.postMessage({ giscus: message }, 'https://giscus.app');
+        }
+        sendMessage({
+          setConfig: {
+            theme: newTheme
+          }
+        });
+      }
+      const isGiscussLoaded = window.document.querySelector('iframe.giscus-frame') !== null;
+      if (isGiscussLoaded) {
+        changeGiscusTheme();
+      }
+    };
+    const authorPrefersDark = false;
+    const darkModeDefault = authorPrefersDark;
+      document.querySelector('link#quarto-text-highlighting-styles.quarto-color-scheme-extra').rel = 'disabled-stylesheet';
+      document.querySelector('link#quarto-bootstrap.quarto-color-scheme-extra').rel = 'disabled-stylesheet';
+    let localAlternateSentinel = darkModeDefault ? 'alternate' : 'default';
+    // Dark / light mode switch
+    window.quartoToggleColorScheme = () => {
+      // Read the current dark / light value
+      let toAlternate = !hasAlternateSentinel();
+      toggleColorMode(toAlternate);
+      setStyleSentinel(toAlternate);
+      toggleGiscusIfUsed(toAlternate, darkModeDefault);
+      window.dispatchEvent(new Event('resize'));
+    };
+    // Switch to dark mode if need be
+    if (hasAlternateSentinel()) {
+      toggleColorMode(true);
+    } else {
+      toggleColorMode(false);
+    }
+  </script>
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container mx-auto">
+    <a href="../../index.html" class="navbar-brand navbar-brand-logo">
+    <img src="../../images/nerdyminer-icon.svg" alt="NerdyMiner" class="navbar-logo light-content">
+    <img src="../../images/nerdyminer-icon.svg" alt="NerdyMiner" class="navbar-logo dark-content">
+    </a>
+    <a class="navbar-brand" href="../../index.html">
+    <span class="navbar-title">NerdyMiner</span>
+    </a>
+  </div>
+            <div id="quarto-search" class="" title="Search"></div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" role="menu" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll me-auto">
+  <li class="nav-item">
+    <a class="nav-link" href="../../index.html"> 
+<span class="menu-text">Inicio</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../articulos/index.html"> 
+<span class="menu-text">Artículos</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../apuntes/index.html"> 
+<span class="menu-text">Apuntes</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../clases/index.html"> 
+<span class="menu-text">Clases</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../bibliografia.html"> 
+<span class="menu-text">Bibliografía</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../proyectos/index.html"> 
+<span class="menu-text">Proyectos</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../licencia.html"> 
+<span class="menu-text">Licencia</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../sobre-mi.html"> 
+<span class="menu-text">Sobre mí</span></a>
+  </li>  
+</ul>
+          </div> <!-- /navcollapse -->
+            <div class="quarto-navbar-tools">
+  <a href="" class="quarto-color-scheme-toggle quarto-navigation-tool  px-1" onclick="window.quartoToggleColorScheme(); return false;" title="Toggle dark mode"><i class="bi"></i></a>
+</div>
+      </div> <!-- /container-fluid -->
+    </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
+<!-- sidebar -->
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul>
+  <li><a href="#introducción" id="toc-introducción" class="nav-link active" data-scroll-target="#introducción">Introducción</a></li>
+  <li><a href="#la-ley-de-corte-como-decisión-de-destino" id="toc-la-ley-de-corte-como-decisión-de-destino" class="nav-link" data-scroll-target="#la-ley-de-corte-como-decisión-de-destino">La ley de corte como decisión de destino</a></li>
+  <li><a href="#el-complejo-minero" id="toc-el-complejo-minero" class="nav-link" data-scroll-target="#el-complejo-minero">El complejo minero</a></li>
+  <li><a href="#el-criterio-estático-de-vickers" id="toc-el-criterio-estático-de-vickers" class="nav-link" data-scroll-target="#el-criterio-estático-de-vickers">El criterio estático de Vickers</a>
+  <ul class="collapse">
+  <li><a href="#restricción-de-mina" id="toc-restricción-de-mina" class="nav-link" data-scroll-target="#restricción-de-mina">Restricción de mina</a></li>
+  <li><a href="#restricción-de-concentradora" id="toc-restricción-de-concentradora" class="nav-link" data-scroll-target="#restricción-de-concentradora">Restricción de concentradora</a></li>
+  <li><a href="#restricción-de-refinería-o-mercado" id="toc-restricción-de-refinería-o-mercado" class="nav-link" data-scroll-target="#restricción-de-refinería-o-mercado">Restricción de refinería o mercado</a></li>
+  </ul></li>
+  <li><a href="#el-criterio-intertemporal-de-lane" id="toc-el-criterio-intertemporal-de-lane" class="nav-link" data-scroll-target="#el-criterio-intertemporal-de-lane">El criterio intertemporal de Lane</a>
+  <ul class="collapse">
+  <li><a href="#del-valor-remanente-al-costo-de-oportunidad" id="toc-del-valor-remanente-al-costo-de-oportunidad" class="nav-link" data-scroll-target="#del-valor-remanente-al-costo-de-oportunidad">Del valor remanente al costo de oportunidad</a></li>
+  <li><a href="#leyes-económicas-de-lane" id="toc-leyes-económicas-de-lane" class="nav-link" data-scroll-target="#leyes-económicas-de-lane">Leyes económicas de Lane</a></li>
+  <li><a href="#leyes-de-equilibrio" id="toc-leyes-de-equilibrio" class="nav-link" data-scroll-target="#leyes-de-equilibrio">Leyes de equilibrio</a></li>
+  </ul></li>
+  <li><a href="#consideración-de-botaderos" id="toc-consideración-de-botaderos" class="nav-link" data-scroll-target="#consideración-de-botaderos">Consideración de botaderos</a></li>
+  <li><a href="#consideración-de-stockpiles" id="toc-consideración-de-stockpiles" class="nav-link" data-scroll-target="#consideración-de-stockpiles">Consideración de stockpiles</a></li>
+  <li><a href="#coproductos-con-mercados-restringidos" id="toc-coproductos-con-mercados-restringidos" class="nav-link" data-scroll-target="#coproductos-con-mercados-restringidos">Coproductos con mercados restringidos</a></li>
+  <li><a href="#subproductos-y-ley-equivalente" id="toc-subproductos-y-ley-equivalente" class="nav-link" data-scroll-target="#subproductos-y-ley-equivalente">Subproductos y ley equivalente</a></li>
+  <li><a href="#vickers-y-lane-en-perspectiva" id="toc-vickers-y-lane-en-perspectiva" class="nav-link" data-scroll-target="#vickers-y-lane-en-perspectiva">Vickers y Lane en perspectiva</a></li>
+  <li><a href="#un-ejercicio-práctico-orientado-a-la-estrategia-de-consumo-de-reservas" id="toc-un-ejercicio-práctico-orientado-a-la-estrategia-de-consumo-de-reservas" class="nav-link" data-scroll-target="#un-ejercicio-práctico-orientado-a-la-estrategia-de-consumo-de-reservas">Un ejercicio práctico orientado a la estrategia de consumo de reservas</a>
+  <ul class="collapse">
+  <li><a href="#construcción-del-inventario" id="toc-construcción-del-inventario" class="nav-link" data-scroll-target="#construcción-del-inventario">Construcción del inventario</a></li>
+  <li><a href="#simulador-del-complejo-minero" id="toc-simulador-del-complejo-minero" class="nav-link" data-scroll-target="#simulador-del-complejo-minero">Simulador del complejo minero</a></li>
+  <li><a href="#política-fija-y-política-intertemporal" id="toc-política-fija-y-política-intertemporal" class="nav-link" data-scroll-target="#política-fija-y-política-intertemporal">Política fija y política intertemporal</a></li>
+  </ul></li>
+  <li><a href="#laboratorio-interactivo-de-leyes-de-corte" id="toc-laboratorio-interactivo-de-leyes-de-corte" class="nav-link" data-scroll-target="#laboratorio-interactivo-de-leyes-de-corte">Laboratorio interactivo de leyes de corte</a></li>
+  <li><a href="#comentarios-finales" id="toc-comentarios-finales" class="nav-link" data-scroll-target="#comentarios-finales">Comentarios finales</a></li>
+  </ul>
+</nav>
+    </div>
+<!-- main -->
+<main class="content page-columns page-full" id="quarto-document-content">
+
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title">Leyes de corte y estrategia de consumo de reservas</h1>
+<p class="subtitle lead">Los modelos de Vickers y Lane, desde la red mina-planta-refinería hasta stockpiles y coproductos</p>
+  <div class="quarto-categories">
+    <div class="quarto-category">Minería</div>
+    <div class="quarto-category">Planificación Minera</div>
+    <div class="quarto-category">Economía Minera</div>
+    <div class="quarto-category">Optimización</div>
+    <div class="quarto-category">Python</div>
+  </div>
+  </div>
+
+<div>
+  <div class="description">
+    Una derivación minera y matemática de los modelos de Vickers y Lane para determinar leyes de corte, administrar restricciones de capacidad y construir estrategias de consumo de reservas.
+  </div>
+</div>
+
+
+<div class="quarto-title-meta">
+
+    
+    <div>
+    <div class="quarto-title-meta-heading">Published</div>
+    <div class="quarto-title-meta-contents">
+      <p class="date">July 17, 2026</p>
+    </div>
+  </div>
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Note</span>Idea central
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>Una ley de corte no es una propiedad geológica del yacimiento: Es una decisión económica que clasifica material y determina su destino dentro de un sistema productivo con capacidades limitadas. El método de Vickers construye esta decisión a partir del beneficio operacional de un período representativo. Por otro lado, el algoritmo de Lane agrega el costo de oportunidad de consumir hoy una capacidad que podría utilizarse mañana y convierte el problema de la determinación de una ley de corte en una política intertemporal orientada a maximizar el valor actual neto.</p>
+</div>
+</div>
+<section id="introducción" class="level2">
+<h2 class="anchored" data-anchor-id="introducción">Introducción</h2>
+<p>Los modelos de Vickers y Lane tienen un lugar especial en mis recuerdos universitarios. En la asignatura de Economía Minera (por lejos la más temida en el Departamento de Ingeniería en Minas de la USACH, al menos en mis tiempos universitarios) aparecían como ejercicios aparentemente constructivos y bien estructurados: Una mina, una planta, una refinería y unas cuantas letras que representaban ciertas restricciones y/o cantidades. Después comenzaban a cambiar los cuellos de botella del sistema minero-metalúrgico presentado, aparecía un stockpile, entraba un segundo metal y, en menos de una página, la sala completa estaba negociando con la calculadora y con Dios. Causaban estragos. Y ni hablar cuando el problema involucraba diferentes variantes de métodos de explotación, rutas metalúrgicas alternativas o contratos de venta con topes de producción. Una auténtica pesadilla.</p>
+<p>Esta entrada nace de una ayudantía que preparé hace varios años para ordenar esos ejercicios en un único par de modelos productivos. Sin embargo, no nos limitaremos a transcribir sus láminas. Reconstruiremos las expresiones desde sus balances físicos, corregiremos algunas simplificaciones docentes y las conectaremos con la forma en que un planificador minero (en teoría) entiende realmente el problema: <strong>Qué material extraer, cuándo hacerlo, a qué destino enviarlo y qué capacidad escasa conviene consumir</strong>.</p>
+<p>El punto de partida es sencillo. En un inventario, un bloque no es mineral o estéril por naturaleza. La roca tiene masa, leyes, recuperaciones y atributos geometalúrgicos; nosotros le asignamos un destino en función de precios, costos, capacidades, secuencia y oportunidad. Por eso una <strong>ley de corte</strong> puede cambiar entre períodos aun cuando el modelo geológico permanezca invariante en dichos períodos.</p>
+<div class="callout callout-style-default callout-tip callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>¿Qué es una ley de corte?
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>Una ley de corte es una decisión económica que clasifica material y determina su destino dentro de un sistema productivo con capacidades limitadas. No es una propiedad geológica del yacimiento. Cuando disponemos de un modelo de bloques y conocemos precios, costos y capacidades, la ley de corte se define económicamente como aquella ley que maximiza el valor actual neto del plan de producción. Sin embargo, existen otros criterios que distan de los aspectos financieros que gobiernan la política extractiva. Por ejemplo, la ley de corte puede definirse como aquella que garantiza que un bloque marginal paga su procesamiento, o aquella que equilibra la ocupación de dos cuellos de botella. En este artículo, estamos interesados en su variante económica.</p>
+</div>
+</div>
+</section>
+<section id="la-ley-de-corte-como-decisión-de-destino" class="level2">
+<h2 class="anchored" data-anchor-id="la-ley-de-corte-como-decisión-de-destino">La ley de corte como decisión de destino</h2>
+<p>Sea <span class="math inline">\(G\)</span> la variable aleatoria que representa la ley de alimentación y sea <span class="math inline">\(\gamma\)</span> una ley de corte. Para un inventario de masa <span class="math inline">\(Q_{m}\)</span>, definimos la fracción de material sobre la ley de corte y su ley media condicional como</p>
+<div class="eq-scroll">
+<p><span class="math display">\[
+p(\gamma)=P(G\geq\gamma),
+\qquad
+\overline{g}(\gamma)=\mathrm{E}[G\mid G\geq\gamma]
+\tag{1}
+\]</span></p>
+</div>
+<p>donde <span class="math inline">\(P\)</span> es el operador de probabilidad y <span class="math inline">\(\mathrm{E}\)</span> el operador de valor esperado. Si todo material con <span class="math inline">\(G\geq\gamma\)</span> se procesa, el tonelaje de planta y el metal recuperado son</p>
+<div class="eq-scroll">
+<p><span class="math display">\[
+Q_c(\gamma)=Q_m p(\gamma),
+\qquad
+Q_r(\gamma)=y\,\overline{g}(\gamma)Q_c(\gamma)
+\tag{2}
+\]</span></p>
+</div>
+<p>donde <span class="math inline">\(y\in(0,1]\)</span> es la recuperación metalúrgica. Estas funciones reúnen la relación ley-tonelaje del yacimiento: Subir <span class="math inline">\(\gamma\)</span> reduce el tonelaje a procesar, pero incrementa la ley media de la alimentación. Este trade-off es el corazón del problema de planificación minera.</p>
+<p>En una mina real, la regla binaria proceso-botadero es apenas el caso más simple. Un bloque puede enviarse a plantas de procesamiento de naturalezas diferentes, stocks de alta o baja ley, botaderos, ir a venta directa o una ruta metalúrgica alternativa. En consecuencia, una ley de corte es mejor entendida como una <strong>frontera entre destinos</strong>. Depende del contexto geometalúrgico y, sobre todo, de la economía del sistema productivo: Precios, costos, capacidades y secuencia de extracción.</p>
+</section>
+<section id="el-complejo-minero" class="level2">
+<h2 class="anchored" data-anchor-id="el-complejo-minero">El complejo minero</h2>
+<p>Comenzaremos con una red formada por tres unidades productivas:</p>
+<div class="cell" data-layout-align="default">
+<div class="cell-output-display">
+<div id="fig-lane-vickers-01" class="quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-lane-vickers-01-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<div>
+<pre class="mermaid mermaid-js" data-label="fig-lane-vickers-01">flowchart LR
+    A[Mina&lt;br/&gt;capacidad M] --&gt;|Q_m| B{Clasificación}
+    B --&gt;|Q_c| C[Concentradora&lt;br/&gt;capacidad C]
+    B --&gt;|Q_m - Q_c| D[Botadero]
+    C --&gt;|Q_r = y g Q_c| E[Refinería / mercado&lt;br/&gt;capacidad R]
+</pre>
+</div>
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-lane-vickers-01-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figura&nbsp;1: Representación mínima del complejo mina-concentradora-refinería. Cada arco transporta masa o metal y cada nodo puede imponer una restricción de capacidad. Notemos que los nombres “concentradora” y “refinería” son solo ilustrativos, y podemos intercambiarlos por procesos asociados a una línea de procesamiento hidrometalúrgico (por ejemplo, mina–lixiviación-SX-EW).
+</figcaption>
+</figure>
+</div>
+</div>
+</div>
+<p>Usaremos la siguiente notación:</p>
+<ul>
+<li><span class="math inline">\(M\)</span>, <span class="math inline">\(C\)</span> y <span class="math inline">\(R\)</span> son las capacidades de mina, concentradora y producción de metal refinado por unidad de tiempo.</li>
+<li><span class="math inline">\(Q_{m}\)</span>, <span class="math inline">\(Q_{c}\)</span> y <span class="math inline">\(Q_{r}\)</span> son los flujos efectivos asociados a esas unidades.</li>
+<li><span class="math inline">\(m\)</span>, <span class="math inline">\(c\)</span> y <span class="math inline">\(r\)</span> son, respectivamente, el costo unitario mina por tonelada de material movido, el costo de concentración por tonelada procesada y el cargo de refinación por unidad de metal (este último suele denominarse en la <em>jerga</em> especializada como <strong>maquila de fundición y refinación</strong>).</li>
+<li><span class="math inline">\(f\)</span> es el costo fijo por unidad de tiempo.</li>
+<li><span class="math inline">\(s\)</span> es el precio por unidad de metal pagable.</li>
+<li><span class="math inline">\(y\)</span> es la recuperación metalúrgica y <span class="math inline">\(g\)</span> la ley de una unidad marginal de material.</li>
+</ul>
+<p>El ingreso y el costo operacional para un período de duración <span class="math inline">\(t\)</span> se describen por medio de las ecuaciones</p>
+<div class="eq-scroll">
+<p><span class="math display">\[
+I=sQ_{r},
+\qquad
+C_{\mathrm{op}}=mQ_{m}+cQ_{c}+rQ_{r}+ft
+\tag{3}
+\]</span></p>
+</div>
+<p>Como <span class="math inline">\(Q_{r}=ygQ_c\)</span>, el beneficio antes de descuento queda dado por</p>
+<div class="eq-scroll">
+<p><span class="math display">\[
+B=Q_{c}\left[(s-r)yg-c\right]-mQ_{m}-ft
+\tag{4}
+\]</span></p>
+</div>
+<p>La cantidad <span class="math inline">\((s-r)yg\)</span> es el ingreso neto atribuible a una tonelada de mineral antes del costo de concentración. En planificación minera suele ser más claro llamarla <strong>valor neto de fundición recuperado</strong> por tonelada, aunque aquí mantendremos la notación compacta de la formulación original.</p>
+</section>
+<section id="el-criterio-estático-de-vickers" class="level2">
+<h2 class="anchored" data-anchor-id="el-criterio-estático-de-vickers">El criterio estático de Vickers</h2>
+<p>El <strong>método de Vickers</strong> compara el beneficio incremental de procesar una tonelada marginal bajo distintos recursos limitantes. Su lógica es estática: Analiza un período representativo y no cobra explícitamente por postergar valor futuro. Sin embargo, depende de qué proceso de los que constituyen el complejo minero sea el cuello de botella.</p>
+<section id="restricción-de-mina" class="level3">
+<h3 class="anchored" data-anchor-id="restricción-de-mina">Restricción de mina</h3>
+<p>Si la mina opera a plena capacidad, entonces se tiene que <span class="math inline">\(Q_{m}=Mt\)</span>. Aumentar marginalmente el material enviado a planta no modifica las toneladas de material movidas en la mina ni la duración del período. La tonelada marginal debe pues pagar su procesamiento:</p>
+<div class="eq-scroll">
+<p><span class="math display">\[
+(s-r)yg_m-c=0
+\tag{5}
+\]</span></p>
+</div>
+<p>Por tanto, la ley económica asociada a la restricción de mina es</p>
+<div class="eq-scroll">
+<p><span class="math display">\[
+g_m=\frac{c}{(s-r)y}
+\tag{6}
+\]</span></p>
+</div>
+<p>El costo mina no aparece porque, bajo este razonamiento, la tonelada ya fue extraída: La decisión marginal es, simplemente, procesarla en la concentradora o no.</p>
+</section>
+<section id="restricción-de-concentradora" class="level3">
+<h3 class="anchored" data-anchor-id="restricción-de-concentradora">Restricción de concentradora</h3>
+<p>Si la planta es el cuello de botella, entonces se tiene que <span class="math inline">\(Q_{c}=Ct\)</span> y tratar una tonelada adicional consume <span class="math inline">\(1/C\)</span> unidades de tiempo. Esa ocupación agrega costo fijo:</p>
+<div class="eq-scroll">
+<p><span class="math display">\[
+(s-r)yg_c-c-\frac{f}{C}=0
+\tag{7}
+\]</span></p>
+</div>
+<p>Luego,</p>
+<div class="eq-scroll">
+<p><span class="math display">\[
+g_c=\frac{c+f/C}{(s-r)y}
+\tag{8}
+\]</span></p>
+</div>
+<p>Esta ley suele ser mayor que <span class="math inline">\(g_{m}\)</span>: Cuando cada hora de planta es matemáticamente escasa, no basta con que una tonelada pague su tratamiento; debe contribuir también a sostener el sistema durante el tiempo que ocupa.</p>
+</section>
+<section id="restricción-de-refinería-o-mercado" class="level3">
+<h3 class="anchored" data-anchor-id="restricción-de-refinería-o-mercado">Restricción de refinería o mercado</h3>
+<p>Si la producción de metal está limitada a <span class="math inline">\(Q_{r}=Rt\)</span>, una tonelada de mineral de ley <span class="math inline">\(g\)</span> consume <span class="math inline">\(yg/R\)</span> unidades de tiempo. La condición marginal es por tanto</p>
+<div class="eq-scroll">
+<p><span class="math display">\[
+(s-r)yg_r-c-\frac{fyg_r}{R}=0
+\tag{9}
+\]</span></p>
+</div>
+<p>de donde obtenemos</p>
+<div class="eq-scroll">
+<p><span class="math display">\[
+g_r=\frac{c}{\left(s-r-f/R\right)y}
+\tag{10}
+\]</span></p>
+</div>
+<p>La expresión (10) exige que <span class="math inline">\(s-r-f/R&gt;0\)</span>. Si no se cumple, el margen por unidad de metal no alcanza para sostener el costo temporal del sistema y no existe una ley de corte positiva finita bajo este régimen.</p>
+<div class="callout callout-style-default callout-warning callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Warning</span>Beneficio no es lo mismo que VAN
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>El criterio de Vickers es útil para comprender la economía marginal y construir una política estática. Sin embargo, maximizar el beneficio total no descontado no equivale, en general, a maximizar el valor actual neto (VAN). Dos planes con el mismo beneficio acumulado pueden tener valores muy distintos si uno adelanta metal y el otro posterga los flujos favorables.</p>
+</div>
+</div>
+</section>
+</section>
+<section id="el-criterio-intertemporal-de-lane" class="level2">
+<h2 class="anchored" data-anchor-id="el-criterio-intertemporal-de-lane">El criterio intertemporal de Lane</h2>
+<p>El <strong>método de Lane</strong> incorpora precisamente aquello que falta en el análisis estático propuesto por Vickers: El valor de lo que queda en el yacimiento y el costo de ocupar una capacidad hoy.</p>
+<section id="del-valor-remanente-al-costo-de-oportunidad" class="level3">
+<h3 class="anchored" data-anchor-id="del-valor-remanente-al-costo-de-oportunidad">Del valor remanente al costo de oportunidad</h3>
+<p>Sea <span class="math inline">\(V\)</span> el valor actual del plan desde el estado actual y sea <span class="math inline">\(W\)</span> el valor del mineral que permanecerá después del período. Si <span class="math inline">\(d\)</span> es una tasa de descuento continuamente compuesta, la identidad exacta para un período de duración <span class="math inline">\(t\)</span> es</p>
+<div class="eq-scroll">
+<p><span class="math display">\[
+V=e^{-dt}(B+W)
+\tag{11}
+\]</span></p>
+</div>
+<p>Para períodos cortos, <span class="math inline">\(e^{dt}\approx 1+dt\)</span> (lo que se justifica en la llamada <a href="https://en.wikipedia.org/wiki/Bernoulli%27s_inequality"><strong>desigualdad de Bernoulli</strong></a>). Al reorganizar la aproximación de primer orden,</p>
+<div class="eq-scroll">
+<p><span class="math display">\[
+B+W-V\approx dVt
+\tag{12}
+\]</span></p>
+</div>
+<p>El término <span class="math inline">\(F=dV\)</span> se interpreta como un costo de oportunidad instantáneo por unidad de tiempo. En la formulación marginal, el costo temporal efectivo pasa de <span class="math inline">\(f\)</span> a</p>
+<div class="eq-scroll">
+<p><span class="math display">\[
+f^\star=f+F=f+dV
+\tag{13}
+\]</span></p>
+</div>
+<p>No es un costo contable. Representa el valor que dejamos de capturar al inmovilizar durante más tiempo una planta, una mina o una capacidad comercial que podría adelantar flujos futuros.</p>
+</section>
+<section id="leyes-económicas-de-lane" class="level3">
+<h3 class="anchored" data-anchor-id="leyes-económicas-de-lane">Leyes económicas de Lane</h3>
+<p>Sustituyendo <span class="math inline">\(f\)</span> por <span class="math inline">\(f+dV\)</span> en las restricciones temporales derivadas a partir del método de Vickers, obtenemos</p>
+<div class="eq-scroll">
+<p><span class="math display">\[
+g_m=\frac{c}{(s-r)y}
+\tag{14}
+\]</span></p>
+</div>
+<div class="eq-scroll">
+<p><span class="math display">\[
+g_c=\frac{c+(f+dV)/C}{(s-r)y}
+\tag{15}
+\]</span></p>
+</div>
+<div class="eq-scroll">
+<p><span class="math display">\[
+g_r=\frac{c}{\left[s-r-(f+dV)/R\right]y}
+\tag{16}
+\]</span></p>
+</div>
+<p>La ley de mina permanece inalterada porque procesar una tonelada ya minada no prolonga una operación limitada por movimiento mina. En cambio, las leyes de planta y refinería aumentan con <span class="math inline">\(V\)</span>: Cuando queda mucho valor por capturar, consumir lentamente las capacidades escasas resulta caro.</p>
+</section>
+<section id="leyes-de-equilibrio" class="level3">
+<h3 class="anchored" data-anchor-id="leyes-de-equilibrio">Leyes de equilibrio</h3>
+<p>Las tres expresiones anteriores son <strong>leyes económicas</strong>. No bastan para construir la llamada <strong>política de Lane</strong>, porque el sistema puede cambiar de cuello de botella. Para identificar esos cambios necesitamos leyes de equilibrio.</p>
+<p>La ley <span class="math inline">\(g_{mc}\)</span> equilibra mina y concentradora:</p>
+<div class="eq-scroll">
+<p><span class="math display">\[
+\frac{Q_m(g_{mc})}{M}
+=
+\frac{Q_c(g_{mc})}{C}
+\tag{17}
+\]</span></p>
+</div>
+<p>La ley <span class="math inline">\(g_{mr}\)</span> equilibra mina y refinería:</p>
+<div class="eq-scroll">
+<p><span class="math display">\[
+\frac{Q_m(g_{mr})}{M}
+=
+\frac{Q_r(g_{mr})}{R}
+\tag{18}
+\]</span></p>
+</div>
+<p>y la ley <span class="math inline">\(g_{cr}\)</span> equilibra planta y refinería:</p>
+<div class="eq-scroll">
+<p><span class="math display">\[
+\frac{Q_c(g_{cr})}{C}
+=
+\frac{Q_r(g_{cr})}{R}
+\tag{19}
+\]</span></p>
+</div>
+<p>Estas ecuaciones dependen de la distribución de leyes, porque <span class="math inline">\(Q_c(\gamma)\)</span> y <span class="math inline">\(\overline g(\gamma)\)</span> cambian con <span class="math inline">\(\gamma\)</span>. Normalmente se resuelven numéricamente sobre la curva de tonelaje v/s ley.</p>
+<p>La ley operativa no se obtiene tomando ciegamente el máximo o el mínimo de todas las candidatas. Debemos:</p>
+<ol type="1">
+<li>Calcular las leyes económicas <span class="math inline">\(g_{m}\)</span>, <span class="math inline">\(g_{c}\)</span> y <span class="math inline">\(g_{r}\)</span>.</li>
+<li>Calcular las leyes de equilibrio <span class="math inline">\(g_{mc}\)</span>, <span class="math inline">\(g_{mr}\)</span> y <span class="math inline">\(g_{cr}\)</span>.</li>
+<li>Identificar qué capacidades quedarían activas para cada candidata.</li>
+<li>Descartar las candidatas incompatibles con su supuesto de cuello de botella.</li>
+<li>Escoger, entre las candidatas factibles, aquella que entrega el mayor valor incremental.</li>
+<li>Actualizar <span class="math inline">\(V\)</span>, avanzar el estado de reservas y repetir.</li>
+</ol>
+<p>El modelo de Lane, por ello, nos propone una política iterativa. El valor del remanente determina la ley actual y la ley actual modifica el valor del remanente. Se habla pues del <strong>algoritmo de Lane</strong>, que consiste en iterar entre la determinación de leyes y la actualización del valor remanente hasta converger a una política estable.</p>
+</section>
+</section>
+<section id="consideración-de-botaderos" class="level2">
+<h2 class="anchored" data-anchor-id="consideración-de-botaderos">Consideración de botaderos</h2>
+<p>Supongamos ahora que el material no procesado (estéril o lastre) se envía a un botadero a un costo <span class="math inline">\(l\)</span> por tonelada y que <span class="math inline">\(Q_{l}=Q_{m}-Q_{c}\)</span>. El costo total es</p>
+<div class="eq-scroll">
+<p><span class="math display">\[
+C_{\mathrm{op}}=mQ_{c}+lQ_{l}+cQ_{c}+rQ_{r}+ft
+\tag{20}
+\]</span></p>
+</div>
+<p>Al sustituir <span class="math inline">\(Q_{l}=Q_{m}-Q_{c}\)</span>,</p>
+<div class="eq-scroll">
+<p><span class="math display">\[
+B
+=Q_{c}\left[(s-r)yg-m-c+l\right]-lQ_{m}-ft
+\tag{21}
+\]</span></p>
+</div>
+<p>La tonelada marginal enviada a planta evita el costo de botadero <span class="math inline">\(l\)</span>, pero incurre en remoción y concentración. Las leyes económicas derivadas del modelo de Vickers son</p>
+<div class="eq-scroll">
+<p><span class="math display">\[
+g_{m}=\frac{m+c-l}{(s-r)y}
+\tag{22}
+\]</span></p>
+</div>
+<div class="eq-scroll">
+<p><span class="math display">\[
+g_{c}=\frac{m+c-l+f/C}{(s-r)y}
+\tag{23}
+\]</span></p>
+</div>
+<div class="eq-scroll">
+<p><span class="math display">\[
+g_{r}=\frac{m+c-l}{\left(s-r-f/R\right)y}
+\tag{24}
+\]</span></p>
+</div>
+<p>La estructura del numerador <span class="math inline">\(m+c-l\)</span> se obtiene directamente al comparar los destinos de proceso y botadero para una tonelada marginal. Enviar el material a planta exige pagar los costos de mina y procesamiento, <span class="math inline">\(m+c\)</span>, pero evita el costo de disposición <span class="math inline">\(l\)</span> que habría sido incurrido al descartarlo. Por esta razón, <span class="math inline">\(m\)</span> y <span class="math inline">\(c\)</span> entran con signo positivo, mientras que <span class="math inline">\(l\)</span> actúa como un costo evitado y aparece con signo negativo.</p>
+<p>Para el modelo de Lane, sustituimos <span class="math inline">\(f\)</span> por <span class="math inline">\(f+dV\)</span> en las expresiones condicionadas por tiempo:</p>
+<div class="eq-scroll">
+<p><span class="math display">\[
+g_{c}=\frac{m+c-l+(f+dV)/C}{(s-r)y},
+\qquad
+g_{r}=\frac{m+c-l}{\left[s-r-(f+dV)/R\right]y}
+\tag{25}
+\]</span></p>
+</div>
+</section>
+<section id="consideración-de-stockpiles" class="level2">
+<h2 class="anchored" data-anchor-id="consideración-de-stockpiles">Consideración de stockpiles</h2>
+<p>Consideremos que una fracción <span class="math inline">\(\alpha\)</span> de la alimentación llega directamente desde mina y que <span class="math inline">\(1-\alpha\)</span> se recupera desde un stockpile. Sea <span class="math inline">\(n\)</span> el costo de remanejo del stock. El costo variable equivalente por tonelada tratada es</p>
+<div class="eq-scroll">
+<p><span class="math display">\[
+a(\alpha)=\alpha m+c-l+(1-\alpha)(l+n)
+\tag{26}
+\]</span></p>
+</div>
+<p>Así,</p>
+<div class="eq-scroll">
+<p><span class="math display">\[
+B=Q_{c}\left[(s-r)yg-a(\alpha)\right]-lQ_{m}-ft
+\tag{27}
+\]</span></p>
+</div>
+<p>y las leyes económicas estáticas que derivamos del modelo de Vickers son</p>
+<div class="eq-scroll">
+<p><span class="math display">\[
+g_{m}(\alpha)=\frac{a(\alpha)}{(s-r)y},
+\qquad
+g_{c}(\alpha)=\frac{a(\alpha)+f/C}{(s-r)y},
+\qquad
+g_{r}(\alpha)=\frac{a(\alpha)}{\left(s-r-f/R\right)y}
+\tag{28}
+\]</span></p>
+</div>
+<p>Cuando <span class="math inline">\(\alpha=1\)</span> las ecuaciones anteriores se reducen al caso sin stockpile. Sin embargo, <strong>esta formulación trata al stock como un nodo de transbordo</strong>. En planificación de mediano y largo plazo necesitamos conservar masa y metal entre períodos:</p>
+<div class="eq-scroll">
+<p><span class="math display">\[
+S_{t+1}=S_{t}+A_{t}-R_{t};
+\qquad
+0\leq S_{t}\leq \overline S
+\tag{29}
+\]</span></p>
+</div>
+<p>donde <span class="math inline">\(A_{t}\)</span> y <span class="math inline">\(R_{t}\)</span> son las toneladas apiladas y recuperadas. Para conservar calidad, debe añadirse un balance de metal:</p>
+<div class="eq-scroll">
+<p><span class="math display">\[
+S_{t+1}\overline g_{t+1}=S_{t}\overline g_{t}+A_{t}g_{t}^{A}-R_{t}g_{t}^{R}
+\tag{30}
+\]</span></p>
+</div>
+<p>Un stockpile real no es una <em>caja sin memoria</em>. Es un inventario intertemporal que difiere valor, mezcla leyes, modifica recuperaciones y puede desacoplar temporalmente la mina y la planta.</p>
+</section>
+<section id="coproductos-con-mercados-restringidos" class="level2">
+<h2 class="anchored" data-anchor-id="coproductos-con-mercados-restringidos">Coproductos con mercados restringidos</h2>
+<p>Sea <span class="math inline">\(\mathcal K=\{1,\ldots,K\}\)</span> el conjunto de productos de interés económico en nuestro complejo minero-metalúrgico. Para cada producto <span class="math inline">\(k\)</span> definimos precio <span class="math inline">\(s_{k}\)</span>, cargo por maquila de fundición y refinación <span class="math inline">\(r_{k}\)</span>, recuperación <span class="math inline">\(y_{k}\)</span> y ley <span class="math inline">\(g_{k}\)</span>. El ingreso neto y el beneficio son</p>
+<div class="eq-scroll">
+<p><span class="math display">\[
+I=Q_{c}\sum_{k\in\mathcal K}(s_{k}-r_{k})y_{k}g_{k}
+\tag{31}
+\]</span></p>
+</div>
+<div class="eq-scroll">
+<p><span class="math display">\[
+B=Q_{c}\left[\sum_{k\in\mathcal K}(s_{k}-r_{k})y_{k}g_{k}-c\right]-mQ_{m}-ft
+\tag{32}
+\]</span></p>
+</div>
+<p>Si despejamos la ley del producto <span class="math inline">\(j\)</span> bajo restricción de mina,</p>
+<div class="eq-scroll">
+<p><span class="math display">\[
+g_{m}^{(j)}=\frac{c-\sum_{k\neq j}(s_{k}-r_{k})y_{k}g_{k}}{(s_{j}-r_{j})y_{j}}
+\tag{33}
+\]</span></p>
+</div>
+<p>La frontera mineral-estéril ahora ya no es un punto, sino que un hiperplano:</p>
+<div class="eq-scroll">
+<p><span class="math display">\[
+\sum_{k\in\mathcal K}(s_{k}-r_{k})y_{k}g_{k}=c
+\tag{34}
+\]</span></p>
+</div>
+<p>Si definimos</p>
+<div class="eq-scroll">
+<p><span class="math display">\[
+x_{k}=\frac{c}{(s_{k}-r_{k})y_{k}}
+\tag{35}
+\]</span></p>
+</div>
+<p>la frontera se escribe como</p>
+<div class="eq-scroll">
+<p><span class="math display">\[
+\sum_{k\in\mathcal K}\frac{g_{k}}{x_{k}}=1
+\tag{36}
+\]</span></p>
+</div>
+<p>Para una concentradora limitada bajo el criterio de Lane, basta reemplazar <span class="math inline">\(c\)</span> por <span class="math inline">\(c+(f+dV)/C\)</span>. Si existen topes de venta, penalidades por impurezas o contratos diferenciados, esta equivalencia deja de ser global: El valor marginal de un metal depende de qué restricción comercial está activa.</p>
+</section>
+<section id="subproductos-y-ley-equivalente" class="level2">
+<h2 class="anchored" data-anchor-id="subproductos-y-ley-equivalente">Subproductos y ley equivalente</h2>
+<p>Cuando el segundo metal se comercializa sin una restricción propia y sus parámetros económicos permanecen estables, podemos expresarlo en unidades del metal principal. Para dos productos:</p>
+<div class="eq-scroll">
+<p><span class="math display">\[
+E=\frac{(s_2-r_2)y_2}{(s_1-r_1)y_1}
+\tag{37}
+\]</span></p>
+</div>
+<p>La ley equivalente del producto <span class="math inline">\(1\)</span> es</p>
+<div class="eq-scroll">
+<p><span class="math display">\[
+g_{\mathrm{eq}}=g_1+Eg_2
+\tag{38}
+\]</span></p>
+</div>
+<p>y el ingreso queda dado por</p>
+<div class="eq-scroll">
+<p><span class="math display">\[
+I=Q_c(s_1-r_1)y_1g_{\mathrm{eq}}
+\tag{39}
+\]</span></p>
+</div>
+<p><strong>La ley equivalente es por tanto una conversión económica, no mineralógica</strong>. Cambia con precios, recuperaciones, pagabilidades, penalidades y rutas metalúrgicas. Usarla como atributo fijo del modelo de bloques durante toda la vida de la mina puede esconder cambios relevantes en la economía del depósito.</p>
+</section>
+<section id="vickers-y-lane-en-perspectiva" class="level2">
+<h2 class="anchored" data-anchor-id="vickers-y-lane-en-perspectiva">Vickers y Lane en perspectiva</h2>
+<p>Los resultados anteriores se resumen en la <a href="#tbl-lane-vickers-01" class="quarto-xref">Tabla&nbsp;1</a>.</p>
+<div id="tbl-lane-vickers-01" class="quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-float-tbl figure">
+<figcaption class="quarto-float-caption-top quarto-float-caption quarto-float-tbl" id="tbl-lane-vickers-01-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Tabla&nbsp;1: Comparación conceptual entre los criterios de Vickers y Lane.
+</figcaption>
+<div aria-describedby="tbl-lane-vickers-01-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<table class="caption-top table">
+<colgroup>
+<col style="width: 33%">
+<col style="width: 33%">
+<col style="width: 33%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Aspecto</th>
+<th>Vickers</th>
+<th>Lane</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Horizonte conceptual</td>
+<td>Período representativo</td>
+<td>Vida remanente del yacimiento</td>
+</tr>
+<tr class="even">
+<td>Objetivo</td>
+<td>Beneficio operacional</td>
+<td>Valor actual neto</td>
+</tr>
+<tr class="odd">
+<td>Costo temporal</td>
+<td><span class="math inline">\(f\)</span></td>
+<td><span class="math inline">\(f+dV\)</span></td>
+</tr>
+<tr class="even">
+<td>Dependencia del estado</td>
+<td>Limitada</td>
+<td>Explícita: reservas y valor remanente</td>
+</tr>
+<tr class="odd">
+<td>Cuellos de botella</td>
+<td>Leyes económicas</td>
+<td>Leyes económicas y de equilibrio</td>
+</tr>
+<tr class="even">
+<td>Uso natural</td>
+<td>Diagnóstico y política estática</td>
+<td>Estrategia iterativa de consumo de reservas</td>
+</tr>
+</tbody>
+</table>
+</div>
+</figure>
+</div>
+<p>Ninguno de los dos modelos de estimación de leyes económicas reemplaza un programa de producción moderno. Las precedencias de fases y bancos, las capacidades de carguío y transporte, las mezclas, los desarrollos, la geometalurgia y los compromisos comerciales suelen requerir modelos enteros mixtos o heurísticas de gran escala. Aun así, ambos modelos siguen siendo extremadamente valiosos desde una perspectiva fundacional: Exponen la economía marginal que un optimizador más grande puede ocultar.</p>
+</section>
+<section id="un-ejercicio-práctico-orientado-a-la-estrategia-de-consumo-de-reservas" class="level2">
+<h2 class="anchored" data-anchor-id="un-ejercicio-práctico-orientado-a-la-estrategia-de-consumo-de-reservas">Un ejercicio práctico orientado a la estrategia de consumo de reservas</h2>
+<p>Construiremos un caso sintético de alta complejidad. Tendremos ocho fases disponibles secuencialmente, capacidad de mina, planta y producción de cobre, botadero, stockpile y descuento. Compararemos:</p>
+<ul>
+<li>Una ley fija escogida con un criterio estático tipo Vickers.</li>
+<li>Una secuencia de leyes por período optimizada directamente sobre el VAN.</li>
+</ul>
+<p>El segundo enfoque no pretende ser una implementación canónica completa del algoritmo de Lane. Es una auditoría numérica inspirada en su principio: Cobrar por el tiempo, conservar el estado del stockpile y valorar de manera distinta una tonelada según el período en que libera metal. Para ello, nos apoyaremos con Python (como no…) y haremos las importaciones correspondientes:</p>
+<div id="cell-lane-vickers-imports" class="cell" data-message="false" data-execution_count="1">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> matplotlib.pyplot <span class="im">as</span> plt</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> pandas <span class="im">as</span> pd</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> seaborn <span class="im">as</span> sns</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> scipy.optimize <span class="im">import</span> differential_evolution, minimize_scalar</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<div id="cell-lane-vickers-plotting-params" class="cell" data-message="false" data-execution_count="2">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>sns.set_theme()</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>plt.style.use(<span class="st">"bmh"</span>)</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>plt.rcParams[<span class="st">"figure.dpi"</span>] <span class="op">=</span> <span class="dv">90</span></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>pd.options.display.float_format <span class="op">=</span> <span class="st">"</span><span class="sc">{:,.3f}</span><span class="st">"</span>.<span class="bu">format</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<section id="construcción-del-inventario" class="level3">
+<h3 class="anchored" data-anchor-id="construcción-del-inventario">Construcción del inventario</h3>
+<p>Cada fila representará una unidad selectiva de planificación de <span class="math inline">\(50\,000\)</span> toneladas. La ley de cobre disminuye suavemente con la profundidad y conserva variabilidad local; la recuperación también depende de la ley y de una componente geometalúrgica:</p>
+<div id="cell-cell-lane-vickers-inventory" class="cell" data-execution_count="3">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Definimos una semilla aleatoria fija para garantizar reproducibilidad.</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">42</span>)</span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Configuramos parámetros iniciales.</span></span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>N_PERIODS <span class="op">=</span> <span class="dv">8</span></span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>PARCELS_PER_PHASE <span class="op">=</span> <span class="dv">120</span></span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>TONNES_PER_PARCEL <span class="op">=</span> <span class="fl">50_000.0</span></span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a><span class="co"># Y construimos el inventario sintético.</span></span>
+<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a>rows <span class="op">=</span> []</span>
+<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> phase <span class="kw">in</span> <span class="bu">range</span>(N_PERIODS):</span>
+<span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a>    geological_domain <span class="op">=</span> rng.choice(</span>
+<span id="cb3-13"><a href="#cb3-13" aria-hidden="true" tabindex="-1"></a>        [<span class="st">"primario"</span>, <span class="st">"mixto"</span>, <span class="st">"secundario"</span>],</span>
+<span id="cb3-14"><a href="#cb3-14" aria-hidden="true" tabindex="-1"></a>        size<span class="op">=</span>PARCELS_PER_PHASE,</span>
+<span id="cb3-15"><a href="#cb3-15" aria-hidden="true" tabindex="-1"></a>        p<span class="op">=</span>[<span class="fl">0.55</span>, <span class="fl">0.30</span>, <span class="fl">0.15</span>],</span>
+<span id="cb3-16"><a href="#cb3-16" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb3-17"><a href="#cb3-17" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-18"><a href="#cb3-18" aria-hidden="true" tabindex="-1"></a>    domain_effect <span class="op">=</span> np.select(</span>
+<span id="cb3-19"><a href="#cb3-19" aria-hidden="true" tabindex="-1"></a>        [</span>
+<span id="cb3-20"><a href="#cb3-20" aria-hidden="true" tabindex="-1"></a>            geological_domain <span class="op">==</span> <span class="st">"primario"</span>,</span>
+<span id="cb3-21"><a href="#cb3-21" aria-hidden="true" tabindex="-1"></a>            geological_domain <span class="op">==</span> <span class="st">"mixto"</span>,</span>
+<span id="cb3-22"><a href="#cb3-22" aria-hidden="true" tabindex="-1"></a>            geological_domain <span class="op">==</span> <span class="st">"secundario"</span>,</span>
+<span id="cb3-23"><a href="#cb3-23" aria-hidden="true" tabindex="-1"></a>        ],</span>
+<span id="cb3-24"><a href="#cb3-24" aria-hidden="true" tabindex="-1"></a>        [<span class="fl">0.0000</span>, <span class="fl">0.0010</span>, <span class="fl">0.0020</span>],</span>
+<span id="cb3-25"><a href="#cb3-25" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb3-26"><a href="#cb3-26" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-27"><a href="#cb3-27" aria-hidden="true" tabindex="-1"></a>    grade <span class="op">=</span> np.clip(</span>
+<span id="cb3-28"><a href="#cb3-28" aria-hidden="true" tabindex="-1"></a>        rng.lognormal(mean<span class="op">=</span>np.log(<span class="fl">0.0048</span>), sigma<span class="op">=</span><span class="fl">0.48</span>, size<span class="op">=</span>PARCELS_PER_PHASE)</span>
+<span id="cb3-29"><a href="#cb3-29" aria-hidden="true" tabindex="-1"></a>        <span class="op">+</span> domain_effect</span>
+<span id="cb3-30"><a href="#cb3-30" aria-hidden="true" tabindex="-1"></a>        <span class="op">-</span> <span class="fl">0.00018</span> <span class="op">*</span> phase,</span>
+<span id="cb3-31"><a href="#cb3-31" aria-hidden="true" tabindex="-1"></a>        <span class="fl">0.0003</span>,</span>
+<span id="cb3-32"><a href="#cb3-32" aria-hidden="true" tabindex="-1"></a>        <span class="fl">0.018</span>,</span>
+<span id="cb3-33"><a href="#cb3-33" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb3-34"><a href="#cb3-34" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-35"><a href="#cb3-35" aria-hidden="true" tabindex="-1"></a>    recovery <span class="op">=</span> np.clip(</span>
+<span id="cb3-36"><a href="#cb3-36" aria-hidden="true" tabindex="-1"></a>        <span class="fl">0.82</span></span>
+<span id="cb3-37"><a href="#cb3-37" aria-hidden="true" tabindex="-1"></a>        <span class="op">+</span> <span class="fl">16.0</span> <span class="op">*</span> grade</span>
+<span id="cb3-38"><a href="#cb3-38" aria-hidden="true" tabindex="-1"></a>        <span class="op">+</span> np.select(</span>
+<span id="cb3-39"><a href="#cb3-39" aria-hidden="true" tabindex="-1"></a>            [</span>
+<span id="cb3-40"><a href="#cb3-40" aria-hidden="true" tabindex="-1"></a>                geological_domain <span class="op">==</span> <span class="st">"primario"</span>,</span>
+<span id="cb3-41"><a href="#cb3-41" aria-hidden="true" tabindex="-1"></a>                geological_domain <span class="op">==</span> <span class="st">"mixto"</span>,</span>
+<span id="cb3-42"><a href="#cb3-42" aria-hidden="true" tabindex="-1"></a>                geological_domain <span class="op">==</span> <span class="st">"secundario"</span>,</span>
+<span id="cb3-43"><a href="#cb3-43" aria-hidden="true" tabindex="-1"></a>            ],</span>
+<span id="cb3-44"><a href="#cb3-44" aria-hidden="true" tabindex="-1"></a>            [<span class="fl">0.02</span>, <span class="op">-</span><span class="fl">0.02</span>, <span class="fl">0.04</span>],</span>
+<span id="cb3-45"><a href="#cb3-45" aria-hidden="true" tabindex="-1"></a>        )</span>
+<span id="cb3-46"><a href="#cb3-46" aria-hidden="true" tabindex="-1"></a>        <span class="op">+</span> rng.normal(<span class="fl">0.0</span>, <span class="fl">0.015</span>, PARCELS_PER_PHASE),</span>
+<span id="cb3-47"><a href="#cb3-47" aria-hidden="true" tabindex="-1"></a>        <span class="fl">0.72</span>,</span>
+<span id="cb3-48"><a href="#cb3-48" aria-hidden="true" tabindex="-1"></a>        <span class="fl">0.94</span>,</span>
+<span id="cb3-49"><a href="#cb3-49" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb3-50"><a href="#cb3-50" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-51"><a href="#cb3-51" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> parcel, (domain, g, rec) <span class="kw">in</span> <span class="bu">enumerate</span>(</span>
+<span id="cb3-52"><a href="#cb3-52" aria-hidden="true" tabindex="-1"></a>        <span class="bu">zip</span>(geological_domain, grade, recovery)</span>
+<span id="cb3-53"><a href="#cb3-53" aria-hidden="true" tabindex="-1"></a>    ):</span>
+<span id="cb3-54"><a href="#cb3-54" aria-hidden="true" tabindex="-1"></a>        rows.append(</span>
+<span id="cb3-55"><a href="#cb3-55" aria-hidden="true" tabindex="-1"></a>            {</span>
+<span id="cb3-56"><a href="#cb3-56" aria-hidden="true" tabindex="-1"></a>                <span class="st">"phase"</span>: phase,</span>
+<span id="cb3-57"><a href="#cb3-57" aria-hidden="true" tabindex="-1"></a>                <span class="st">"parcel"</span>: parcel,</span>
+<span id="cb3-58"><a href="#cb3-58" aria-hidden="true" tabindex="-1"></a>                <span class="st">"tonnes"</span>: TONNES_PER_PARCEL,</span>
+<span id="cb3-59"><a href="#cb3-59" aria-hidden="true" tabindex="-1"></a>                <span class="st">"cu_grade"</span>: g,</span>
+<span id="cb3-60"><a href="#cb3-60" aria-hidden="true" tabindex="-1"></a>                <span class="st">"recovery"</span>: rec,</span>
+<span id="cb3-61"><a href="#cb3-61" aria-hidden="true" tabindex="-1"></a>                <span class="st">"domain"</span>: domain,</span>
+<span id="cb3-62"><a href="#cb3-62" aria-hidden="true" tabindex="-1"></a>            }</span>
+<span id="cb3-63"><a href="#cb3-63" aria-hidden="true" tabindex="-1"></a>        )</span>
+<span id="cb3-64"><a href="#cb3-64" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-65"><a href="#cb3-65" aria-hidden="true" tabindex="-1"></a><span class="co"># Llevamos el inventario a un DataFrame y mostramos sus primeras filas en pantalla.</span></span>
+<span id="cb3-66"><a href="#cb3-66" aria-hidden="true" tabindex="-1"></a>inventory <span class="op">=</span> pd.DataFrame(rows)</span>
+<span id="cb3-67"><a href="#cb3-67" aria-hidden="true" tabindex="-1"></a>inventory.head()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div id="cell-lane-vickers-inventory" class="cell-output cell-output-display" data-execution_count="3">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">phase</th>
+<th data-quarto-table-cell-role="th">parcel</th>
+<th data-quarto-table-cell-role="th">tonnes</th>
+<th data-quarto-table-cell-role="th">cu_grade</th>
+<th data-quarto-table-cell-role="th">recovery</th>
+<th data-quarto-table-cell-role="th">domain</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">0</th>
+<td>0</td>
+<td>0</td>
+<td>50,000.000</td>
+<td>0.011</td>
+<td>0.940</td>
+<td>mixto</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">1</th>
+<td>0</td>
+<td>1</td>
+<td>50,000.000</td>
+<td>0.004</td>
+<td>0.901</td>
+<td>primario</td>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">2</th>
+<td>0</td>
+<td>2</td>
+<td>50,000.000</td>
+<td>0.005</td>
+<td>0.926</td>
+<td>secundario</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">3</th>
+<td>0</td>
+<td>3</td>
+<td>50,000.000</td>
+<td>0.006</td>
+<td>0.898</td>
+<td>mixto</td>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">4</th>
+<td>0</td>
+<td>4</td>
+<td>50,000.000</td>
+<td>0.005</td>
+<td>0.899</td>
+<td>primario</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+<p>Antes de optimizar, construiremos la curva de tonelaje v/s ley, dado que ésta permite anticipar cuánto material y metal sacrificamos al elevar la ley de corte:</p>
+<div id="cell-fig-lane-vickers-02" class="cell" data-execution_count="4">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Primero, definimos una grilla de leyes de corte y un contenedor para los resultados.</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>cutoff_grid <span class="op">=</span> np.linspace(<span class="fl">0.0005</span>, <span class="fl">0.0100</span>, <span class="dv">80</span>)</span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>grade_tonnage <span class="op">=</span> []</span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a><span class="co"># Calculamos el tonelaje y la ley media para cada ley de corte.</span></span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> cutoff <span class="kw">in</span> cutoff_grid:</span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>    selected <span class="op">=</span> inventory.loc[inventory[<span class="st">"cu_grade"</span>] <span class="op">&gt;=</span> cutoff]</span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>    grade_tonnage.append(</span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a>        {</span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a>            <span class="st">"cutoff"</span>: cutoff,</span>
+<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a>            <span class="st">"tonnes"</span>: selected[<span class="st">"tonnes"</span>].<span class="bu">sum</span>() <span class="op">/</span> <span class="fl">1e6</span>,</span>
+<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a>            <span class="st">"average_grade"</span>: np.average(</span>
+<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a>                selected[<span class="st">"cu_grade"</span>],</span>
+<span id="cb4-14"><a href="#cb4-14" aria-hidden="true" tabindex="-1"></a>                weights<span class="op">=</span>selected[<span class="st">"tonnes"</span>],</span>
+<span id="cb4-15"><a href="#cb4-15" aria-hidden="true" tabindex="-1"></a>            ) <span class="cf">if</span> <span class="bu">len</span>(selected) <span class="cf">else</span> np.nan,</span>
+<span id="cb4-16"><a href="#cb4-16" aria-hidden="true" tabindex="-1"></a>        }</span>
+<span id="cb4-17"><a href="#cb4-17" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb4-18"><a href="#cb4-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-19"><a href="#cb4-19" aria-hidden="true" tabindex="-1"></a><span class="co"># Llevamnos los resultados a un DataFrame y graficamos.</span></span>
+<span id="cb4-20"><a href="#cb4-20" aria-hidden="true" tabindex="-1"></a>grade_tonnage <span class="op">=</span> pd.DataFrame(grade_tonnage)</span>
+<span id="cb4-21"><a href="#cb4-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-22"><a href="#cb4-22" aria-hidden="true" tabindex="-1"></a>fig, ax_grade <span class="op">=</span> plt.subplots(figsize<span class="op">=</span>(<span class="dv">9</span>, <span class="dv">5</span>))</span>
+<span id="cb4-23"><a href="#cb4-23" aria-hidden="true" tabindex="-1"></a>ax_tonnage <span class="op">=</span> ax_grade.twinx()</span>
+<span id="cb4-24"><a href="#cb4-24" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-25"><a href="#cb4-25" aria-hidden="true" tabindex="-1"></a>ax_grade.plot(</span>
+<span id="cb4-26"><a href="#cb4-26" aria-hidden="true" tabindex="-1"></a>    <span class="dv">100</span> <span class="op">*</span> grade_tonnage[<span class="st">"cutoff"</span>],</span>
+<span id="cb4-27"><a href="#cb4-27" aria-hidden="true" tabindex="-1"></a>    <span class="dv">100</span> <span class="op">*</span> grade_tonnage[<span class="st">"average_grade"</span>],</span>
+<span id="cb4-28"><a href="#cb4-28" aria-hidden="true" tabindex="-1"></a>    color<span class="op">=</span><span class="st">"firebrick"</span>,</span>
+<span id="cb4-29"><a href="#cb4-29" aria-hidden="true" tabindex="-1"></a>    lw<span class="op">=</span><span class="fl">2.5</span>,</span>
+<span id="cb4-30"><a href="#cb4-30" aria-hidden="true" tabindex="-1"></a>    label<span class="op">=</span><span class="st">"Ley media"</span>,</span>
+<span id="cb4-31"><a href="#cb4-31" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb4-32"><a href="#cb4-32" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-33"><a href="#cb4-33" aria-hidden="true" tabindex="-1"></a>ax_tonnage.plot(</span>
+<span id="cb4-34"><a href="#cb4-34" aria-hidden="true" tabindex="-1"></a>    <span class="dv">100</span> <span class="op">*</span> grade_tonnage[<span class="st">"cutoff"</span>],</span>
+<span id="cb4-35"><a href="#cb4-35" aria-hidden="true" tabindex="-1"></a>    grade_tonnage[<span class="st">"tonnes"</span>],</span>
+<span id="cb4-36"><a href="#cb4-36" aria-hidden="true" tabindex="-1"></a>    color<span class="op">=</span><span class="st">"dodgerblue"</span>,</span>
+<span id="cb4-37"><a href="#cb4-37" aria-hidden="true" tabindex="-1"></a>    lw<span class="op">=</span><span class="fl">2.5</span>,</span>
+<span id="cb4-38"><a href="#cb4-38" aria-hidden="true" tabindex="-1"></a>    label<span class="op">=</span><span class="st">"Tonelaje"</span>,</span>
+<span id="cb4-39"><a href="#cb4-39" aria-hidden="true" tabindex="-1"></a>) </span>
+<span id="cb4-40"><a href="#cb4-40" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-41"><a href="#cb4-41" aria-hidden="true" tabindex="-1"></a>ax_grade.<span class="bu">set</span>(</span>
+<span id="cb4-42"><a href="#cb4-42" aria-hidden="true" tabindex="-1"></a>    xlabel<span class="op">=</span><span class="st">"Ley de corte (% Cu)"</span>,</span>
+<span id="cb4-43"><a href="#cb4-43" aria-hidden="true" tabindex="-1"></a>    ylabel<span class="op">=</span><span class="st">"Ley media sobre corte (% Cu)"</span>,</span>
+<span id="cb4-44"><a href="#cb4-44" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb4-45"><a href="#cb4-45" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-46"><a href="#cb4-46" aria-hidden="true" tabindex="-1"></a>ax_tonnage.set_ylabel(<span class="st">"Toneladas sobre corte (Mt)"</span>)</span>
+<span id="cb4-47"><a href="#cb4-47" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-48"><a href="#cb4-48" aria-hidden="true" tabindex="-1"></a>lines <span class="op">=</span> ax_grade.lines <span class="op">+</span> ax_tonnage.lines</span>
+<span id="cb4-49"><a href="#cb4-49" aria-hidden="true" tabindex="-1"></a>ax_grade.legend(</span>
+<span id="cb4-50"><a href="#cb4-50" aria-hidden="true" tabindex="-1"></a>    lines,</span>
+<span id="cb4-51"><a href="#cb4-51" aria-hidden="true" tabindex="-1"></a>    [line.get_label() <span class="cf">for</span> line <span class="kw">in</span> lines],</span>
+<span id="cb4-52"><a href="#cb4-52" aria-hidden="true" tabindex="-1"></a>    loc<span class="op">=</span><span class="st">"upper center"</span>,</span>
+<span id="cb4-53"><a href="#cb4-53" aria-hidden="true" tabindex="-1"></a>    ncol<span class="op">=</span><span class="dv">2</span>,</span>
+<span id="cb4-54"><a href="#cb4-54" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb4-55"><a href="#cb4-55" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-56"><a href="#cb4-56" aria-hidden="true" tabindex="-1"></a>ax_tonnage.grid(<span class="va">False</span>)</span>
+<span id="cb4-57"><a href="#cb4-57" aria-hidden="true" tabindex="-1"></a>ax_grade.grid(<span class="va">False</span>)</span>
+<span id="cb4-58"><a href="#cb4-58" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-59"><a href="#cb4-59" aria-hidden="true" tabindex="-1"></a>plt.tight_layout()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display">
+<div id="fig-lane-vickers-02" class="quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-lane-vickers-02-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="index_files/figure-html/fig-lane-vickers-02-output-1.png" width="794" height="435" class="figure-img">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-lane-vickers-02-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figura&nbsp;2: Curva de tonelaje versus ley del inventario sintético. La ley media aumenta al restringir la alimentación, mientras las toneladas disponibles disminuyen.
+</figcaption>
+</figure>
+</div>
+</div>
+</div>
+</section>
+<section id="simulador-del-complejo-minero" class="level3">
+<h3 class="anchored" data-anchor-id="simulador-del-complejo-minero">Simulador del complejo minero</h3>
+<p>El simulador mantiene el stockpile como estado. En cada período:</p>
+<ol type="1">
+<li>Se libera una fase y se paga el movimiento de todas sus toneladas.</li>
+<li>El material sobre la ley de corte compite por planta y refinería.</li>
+<li>El material con valor potencial que no entra a planta se apila.</li>
+<li>Si queda capacidad, se recupera material del stock.</li>
+<li>Se calculan ingresos, costos, flujo y VAN.</li>
+</ol>
+<div id="cell-lane-vickers-simulator" class="cell" data-execution_count="5">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Configuración inicial de parámetros económicos y de capacidad.</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>PARAMS <span class="op">=</span> {</span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>    <span class="st">"price"</span>: <span class="fl">8_820.0</span>,            <span class="co"># USD por tonelada de Cu pagable.</span></span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>    <span class="st">"refining"</span>: <span class="fl">620.0</span>,           <span class="co"># USD por tonelada de Cu.</span></span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>    <span class="st">"mining"</span>: <span class="fl">3.10</span>,              <span class="co"># USD por tonelada movida.</span></span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>    <span class="st">"processing"</span>: <span class="fl">9.20</span>,          <span class="co"># USD por tonelada tratada.</span></span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>    <span class="st">"dumping"</span>: <span class="fl">1.20</span>,             <span class="co"># USD por tonelada a botadero.</span></span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>    <span class="st">"stock_rehandle"</span>: <span class="fl">1.60</span>,      <span class="co"># USD por tonelada recuperada.</span></span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a>    <span class="st">"fixed"</span>: <span class="fl">8_000_000.0</span>,        <span class="co"># USD por período.</span></span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a>    <span class="st">"plant_capacity"</span>: <span class="fl">3_200_000.0</span>,  <span class="co"># Capacidad de planta por período (toneladas).</span></span>
+<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a>    <span class="st">"refinery_capacity"</span>: <span class="fl">20_000.0</span>,  <span class="co"># Capacidad de refinería por período (toneladas de Cu).</span></span>
+<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a>    <span class="st">"stock_capacity"</span>: <span class="fl">12_000_000.0</span>, <span class="co"># Capacidad de stockpile (toneladas).</span></span>
+<span id="cb5-13"><a href="#cb5-13" aria-hidden="true" tabindex="-1"></a>    <span class="st">"discount_rate"</span>: <span class="fl">0.10</span>,          <span class="co"># Tasa de descuento anual.</span></span>
+<span id="cb5-14"><a href="#cb5-14" aria-hidden="true" tabindex="-1"></a>    <span class="st">"stock_min_grade"</span>: <span class="fl">0.0015</span>,      <span class="co"># Ley mínima de Cu que va a stock.</span></span>
+<span id="cb5-15"><a href="#cb5-15" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb5-16"><a href="#cb5-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-17"><a href="#cb5-17" aria-hidden="true" tabindex="-1"></a><span class="co"># Definimos las funciones que nos permiten seleccionar material para planta y simular</span></span>
+<span id="cb5-18"><a href="#cb5-18" aria-hidden="true" tabindex="-1"></a><span class="co"># la estrategia de corte.</span></span>
+<span id="cb5-19"><a href="#cb5-19" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> _select_for_plant(candidates, plant_capacity, refinery_capacity):</span>
+<span id="cb5-20"><a href="#cb5-20" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""</span></span>
+<span id="cb5-21"><a href="#cb5-21" aria-hidden="true" tabindex="-1"></a><span class="co">    Función que selecciona sectores por NSR y respeta simultáneamente planta y metal. Con NSR nos</span></span>
+<span id="cb5-22"><a href="#cb5-22" aria-hidden="true" tabindex="-1"></a><span class="co">    referimos al valor neto de fundición recuperado por tonelada de mineral, que es la métrica</span></span>
+<span id="cb5-23"><a href="#cb5-23" aria-hidden="true" tabindex="-1"></a><span class="co">    económica que determina la prioridad de procesamiento.</span></span>
+<span id="cb5-24"><a href="#cb5-24" aria-hidden="true" tabindex="-1"></a><span class="co">    """</span></span>
+<span id="cb5-25"><a href="#cb5-25" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> candidates.empty:</span>
+<span id="cb5-26"><a href="#cb5-26" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> candidates.copy(), candidates.copy()</span>
+<span id="cb5-27"><a href="#cb5-27" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-28"><a href="#cb5-28" aria-hidden="true" tabindex="-1"></a>    ranked <span class="op">=</span> candidates.assign(</span>
+<span id="cb5-29"><a href="#cb5-29" aria-hidden="true" tabindex="-1"></a>        recovered_cu<span class="op">=</span><span class="kw">lambda</span> x: x[<span class="st">"tonnes"</span>] <span class="op">*</span> x[<span class="st">"cu_grade"</span>] <span class="op">*</span> x[<span class="st">"recovery"</span>],</span>
+<span id="cb5-30"><a href="#cb5-30" aria-hidden="true" tabindex="-1"></a>        nsr<span class="op">=</span><span class="kw">lambda</span> x: (</span>
+<span id="cb5-31"><a href="#cb5-31" aria-hidden="true" tabindex="-1"></a>            (PARAMS[<span class="st">"price"</span>] <span class="op">-</span> PARAMS[<span class="st">"refining"</span>])</span>
+<span id="cb5-32"><a href="#cb5-32" aria-hidden="true" tabindex="-1"></a>            <span class="op">*</span> x[<span class="st">"cu_grade"</span>]</span>
+<span id="cb5-33"><a href="#cb5-33" aria-hidden="true" tabindex="-1"></a>            <span class="op">*</span> x[<span class="st">"recovery"</span>]</span>
+<span id="cb5-34"><a href="#cb5-34" aria-hidden="true" tabindex="-1"></a>        ),</span>
+<span id="cb5-35"><a href="#cb5-35" aria-hidden="true" tabindex="-1"></a>    ).sort_values(<span class="st">"nsr"</span>, ascending<span class="op">=</span><span class="va">False</span>)</span>
+<span id="cb5-36"><a href="#cb5-36" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-37"><a href="#cb5-37" aria-hidden="true" tabindex="-1"></a>    tonnes_cum <span class="op">=</span> ranked[<span class="st">"tonnes"</span>].cumsum()</span>
+<span id="cb5-38"><a href="#cb5-38" aria-hidden="true" tabindex="-1"></a>    copper_cum <span class="op">=</span> ranked[<span class="st">"recovered_cu"</span>].cumsum()</span>
+<span id="cb5-39"><a href="#cb5-39" aria-hidden="true" tabindex="-1"></a>    accepted <span class="op">=</span> (</span>
+<span id="cb5-40"><a href="#cb5-40" aria-hidden="true" tabindex="-1"></a>        (tonnes_cum <span class="op">&lt;=</span> plant_capacity)</span>
+<span id="cb5-41"><a href="#cb5-41" aria-hidden="true" tabindex="-1"></a>        <span class="op">&amp;</span> (copper_cum <span class="op">&lt;=</span> refinery_capacity)</span>
+<span id="cb5-42"><a href="#cb5-42" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb5-43"><a href="#cb5-43" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-44"><a href="#cb5-44" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> ranked.loc[accepted].copy(), ranked.loc[<span class="op">~</span>accepted].copy()</span>
+<span id="cb5-45"><a href="#cb5-45" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-46"><a href="#cb5-46" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-47"><a href="#cb5-47" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> simulate_strategy(cutoffs, discount<span class="op">=</span><span class="va">True</span>):</span>
+<span id="cb5-48"><a href="#cb5-48" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""</span></span>
+<span id="cb5-49"><a href="#cb5-49" aria-hidden="true" tabindex="-1"></a><span class="co">    Función que simula destinos, inventario de stock y flujos para una política de corte.</span></span>
+<span id="cb5-50"><a href="#cb5-50" aria-hidden="true" tabindex="-1"></a><span class="co">    """</span></span>
+<span id="cb5-51"><a href="#cb5-51" aria-hidden="true" tabindex="-1"></a>    cutoffs <span class="op">=</span> np.broadcast_to(np.asarray(cutoffs, dtype<span class="op">=</span><span class="bu">float</span>), N_PERIODS)</span>
+<span id="cb5-52"><a href="#cb5-52" aria-hidden="true" tabindex="-1"></a>    stock <span class="op">=</span> inventory.iloc[<span class="dv">0</span>:<span class="dv">0</span>].copy()</span>
+<span id="cb5-53"><a href="#cb5-53" aria-hidden="true" tabindex="-1"></a>    records <span class="op">=</span> []</span>
+<span id="cb5-54"><a href="#cb5-54" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-55"><a href="#cb5-55" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> period, cutoff <span class="kw">in</span> <span class="bu">enumerate</span>(cutoffs):</span>
+<span id="cb5-56"><a href="#cb5-56" aria-hidden="true" tabindex="-1"></a>        fresh <span class="op">=</span> inventory.loc[inventory[<span class="st">"phase"</span>] <span class="op">==</span> period].copy()</span>
+<span id="cb5-57"><a href="#cb5-57" aria-hidden="true" tabindex="-1"></a>        fresh[<span class="st">"origin"</span>] <span class="op">=</span> <span class="st">"mina"</span></span>
+<span id="cb5-58"><a href="#cb5-58" aria-hidden="true" tabindex="-1"></a>        stock[<span class="st">"origin"</span>] <span class="op">=</span> <span class="st">"stock"</span></span>
+<span id="cb5-59"><a href="#cb5-59" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-60"><a href="#cb5-60" aria-hidden="true" tabindex="-1"></a>        mined_tonnes <span class="op">=</span> fresh[<span class="st">"tonnes"</span>].<span class="bu">sum</span>()</span>
+<span id="cb5-61"><a href="#cb5-61" aria-hidden="true" tabindex="-1"></a>        eligible_fresh <span class="op">=</span> fresh.loc[fresh[<span class="st">"cu_grade"</span>] <span class="op">&gt;=</span> cutoff]</span>
+<span id="cb5-62"><a href="#cb5-62" aria-hidden="true" tabindex="-1"></a>        eligible_stock <span class="op">=</span> stock.loc[stock[<span class="st">"cu_grade"</span>] <span class="op">&gt;=</span> cutoff]</span>
+<span id="cb5-63"><a href="#cb5-63" aria-hidden="true" tabindex="-1"></a>        candidates <span class="op">=</span> pd.concat(</span>
+<span id="cb5-64"><a href="#cb5-64" aria-hidden="true" tabindex="-1"></a>            [eligible_fresh, eligible_stock],</span>
+<span id="cb5-65"><a href="#cb5-65" aria-hidden="true" tabindex="-1"></a>            ignore_index<span class="op">=</span><span class="va">False</span>,</span>
+<span id="cb5-66"><a href="#cb5-66" aria-hidden="true" tabindex="-1"></a>        )</span>
+<span id="cb5-67"><a href="#cb5-67" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-68"><a href="#cb5-68" aria-hidden="true" tabindex="-1"></a>        processed, rejected <span class="op">=</span> _select_for_plant(</span>
+<span id="cb5-69"><a href="#cb5-69" aria-hidden="true" tabindex="-1"></a>            candidates,</span>
+<span id="cb5-70"><a href="#cb5-70" aria-hidden="true" tabindex="-1"></a>            PARAMS[<span class="st">"plant_capacity"</span>],</span>
+<span id="cb5-71"><a href="#cb5-71" aria-hidden="true" tabindex="-1"></a>            PARAMS[<span class="st">"refinery_capacity"</span>],</span>
+<span id="cb5-72"><a href="#cb5-72" aria-hidden="true" tabindex="-1"></a>        )</span>
+<span id="cb5-73"><a href="#cb5-73" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-74"><a href="#cb5-74" aria-hidden="true" tabindex="-1"></a>        processed_idx <span class="op">=</span> <span class="bu">set</span>(<span class="bu">zip</span>(processed[<span class="st">"phase"</span>], processed[<span class="st">"parcel"</span>]))</span>
+<span id="cb5-75"><a href="#cb5-75" aria-hidden="true" tabindex="-1"></a>        stock_idx <span class="op">=</span> <span class="bu">set</span>(<span class="bu">zip</span>(stock[<span class="st">"phase"</span>], stock[<span class="st">"parcel"</span>]))</span>
+<span id="cb5-76"><a href="#cb5-76" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-77"><a href="#cb5-77" aria-hidden="true" tabindex="-1"></a>        stock <span class="op">=</span> stock.loc[</span>
+<span id="cb5-78"><a href="#cb5-78" aria-hidden="true" tabindex="-1"></a>            <span class="op">~</span>stock.<span class="bu">apply</span>(</span>
+<span id="cb5-79"><a href="#cb5-79" aria-hidden="true" tabindex="-1"></a>                <span class="kw">lambda</span> row: (row[<span class="st">"phase"</span>], row[<span class="st">"parcel"</span>]) <span class="kw">in</span> processed_idx,</span>
+<span id="cb5-80"><a href="#cb5-80" aria-hidden="true" tabindex="-1"></a>                axis<span class="op">=</span><span class="dv">1</span>,</span>
+<span id="cb5-81"><a href="#cb5-81" aria-hidden="true" tabindex="-1"></a>            )</span>
+<span id="cb5-82"><a href="#cb5-82" aria-hidden="true" tabindex="-1"></a>        ].copy()</span>
+<span id="cb5-83"><a href="#cb5-83" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-84"><a href="#cb5-84" aria-hidden="true" tabindex="-1"></a>        fresh_not_processed <span class="op">=</span> fresh.loc[</span>
+<span id="cb5-85"><a href="#cb5-85" aria-hidden="true" tabindex="-1"></a>            <span class="op">~</span>fresh.<span class="bu">apply</span>(</span>
+<span id="cb5-86"><a href="#cb5-86" aria-hidden="true" tabindex="-1"></a>                <span class="kw">lambda</span> row: (row[<span class="st">"phase"</span>], row[<span class="st">"parcel"</span>]) <span class="kw">in</span> processed_idx,</span>
+<span id="cb5-87"><a href="#cb5-87" aria-hidden="true" tabindex="-1"></a>                axis<span class="op">=</span><span class="dv">1</span>,</span>
+<span id="cb5-88"><a href="#cb5-88" aria-hidden="true" tabindex="-1"></a>            )</span>
+<span id="cb5-89"><a href="#cb5-89" aria-hidden="true" tabindex="-1"></a>        ].copy()</span>
+<span id="cb5-90"><a href="#cb5-90" aria-hidden="true" tabindex="-1"></a>        stock_candidates <span class="op">=</span> fresh_not_processed.loc[</span>
+<span id="cb5-91"><a href="#cb5-91" aria-hidden="true" tabindex="-1"></a>            fresh_not_processed[<span class="st">"cu_grade"</span>] <span class="op">&gt;=</span> PARAMS[<span class="st">"stock_min_grade"</span>]</span>
+<span id="cb5-92"><a href="#cb5-92" aria-hidden="true" tabindex="-1"></a>        ].sort_values(<span class="st">"cu_grade"</span>, ascending<span class="op">=</span><span class="va">False</span>)</span>
+<span id="cb5-93"><a href="#cb5-93" aria-hidden="true" tabindex="-1"></a>        available_stock_capacity <span class="op">=</span> <span class="bu">max</span>(</span>
+<span id="cb5-94"><a href="#cb5-94" aria-hidden="true" tabindex="-1"></a>            PARAMS[<span class="st">"stock_capacity"</span>] <span class="op">-</span> stock[<span class="st">"tonnes"</span>].<span class="bu">sum</span>(),</span>
+<span id="cb5-95"><a href="#cb5-95" aria-hidden="true" tabindex="-1"></a>            <span class="fl">0.0</span>,</span>
+<span id="cb5-96"><a href="#cb5-96" aria-hidden="true" tabindex="-1"></a>        )</span>
+<span id="cb5-97"><a href="#cb5-97" aria-hidden="true" tabindex="-1"></a>        to_stock <span class="op">=</span> stock_candidates.loc[</span>
+<span id="cb5-98"><a href="#cb5-98" aria-hidden="true" tabindex="-1"></a>            stock_candidates[<span class="st">"tonnes"</span>].cumsum()</span>
+<span id="cb5-99"><a href="#cb5-99" aria-hidden="true" tabindex="-1"></a>            <span class="op">&lt;=</span> available_stock_capacity</span>
+<span id="cb5-100"><a href="#cb5-100" aria-hidden="true" tabindex="-1"></a>        ].copy()</span>
+<span id="cb5-101"><a href="#cb5-101" aria-hidden="true" tabindex="-1"></a>        stock <span class="op">=</span> pd.concat([stock, to_stock], ignore_index<span class="op">=</span><span class="va">True</span>)</span>
+<span id="cb5-102"><a href="#cb5-102" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-103"><a href="#cb5-103" aria-hidden="true" tabindex="-1"></a>        processed_tonnes <span class="op">=</span> processed[<span class="st">"tonnes"</span>].<span class="bu">sum</span>()</span>
+<span id="cb5-104"><a href="#cb5-104" aria-hidden="true" tabindex="-1"></a>        recovered_cu <span class="op">=</span> (</span>
+<span id="cb5-105"><a href="#cb5-105" aria-hidden="true" tabindex="-1"></a>            processed[<span class="st">"tonnes"</span>]</span>
+<span id="cb5-106"><a href="#cb5-106" aria-hidden="true" tabindex="-1"></a>            <span class="op">*</span> processed[<span class="st">"cu_grade"</span>]</span>
+<span id="cb5-107"><a href="#cb5-107" aria-hidden="true" tabindex="-1"></a>            <span class="op">*</span> processed[<span class="st">"recovery"</span>]</span>
+<span id="cb5-108"><a href="#cb5-108" aria-hidden="true" tabindex="-1"></a>        ).<span class="bu">sum</span>()</span>
+<span id="cb5-109"><a href="#cb5-109" aria-hidden="true" tabindex="-1"></a>        reclaimed_tonnes <span class="op">=</span> processed.loc[</span>
+<span id="cb5-110"><a href="#cb5-110" aria-hidden="true" tabindex="-1"></a>            processed.<span class="bu">apply</span>(</span>
+<span id="cb5-111"><a href="#cb5-111" aria-hidden="true" tabindex="-1"></a>                <span class="kw">lambda</span> row: (row[<span class="st">"phase"</span>], row[<span class="st">"parcel"</span>]) <span class="kw">in</span> stock_idx,</span>
+<span id="cb5-112"><a href="#cb5-112" aria-hidden="true" tabindex="-1"></a>                axis<span class="op">=</span><span class="dv">1</span>,</span>
+<span id="cb5-113"><a href="#cb5-113" aria-hidden="true" tabindex="-1"></a>            ),</span>
+<span id="cb5-114"><a href="#cb5-114" aria-hidden="true" tabindex="-1"></a>            <span class="st">"tonnes"</span>,</span>
+<span id="cb5-115"><a href="#cb5-115" aria-hidden="true" tabindex="-1"></a>        ].<span class="bu">sum</span>()</span>
+<span id="cb5-116"><a href="#cb5-116" aria-hidden="true" tabindex="-1"></a>        dumped_tonnes <span class="op">=</span> fresh_not_processed[<span class="st">"tonnes"</span>].<span class="bu">sum</span>() <span class="op">-</span> to_stock[<span class="st">"tonnes"</span>].<span class="bu">sum</span>()</span>
+<span id="cb5-117"><a href="#cb5-117" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-118"><a href="#cb5-118" aria-hidden="true" tabindex="-1"></a>        revenue <span class="op">=</span> (PARAMS[<span class="st">"price"</span>] <span class="op">-</span> PARAMS[<span class="st">"refining"</span>]) <span class="op">*</span> recovered_cu</span>
+<span id="cb5-119"><a href="#cb5-119" aria-hidden="true" tabindex="-1"></a>        cost <span class="op">=</span> (</span>
+<span id="cb5-120"><a href="#cb5-120" aria-hidden="true" tabindex="-1"></a>            PARAMS[<span class="st">"mining"</span>] <span class="op">*</span> mined_tonnes</span>
+<span id="cb5-121"><a href="#cb5-121" aria-hidden="true" tabindex="-1"></a>            <span class="op">+</span> PARAMS[<span class="st">"processing"</span>] <span class="op">*</span> processed_tonnes</span>
+<span id="cb5-122"><a href="#cb5-122" aria-hidden="true" tabindex="-1"></a>            <span class="op">+</span> PARAMS[<span class="st">"dumping"</span>] <span class="op">*</span> dumped_tonnes</span>
+<span id="cb5-123"><a href="#cb5-123" aria-hidden="true" tabindex="-1"></a>            <span class="op">+</span> PARAMS[<span class="st">"stock_rehandle"</span>] <span class="op">*</span> reclaimed_tonnes</span>
+<span id="cb5-124"><a href="#cb5-124" aria-hidden="true" tabindex="-1"></a>            <span class="op">+</span> PARAMS[<span class="st">"fixed"</span>]</span>
+<span id="cb5-125"><a href="#cb5-125" aria-hidden="true" tabindex="-1"></a>        )</span>
+<span id="cb5-126"><a href="#cb5-126" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-127"><a href="#cb5-127" aria-hidden="true" tabindex="-1"></a>        cash_flow <span class="op">=</span> revenue <span class="op">-</span> cost</span>
+<span id="cb5-128"><a href="#cb5-128" aria-hidden="true" tabindex="-1"></a>        discount_factor <span class="op">=</span> (</span>
+<span id="cb5-129"><a href="#cb5-129" aria-hidden="true" tabindex="-1"></a>            (<span class="dv">1</span> <span class="op">+</span> PARAMS[<span class="st">"discount_rate"</span>]) <span class="op">**</span> period <span class="cf">if</span> discount <span class="cf">else</span> <span class="fl">1.0</span></span>
+<span id="cb5-130"><a href="#cb5-130" aria-hidden="true" tabindex="-1"></a>        )</span>
+<span id="cb5-131"><a href="#cb5-131" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-132"><a href="#cb5-132" aria-hidden="true" tabindex="-1"></a>        records.append(</span>
+<span id="cb5-133"><a href="#cb5-133" aria-hidden="true" tabindex="-1"></a>            {</span>
+<span id="cb5-134"><a href="#cb5-134" aria-hidden="true" tabindex="-1"></a>                <span class="st">"period"</span>: period <span class="op">+</span> <span class="dv">1</span>,</span>
+<span id="cb5-135"><a href="#cb5-135" aria-hidden="true" tabindex="-1"></a>                <span class="st">"cutoff"</span>: cutoff,</span>
+<span id="cb5-136"><a href="#cb5-136" aria-hidden="true" tabindex="-1"></a>                <span class="st">"mined_mt"</span>: mined_tonnes <span class="op">/</span> <span class="fl">1e6</span>,</span>
+<span id="cb5-137"><a href="#cb5-137" aria-hidden="true" tabindex="-1"></a>                <span class="st">"processed_mt"</span>: processed_tonnes <span class="op">/</span> <span class="fl">1e6</span>,</span>
+<span id="cb5-138"><a href="#cb5-138" aria-hidden="true" tabindex="-1"></a>                <span class="st">"dumped_mt"</span>: dumped_tonnes <span class="op">/</span> <span class="fl">1e6</span>,</span>
+<span id="cb5-139"><a href="#cb5-139" aria-hidden="true" tabindex="-1"></a>                <span class="st">"reclaimed_mt"</span>: reclaimed_tonnes <span class="op">/</span> <span class="fl">1e6</span>,</span>
+<span id="cb5-140"><a href="#cb5-140" aria-hidden="true" tabindex="-1"></a>                <span class="st">"stock_mt"</span>: stock[<span class="st">"tonnes"</span>].<span class="bu">sum</span>() <span class="op">/</span> <span class="fl">1e6</span>,</span>
+<span id="cb5-141"><a href="#cb5-141" aria-hidden="true" tabindex="-1"></a>                <span class="st">"recovered_cu_kt"</span>: recovered_cu <span class="op">/</span> <span class="fl">1e3</span>,</span>
+<span id="cb5-142"><a href="#cb5-142" aria-hidden="true" tabindex="-1"></a>                <span class="st">"cash_flow_musd"</span>: cash_flow <span class="op">/</span> <span class="fl">1e6</span>,</span>
+<span id="cb5-143"><a href="#cb5-143" aria-hidden="true" tabindex="-1"></a>                <span class="st">"present_value_musd"</span>: cash_flow <span class="op">/</span> discount_factor <span class="op">/</span> <span class="fl">1e6</span>,</span>
+<span id="cb5-144"><a href="#cb5-144" aria-hidden="true" tabindex="-1"></a>            }</span>
+<span id="cb5-145"><a href="#cb5-145" aria-hidden="true" tabindex="-1"></a>        )</span>
+<span id="cb5-146"><a href="#cb5-146" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-147"><a href="#cb5-147" aria-hidden="true" tabindex="-1"></a>    schedule <span class="op">=</span> pd.DataFrame(records)</span>
+<span id="cb5-148"><a href="#cb5-148" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> schedule, schedule[<span class="st">"present_value_musd"</span>].<span class="bu">sum</span>()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+</section>
+<section id="política-fija-y-política-intertemporal" class="level3">
+<h3 class="anchored" data-anchor-id="política-fija-y-política-intertemporal">Política fija y política intertemporal</h3>
+<p>Primero buscamos una única ley que maximice el beneficio no descontado. Luego optimizamos una ley para cada período maximizando directamente el VAN:</p>
+<div id="cell-cell-lane-vickers-optimization" class="cell" data-execution_count="6">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Generamos la política de ley fija (Vickers) y la política intertemporal. La primera es una</span></span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a><span class="co"># optimización unidimensional, mientras que la segunda es una optimización multidimensional.</span></span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>static_solution <span class="op">=</span> minimize_scalar(</span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>    <span class="kw">lambda</span> cutoff: <span class="op">-</span>simulate_strategy(</span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>        np.repeat(cutoff, N_PERIODS),</span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>        discount<span class="op">=</span><span class="va">False</span>,</span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a>    )[<span class="dv">1</span>],</span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a>    bounds<span class="op">=</span>(<span class="fl">0.0015</span>, <span class="fl">0.0090</span>),</span>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a>    method<span class="op">=</span><span class="st">"bounded"</span>,</span>
+<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a>    options<span class="op">=</span>{<span class="st">"xatol"</span>: <span class="fl">1e-5</span>},</span>
+<span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb6-12"><a href="#cb6-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-13"><a href="#cb6-13" aria-hidden="true" tabindex="-1"></a>static_cutoff <span class="op">=</span> static_solution.x</span>
+<span id="cb6-14"><a href="#cb6-14" aria-hidden="true" tabindex="-1"></a>static_schedule, static_npv <span class="op">=</span> simulate_strategy(</span>
+<span id="cb6-15"><a href="#cb6-15" aria-hidden="true" tabindex="-1"></a>    np.repeat(static_cutoff, N_PERIODS),</span>
+<span id="cb6-16"><a href="#cb6-16" aria-hidden="true" tabindex="-1"></a>    discount<span class="op">=</span><span class="va">True</span>,</span>
+<span id="cb6-17"><a href="#cb6-17" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb6-18"><a href="#cb6-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-19"><a href="#cb6-19" aria-hidden="true" tabindex="-1"></a>dynamic_solution <span class="op">=</span> differential_evolution(</span>
+<span id="cb6-20"><a href="#cb6-20" aria-hidden="true" tabindex="-1"></a>    <span class="kw">lambda</span> cutoffs: <span class="op">-</span>simulate_strategy(cutoffs, discount<span class="op">=</span><span class="va">True</span>)[<span class="dv">1</span>],</span>
+<span id="cb6-21"><a href="#cb6-21" aria-hidden="true" tabindex="-1"></a>    bounds<span class="op">=</span>[(<span class="fl">0.0015</span>, <span class="fl">0.0090</span>)] <span class="op">*</span> N_PERIODS,</span>
+<span id="cb6-22"><a href="#cb6-22" aria-hidden="true" tabindex="-1"></a>    seed<span class="op">=</span><span class="dv">42</span>,</span>
+<span id="cb6-23"><a href="#cb6-23" aria-hidden="true" tabindex="-1"></a>    maxiter<span class="op">=</span><span class="dv">18</span>,</span>
+<span id="cb6-24"><a href="#cb6-24" aria-hidden="true" tabindex="-1"></a>    popsize<span class="op">=</span><span class="dv">5</span>,</span>
+<span id="cb6-25"><a href="#cb6-25" aria-hidden="true" tabindex="-1"></a>    polish<span class="op">=</span><span class="va">True</span>,</span>
+<span id="cb6-26"><a href="#cb6-26" aria-hidden="true" tabindex="-1"></a>    workers<span class="op">=</span><span class="dv">1</span>,</span>
+<span id="cb6-27"><a href="#cb6-27" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb6-28"><a href="#cb6-28" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-29"><a href="#cb6-29" aria-hidden="true" tabindex="-1"></a>dynamic_cutoffs <span class="op">=</span> dynamic_solution.x</span>
+<span id="cb6-30"><a href="#cb6-30" aria-hidden="true" tabindex="-1"></a>dynamic_schedule, dynamic_npv <span class="op">=</span> simulate_strategy(</span>
+<span id="cb6-31"><a href="#cb6-31" aria-hidden="true" tabindex="-1"></a>    dynamic_cutoffs,</span>
+<span id="cb6-32"><a href="#cb6-32" aria-hidden="true" tabindex="-1"></a>    discount<span class="op">=</span><span class="va">True</span>,</span>
+<span id="cb6-33"><a href="#cb6-33" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb6-34"><a href="#cb6-34" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-35"><a href="#cb6-35" aria-hidden="true" tabindex="-1"></a><span class="co"># Construimos un resumen comparativo de ambas estrategias.</span></span>
+<span id="cb6-36"><a href="#cb6-36" aria-hidden="true" tabindex="-1"></a>comparison <span class="op">=</span> pd.DataFrame(</span>
+<span id="cb6-37"><a href="#cb6-37" aria-hidden="true" tabindex="-1"></a>    {</span>
+<span id="cb6-38"><a href="#cb6-38" aria-hidden="true" tabindex="-1"></a>        <span class="st">"Estrategia"</span>: [<span class="st">"Ley fija"</span>, <span class="st">"Política intertemporal"</span>],</span>
+<span id="cb6-39"><a href="#cb6-39" aria-hidden="true" tabindex="-1"></a>        <span class="st">"VAN (MUSD)"</span>: [static_npv, dynamic_npv],</span>
+<span id="cb6-40"><a href="#cb6-40" aria-hidden="true" tabindex="-1"></a>        <span class="st">"Beneficio total (MUSD)"</span>: [</span>
+<span id="cb6-41"><a href="#cb6-41" aria-hidden="true" tabindex="-1"></a>            static_schedule[<span class="st">"cash_flow_musd"</span>].<span class="bu">sum</span>(),</span>
+<span id="cb6-42"><a href="#cb6-42" aria-hidden="true" tabindex="-1"></a>            dynamic_schedule[<span class="st">"cash_flow_musd"</span>].<span class="bu">sum</span>(),</span>
+<span id="cb6-43"><a href="#cb6-43" aria-hidden="true" tabindex="-1"></a>        ],</span>
+<span id="cb6-44"><a href="#cb6-44" aria-hidden="true" tabindex="-1"></a>        <span class="st">"Cu recuperado (kt)"</span>: [</span>
+<span id="cb6-45"><a href="#cb6-45" aria-hidden="true" tabindex="-1"></a>            static_schedule[<span class="st">"recovered_cu_kt"</span>].<span class="bu">sum</span>(),</span>
+<span id="cb6-46"><a href="#cb6-46" aria-hidden="true" tabindex="-1"></a>            dynamic_schedule[<span class="st">"recovered_cu_kt"</span>].<span class="bu">sum</span>(),</span>
+<span id="cb6-47"><a href="#cb6-47" aria-hidden="true" tabindex="-1"></a>        ],</span>
+<span id="cb6-48"><a href="#cb6-48" aria-hidden="true" tabindex="-1"></a>    }</span>
+<span id="cb6-49"><a href="#cb6-49" aria-hidden="true" tabindex="-1"></a>).set_index(<span class="st">"Estrategia"</span>)</span>
+<span id="cb6-50"><a href="#cb6-50" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-51"><a href="#cb6-51" aria-hidden="true" tabindex="-1"></a><span class="co"># Y lo mostramos en pantalla.</span></span>
+<span id="cb6-52"><a href="#cb6-52" aria-hidden="true" tabindex="-1"></a>comparison</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div id="cell-lane-vickers-optimization" class="cell-output cell-output-display" data-execution_count="6">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">VAN (MUSD)</th>
+<th data-quarto-table-cell-role="th">Beneficio total (MUSD)</th>
+<th data-quarto-table-cell-role="th">Cu recuperado (kt)</th>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">Estrategia</th>
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th"></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">Ley fija</th>
+<td>632.945</td>
+<td>855.174</td>
+<td>158.172</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">Política intertemporal</th>
+<td>633.008</td>
+<td>855.254</td>
+<td>158.172</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+<p>La política intertemporal puede aceptar un beneficio acumulado parecido, o incluso algo menor, y aun así entregar mayor VAN. Su ventaja proviene de adelantar el uso de la planta para material que libera más valor por unidad de capacidad y diferir material marginal mediante el stockpile.</p>
+<p>En esta realización, la diferencia entre ambas estrategias es deliberadamente modesta. El selector de corto plazo ya ordena los sectores del rajo por NSR y captura una parte importante del valor asociado a la priorización descrita por la secuencia de explotación. La optimización intertemporal sólo puede mejorar las decisiones restantes: Qué material marginal conservar, cuándo recuperarlo y cuánto espacio de stock comprometer. Esta lectura es más honesta que atribuirle a una curva de leyes toda la creación de valor que, en realidad, ya proviene del despacho operacional.</p>
+<div id="cell-fig-lane-vickers-03" class="cell" data-execution_count="7">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>fig, ax <span class="op">=</span> plt.subplots(nrows<span class="op">=</span><span class="dv">2</span>, ncols<span class="op">=</span><span class="dv">1</span>, figsize<span class="op">=</span>(<span class="dv">9</span>, <span class="dv">8</span>), sharex<span class="op">=</span><span class="va">True</span>)</span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>ax[<span class="dv">0</span>].plot(</span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>    static_schedule[<span class="st">"period"</span>],</span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a>    <span class="dv">100</span> <span class="op">*</span> static_schedule[<span class="st">"cutoff"</span>],</span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a>    marker<span class="op">=</span><span class="st">"o"</span>,</span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a>    color<span class="op">=</span><span class="st">"dodgerblue"</span>,</span>
+<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a>    lw<span class="op">=</span><span class="fl">2.2</span>,</span>
+<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a>    label<span class="op">=</span><span class="st">"Ley fija"</span>,</span>
+<span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb7-11"><a href="#cb7-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-12"><a href="#cb7-12" aria-hidden="true" tabindex="-1"></a>ax[<span class="dv">0</span>].plot(</span>
+<span id="cb7-13"><a href="#cb7-13" aria-hidden="true" tabindex="-1"></a>    dynamic_schedule[<span class="st">"period"</span>],</span>
+<span id="cb7-14"><a href="#cb7-14" aria-hidden="true" tabindex="-1"></a>    <span class="dv">100</span> <span class="op">*</span> dynamic_schedule[<span class="st">"cutoff"</span>],</span>
+<span id="cb7-15"><a href="#cb7-15" aria-hidden="true" tabindex="-1"></a>    marker<span class="op">=</span><span class="st">"s"</span>,</span>
+<span id="cb7-16"><a href="#cb7-16" aria-hidden="true" tabindex="-1"></a>    color<span class="op">=</span><span class="st">"firebrick"</span>,</span>
+<span id="cb7-17"><a href="#cb7-17" aria-hidden="true" tabindex="-1"></a>    lw<span class="op">=</span><span class="fl">2.2</span>,</span>
+<span id="cb7-18"><a href="#cb7-18" aria-hidden="true" tabindex="-1"></a>    label<span class="op">=</span><span class="st">"Política intertemporal"</span>,</span>
+<span id="cb7-19"><a href="#cb7-19" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb7-20"><a href="#cb7-20" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-21"><a href="#cb7-21" aria-hidden="true" tabindex="-1"></a>ax[<span class="dv">0</span>].set_ylabel(<span class="st">"Ley de corte (% Cu)"</span>, fontsize<span class="op">=</span><span class="dv">11</span>, labelpad<span class="op">=</span><span class="dv">10</span>)</span>
+<span id="cb7-22"><a href="#cb7-22" aria-hidden="true" tabindex="-1"></a>ax[<span class="dv">0</span>].legend(loc<span class="op">=</span><span class="st">"best"</span>, fontsize<span class="op">=</span><span class="dv">9</span>)</span>
+<span id="cb7-23"><a href="#cb7-23" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-24"><a href="#cb7-24" aria-hidden="true" tabindex="-1"></a>ax[<span class="dv">1</span>].plot(</span>
+<span id="cb7-25"><a href="#cb7-25" aria-hidden="true" tabindex="-1"></a>    dynamic_schedule[<span class="st">"period"</span>],</span>
+<span id="cb7-26"><a href="#cb7-26" aria-hidden="true" tabindex="-1"></a>    dynamic_schedule[<span class="st">"processed_mt"</span>],</span>
+<span id="cb7-27"><a href="#cb7-27" aria-hidden="true" tabindex="-1"></a>    marker<span class="op">=</span><span class="st">"o"</span>,</span>
+<span id="cb7-28"><a href="#cb7-28" aria-hidden="true" tabindex="-1"></a>    color<span class="op">=</span><span class="st">"dodgerblue"</span>,</span>
+<span id="cb7-29"><a href="#cb7-29" aria-hidden="true" tabindex="-1"></a>    label<span class="op">=</span><span class="st">"Procesado"</span>,</span>
+<span id="cb7-30"><a href="#cb7-30" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb7-31"><a href="#cb7-31" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-32"><a href="#cb7-32" aria-hidden="true" tabindex="-1"></a>ax[<span class="dv">1</span>].plot(</span>
+<span id="cb7-33"><a href="#cb7-33" aria-hidden="true" tabindex="-1"></a>    dynamic_schedule[<span class="st">"period"</span>],</span>
+<span id="cb7-34"><a href="#cb7-34" aria-hidden="true" tabindex="-1"></a>    dynamic_schedule[<span class="st">"dumped_mt"</span>],</span>
+<span id="cb7-35"><a href="#cb7-35" aria-hidden="true" tabindex="-1"></a>    marker<span class="op">=</span><span class="st">"o"</span>,</span>
+<span id="cb7-36"><a href="#cb7-36" aria-hidden="true" tabindex="-1"></a>    color<span class="op">=</span><span class="st">"firebrick"</span>,</span>
+<span id="cb7-37"><a href="#cb7-37" aria-hidden="true" tabindex="-1"></a>    label<span class="op">=</span><span class="st">"Botadero"</span>,</span>
+<span id="cb7-38"><a href="#cb7-38" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb7-39"><a href="#cb7-39" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-40"><a href="#cb7-40" aria-hidden="true" tabindex="-1"></a>ax[<span class="dv">1</span>].plot(</span>
+<span id="cb7-41"><a href="#cb7-41" aria-hidden="true" tabindex="-1"></a>    dynamic_schedule[<span class="st">"period"</span>],</span>
+<span id="cb7-42"><a href="#cb7-42" aria-hidden="true" tabindex="-1"></a>    dynamic_schedule[<span class="st">"stock_mt"</span>],</span>
+<span id="cb7-43"><a href="#cb7-43" aria-hidden="true" tabindex="-1"></a>    marker<span class="op">=</span><span class="st">"o"</span>,</span>
+<span id="cb7-44"><a href="#cb7-44" aria-hidden="true" tabindex="-1"></a>    color<span class="op">=</span><span class="st">"goldenrod"</span>,</span>
+<span id="cb7-45"><a href="#cb7-45" aria-hidden="true" tabindex="-1"></a>    label<span class="op">=</span><span class="st">"Inventario de stock"</span>,</span>
+<span id="cb7-46"><a href="#cb7-46" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb7-47"><a href="#cb7-47" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-48"><a href="#cb7-48" aria-hidden="true" tabindex="-1"></a>ax[<span class="dv">1</span>].set_xlabel(<span class="st">"Período"</span>, fontsize<span class="op">=</span><span class="dv">11</span>, labelpad<span class="op">=</span><span class="dv">10</span>)</span>
+<span id="cb7-49"><a href="#cb7-49" aria-hidden="true" tabindex="-1"></a>ax[<span class="dv">1</span>].set_ylabel(<span class="st">"Tonelaje (Mt)"</span>, fontsize<span class="op">=</span><span class="dv">11</span>, labelpad<span class="op">=</span><span class="dv">10</span>)</span>
+<span id="cb7-50"><a href="#cb7-50" aria-hidden="true" tabindex="-1"></a>ax[<span class="dv">1</span>].legend(loc<span class="op">=</span><span class="st">"best"</span>, fontsize<span class="op">=</span><span class="dv">9</span>)</span>
+<span id="cb7-51"><a href="#cb7-51" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-52"><a href="#cb7-52" aria-hidden="true" tabindex="-1"></a>plt.tight_layout()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display">
+<div id="fig-lane-vickers-03" class="quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-lane-vickers-03-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="index_files/figure-html/fig-lane-vickers-03-output-1.png" width="795" height="704" class="figure-img">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-lane-vickers-03-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figura&nbsp;3: Comparación de las leyes de corte y de los flujos por destino para la política fija y la estrategia intertemporal.
+</figcaption>
+</figure>
+</div>
+</div>
+</div>
+<p>El perfil de leyes debe leerse junto con los flujos. Una ley elevada no es “mejor” por sí misma: Puede reflejar que la planta o la refinería están saturadas. Una ley baja tampoco implica mala disciplina; puede ser correcta al final de la vida, cuando el costo de oportunidad cae y conviene recuperar valor marginal antes del cierre.</p>
+<div id="cell-fig-lane-vickers-04" class="cell" data-execution_count="8">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>fig, ax <span class="op">=</span> plt.subplots(<span class="dv">2</span>, <span class="dv">1</span>, figsize<span class="op">=</span>(<span class="dv">9</span>, <span class="dv">7</span>), sharex<span class="op">=</span><span class="va">True</span>)</span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> schedule, label, color <span class="kw">in</span> [</span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>    (static_schedule, <span class="st">"Ley fija"</span>, <span class="st">"darkgray"</span>),</span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a>    (dynamic_schedule, <span class="st">"Política intertemporal"</span>, <span class="st">"darkmagenta"</span>),</span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a>]:</span>
+<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a>    ax[<span class="dv">0</span>].plot(</span>
+<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a>        schedule[<span class="st">"period"</span>],</span>
+<span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a>        schedule[<span class="st">"cash_flow_musd"</span>],</span>
+<span id="cb8-10"><a href="#cb8-10" aria-hidden="true" tabindex="-1"></a>        marker<span class="op">=</span><span class="st">"o"</span>,</span>
+<span id="cb8-11"><a href="#cb8-11" aria-hidden="true" tabindex="-1"></a>        lw<span class="op">=</span><span class="fl">2.2</span>,</span>
+<span id="cb8-12"><a href="#cb8-12" aria-hidden="true" tabindex="-1"></a>        color<span class="op">=</span>color,</span>
+<span id="cb8-13"><a href="#cb8-13" aria-hidden="true" tabindex="-1"></a>        label<span class="op">=</span>label,</span>
+<span id="cb8-14"><a href="#cb8-14" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb8-15"><a href="#cb8-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-16"><a href="#cb8-16" aria-hidden="true" tabindex="-1"></a>    ax[<span class="dv">1</span>].plot(</span>
+<span id="cb8-17"><a href="#cb8-17" aria-hidden="true" tabindex="-1"></a>        schedule[<span class="st">"period"</span>],</span>
+<span id="cb8-18"><a href="#cb8-18" aria-hidden="true" tabindex="-1"></a>        schedule[<span class="st">"present_value_musd"</span>].cumsum(),</span>
+<span id="cb8-19"><a href="#cb8-19" aria-hidden="true" tabindex="-1"></a>        marker<span class="op">=</span><span class="st">"o"</span>,</span>
+<span id="cb8-20"><a href="#cb8-20" aria-hidden="true" tabindex="-1"></a>        lw<span class="op">=</span><span class="fl">2.2</span>,</span>
+<span id="cb8-21"><a href="#cb8-21" aria-hidden="true" tabindex="-1"></a>        color<span class="op">=</span>color,</span>
+<span id="cb8-22"><a href="#cb8-22" aria-hidden="true" tabindex="-1"></a>        label<span class="op">=</span>label,</span>
+<span id="cb8-23"><a href="#cb8-23" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb8-24"><a href="#cb8-24" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-25"><a href="#cb8-25" aria-hidden="true" tabindex="-1"></a>ax[<span class="dv">0</span>].set_ylabel(<span class="st">"Flujo de caja (MUSD)"</span>, fontsize<span class="op">=</span><span class="dv">11</span>, labelpad<span class="op">=</span><span class="dv">10</span>)</span>
+<span id="cb8-26"><a href="#cb8-26" aria-hidden="true" tabindex="-1"></a>ax[<span class="dv">0</span>].legend(ncol<span class="op">=</span><span class="dv">2</span>, loc<span class="op">=</span><span class="st">"best"</span>, fontsize<span class="op">=</span><span class="dv">9</span>)</span>
+<span id="cb8-27"><a href="#cb8-27" aria-hidden="true" tabindex="-1"></a>ax[<span class="dv">1</span>].set_xlabel(<span class="st">"Período"</span>, fontsize<span class="op">=</span><span class="dv">11</span>, labelpad<span class="op">=</span><span class="dv">10</span>)</span>
+<span id="cb8-28"><a href="#cb8-28" aria-hidden="true" tabindex="-1"></a>ax[<span class="dv">1</span>].set_ylabel(<span class="st">"VAN acumulado (MUSD)"</span>, fontsize<span class="op">=</span><span class="dv">11</span>, labelpad<span class="op">=</span><span class="dv">10</span>)</span>
+<span id="cb8-29"><a href="#cb8-29" aria-hidden="true" tabindex="-1"></a>ax[<span class="dv">1</span>].legend(ncol<span class="op">=</span><span class="dv">2</span>, loc<span class="op">=</span><span class="st">"best"</span>, fontsize<span class="op">=</span><span class="dv">9</span>)</span>
+<span id="cb8-30"><a href="#cb8-30" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-31"><a href="#cb8-31" aria-hidden="true" tabindex="-1"></a>plt.tight_layout()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display">
+<div id="fig-lane-vickers-04" class="quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-lane-vickers-04-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="index_files/figure-html/fig-lane-vickers-04-output-1.png" width="807" height="614" class="figure-img">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-lane-vickers-04-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figura&nbsp;4: Flujos de caja y valor acumulado para las estrategias de ley fija e intertemporal.
+</figcaption>
+</figure>
+</div>
+</div>
+</div>
+<p>Desde una perspectiva minera, el resultado importante no es sólo la diferencia final de VAN. También debemos revisar que la política no genere oscilaciones imposibles de ejecutar en la alimentación, no use el stockpile como una fuente ficticia de capacidad o calidad, respete la secuencia de fases y bancos, mantenga una utilización defendible de planta y refinería y sea robusta frente a incertidumbre de ley, recuperación, precio y disponibilidad.</p>
+<p>En este ejercicio cada sector aparece completo en un período. Un plan de producción industrial añadiría precedencias, ritmos de avance, continuidad de equipos, blending, múltiples stockpiles, recuperaciones no lineales y restricciones geometalúrgicas. La política de corte debe convivir con todo aquello; no puede repararlo después.</p>
+</section>
+</section>
+<section id="laboratorio-interactivo-de-leyes-de-corte" class="level2 page-columns page-full">
+<h2 class="anchored" data-anchor-id="laboratorio-interactivo-de-leyes-de-corte">Laboratorio interactivo de leyes de corte</h2>
+<p>Las expresiones derivadas del modelo de Lane son compactas, pero la intuición se vuelve bastante menos cómoda cuando el sistema contiene varios destinos y productos. Para cerrar el recorrido construiremos un laboratorio reducido que permite modificar capacidades, costos y créditos metalúrgicos sin perder de vista los balances físicos. La herramienta no reemplaza un programa de producción ni resuelve precedencias entre bloques: Representa un único inventario mediante una distribución de tonelaje versus ley sintética y busca la mejor ley de corte dentro de ese estado agregado.</p>
+<p>Consideremos un metal principal, indexado por <span class="math inline">\(k=0\)</span>, y hasta dos productos adicionales. Para cada producto definimos un precio neto <span class="math inline">\(v_k\)</span>, una recuperación <span class="math inline">\(y_k\)</span> y una razón de leyes <span class="math inline">\(\beta_k\)</span> respecto de la ley principal, con <span class="math inline">\(\beta_0=1\)</span>. El ingreso marginal recuperable por tonelada y por unidad de ley principal es</p>
+<div class="eq-scroll">
+<p><span class="math display">\[
+a=\sum_{k=0}^{K}v_k y_k\beta_k
+\tag{40}
+\]</span></p>
+</div>
+<p>Un subproducto aporta un crédito económico, pero no necesariamente una restricción independiente. Un coproducto, en cambio, puede consumir una capacidad comercial o metalúrgica propia. Por eso el laboratorio permite declarar cada producto adicional como <strong>subproducto</strong> o <strong>coproducto</strong>. En el segundo caso aparece un término temporal adicional.</p>
+<p>Para una ley de corte <span class="math inline">\(\gamma\)</span>, sean <span class="math inline">\(Q_m\)</span> el inventario total, <span class="math inline">\(Q_c(\gamma)\)</span> el tonelaje procesado y <span class="math inline">\(Q_{r,k}(\gamma)\)</span> la producción recuperada del producto <span class="math inline">\(k\)</span>. Si <span class="math inline">\(M\)</span>, <span class="math inline">\(C\)</span>, <span class="math inline">\(R_0\)</span> y <span class="math inline">\(R_k\)</span> representan las capacidades anuales de mina, planta, refinería principal y mercado del coproducto <span class="math inline">\(k\)</span>, respectivamente, la duración del escenario es</p>
+<div class="eq-scroll">
+<p><span class="math display">\[
+T(\gamma)=\max \left\{\frac{Q_m}{M},\frac{Q_c(\gamma)}{C},\frac{Q_{r,0}(\gamma)}{R_0},\frac{Q_{r,k}(\gamma)}{R_k}:k\in\mathcal{K}_{\mathrm{co}}\right\}
+\tag{41}
+\]</span></p>
+</div>
+<p>El término que alcanza el máximo identifica el cuello de botella. Esta definición importa: no inferimos el régimen por el nombre de una capacidad, sino por el tiempo que cada recurso necesitaría para ejecutar el mismo escenario.</p>
+<p>Los botaderos se modelan como destinos con costo y capacidad total. Los stockpiles reciben, comenzando por las mejores leyes submarginales, material cuyo valor futuro descontado todavía supera el costo de remanejo. Denotaremos por <span class="math inline">\(\Omega_S(\gamma)\)</span> el valor opcional de ese inventario. La función económica evaluada por el laboratorio es</p>
+<div class="eq-scroll">
+<p><span class="math display">\[
+\Phi(\gamma)=I(\gamma)-C_{\mathrm{op}}(\gamma)-(f+dV)T(\gamma)+\Omega_S(\gamma)
+\tag{42}
+\]</span></p>
+</div>
+<p>donde <span class="math inline">\(I(\gamma)\)</span> contiene los ingresos de todos los productos y <span class="math inline">\(C_{\mathrm{op}}(\gamma)\)</span> reúne minería, procesamiento, disposición y remanejo. La ley recomendada se obtiene numéricamente sobre una malla:</p>
+<div class="eq-scroll">
+<p><span class="math display">\[
+\gamma^\star=\underset{\gamma \in \Gamma}{\arg\max}\;\Phi(\gamma)
+\tag{43}
+\]</span></p>
+</div>
+<p>La aplicación muestra además <span class="math inline">\(g_m\)</span>, <span class="math inline">\(g_c\)</span> y <span class="math inline">\(g_r\)</span> calculadas con las expresiones marginales de Lane y el costo del botadero que recibe la última tonelada. Estas leyes son referencias analíticas; <span class="math inline">\(\gamma^\star\)</span> incorpora la distribución de leyes, los límites de destino, el valor del stockpile y las restricciones de los coproductos. La discrepancia entre ambas no es un error: Permite reconocer cuánto agrega la estructura discreta del escenario respecto del cálculo marginal.</p>
+<div id="fig-lane-vickers-05" class="column-body quarto-float quarto-figure quarto-figure-center anchored page-columns page-full">
+<figure class="quarto-float quarto-float-fig figure page-columns page-full">
+<div aria-describedby="fig-lane-vickers-05-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca" class="page-columns page-full">
+<div id="lane-cutoff-lab" class="lane-cutoff-lab page-columns page-full">
+  <div class="lane-lab-toolbar">
+    <div>
+      <p class="lane-lab-eyebrow">SIMULADOR DE REGÍMENES PRODUCTIVOS</p>
+      <h3 class="anchored">Laboratorio de leyes de corte de Lane</h3>
+      <p>Modifica capacidades, destinos y productos. El escenario se recalcula automáticamente.</p>
+    </div>
+    <button id="lane-lab-reset" class="lane-lab-reset" type="button">Restablecer escenario</button>
+  </div>
+
+  <div class="lane-lab-layout page-columns page-full">
+    <aside class="lane-lab-controls" aria-label="Parámetros del laboratorio de Lane">
+      <details open="">
+        <summary>Inventario y economía principal</summary>
+        <div class="lane-lab-fields">
+          <label>Inventario (Mt)<input id="lane-resource" type="number" min="20" max="1000" step="10" value="240"></label>
+          <label>Ley media (% Cu)<input id="lane-mean-grade" type="number" min="0.1" max="3" step="0.05" value="0.62"></label>
+          <label>Dispersión de leyes<input id="lane-grade-cv" type="number" min="0.15" max="1.5" step="0.05" value="0.65"></label>
+          <label>Precio neto (USD/t Cu)<input id="lane-main-price" type="number" min="500" max="20000" step="100" value="6800"></label>
+          <label>Recuperación Cu (%)<input id="lane-main-recovery" type="number" min="20" max="100" step="1" value="88"></label>
+          <label>Costo mina (USD/t)<input id="lane-mining-cost" type="number" min="0" max="30" step="0.25" value="2.5"></label>
+          <label>Costo planta (USD/t)<input id="lane-processing-cost" type="number" min="0" max="80" step="0.5" value="9"></label>
+          <label>Costo fijo (MUSD/año)<input id="lane-fixed-cost" type="number" min="0" max="1000" step="5" value="80"></label>
+          <label>Costo de oportunidad (MUSD/año)<input id="lane-opportunity-cost" type="number" min="0" max="2000" step="10" value="120"></label>
+        </div>
+      </details>
+
+      <details open="">
+        <summary>Capacidades del sistema</summary>
+        <div class="lane-lab-fields">
+          <label>Mina (Mt/año)<input id="lane-mine-capacity" type="number" min="1" max="300" step="1" value="45"></label>
+          <label>Planta (Mt/año)<input id="lane-plant-capacity" type="number" min="1" max="100" step="1" value="20"></label>
+          <label>Refinería Cu (kt/año)<input id="lane-refinery-capacity" type="number" min="1" max="1000" step="5" value="150"></label>
+        </div>
+      </details>
+
+      <details>
+        <summary>Botaderos y stockpiles</summary>
+        <div class="lane-lab-select-row">
+          <label>Botaderos<select id="lane-dump-count"><option value="1" selected="">1</option><option value="2">2</option></select></label>
+          <label>Stockpiles<select id="lane-stock-count"><option value="0">0</option><option value="1" selected="">1</option><option value="2">2</option></select></label>
+        </div>
+        <div id="lane-dump-1" class="lane-lab-subsection">
+          <strong>Botadero 1</strong>
+          <div class="lane-lab-fields">
+            <label>Costo (USD/t)<input id="lane-dump-1-cost" type="number" min="0" max="50" step="0.25" value="1.5"></label>
+            <label>Capacidad (Mt)<input id="lane-dump-1-capacity" type="number" min="0" max="1000" step="5" value="170"></label>
+          </div>
+        </div>
+        <div id="lane-dump-2" class="lane-lab-subsection" hidden="">
+          <strong>Botadero 2</strong>
+          <div class="lane-lab-fields">
+            <label>Costo (USD/t)<input id="lane-dump-2-cost" type="number" min="0" max="50" step="0.25" value="3"></label>
+            <label>Capacidad (Mt)<input id="lane-dump-2-capacity" type="number" min="0" max="1000" step="5" value="80"></label>
+          </div>
+        </div>
+        <div id="lane-stock-1" class="lane-lab-subsection">
+          <strong>Stockpile 1</strong>
+          <div class="lane-lab-fields">
+            <label>Remanejo (USD/t)<input id="lane-stock-1-cost" type="number" min="0" max="30" step="0.25" value="1.25"></label>
+            <label>Capacidad (Mt)<input id="lane-stock-1-capacity" type="number" min="0" max="500" step="2" value="25"></label>
+            <label>Factor de valor futuro<input id="lane-stock-1-factor" type="number" min="0" max="1" step="0.05" value="0.65"></label>
+          </div>
+        </div>
+        <div id="lane-stock-2" class="lane-lab-subsection" hidden="">
+          <strong>Stockpile 2</strong>
+          <div class="lane-lab-fields">
+            <label>Remanejo (USD/t)<input id="lane-stock-2-cost" type="number" min="0" max="30" step="0.25" value="2"></label>
+            <label>Capacidad (Mt)<input id="lane-stock-2-capacity" type="number" min="0" max="500" step="2" value="20"></label>
+            <label>Factor de valor futuro<input id="lane-stock-2-factor" type="number" min="0" max="1" step="0.05" value="0.5"></label>
+          </div>
+        </div>
+      </details>
+
+      <details>
+        <summary>Subproductos y coproductos</summary>
+        <label class="lane-lab-count-label">Productos adicionales
+          <select id="lane-product-count"><option value="0">0</option><option value="1" selected="">1</option><option value="2">2</option></select>
+        </label>
+        <div id="lane-product-1" class="lane-lab-subsection">
+          <strong>Producto 1</strong>
+          <div class="lane-lab-fields">
+            <label>Rol<select id="lane-product-1-type"><option value="byproduct" selected="">Subproducto</option><option value="coproduct">Coproducto</option></select></label>
+            <label>Precio neto (USD/t)<input id="lane-product-1-price" type="number" min="0" max="100000" step="500" value="32000"></label>
+            <label>Recuperación (%)<input id="lane-product-1-recovery" type="number" min="0" max="100" step="1" value="65"></label>
+            <label>Razón ley producto/Cu<input id="lane-product-1-ratio" type="number" min="0" max="1" step="0.001" value="0.006"></label>
+            <label class="lane-market-field" hidden="">Capacidad mercado (kt/año)<input id="lane-product-1-capacity" type="number" min="0.1" max="1000" step="1" value="12"></label>
+          </div>
+        </div>
+        <div id="lane-product-2" class="lane-lab-subsection" hidden="">
+          <strong>Producto 2</strong>
+          <div class="lane-lab-fields">
+            <label>Rol<select id="lane-product-2-type"><option value="byproduct">Subproducto</option><option value="coproduct" selected="">Coproducto</option></select></label>
+            <label>Precio neto (USD/t)<input id="lane-product-2-price" type="number" min="0" max="100000" step="500" value="18000"></label>
+            <label>Recuperación (%)<input id="lane-product-2-recovery" type="number" min="0" max="100" step="1" value="55"></label>
+            <label>Razón ley producto/Cu<input id="lane-product-2-ratio" type="number" min="0" max="1" step="0.001" value="0.012"></label>
+            <label class="lane-market-field">Capacidad mercado (kt/año)<input id="lane-product-2-capacity" type="number" min="0.1" max="1000" step="1" value="18"></label>
+          </div>
+        </div>
+      </details>
+    </aside>
+
+    <div class="lane-lab-results" aria-live="polite">
+      <div class="lane-lab-kpis">
+        <div><span>Ley recomendada</span><strong id="lane-kpi-cutoff">—</strong></div>
+        <div><span>Cuello de botella</span><strong id="lane-kpi-bottleneck">—</strong></div>
+        <div><span>Valor del escenario</span><strong id="lane-kpi-value">—</strong></div>
+        <div><span>Duración</span><strong id="lane-kpi-duration">—</strong></div>
+      </div>
+      <div id="lane-objective-chart" class="lane-lab-chart lane-lab-chart-main"></div>
+      <div class="lane-lab-chart-grid">
+        <div id="lane-cutoffs-chart" class="lane-lab-chart"></div>
+        <div id="lane-destinations-chart" class="lane-lab-chart"></div>
+      </div>
+      <p id="lane-lab-status" class="lane-lab-status"></p>
+    </div>
+  </div>
+</div>
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-lane-vickers-05-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figura&nbsp;5: Laboratorio interactivo para explorar leyes económicas, cuello de botella y asignación de destinos bajo el criterio de Lane.
+</figcaption>
+</figure>
+</div>
+<script src="media/lane-app.js"></script>
+<p>La curva superior debe leerse en dos capas. La línea de valor identifica el máximo económico, mientras la duración muestra qué tanto tiempo exige cada política de corte. El gráfico de leyes compara ese óptimo con las referencias marginales. Finalmente, el balance por destino obliga a verificar que la recomendación no se construya sobre toneladas que desaparecen: todo el inventario debe terminar en planta, stockpile, botadero o, si faltó capacidad de disposición, en un destino excedente penalizado.</p>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Note</span>¿Y cómo construir esta especie de app interactiva…?
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>Excelente pregunta… La respuesta es que no es trivial. El laboratorio se construyó con JavaScript y D3, y se integra en este documento mediante un bloque HTML. La lógica de cálculo se implementa en Python y se expone a la interfaz mediante un archivo JSON que contiene la distribución de tonelaje versus ley y los parámetros de costos, capacidades y productos. La interacción del usuario dispara eventos que actualizan los parámetros, recalculan el escenario y actualizan los gráficos dinámicamente.</p>
+<p>Sí, un montón de verborrea técnica. El corazón de la app es, esencialmente, código HTML y Javascript. Se trata, en realidad, de una aplicación más bien simple, que es el resultado de un montón de tiempo invertido, en mi caso, para aprender a crear gráficos en frontend y a manejar eventos de usuario. Aprendizaje acelerado, por supuesto, gracias a la inteligencia artificial. No es perfecto, es muy mejorable, y acepto el feedback. Pero cumple bastante bien con su cometido.</p>
+</div>
+</div>
+</section>
+<section id="comentarios-finales" class="level2">
+<h2 class="anchored" data-anchor-id="comentarios-finales">Comentarios finales</h2>
+<p>Los modelos de Vickers y Lane sobreviven en la actualidad porque convierten un problema enorme en una pregunta económica legible. El modelo de Vickers nos obliga a identificar qué costo debe pagar una tonelada marginal. El algoritmo de Lane da el paso decisivo: Recuerda que una tonelada también consume tiempo y que el tiempo tiene el valor del mejor material que dejamos esperando.</p>
+<p>La principal enseñanza minera es que la ley de corte no debe administrarse de manera aislada del sistema. Una planta restringida, una refinería saturada, un stockpile lleno o un contrato de venta limitado cambian la frontera entre destinos. La principal enseñanza matemática es que esa frontera surge de condiciones marginales y de restricciones activas; no de un número fijo copiado al modelo de bloques.</p>
+<p>En operaciones modernas, estos criterios constituyen una capa de razonamiento sobre la cual construimos modelos más completos. Podemos resolver programas enteros, simular incertidumbre y optimizar miles de decisiones, pero seguimos necesitando explicar por qué una tonelada va a planta, por qué otra espera en stock y por qué conviene adelantar un metal. Los modelos de Vickers y Lane nos entregan precisamente ese lenguaje.</p>
+
+
+</section>
+
+</main> <!-- /main -->
+<div id="notes-prev-next" class="page-nav-links"></div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+  // ==========================================================================
+  // El arreglo `notesOrder` se GENERA automáticamente a partir del parámetro
+  // `number-offset` del front matter de cada entrada, mediante el script
+  // scripts/build-notes-order.py (hook pre-render de Quarto). Así el orden
+  // anterior/siguiente siempre refleja la numeración real de cada sección.
+  // No editar el bloque entre los marcadores a mano: se sobrescribe en el build.
+  // ==========================================================================
+  /* NOTES_ORDER_START */
+  const notesOrder = [
+    {
+        "section": "apuntes/calculo-incertidumbre-y-optimizacion",
+        "items": [
+            {
+                "title": "Cálculo diferencial",
+                "href": "/apuntes/calculo-incertidumbre-y-optimizacion/calculo-diferencial/"
+            },
+            {
+                "title": "Aplicaciones del cálculo diferencial",
+                "href": "/apuntes/calculo-incertidumbre-y-optimizacion/aplicaciones-del-calculo-diferencial/"
+            },
+            {
+                "title": "Probabilidad elemental",
+                "href": "/apuntes/calculo-incertidumbre-y-optimizacion/probabilidad-clasica/"
+            },
+            {
+                "title": "Introducción al cálculo de probabilidades",
+                "href": "/apuntes/calculo-incertidumbre-y-optimizacion/introduccion-al-calculo-de-probabilidades/"
+            },
+            {
+                "title": "Distribuciones específicas de probabilidad",
+                "href": "/apuntes/calculo-incertidumbre-y-optimizacion/distribuciones-especificas-de-probabilidad/"
+            },
+            {
+                "title": "Introducción a la teoría de optimización",
+                "href": "/apuntes/calculo-incertidumbre-y-optimizacion/introduccion-a-la-teoria-de-optimizacion/"
+            },
+            {
+                "title": "Optimización de tipo black-box",
+                "href": "/apuntes/calculo-incertidumbre-y-optimizacion/optimizacion-de-tipo-black-box/"
+            },
+            {
+                "title": "Optimización aplicada a machine learning",
+                "href": "/apuntes/calculo-incertidumbre-y-optimizacion/optimizacion-aplicada-al-aprendizaje-automatico/"
+            }
+        ]
+    },
+    {
+        "section": "apuntes/estructuras-lineales",
+        "items": [
+            {
+                "title": "Espacios vectoriales",
+                "href": "/apuntes/estructuras-lineales/espacios-vectoriales/"
+            },
+            {
+                "title": "Bases y dimensión",
+                "href": "/apuntes/estructuras-lineales/bases-y-dimension/"
+            },
+            {
+                "title": "Transformaciones lineales",
+                "href": "/apuntes/estructuras-lineales/transformaciones-lineales/"
+            },
+            {
+                "title": "Producto interno",
+                "href": "/apuntes/estructuras-lineales/producto-interno/"
+            },
+            {
+                "title": "Determinantes y diagonalización",
+                "href": "/apuntes/estructuras-lineales/determinantes-y-diagonalizacion/"
+            },
+            {
+                "title": "Una introducción a las formas",
+                "href": "/apuntes/estructuras-lineales/introduccion-a-las-formas/"
+            },
+            {
+                "title": "Descomposiciones matriciales",
+                "href": "/apuntes/estructuras-lineales/descomposiciones-matriciales/"
+            }
+        ]
+    },
+    {
+        "section": "apuntes/grafos-e-informacion",
+        "items": [
+            {
+                "title": "Una (no tan breve) introducción a la teoría de grafos",
+                "href": "/apuntes/grafos-e-informacion/teoria-de-grafos/"
+            },
+            {
+                "title": "Optimización de redes computacionales",
+                "href": "/apuntes/grafos-e-informacion/optimizacion-de-grafos/"
+            },
+            {
+                "title": "Introducción a la teoría de la información",
+                "href": "/apuntes/grafos-e-informacion/introduccion-a-la-teoria-de-la-informacion/"
+            },
+            {
+                "title": "Cadenas de Markov",
+                "href": "/apuntes/grafos-e-informacion/cadenas-de-markov/"
+            }
+        ]
+    },
+    {
+        "section": "apuntes/tensores-y-variedades",
+        "items": [
+            {
+                "title": "Una primera aproximación a los tensores",
+                "href": "/apuntes/tensores-y-variedades/introducion-a-los-tensores/"
+            },
+            {
+                "title": "Introducción al álgebra tensorial",
+                "href": "/apuntes/tensores-y-variedades/introducion-al-algebra-tensorial/"
+            }
+        ]
+    },
+    {
+        "section": "clases/data-analytics/introduccion-al-analisis-de-datos-en-python/computacion-vectorizada-y-arreglos-con-numpy",
+        "items": [
+            {
+                "title": "Introducción a Numpy",
+                "href": "/clases/data-analytics/introduccion-al-analisis-de-datos-en-python/computacion-vectorizada-y-arreglos-con-numpy/introduccion-a-numpy/"
+            },
+            {
+                "title": "Operatoria en Numpy",
+                "href": "/clases/data-analytics/introduccion-al-analisis-de-datos-en-python/computacion-vectorizada-y-arreglos-con-numpy/operatoria-en-numpy/"
+            },
+            {
+                "title": "Operaciones de agregación",
+                "href": "/clases/data-analytics/introduccion-al-analisis-de-datos-en-python/computacion-vectorizada-y-arreglos-con-numpy/broadcasting-y-agregacion/"
+            },
+            {
+                "title": "Comparación, ordenamiento y reemplazos en arreglos",
+                "href": "/clases/data-analytics/introduccion-al-analisis-de-datos-en-python/computacion-vectorizada-y-arreglos-con-numpy/comparacion-ordenamiento-y-reemplazo/"
+            },
+            {
+                "title": "Aplicación de Numpy en la construcción de modelos predictivos",
+                "href": "/clases/data-analytics/introduccion-al-analisis-de-datos-en-python/computacion-vectorizada-y-arreglos-con-numpy/aplicaciones-en-modelos/"
+            }
+        ]
+    },
+    {
+        "section": "clases/data-analytics/introduccion-al-analisis-de-datos-en-python/manipulacion-tabular-y-analisis-con-pandas",
+        "items": [
+            {
+                "title": "Una introducción rápida a Pandas",
+                "href": "/clases/data-analytics/introduccion-al-analisis-de-datos-en-python/manipulacion-tabular-y-analisis-con-pandas/introduccion-rapida-a-pandas/"
+            },
+            {
+                "title": "Tipos de datos en Pandas",
+                "href": "/clases/data-analytics/introduccion-al-analisis-de-datos-en-python/manipulacion-tabular-y-analisis-con-pandas/tipos-de-datos-en-pandas/"
+            },
+            {
+                "title": "Manipulación de Series - Parte I",
+                "href": "/clases/data-analytics/introduccion-al-analisis-de-datos-en-python/manipulacion-tabular-y-analisis-con-pandas/manipulacion-de-series-parte-i/"
+            },
+            {
+                "title": "Manipulación de Series - Parte II",
+                "href": "/clases/data-analytics/introduccion-al-analisis-de-datos-en-python/manipulacion-tabular-y-analisis-con-pandas/manipulacion-de-series-parte-ii/"
+            }
+        ]
+    },
+    {
+        "section": "clases/machine-learning/aprendizaje-supervisado/modelos-lineales",
+        "items": [
+            {
+                "title": "Una introducción sencilla a los algoritmos de aprendizaje",
+                "href": "/clases/machine-learning/aprendizaje-supervisado/modelos-lineales/introduccion-algoritmos-aprendizaje/"
+            },
+            {
+                "title": "Una introducción a Scikit-Learn",
+                "href": "/clases/machine-learning/aprendizaje-supervisado/modelos-lineales/introduccion-a-scikit-learn/"
+            },
+            {
+                "title": "Modelos de clasificación - Parte I",
+                "href": "/clases/machine-learning/aprendizaje-supervisado/modelos-lineales/modelos-de-clasificacion-parte-i/"
+            },
+            {
+                "title": "Modelos de clasificación - Parte II",
+                "href": "/clases/machine-learning/aprendizaje-supervisado/modelos-lineales/modelos-de-clasificacion-parte-ii/"
+            },
+            {
+                "title": "Modelo de regresión lineal",
+                "href": "/clases/machine-learning/aprendizaje-supervisado/modelos-lineales/modelo-de-regresion-lineal/"
+            },
+            {
+                "title": "Modelos lineales regularizados, Bayesianos y generalizados",
+                "href": "/clases/machine-learning/aprendizaje-supervisado/modelos-lineales/modelos-lineales-regularizados-bayesianos-y-generalizados/"
+            },
+            {
+                "title": "Máquinas de soporte vectorial",
+                "href": "/clases/machine-learning/aprendizaje-supervisado/modelos-lineales/maquinas-de-soporte-vectorial/"
+            }
+        ]
+    },
+    {
+        "section": "clases/machine-learning/aprendizaje-supervisado/modelos-no-lineales",
+        "items": [
+            {
+                "title": "Árboles de decisión",
+                "href": "/clases/machine-learning/aprendizaje-supervisado/modelos-no-lineales/arboles-de-decision/"
+            },
+            {
+                "title": "Modelos de ensamble",
+                "href": "/clases/machine-learning/aprendizaje-supervisado/modelos-no-lineales/modelos-de-ensamble/"
+            },
+            {
+                "title": "Boosting especializado",
+                "href": "/clases/machine-learning/aprendizaje-supervisado/modelos-no-lineales/modelos-de-ensamble-especializados/"
+            },
+            {
+                "title": "Estimación de importancia de variables en modelos predictivos",
+                "href": "/clases/machine-learning/aprendizaje-supervisado/modelos-no-lineales/importancia-de-variables/"
+            }
+        ]
+    },
+    {
+        "section": "clases/machine-learning/seleccion-de-variables-metricas-y-tuning",
+        "items": [
+            {
+                "title": "Selección y evaluación de modelos",
+                "href": "/clases/machine-learning/seleccion-de-variables-metricas-y-tuning/seleccion-y-evaluacion-de-modelos/"
+            }
+        ]
+    }
+];
+  /* NOTES_ORDER_END */
+
+  function normalizePath(path) {
+    if (!path.endsWith("/")) path += "/";
+    path = path.replace(/index\.html\/?$/, "");
+    return path;
+  }
+
+  const currentPath = normalizePath(window.location.pathname);
+  const container = document.getElementById("notes-prev-next");
+
+  let previous = null;
+  let next = null;
+  let found = false;
+
+  for (const section of notesOrder) {
+    const items = section.items;
+    const index = items.findIndex(item => normalizePath(item.href) === currentPath);
+
+    if (index !== -1) {
+      found = true;
+      if (index > 0) previous = items[index - 1];
+      if (index < items.length - 1) next = items[index + 1];
+      break;
+    }
+  }
+
+  if (!found) {
+    container.style.display = "none";
+    return;
+  }
+
+  container.innerHTML = `
+    <div class="page-nav-prev">
+      ${previous ? `<a href="${previous.href}">← ${previous.title}</a>` : ``}
+    </div>
+    <div class="page-nav-next">
+      ${next ? `<a href="${next.href}">${next.title} →</a>` : ``}
+    </div>
+  `;
+});
+</script>
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    // Ensure there is a toggle, if there isn't float one in the top right
+    if (window.document.querySelector('.quarto-color-scheme-toggle') === null) {
+      const a = window.document.createElement('a');
+      a.classList.add('top-right');
+      a.classList.add('quarto-color-scheme-toggle');
+      a.href = "";
+      a.onclick = function() { try { window.quartoToggleColorScheme(); } catch {} return false; };
+      const i = window.document.createElement("i");
+      i.classList.add('bi');
+      a.appendChild(i);
+      window.document.body.appendChild(a);
+    }
+    setColorSchemeToggle(hasAlternateSentinel())
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp('/' + window.location.host + '/');
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+</div> <!-- /content -->
+<footer class="footer">
+  <div class="nav-footer">
+    <div class="nav-footer-left">
+<p>© René Quezada</p>
+</div>   
+    <div class="nav-footer-center">
+      &nbsp;
+    </div>
+    <div class="nav-footer-right">
+<p>Hecho con Quarto</p>
+</div>
+  </div>
+</footer>
+
+
+
+
+<script src="../../site_libs/quarto-html/zenscroll-min.js"></script>
+</body></html>

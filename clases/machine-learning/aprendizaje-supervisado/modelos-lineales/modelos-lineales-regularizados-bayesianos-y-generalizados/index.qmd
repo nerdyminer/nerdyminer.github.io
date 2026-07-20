@@ -27,6 +27,19 @@ crossref:
 Los modelos lineales pueden ganar capacidad predictiva sin abandonar su estructura algebraica básica cuando modificamos la forma en que estiman, restringen e interpretan sus parámetros. En esta entrada revisaremos cómo la regularización controla la complejidad del modelo, cómo ridge, LASSO y red elástica modifican el problema de mínimos cuadrados, cómo la multicolinealidad se relaciona con matrices mal condicionadas y cómo una mirada Bayesiana permite interpretar estas penalizaciones como supuestos a priori sobre los coeficientes. Luego ampliaremos el marco hacia la inferencia Bayesiana mediante MCMC y cerraremos con modelos lineales generalizados, donde la respuesta ya no tiene por qué ser Gaussiana. El hilo conductor será siempre el mismo: Aceptar un poco de sesgo, o incorporar estructura probabilística explícita, puede reducir varianza, estabilizar estimaciones y mejorar la generalización.
 :::
 
+::: {.class-keywords}
+[Regularización]{.class-keyword}
+[Regresión ridge]{.class-keyword}
+[LASSO]{.class-keyword}
+[Red elástica]{.class-keyword}
+[Multicolinealidad]{.class-keyword}
+[Inferencia Bayesiana]{.class-keyword}
+[Estimación MAP]{.class-keyword}
+[MCMC]{.class-keyword}
+[Modelos lineales generalizados]{.class-keyword}
+[Regresión de Poisson]{.class-keyword}
+:::
+
 ## Introducción
 
 Habiendo profundizado en los fundamentos elementales del modelo de regresión lineal, nos preparamos para expandir y enriquecer este conocimiento adentrándonos en construcciones más sofisticadas que pondrán de manifiesto el valor intrínseco de lo estudiado hasta ahora, al revisar los detalles relativos a los **modelos lineales regularizados**, **modelos lineales Bayesianos** y **modelos lineales generalizados**. Anteriormente establecimos, al comenzar nuestro estudio del modelo de regresión lineal, que haríamos un gran esfuerzo por construir dicho modelo de la forma más general posible, anticipando la posible impresión de que, dada su simplicidad y presencia en cualquier plan de estudios de ciencias básicas en la mayoría de las escuelas de ingeniería, su incorporación a un curso de aprendizaje automático sería poco más que inútil. En los próximos apartados, exploraremos cómo la introducción de técnicas de regularización permite controlar el sobreajuste, estabilizar problemas mal condicionados y mejorar la capacidad de generalización de los modelos. Asimismo, examinaremos el enfoque Bayesiano, que incorpora incertidumbre y conocimiento previo en la estimación de parámetros, y cerraremos mostrando cómo los GLM permiten extender la lógica lineal hacia respuestas discretas, positivas o no Gaussianas. A lo largo de este recorrido, la regresión lineal continuará siendo nuestro hilo conductor, sirviendo como base sobre la cual construimos y adaptamos métodos más avanzados para abordar desafíos complejos en aprendizaje automático e inteligencia artificial.
@@ -85,7 +98,7 @@ Una forma de clasificar las técnicas de regularización es la siguiente:
 
 En esta sección, nos dedicaremos a describir algunas técnicas explícitas de gran importancia en el contexto de los modelos de regresión lineal. Para ello, definiremos el concepto base que nos servirá para desarrollar de manera orgánica dichas técnicas.
 
-**<font color='blue'>Definición 6.1 – Término explícito de regularización</font>**: Sea el conjunto de entrenamiento $\mathcal{D} =\left\{ \left( \mathbf{X} ,\mathbf{y} \right)  :\mathbf{X} \in \mathbb{R}^{m\times n} \wedge \mathbf{y} \in \mathbb{R}^{m} \right\}$, donde $\mathbf{x}_{i}\in \mathbb{R}^{n}$ representa una fila o instancia $i$-ésima de la matriz de datos de entrada $\mathbf{X}$, siendo $m$ el total de instancias de $\mathcal{D}$. Sea $f$ una función regresora que estima $y_{i}$ en términos de $\mathbf{x}_{i}$. Si $L$ es la función de costo a optimizar para nuestro problema, entonces un **término explícito de regularización** es una función $R$ que se añade al objetivo del problema de optimización subyacente al modelo, de manera tal que éste puede escribirse como
+<strong><font color='blue'>Definición 6.1 – Término explícito de regularización</font></strong>: Sea el conjunto de entrenamiento $\mathcal{D} =\left\{ \left( \mathbf{X} ,\mathbf{y} \right)  :\mathbf{X} \in \mathbb{R}^{m\times n} \wedge \mathbf{y} \in \mathbb{R}^{m} \right\}$, donde $\mathbf{x}_{i}\in \mathbb{R}^{n}$ representa una fila o instancia $i$-ésima de la matriz de datos de entrada $\mathbf{X}$, siendo $m$ el total de instancias de $\mathcal{D}$. Sea $f$ una función regresora que estima $y_{i}$ en términos de $\mathbf{x}_{i}$. Si $L$ es la función de costo a optimizar para nuestro problema, entonces un **término explícito de regularización** es una función $R$ que se añade al objetivo del problema de optimización subyacente al modelo, de manera tal que éste puede escribirse como
 
 ::: {.eq-scroll}
 $$
@@ -266,10 +279,10 @@ $$
 
 En la segunda línea de la expresión (6.17) hemos usado la identidad $\mathrm{Var} \left( \mathbf{A} \mathbf{\varepsilon} \right) =\mathbf{A} \mathrm{Var} \left( \mathbf{\varepsilon} \right) \mathbf{A}^{\top}$, y que es válida cuando la matriz $\mathbf{A}$ no incluye entradas aleatorizadas. Por lo tanto, $\mathrm{Var} \left( \hat{\mathbf{w}}_{\mathrm{ridge}} \right)= \sigma^{2} \mathbf{V} \left( \mathbf{X}^{\top} \mathbf{X} +\alpha \mathbf{I} \right)^{-1}$. Notemos que la varianza del estimador de tipo "ridge" decrece a medida que la potencia $\alpha$ del término de regularización crece, debido a que el estimador se vuelve cada vez más insensible a fluctuaciones aleatorias de los datos de entrada. Por lo tanto, **la varianza del estimador de tipo "ridge" es menor que la varianza del estimador de mínimos cuadrados**. ◼︎
 
-**Ejemplo 6.3 – Implementación en <font color='darkmagenta'>Scikit-Learn</font>:** La implementación del modelo de regresión de tipo "ridge" en **<font color='darkmagenta'>Scikit-Learn</font>** es sencilla, y está disponible en varias formas. La más común es por medio de la clase `Ridge`, cuya dependencia es igualmente el módulo `sklearn.linear_model`, y que está caracterizada por los siguientes parámetros:
+**Ejemplo 6.3 – Implementación en <font color='darkmagenta'>Scikit-Learn</font>:** La implementación del modelo de regresión de tipo "ridge" en <strong><font color='darkmagenta'>Scikit-Learn</font></strong> es sencilla, y está disponible en varias formas. La más común es por medio de la clase `Ridge`, cuya dependencia es igualmente el módulo `sklearn.linear_model`, y que está caracterizada por los siguientes parámetros:
 
 - `alpha`: Potencia del término de regularización. Por definición, se trata de un número de punto flotante en el intervalo `[0, inf)`, siendo `alpha=0` el caso no regularizado.
-- `fit_intercept`: Como en el caso de `LinearRegression` y `SGDRegressor`, este hiperparámetro nos permite definir si nuestro modelo incorporará o no un parámetro de sesgo. En el caso de que `fit_intercept=False`, **<font color='darkmagenta'>Scikit-Learn</font>** esperará que los datos de entrada estén centrados con respecto a la media.
+- `fit_intercept`: Como en el caso de `LinearRegression` y `SGDRegressor`, este hiperparámetro nos permite definir si nuestro modelo incorporará o no un parámetro de sesgo. En el caso de que `fit_intercept=False`, <strong><font color='darkmagenta'>Scikit-Learn</font></strong> esperará que los datos de entrada estén centrados con respecto a la media.
 - `max_iter`: Número máximo de iteraciones que serán implementadas en el algoritmo de gradiente descendente. Por defecto, este valor es igual a `1000`.
 - `tol`: Tolerancia del algoritmo, la que se define como la mínima diferencia entre parámetros en iteraciones sucesivas.
 - `positive`: Parámetro booleano que fuerza a que los parámetros estimados para la regresión sean todos positivos. Esto puede resultar útil cuando sabemos que la variable de respuesta que queremos estimar debe ser siempre positiva. Esta opción estará disponible siempre que la matriz de diseño `X` no sea dispersa. Es decir, que la mayoría de sus entradas no sean nulas.
@@ -357,7 +370,7 @@ def plot_ridge_model(
 
 ```{python}
 #| label: fig-modelos-lineales-regularizados-bayesianos-y-generalizados-01
-#| fig-cap: "Caso lineal."
+#| fig-cap: "Efecto de la multicolinealidad sobre los coeficientes OLS y estabilización conseguida mediante regularización de tipo 'ridge'."
 # Generamos nuestros gráficos
 fig, ax = plt.subplots(figsize=(9, 6), ncols=2)
 plot_ridge_model(
@@ -396,7 +409,7 @@ Podemos observar que, a medida que el parámetro de regularización $\alpha$ aum
 
 **Ejemplo 6.4 – La regresión de tipo "ridge" y el efecto de "shrinkage"**: El ejemplo 6.3 pone de manifiesto algo que es deseable de la regresión de tipo "ridge", que es el hecho de que ésta permite "encoger" (aunque no anular) los coeficientes de regresión asociados a las variables independientes que no contribuyen con información "valiosa" al modelo. Esto es particularmente importante en el caso de regresiones polinomiales de alto grado, ya que permite *encoger* los parámetros asociados a las variables transformadas con potencias que son más altas de lo necesario.
 
-En este ejemplo, veremos cómo los coeficientes asociados a las variables independientes que constituyen un conjunto de entrenamiento son influenciados a medida que la potencia $\alpha$ de la regularización de tipo $\ell_{2}$ aumenta. Este ejemplo puede encontrarse en la [documentación de **<font color='mediumorchid'>Scikit-Learn</font>**](https://scikit-learn.org/stable/auto_examples/linear_model/plot_ridge_coeffs.html#sphx-glr-auto-examples-linear-model-plot-ridge-coeffs-py), y aquí simplemente lo adaptamos porque es perfecto para ilustrar el efecto de encogimiento o *shrinkage* propio de la regularización de tipo $\ell_{2}$.
+En este ejemplo, veremos cómo los coeficientes asociados a las variables independientes que constituyen un conjunto de entrenamiento son influenciados a medida que la potencia $\alpha$ de la regularización de tipo $\ell_{2}$ aumenta. Este ejemplo puede encontrarse en la [documentación de <strong><font color='mediumorchid'>Scikit-Learn</font></strong>](https://scikit-learn.org/stable/auto_examples/linear_model/plot_ridge_coeffs.html#sphx-glr-auto-examples-linear-model-plot-ridge-coeffs-py), y aquí simplemente lo adaptamos porque es perfecto para ilustrar el efecto de encogimiento o *shrinkage* propio de la regularización de tipo $\ell_{2}$.
 
 Partiremos construyendo nuestro conjunto de datos haciendo uso de la función `make_regression()`, la que acepta, entre otros, los siguientes argumentos:
 
@@ -460,7 +473,7 @@ errors = pd.Series(errors, index=alphas, name="MSE")
 
 ```{python}
 #| label: fig-modelos-lineales-regularizados-bayesianos-y-generalizados-02
-#| fig-cap: "Coeficientes estimados por regresión."
+#| fig-cap: "Comparación de los coeficientes estimados por medio de mínimos cuadrados ordinarios (OLS) y regularización de tipo 'ridge' frente a los parámetros empleados para generar los datos."
 # Visualizamos los resultados
 fig, ax = plt.subplots(ncols=2, figsize=(9, 5))
 coefs.plot(ax=ax[0], logx=True)
@@ -966,9 +979,9 @@ $$
 
 El procedimiento anterior dista mucho de ser "matemáticamente elegante" si lo comparamos con el que utilizamos para obtener el estimador de tipo "ridge", pero es tremendamente eficiente, como comprobaremos en el siguiente ejercicio.
 
-**Ejemplo 6.6 – Una implementación desde cero de la regresión de tipo LASSO:** Vamos a utilizar el desarrollo matemático previo para construir una implementación desde cero del modelo de tipo LASSO, haciendo uso mayormente de **<font color='darkmagenta'>Numpy</font>**. Como antes, la idea de esto no es imponer esta forma de resolver un problema, sino entrenar los preceptos más básicos que subyacen un modelo programando una implementación casera.
+**Ejemplo 6.6 – Una implementación desde cero de la regresión de tipo LASSO:** Vamos a utilizar el desarrollo matemático previo para construir una implementación desde cero del modelo de tipo LASSO, haciendo uso mayormente de <strong><font color='darkmagenta'>Numpy</font></strong>. Como antes, la idea de esto no es imponer esta forma de resolver un problema, sino entrenar los preceptos más básicos que subyacen un modelo programando una implementación casera.
 
-Como en nuestros primeros ejercicios, intentaremos construir una implementación que siga los preceptos filosóficos de la API de **<font color='darkmagenta'>Scikit-Learn</font>**, a fin de asegurar consistencia. De esta manera, tenemos que:
+Como en nuestros primeros ejercicios, intentaremos construir una implementación que siga los preceptos filosóficos de la API de <strong><font color='darkmagenta'>Scikit-Learn</font></strong>, a fin de asegurar consistencia. De esta manera, tenemos que:
 
 ```{python}
 class LassoRegression:
@@ -1213,7 +1226,7 @@ Los parámetros que hemos estimado son casi iguales a los que fueron usados para
 
 Naturalmente, el proceso de anulación de coeficientes es completamente estadístico, y no tiene por qué respetar restricciones propias de los fenómenos que deseamos representar por medio de nuestros modelos, por lo que subrayamos que éste es un *primer approach* en la selección de variables. Siempre podremos combinar esta técnica con otras más sofisticadas en etapas posteriores.
 
-Para probar la capacidad de la regresión LASSO para seleccionar variables, haremos uso de un conjunto de datos famoso en los cursos de aprendizaje automático, denominado "**<font color='forestgreen'>DIABETES</font>** dataset", y que corresponde a un registro provisto por el *National Institute of Diabetes and Digestive and Kidney Diseases* de Estados Unidos, compuesto por un total de 442 instancias y 10 variables independientes. Las instancias representan sujetos de estudio de diabetes tipo II, para los cuales se han determinado un total de 10 variables listadas como sigue:
+Para probar la capacidad de la regresión LASSO para seleccionar variables, haremos uso de un conjunto de datos famoso en los cursos de aprendizaje automático, denominado "<strong><font color='forestgreen'>DIABETES</font></strong> dataset", y que corresponde a un registro provisto por el *National Institute of Diabetes and Digestive and Kidney Diseases* de Estados Unidos, compuesto por un total de 442 instancias y 10 variables independientes. Las instancias representan sujetos de estudio de diabetes tipo II, para los cuales se han determinado un total de 10 variables listadas como sigue:
 
 - `age`: Edad del sujeto (en años).
 - `sex`: Sexo del sujeto.
@@ -1228,7 +1241,7 @@ Para probar la capacidad de la regresión LASSO para seleccionar variables, hare
 
 La variable de salida de este conjunto de datos corresponde a una medición cuantitativa de la progresión de la enfermedad un año después del estudio de línea base.
 
-La versión provista por **<font color='darkmagenta'>Scikit-Learn</font>** del conjunto de datos **<font color='forestgreen'>DIABETES</font>** se encuentra en el módulo `sklearn.datasets`, y puede obtenerse por medio de la función `load_diabetes()`, funcionando exactamente igual que otras funciones de **<font color='darkmagenta'>Scikit-Learn</font>** para la descarga de *toysets*. En este caso particular, nos interesa recuperar este conjunto en un formato de DataFrame y ya separado en matriz de diseño `X` y vector de valores de respuesta `y`:
+La versión provista por <strong><font color='darkmagenta'>Scikit-Learn</font></strong> del conjunto de datos <strong><font color='forestgreen'>DIABETES</font></strong> se encuentra en el módulo `sklearn.datasets`, y puede obtenerse por medio de la función `load_diabetes()`, funcionando exactamente igual que otras funciones de <strong><font color='darkmagenta'>Scikit-Learn</font></strong> para la descarga de *toysets*. En este caso particular, nos interesa recuperar este conjunto en un formato de DataFrame y ya separado en matriz de diseño `X` y vector de valores de respuesta `y`:
 
 ```{python}
 from sklearn.datasets import load_diabetes
@@ -1267,7 +1280,7 @@ X_w_noise = pd.concat([X, noise_df], axis=1)
 X_w_noise.iloc[:, ::2].head()
 ```
 
-La implementación "oficial" de **<font color='darkmagenta'>Scikit-Learn</font>** para la regresión lineal de tipo LASSO es la clase `Lasso`, cuya dependencia es el módulo `sklearn.linear_model`. Sin embargo, para este ejemplo en particular, haremos uso de una implementación más orientada a la selección de modelos, llamada `LassoLarsIC`. Esta selección se lleva a cabo por medio de la implementación de uno de dos **criterios de información**, definidos como sigue: Sea $\hat{L}$ el valor máximo verosímil (es decir, valor máximo de la función de verosimilitud) de un modelo con $n$ parámetros, siendo $m$ el total de instancias del conjunto de entrenamiento. De esta manera, se definen:
+La implementación "oficial" de <strong><font color='darkmagenta'>Scikit-Learn</font></strong> para la regresión lineal de tipo LASSO es la clase `Lasso`, cuya dependencia es el módulo `sklearn.linear_model`. Sin embargo, para este ejemplo en particular, haremos uso de una implementación más orientada a la selección de modelos, llamada `LassoLarsIC`. Esta selección se lleva a cabo por medio de la implementación de uno de dos **criterios de información**, definidos como sigue: Sea $\hat{L}$ el valor máximo verosímil (es decir, valor máximo de la función de verosimilitud) de un modelo con $n$ parámetros, siendo $m$ el total de instancias del conjunto de entrenamiento. De esta manera, se definen:
 
 1. El **criterio de información de Akaike**, como $\mathrm{AIC}= 2n- 2\log (\hat{L})$.
 2. El **criterio de información Bayesiano**, como $\mathrm{BIC}= n \log (m)- 2\log (\hat{L})$.
@@ -1278,7 +1291,7 @@ La clase `LassoLarsIC` dispone –entre otros– de los siguientes parámetros:
 
 - `criterion`: Un string que representa el criterio de información a utilizar en la selección de modelos. En este caso `"aic"` representa el criterio de Akaike, mientras que `"bic"` representa el criterio de Bayes.
 - `fit_intercept`: Parámetro booleano que define si el modelo a estimar dispondrá (`True`) o no (`False`) de un parámetro de sesgo. Si `fit_intercept=False`, el modelo esperará que el conjunto de entrenamiento sea tal que la matriz de diseño `X` esté centrada con respecto a la media de sus columnas.
-- `max_iter`: Número máximo de iteraciones a realizar por el algoritmo de optimización que estimará los parámetros. En **<font color='darkmagenta'>Scikit-Learn</font>**, casi todas las implementaciones de la regresión LASSO usan el algoritmo de descenso por coordenadas para estimar el vector de parámetros completo.
+- `max_iter`: Número máximo de iteraciones a realizar por el algoritmo de optimización que estimará los parámetros. En <strong><font color='darkmagenta'>Scikit-Learn</font></strong>, casi todas las implementaciones de la regresión LASSO usan el algoritmo de descenso por coordenadas para estimar el vector de parámetros completo.
 - `positive`: Parámetro booleano que permite forzar a que el modelo únicamente estime parámetros positivos.
 
 La clase `Lasso` acepta todos los argumentos anteriores, salvo `criterion`.
@@ -1347,7 +1360,7 @@ Finalmente, construimos un gráfico para visualizar los resultados:
 
 ```{python}
 #| label: fig-modelos-lineales-regularizados-bayesianos-y-generalizados-03
-#| fig-cap: "Comparación de criterios de información para la selección de modelos."
+#| fig-cap: "Variación de AIC y BIC con la complejidad del modelo, equilibrando bondad de ajuste y penalización por número de parámetros."
 fig, ax = plt.subplots(figsize=(9, 5))
 results.plot(ax=ax, color=["indianred", "royalblue"])
 ax.vlines(
@@ -1407,7 +1420,7 @@ coefs
 
 ```{python}
 #| label: fig-modelos-lineales-regularizados-bayesianos-y-generalizados-04
-#| fig-cap: "Los resultados."
+#| fig-cap: "Coeficientes LASSO seleccionados mediante AIC y BIC; las diferencias muestran el efecto de cada criterio sobre la intensidad de regularización."
 # Y graficamos los resultados.
 fig, ax = plt.subplots(figsize=(9, 7))
 coefs.plot(kind="barh", color=["dodgerblue", "firebrick"], ax=ax)
@@ -1422,7 +1435,7 @@ Notemos que ambos criterios estiman como muy relevantes casi las mismas variable
 
 El mayor valor de $\alpha$ estimado conforme el criterio Bayesiano para el modelo LASSO permite estimar (correctamente) que la mayoría de las variables `non_inform_xj` (con `j=1,...,15`) son irrelevantes, reduciendo sus coeficientes a cero por efecto de la regularización $\ell_{1}$, lo que, en esta primera etapa, permite descartar tales variables. Otras variables que saldrían de esta selección, pero que son parte del conjunto de datos original, son `s6`, `s4`, `s2`, `s1` y `age`. ◼︎
 
-**Ejemplo 6.8 – Selección conjunta de variables:** Otra forma de seleccionar variables por medio de un modelo de tipo LASSO en **<font color='darkmagenta'>Scikit-Learn</font>** es por medio de un proceso que considera una serie de modelos secuenciales que son forzados a seleccionar siempre la misma cantidad de variables en cada proceso de ajuste o *tarea*. Como resultado, las variables seleccionadas por este proceso pueden variar en rango y amplitud, incluso a pesar de ser siempre las mismas, estabilizando el procedimiento de selección.
+**Ejemplo 6.8 – Selección conjunta de variables:** Otra forma de seleccionar variables por medio de un modelo de tipo LASSO en <strong><font color='darkmagenta'>Scikit-Learn</font></strong> es por medio de un proceso que considera una serie de modelos secuenciales que son forzados a seleccionar siempre la misma cantidad de variables en cada proceso de ajuste o *tarea*. Como resultado, las variables seleccionadas por este proceso pueden variar en rango y amplitud, incluso a pesar de ser siempre las mismas, estabilizando el procedimiento de selección.
 
 El proceso de selección de variables previamente descrito puede implementarse por medio de la clase `MultiTaskLasso`, la que acepta los mismos argumentos que `Lasso` (con algunas adiciones más particulares en las que no ahondaremos en este ejemplo particular). Para ilustrar el efecto de esta **selección conjunta de variables**, compararemos los resultados con la implementación del modelo `Lasso` tradicional:
 
@@ -1491,7 +1504,7 @@ lasso_model = Lasso(alpha=0.5)
 multi_task_lasso_model = MultiTaskLasso(alpha=1.0)
 ```
 
-El ajuste de los modelos `Lasso` y `MultiTaskLasso` es ligeramente diferente en este ejemplo. `Lasso`, como la mayoría de los modelos disponibles en la API de **<font color='darkmagenta'>Scikit-Learn</font>**, sólo acepta un arreglo unidimensional como *output*. Sin embargo, `MultiTaskLasso` puede trabajar con un *multi-output* de forma nativa conforme los métodos `fit()` y `predict()`:
+El ajuste de los modelos `Lasso` y `MultiTaskLasso` es ligeramente diferente en este ejemplo. `Lasso`, como la mayoría de los modelos disponibles en la API de <strong><font color='darkmagenta'>Scikit-Learn</font></strong>, sólo acepta un arreglo unidimensional como *output*. Sin embargo, `MultiTaskLasso` puede trabajar con un *multi-output* de forma nativa conforme los métodos `fit()` y `predict()`:
 
 ```{python}
 # Ajustamos ambos modelos a los datos de entrenamiento.
@@ -1501,7 +1514,7 @@ coef_multi_task_lasso = multi_task_lasso_model.fit(X, Y).coef_
 
 ```{python}
 #| label: fig-modelos-lineales-regularizados-bayesianos-y-generalizados-05
-#| fig-cap: "Los resultados."
+#| fig-cap: "Patrones de coeficientes no nulos de LASSO independiente y MultiTaskLasso: la penalización conjunta estabiliza la selección entre tareas."
 # Visualizamos los resultados.
 fig, ax = plt.subplots(figsize=(9, 4), ncols=2)
 
@@ -1557,7 +1570,7 @@ def plot_feature_dependence(
 
 ```{python}
 #| label: fig-modelos-lineales-regularizados-bayesianos-y-generalizados-06
-#| fig-cap: "Codependencias de variables informativas respecto al tiempo."
+#| fig-cap: "Evolución conjunta de las variables informativas, utilizada para reconocer tendencias compartidas y dependencias temporales."
 # Graficamos estas dependencias.
 fig, ax = plt.subplots(
     figsize=(9, 9),
@@ -1592,7 +1605,7 @@ plt.tight_layout()
 
 Notemos que el modelo construido por medio de `MultiTaskLasso` aproxima mucho mejor estas codependencias que el modelo `Lasso`, aunque con ciertas imprecisiones razonables. Recordemos que, con toda su sofisticación, el modelo de tipo LASSO sigue siendo un modelo lineal, y las relaciones que generan los coeficientes $w_{1},...,w_{6}$ no lo son.
 
-Este ejemplo se muestra igualmente en la [documentación](https://scikit-learn.org/stable/auto_examples/linear_model/plot_multi_task_lasso_support.html#sphx-glr-auto-examples-linear-model-plot-multi-task-lasso-support-py) de **<font color='darkmagenta'>Scikit-Learn</font>** ◼︎
+Este ejemplo se muestra igualmente en la [documentación](https://scikit-learn.org/stable/auto_examples/linear_model/plot_multi_task_lasso_support.html#sphx-glr-auto-examples-linear-model-plot-multi-task-lasso-support-py) de <strong><font color='darkmagenta'>Scikit-Learn</font></strong> ◼︎
 
 ### El modelo de red elástica
 
@@ -1636,12 +1649,12 @@ El modelo de red elástica gana todas las ventajas (y desventajas) de los modelo
 
 Como antes, la elección de los hiperparámetros $\alpha$ y $\rho$ es por medio de procedimientos de prueba y error, siendo muy común el uso de validaciones cruzadas para ese fin.
 
-**Ejemplo 6.9 – Implementación del modelo de red elástica en <font color='darkmagenta'>Scikit-Learn</font>:** Naturalmente, el modelo de red elástica puede implementarse de manera relativamente sencilla en **<font color='darkmagenta'>Scikit-Learn</font>**. La más básica de las implementaciones que nos provee esta librería corresponde a la clase `ElasticNet`, la cual acepta –entre otros– a los siguientes parámetros:
+**Ejemplo 6.9 – Implementación del modelo de red elástica en <font color='darkmagenta'>Scikit-Learn</font>:** Naturalmente, el modelo de red elástica puede implementarse de manera relativamente sencilla en <strong><font color='darkmagenta'>Scikit-Learn</font></strong>. La más básica de las implementaciones que nos provee esta librería corresponde a la clase `ElasticNet`, la cual acepta –entre otros– a los siguientes parámetros:
 
 - `alpha`: Corresponde al valor del parámetro de regularización $\alpha$ definido en la ecuación (6.68).
 - `l1_ratio`: Corresponde al ponderador asociado a la fuerza de cada término de regularización, equivalente al parámetro $\rho$ en la ecuación (6.68).
 - `fit_intercept`: Parámetro booleano que define si el modelo a estimar dispondrá (`True`) o no (`False`) de un parámetro de sesgo. Si `fit_intercept=False`, el modelo esperará que el conjunto de entrenamiento sea tal que la matriz de diseño `X` esté centrada con respecto a la media de sus columnas.
-- `max_iter`: Número máximo de iteraciones a realizar por el algoritmo de optimización que estimará los parámetros. En **<font color='darkmagenta'>Scikit-Learn</font>**, al igual que la mayoría de las implementaciones del modelo de regresión LASSO, las implementaciones del modelo de red elástica usan el algoritmo de descenso por coordenadas para estimar el vector de parámetros completo, debido al término de regularización en norma $\ell_{1}$ en la expresión (6.68).
+- `max_iter`: Número máximo de iteraciones a realizar por el algoritmo de optimización que estimará los parámetros. En <strong><font color='darkmagenta'>Scikit-Learn</font></strong>, al igual que la mayoría de las implementaciones del modelo de regresión LASSO, las implementaciones del modelo de red elástica usan el algoritmo de descenso por coordenadas para estimar el vector de parámetros completo, debido al término de regularización en norma $\ell_{1}$ en la expresión (6.68).
 - `positive`: Parámetro booleano que permite forzar a que el modelo únicamente estime parámetros positivos.
 - `tol`: Parámetro de tolerancia del algoritmo de optimización subyacente al modelo. Por defecto, su valor es `tol=1e-4`.
 - `random_state`: Parámetro que permite establecer una semilla pseudo-aleatoria para garantizar la reproducibilidad de nuestro modelo.
@@ -1704,7 +1717,7 @@ Finalmente, visualizamos nuestros resultados:
 
 ```{python}
 #| label: fig-modelos-lineales-regularizados-bayesianos-y-generalizados-07
-#| fig-cap: "Desempeño del modelo de red elástica para distintos valores de $\\alpha$."
+#| fig-cap: "Error de la red elástica a lo largo de la trayectoria de regularización, desde soluciones dominadas por L2 hasta soluciones más dispersas."
 # Graficamos nuestros resultados.
 fig, ax = plt.subplots(figsize=(9, 8), nrows=2)
 
@@ -1803,7 +1816,7 @@ elastic_net = rho * l1_vals + (1 - rho) * l2_vals
 
 ```{python}
 #| label: fig-modelos-lineales-regularizados-bayesianos-y-generalizados-08
-#| fig-cap: "Los resultados."
+#| fig-cap: "Curvas unitarias de las penalizaciones L1, L2 cuadrática y red elástica para una mezcla equilibrada."
 # Visualizamos los resultados.
 fig, ax = plt.subplots(figsize=(9, 9))
 
@@ -1855,7 +1868,7 @@ rho_vals = np.linspace(start=0.0, stop=1.0, num=100)
 
 ```{python}
 #| label: fig-modelos-lineales-regularizados-bayesianos-y-generalizados-09
-#| fig-cap: "Los resultados de la red elástica."
+#| fig-cap: "Transición geométrica de la red elástica entre la bola L2 y la bola L1 al variar el parámetro de mezcla."
 # Visualizamos los resultados de la red elástica.
 fig, ax = plt.subplots(figsize=(9, 9))
 
@@ -1892,7 +1905,7 @@ ax.set_aspect("equal")
 plt.tight_layout()
 ```
 
-Y ahí lo tenemos. El efecto geométrico del hiperparámetro $\rho$ en el modelo de red elástica es esencialmente ajustar el término de regularización para moverse entre una penalización con esquinas, asociada a la norma $\ell_{1}$, y una penalización suave, asociada al término cuadrático $\ell_{2}^{2}$. Esto permite combinar la capacidad de selección de variables de LASSO con la estabilidad y el agrupamiento de coeficientes propios de ridge. ◼︎
+Y ahí lo tenemos. El efecto geométrico del hiperparámetro $\rho$ en el modelo de red elástica es esencialmente ajustar el término de regularización para moverse entre una penalización con esquinas, asociada a la norma $\ell_{1}$, y una penalización suave, asociada al término cuadrático $\ell_{2}^{2}$. Esto permite combinar la capacidad de selección de variables de LASSO con la estabilidad y el agrupamiento de coeficientes propios de la regularización de tipo "ridge". ◼︎
 
 ### Multicolinealidad, mal condicionamiento y regularización
 
@@ -2086,7 +2099,7 @@ Finalmente, visualizamos las distribuciones empíricas de los coeficientes estim
 
 ```{python}
 #| label: fig-modelos-lineales-regularizados-bayesianos-y-generalizados-10
-#| fig-cap: "Variabilidad de los coeficientes estimados por OLS y ridge bajo remuestreo."
+#| fig-cap: "Variabilidad de los coeficientes estimados por mínimos cuadrados ordinarios y regularización de tipo 'ridge' bajo remuestreo."
 # Visualizamos la variabilidad inducida por el remuestreo.
 fig, ax = plt.subplots(figsize=(9, 5), ncols=2, sharey=True)
 
@@ -2395,7 +2408,7 @@ Por lo tanto, en resumen, este desarrollo nos lleva a comprender que:
 - **La media predictiva coincide con el estimador máximo a posteriori**, asegurando consistencia con métodos frecuentistas en cuanto a predicciones puntuales, pero enriqueciendo el análisis con la consideración de incertidumbres.
 - **Este enfoque es especialmente valioso en contextos con datos limitados o ruidosos, donde la incertidumbre en los parámetros es significativa y debe ser considerada**.
 
-**Ejemplo 6.12 – Implementación de un modelo de regresión lineal Bayesiana en <font color='darkmagenta'>Scikit-Learn</font>:** En **<font color='darkmagenta'>Scikit-Learn</font>** tenemos disponible una implementación de la regresión lineal Bayesiana por medio de la clase `BayesianRidge`, cuya dependencia es el módulo `sklearn.linear_model`, y que trabaja sobre el supuesto de que el modelo probabilístico que subyace a la regresión de interés es del tipo
+**Ejemplo 6.12 – Implementación de un modelo de regresión lineal Bayesiana en <font color='darkmagenta'>Scikit-Learn</font>:** En <strong><font color='darkmagenta'>Scikit-Learn</font></strong> tenemos disponible una implementación de la regresión lineal Bayesiana por medio de la clase `BayesianRidge`, cuya dependencia es el módulo `sklearn.linear_model`, y que trabaja sobre el supuesto de que el modelo probabilístico que subyace a la regresión de interés es del tipo
 
 ::: {.eq-scroll}
 $$
@@ -2525,7 +2538,7 @@ Para tener una comprensión visual de los resultados, generamos el siguiente gr�
 
 ```{python}
 #| label: fig-modelos-lineales-regularizados-bayesianos-y-generalizados-11
-#| fig-cap: "Regresión polinomial Bayesiana."
+#| fig-cap: "Predicción a posteriori de una regresión polinomial Bayesiana, incluida la incertidumbre asociada a la función estimada."
 # Generamos un gráfico con las predicciones obtenidas.
 fig, ax = plt.subplots(figsize=(9, 9), nrows=2, sharex=True)
 ax[0].scatter(
@@ -2625,10 +2638,10 @@ Cuando $d=3$, el nivel de incertidumbre del modelo es evidentemente más bajo, p
 
 ### Implementaciones más avanzadas
 
-La implementación del modelo lineal Bayesiano en **<font color='darkmagenta'>Scikit-Learn</font>** es más bien directa, con pocas opciones de personalización. Por ejemplo, no podemos establecer nuestras propias distribuciones a priori, ya que los hiperparámetros asociados a la implementación `BayesianRidge` vienen preseteados como variables aleatorias con distribución Gamma. Para construir modelos más personalizados, es mejor utilizar otras librerías más orientadas a este tipo de trabajos. Algunas opciones populares son:
+La implementación del modelo lineal Bayesiano en <strong><font color='darkmagenta'>Scikit-Learn</font></strong> es más bien directa, con pocas opciones de personalización. Por ejemplo, no podemos establecer nuestras propias distribuciones a priori, ya que los hiperparámetros asociados a la implementación `BayesianRidge` vienen preseteados como variables aleatorias con distribución Gamma. Para construir modelos más personalizados, es mejor utilizar otras librerías más orientadas a este tipo de trabajos. Algunas opciones populares son:
 
-- **<font color='darkmagenta'>PyMC</font>** (previamente conocida como **<font color='darkmagenta'>PyMC3</font>**): Librería de Python especializada en programación probabilística, y especialmente versada en todo tipo de modelos Bayesianos.
-- **<font color='darkmagenta'>Emcee</font>**: Librería de Python especializada en el muestreo de de distribuciones de probabilidad (a posteriori) de gran complejidad, por medio de un algoritmo especializado.
+- <strong><font color='darkmagenta'>PyMC</font></strong> (previamente conocida como <strong><font color='darkmagenta'>PyMC3</font></strong>): Librería de Python especializada en programación probabilística, y especialmente versada en todo tipo de modelos Bayesianos.
+- <strong><font color='darkmagenta'>Emcee</font></strong>: Librería de Python especializada en el muestreo de de distribuciones de probabilidad (a posteriori) de gran complejidad, por medio de un algoritmo especializado.
 
 Si bien no es parte de los objetivos de estos apuntes, ilustraremos de forma más bien introductoria el uso de estas librerías por medio de un par de ejemplos. Para ello, será esencial familiarizarnos con un concepto que ciertamente escapa un poco del alcance de los modelos de regresión lineal, pero que de todas maneras revisaremos en forma somera a fin de darle contexto al uso de las librerías anteriores, ya que ambas basan su uso en este concepto, aunque con algoritmos especializados diferentes. Tal concepto se denomina **método de Monte Carlo por cadenas de Markov** (comúnmente abreviado como **MCMC**, del inglés *Markov chain Monte Carlo*).
 
@@ -2691,7 +2704,7 @@ En el caso de Monte Carlo directo, esta aproximación se justifica de manera sen
 
 En la formulación (6.105), $\pi(x)$ representa la distribución objetivo y $f(x)$ es la función cuyo valor esperado queremos aproximar. La idea importante para MCMC no es que ambas funciones sean proporcionales, sino que muchas veces conocemos la distribución objetivo sólo **hasta una constante de normalización**. Es decir, podemos evaluar una función proporcional a $\pi(x)$ aunque no conozcamos exactamente su integral normalizadora. Esta propiedad es clave para algoritmos como Metrópolis-Hastings.
 
-Ya definidos los ingredientes esenciales de los métodos MCMC, prosigamos con su descripción. Un elemento fundamental de estas técnicas corresponde al caminante o "walker". Si estamos interesados en muestrear una distribución de probabilidad objetivo $\pi(x)$ caracterizada por una serie de parámetros cuyos valores comprenden un espacio $\mathcal{W}$, entonces un *walker* no es más que una especie de *entidad* (punto móvil, en un lenguaje menos esotérico) que se mueve por $\mathcal{W}$ siguiendo una cadena de Markov. Cada *walker* permite generar una secuencia de muestras que, después de un período inicial (denominado **burn-in**), se asumen como provenientes de la distribución de probabilidad objetivo. De esta manera, los *walkers* tienen el trabajo de explorar el espacio de parámetros de $\pi(x)$, permitiendo un muestreo eficiente de sus valores que, para una cantidad *suficiente* de muestras, puede aproximar con gran efectividad a $\pi(x)$. Hay técnicas MCMC que hacen uso de un único *walker* (como el algoritmo de Metrópolis-Hastings), mientras que otras emplean varios de ellos (como el algoritmo de ensamble de *walkers* afines o simulación Hamiltoniana de tipo Monte Carlo, que se utilizan en las librerías **<font color='darkmagenta'>Emcee</font>** y **<font color='darkmagenta'>PyMC</font>**, respectivamente).
+Ya definidos los ingredientes esenciales de los métodos MCMC, prosigamos con su descripción. Un elemento fundamental de estas técnicas corresponde al caminante o "walker". Si estamos interesados en muestrear una distribución de probabilidad objetivo $\pi(x)$ caracterizada por una serie de parámetros cuyos valores comprenden un espacio $\mathcal{W}$, entonces un *walker* no es más que una especie de *entidad* (punto móvil, en un lenguaje menos esotérico) que se mueve por $\mathcal{W}$ siguiendo una cadena de Markov. Cada *walker* permite generar una secuencia de muestras que, después de un período inicial (denominado **burn-in**), se asumen como provenientes de la distribución de probabilidad objetivo. De esta manera, los *walkers* tienen el trabajo de explorar el espacio de parámetros de $\pi(x)$, permitiendo un muestreo eficiente de sus valores que, para una cantidad *suficiente* de muestras, puede aproximar con gran efectividad a $\pi(x)$. Hay técnicas MCMC que hacen uso de un único *walker* (como el algoritmo de Metrópolis-Hastings), mientras que otras emplean varios de ellos (como el algoritmo de ensamble de *walkers* afines o simulación Hamiltoniana de tipo Monte Carlo, que se utilizan en las librerías <strong><font color='darkmagenta'>Emcee</font></strong> y <strong><font color='darkmagenta'>PyMC</font></strong>, respectivamente).
 
 Es cierto... Quizás no está claro el concepto de *"walker"*, pero tengamos paciencia. A continuación, describiremos dos técnicas MCMC que darán luz sobre este concepto.
 
@@ -2795,7 +2808,7 @@ $$
 
 La elección de $Q$ es, por tanto, clave en este diseño. En general, dependiendo del planteamiento del modelo de regresión, lo normal será escoger una distribución normal para $P(\mathbf{w})$ y una distribución Gamma inversa para la varianza del ruido $\sigma^{2}$, aunque siempre dependerá de la información con la cual contemos para un determinado problema.
 
-La mayoría de las librerías especializadas en métodos MCMC emplean algoritmos de muestreo de mayor complejidad, sobre todo enfocados en poder recorrer el espacio de parámetros de la distribución de probabilidad de interés por medio de varios *walkers* en vez de sólo uno, como en el caso del algoritmo de Metrópolis-Hastings. Previamente habíamos comentado que la librería **<font color='darkmagenta'>Emcee</font>** emplea, para el muestreo de distribuciones de interés, un algoritmo denominado **ensamble de "walkers" afines**, que hace uso de un conjunto colectivo o *ensamble* de cadenas acopladas para explorar el espacio de parámetros de interés, cuyas posiciones se actualizan conforme las posiciones del resto de los *walkers*. En esencia, el objetivo de este algoritmo es exactamente el mismo que el del algoritmo de Metrópolis-Hastings; es decir, queremos generar una secuencia de muestras $\left\{ w_{1},...,w_{n} \right\}$ de una distribución objetivo $\pi(\mathbf{w})$, donde $\mathbf{w}$ es un vector que aglutina a los parámetros de interés de la distribución $\pi$. El algoritmo seguirá la siguiente secuencia lógica:
+La mayoría de las librerías especializadas en métodos MCMC emplean algoritmos de muestreo de mayor complejidad, sobre todo enfocados en poder recorrer el espacio de parámetros de la distribución de probabilidad de interés por medio de varios *walkers* en vez de sólo uno, como en el caso del algoritmo de Metrópolis-Hastings. Previamente habíamos comentado que la librería <strong><font color='darkmagenta'>Emcee</font></strong> emplea, para el muestreo de distribuciones de interés, un algoritmo denominado **ensamble de "walkers" afines**, que hace uso de un conjunto colectivo o *ensamble* de cadenas acopladas para explorar el espacio de parámetros de interés, cuyas posiciones se actualizan conforme las posiciones del resto de los *walkers*. En esencia, el objetivo de este algoritmo es exactamente el mismo que el del algoritmo de Metrópolis-Hastings; es decir, queremos generar una secuencia de muestras $\left\{ w_{1},...,w_{n} \right\}$ de una distribución objetivo $\pi(\mathbf{w})$, donde $\mathbf{w}$ es un vector que aglutina a los parámetros de interés de la distribución $\pi$. El algoritmo seguirá la siguiente secuencia lógica:
 
 ::: {#alg-affine-ensemble}
 ::: {.algo-box}
@@ -2886,7 +2899,7 @@ El algoritmo de ensamble de *walkers* afines difiere del algoritmo de Metrópoli
 
 La distribución $g(z)$ comúnmente empleada en el paso 2.2 del @alg-affine-ensemble es $g(z)= \frac{1}{\sqrt{z}}$, para $z=\left[ \frac{1}{a} ,a \right]$, siendo $a$ por tanto un hiperparámetro que controla la amplitud de la distribución $g$ (comúnmente, se escoge $a=2$).
 
-La aplicación del @alg-affine-ensemble para la construcción de un modelo de regresión Bayesiana no es muy distinta al que se planteó para el caso del @alg-metropolis-hastings. A continuación, ilustraremos su implementación por medio de un ejemplo utilizando la librería **<font color='darkmagenta'>Emcee</font>**. Este ejercicio es muy similar al visto en el ejemplo (6.9), donde mostramos cómo transformar un problema de regresión no lineal en otro lineal por medio de la introducción de transformaciones trigonométricas.
+La aplicación del @alg-affine-ensemble para la construcción de un modelo de regresión Bayesiana no es muy distinta al que se planteó para el caso del @alg-metropolis-hastings. A continuación, ilustraremos su implementación por medio de un ejemplo utilizando la librería <strong><font color='darkmagenta'>Emcee</font></strong>. Este ejercicio es muy similar al visto en el ejemplo (6.9), donde mostramos cómo transformar un problema de regresión no lineal en otro lineal por medio de la introducción de transformaciones trigonométricas.
 
 **Ejemplo 6.13 – Una aproximación de los ciclos de Milankovitch de la Tierra por medio de sumas parciales semi-periódicas:** En el contexto de la geofísica, los **ciclos de Milankovitch** o **variaciones orbitales** permiten describir los efectos conjuntos sobre el movimiento del planeta Tierra por efecto del clima en una extensión de tiempo geológica (miles a millones de años). Tales efectos se observan en variables geofísicas de diversa naturaleza, tales como el eje de rotación de la Tierra, la excentricidad de su órbita, su índice de precesión, los cambios de temperatura en distintos espacios de tiempo geológico, espesor de capas de permahielo, entre otros. Se trata de uno de los fenómenos más estudiados por científicos y físicos en todo el mundo.
 
@@ -2903,13 +2916,13 @@ $$
 
 En el modelo (6.109), los parámetros a estimar son $a_{0}$, $a_{k}$ y $p_{k}$. El número $s$ de términos trigonométricos es variable y dependerá del nivel de complejidad que estemos dispuestos a aceptar. La variable de salida $y$ será el cambio de temperatura en distintos períodos geológicos de tiempo, fechados en edades $t$ estrictamente crecientes. El parámetro de sesgo $a_{0}$ representará, por tanto, el cambio inicial de temperatura (cuanto $t=0$). Notemos que este modelo es lineal en los parámetros $a_{0}$ y $a_{k}$ con respecto a las variables transformadas $\mathrm{sen} (2\pi t/p_{k})$, para $k=1,...,s$, pero no es lineal con respecto a los parámetros $p_{k}$, aunque estos últimos pueden escogerse libremente conforme una distribución a priori a fin de verificar los modelos resultantes, a fin de mantener la linealidad del modelo transformado.
 
-Partiremos instalando las librerías de interés. En este caso, utilizaremos la librería **<font color='darkmagenta'>Emcee</font>** para implementar el algoritmo MCMC de ensamble de *walkers* afines a fin de generar muestras de la distribución a posteriori $P\left( \mathbf{w} |\mathcal{X} ,\mathcal{Y} \right)$ de los parámetros aglutinados en el vector $\mathbf{w}$ (conforme nuestros datos de entrenamiento), a partir de la distribución $P\left( \mathbf{w} \right) P\left( \mathcal{Y} |\mathcal{X} ,\mathbf{w} \right)$, que es proporcional a la distribución a posteriori. También haremos uso de la librería **<font color='darkmagenta'>Corner</font>**, que suele emplearse junto a **<font color='darkmagenta'>Emcee</font>** para visualizar los resultados de los muestreos correspondientes en términos de sus distribuciones marginales (individuales, de cada parámetro):
+Partiremos instalando las librerías de interés. En este caso, utilizaremos la librería <strong><font color='darkmagenta'>Emcee</font></strong> para implementar el algoritmo MCMC de ensamble de *walkers* afines a fin de generar muestras de la distribución a posteriori $P\left( \mathbf{w} |\mathcal{X} ,\mathcal{Y} \right)$ de los parámetros aglutinados en el vector $\mathbf{w}$ (conforme nuestros datos de entrenamiento), a partir de la distribución $P\left( \mathbf{w} \right) P\left( \mathcal{Y} |\mathcal{X} ,\mathbf{w} \right)$, que es proporcional a la distribución a posteriori. También haremos uso de la librería <strong><font color='darkmagenta'>Corner</font></strong>, que suele emplearse junto a <strong><font color='darkmagenta'>Emcee</font></strong> para visualizar los resultados de los muestreos correspondientes en términos de sus distribuciones marginales (individuales, de cada parámetro):
 
 ```bash
 pip install emcee corner
 ```
 
-Trabajaremos con el archivo estático `ice_core_data.txt`, el cual corresponde a un registro de `5788` *observaciones* asociadas a diferentes tiempos geológicos para una serie de variables involucradas en las variaciones orbitales del planeta Tierra, como el contenido de deuterio atmosférico, cambios de temperatura, edad geológica, etc. Debido a que la extensión de este archivo es `.txt` y se trata de un archivo separado por espacios, accedemos a él haciendo uso de **<font color='darkmagenta'>Pandas</font>**:
+Trabajaremos con el archivo estático `ice_core_data.txt`, el cual corresponde a un registro de `5788` *observaciones* asociadas a diferentes tiempos geológicos para una serie de variables involucradas en las variaciones orbitales del planeta Tierra, como el contenido de deuterio atmosférico, cambios de temperatura, edad geológica, etc. Debido a que la extensión de este archivo es `.txt` y se trata de un archivo separado por espacios, accedemos a él haciendo uso de <strong><font color='darkmagenta'>Pandas</font></strong>:
 
 <div class="dataset-download">
   <a class="dataset-download-btn" data-filetype="TXT" href="datasets/ice_core_data.txt" download="ice_core_data.txt">Descargar ice_core_data.txt</a>
@@ -2936,7 +2949,7 @@ En este caso particular, estamos interesados en la edad geológica de interés c
 
 ```{python}
 #| label: fig-modelos-lineales-regularizados-bayesianos-y-generalizados-12
-#| fig-cap: "Estimación de los ciclos de Milankovitch en el planeta Tierra."
+#| fig-cap: "Señal paleoclimática observada y componentes periódicos asociados a las escalas orbitales de Milankovitch."
 # Visualizamos la serie de tiempo para la temperatura.
 fig, ax = plt.subplots(figsize=(9, 5))
 ax.plot(data["x3"], data["x5"], color="black", lw=1.0)
@@ -2953,7 +2966,7 @@ plt.tight_layout()
 
 Podemos observar que esta serie de tiempo presenta, aproximadamente, tres semiperíodos, los que son puntos en el tiempo (edad geológica) donde la señal de cambio de temperatura tiende a retomar su recorrido inmediatamente anterior: `26000`, `41000` y `100000` años. Verificaremos si nuestro modelo, más adelante, puede acercarse a esos valores.
 
-Uno de los aspectos más importantes de trabajar en **<font color='darkmagenta'>Emcee</font>** es el hecho de que su filosofía de trabajo (como API) no es para nada similar a la de **<font color='darkmagenta'>Scikit-Learn</font>**. En general, estamos interesados en definir ciertas funciones que son necesarias (como `callables`) para una ejecución del muestreo MCMC de interés. La primera de estas funciones debe describir el modelo de interés y, como mínimo, debe aceptar como argumentos al vector de parámetros de interés (que llamaremos `w`) y a un arreglo de valores que se corresponden con la variable independiente (que llamaremos `t`). Es aquí donde definimos el modelo (6.109), al que llamaremos `linear_model()`:
+Uno de los aspectos más importantes de trabajar en <strong><font color='darkmagenta'>Emcee</font></strong> es el hecho de que su filosofía de trabajo (como API) no es para nada similar a la de <strong><font color='darkmagenta'>Scikit-Learn</font></strong>. En general, estamos interesados en definir ciertas funciones que son necesarias (como `callables`) para una ejecución del muestreo MCMC de interés. La primera de estas funciones debe describir el modelo de interés y, como mínimo, debe aceptar como argumentos al vector de parámetros de interés (que llamaremos `w`) y a un arreglo de valores que se corresponden con la variable independiente (que llamaremos `t`). Es aquí donde definimos el modelo (6.109), al que llamaremos `linear_model()`:
 
 ```{python}
 def linear_model(
@@ -2993,7 +3006,7 @@ def likelihood(
     return likelihood
 ```
 
-Ahora debemos definir las distribuciones a priori para los parámetros que deseamos estimar, los cuales –recordemos– se agrupan en el vector `w`. En este ejercicio, impondremos como *conocimiento a priori* que $0<a_{k}<5$ y $1\times 10^{4}<p_{k}<2\times 10^{5}$ para todo $k=1,2,3$; y $-10<a_{0}<0$. Para tales efectos, construiremos una función denominada `prior()` que se alimentará únicamente del vector `w`, y que conforme a los requerimientos de la API de **<font color='mediumorchid'>Emcee</font>**, retornará cero cuando todos los valores de `w` cumplan con las condiciones anteriores (de manera simultánea), y $-\infty$ cuando no sea así:
+Ahora debemos definir las distribuciones a priori para los parámetros que deseamos estimar, los cuales –recordemos– se agrupan en el vector `w`. En este ejercicio, impondremos como *conocimiento a priori* que $0<a_{k}<5$ y $1\times 10^{4}<p_{k}<2\times 10^{5}$ para todo $k=1,2,3$; y $-10<a_{0}<0$. Para tales efectos, construiremos una función denominada `prior()` que se alimentará únicamente del vector `w`, y que conforme a los requerimientos de la API de <strong><font color='mediumorchid'>Emcee</font></strong>, retornará cero cuando todos los valores de `w` cumplan con las condiciones anteriores (de manera simultánea), y $-\infty$ cuando no sea así:
 
 ```{python}
 def prior(
@@ -3030,7 +3043,7 @@ def posterior(
         return prior_val + likelihood(w, t, y, y_err)
 ```
 
-Las cuatro funciones definidas previamente son los ingredientes fundamentales de la implementación del muestreo MCMC por medio de un ensamble de *walkers* afines en **<font color='mediumorchid'>Emcee</font>**. Ahora nos resta construir algunos parámetros iniciales, los cuales serán imputados en un objeto especializado denominado `EnsembleSampler`. Entre otros argumentos, esta clase acepta los siguientes parámetros de entrada:
+Las cuatro funciones definidas previamente son los ingredientes fundamentales de la implementación del muestreo MCMC por medio de un ensamble de *walkers* afines en <strong><font color='mediumorchid'>Emcee</font></strong>. Ahora nos resta construir algunos parámetros iniciales, los cuales serán imputados en un objeto especializado denominado `EnsembleSampler`. Entre otros argumentos, esta clase acepta los siguientes parámetros de entrada:
 
 - `nwalkers`: El número total de *walkers* que recorrerán el espacio de parámetros de interés y que constituyen el ensamble completo.
 - `ndim`: La dimensión del espacio de parámetros, y que coincide con el número de parámetros individuales a estimar.
@@ -3133,7 +3146,7 @@ Para visualizar nuestros resultados, escogeremos aleatoriamente un total de `250
 
 ```{python}
 #| label: fig-modelos-lineales-regularizados-bayesianos-y-generalizados-13
-#| fig-cap: "Estimación Bayesiana para serie de ciclos de Milankovitch."
+#| fig-cap: "Reconstrucción posterior de la señal orbital, acompañada por la incertidumbre inferida para sus componentes periódicos."
 # Graficamos los primeros resultados.
 fig, ax = plt.subplots(figsize=(9, 5))
 ax.plot(
@@ -3189,7 +3202,7 @@ Y usamos este mejor estimador para representar el mejor modelo:
 
 ```{python}
 #| label: fig-modelos-lineales-regularizados-bayesianos-y-generalizados-14
-#| fig-cap: "Estimación Bayesiana para serie de ciclos de Milankovitch."
+#| fig-cap: "Ajuste posterior de los ciclos orbitales frente a la serie observada, utilizado para evaluar concordancia temporal y amplitud."
 # Graficamos la comparativa versus el mejor modelo.
 fig, ax = plt.subplots(figsize=(9, 5))
 ax.plot(
@@ -3248,24 +3261,24 @@ for i, param in enumerate(["a1", "a2", "a3", "p1", "p2", "p3", "T0"]):
 
 Podemos observar que los semiperíodos estimados por el modelo son cercanos a los que observamos previamente, lo que indica que, como un primer ejercicio o *línea base* hace un trabajo bastante decente.
 
-Ahora emplearemos la librería **<font color='darkmagenta'>Corner</font>** para observar las distribuciones marginales (a posteriori) de cada uno de los parámetros estimados, resultantes de las trayectorias realizadas por los *walkers*. El nombre de esta librería se debe a que ésta se especializa en la creación de grillas de gráficos conocidas como *pairplots*, los que muestran las correspondencias entre cada par de variables de interés. **<font color='darkmagenta'>Corner</font>** está construida sobre una librería llamada **<font color='darkmagenta'>ArViz</font>**, que a su vez, está construida sobre **<font color='darkmagenta'>Matplotlib</font>**, pero a diferencia de otras librerías como **<font color='darkmagenta'>Seaborn</font>**, crea figuras completas en vez de manipular paneles de manera independiente.
+Ahora emplearemos la librería <strong><font color='darkmagenta'>Corner</font></strong> para observar las distribuciones marginales (a posteriori) de cada uno de los parámetros estimados, resultantes de las trayectorias realizadas por los *walkers*. El nombre de esta librería se debe a que ésta se especializa en la creación de grillas de gráficos conocidas como *pairplots*, los que muestran las correspondencias entre cada par de variables de interés. <strong><font color='darkmagenta'>Corner</font></strong> está construida sobre una librería llamada <strong><font color='darkmagenta'>ArViz</font></strong>, que a su vez, está construida sobre <strong><font color='darkmagenta'>Matplotlib</font></strong>, pero a diferencia de otras librerías como <strong><font color='darkmagenta'>Seaborn</font></strong>, crea figuras completas en vez de manipular paneles de manera independiente.
 
-**<font color='darkmagenta'>Corner</font>** permite crear rápidamente un *pairplot* de las distribuciones a posteriori marginales resultantes de nuestro proceso de muestreo por medio de la función `corner()`. Esta función crea una figura completa de **<font color='darkmagenta'>Matplotlib</font>**, la que, para poder manipular a partir de sus paneles, debe ser referenciada por medio del parámetro `fig`. La [documentación](https://corner.readthedocs.io/en/latest/api/) de **<font color='darkmagenta'>Corner</font>** es muy clara al respecto, pero enunciaremos algunos de los parámetros de esta función, y que son los que vamos a utilizar en este ejercicio:
+<strong><font color='darkmagenta'>Corner</font></strong> permite crear rápidamente un *pairplot* de las distribuciones a posteriori marginales resultantes de nuestro proceso de muestreo por medio de la función `corner()`. Esta función crea una figura completa de <strong><font color='darkmagenta'>Matplotlib</font></strong>, la que, para poder manipular a partir de sus paneles, debe ser referenciada por medio del parámetro `fig`. La [documentación](https://corner.readthedocs.io/en/latest/api/) de <strong><font color='darkmagenta'>Corner</font></strong> es muy clara al respecto, pero enunciaremos algunos de los parámetros de esta función, y que son los que vamos a utilizar en este ejercicio:
 
-- `data`: Cualquier arreglo de valores compatible con **<font color='darkmagenta'>ArViz</font>**. No profundizaremos mucho en esto, pero basta saber con que un arreglo de **<font color='darkmagenta'>Numpy</font>** es perfecto para su uso por medio de esta función.
+- `data`: Cualquier arreglo de valores compatible con <strong><font color='darkmagenta'>ArViz</font></strong>. No profundizaremos mucho en esto, pero basta saber con que un arreglo de <strong><font color='darkmagenta'>Numpy</font></strong> es perfecto para su uso por medio de esta función.
 - `show_titles`: Parámetro booleano que permite especificar si se muestran los títulos de cada variable en el gráfico. Tales títulos deben ser especificados por medio de una lista asignada al parámetro `labels`.
-- `fig`: Parámetro que permite especificar una figura previamente construida directamente por medio de alguna dependencia de **<font color='darkmagenta'>Matplotlib</font>**.
+- `fig`: Parámetro que permite especificar una figura previamente construida directamente por medio de alguna dependencia de <strong><font color='darkmagenta'>Matplotlib</font></strong>.
 - `quantiles`: Parámetro que permite indicar si deseamos visualizar ciertos percentiles de nuestros datos, especificándolos por medio de una lista de Python.
-- `title_kwargs`: Diccionario de Python que permite identificar parámetros que son propios de cualquier función o método que asigne características específicas a los títulos de un gráfico en **<font color='darkmagenta'>Matplotlib</font>** (`plt.title()` o `ax.set_title()`).
+- `title_kwargs`: Diccionario de Python que permite identificar parámetros que son propios de cualquier función o método que asigne características específicas a los títulos de un gráfico en <strong><font color='darkmagenta'>Matplotlib</font></strong> (`plt.title()` o `ax.set_title()`).
 - `color`: Parámetro que permite especificar el color de los puntos a mostrar en las correspondientes distribuciones marginales 2D.
-- `hist_kwargs`: Diccionario de Python que permite especificar los parámetros propios de los histogramas que se muestran en la diagonal del *pairplot*. Tales parámetros son propios de cualquier constructor de histogramas de **<font color='darkmagenta'>Matplotlib</font>** (como `plt.hist()` o `ax.hist()`).
+- `hist_kwargs`: Diccionario de Python que permite especificar los parámetros propios de los histogramas que se muestran en la diagonal del *pairplot*. Tales parámetros son propios de cualquier constructor de histogramas de <strong><font color='darkmagenta'>Matplotlib</font></strong> (como `plt.hist()` o `ax.hist()`).
 - `label_kwargs`: Diccionario de Python que permite especificar parámetros propios de cualquier función o método que asigne características específicas a las etiquetas de los ejes de un gráfico (por ejemplo, en el eje X, `plt.xlabel()` o `ax.set_xlabel()`).
 
 De esta manera, tenemos:
 
 ```{python}
 #| label: fig-modelos-lineales-regularizados-bayesianos-y-generalizados-15
-#| fig-cap: "Dispersión de distribuciones a posteriori marginales (por parámetro)."
+#| fig-cap: "Distribuciones posteriores marginales de los parámetros, con su concentración e incertidumbre después de observar los datos."
 # Mostramos la dispersión de las distribuciones a posteriori marginales.
 fig, ax = plt.subplots(figsize=(12, 12), nrows=n, ncols=n)
 labels = [
@@ -3346,7 +3359,7 @@ w_best = flat_samples[np.argmax(sampler.flatlnprobability)]
 
 ```{python}
 #| label: fig-modelos-lineales-regularizados-bayesianos-y-generalizados-16
-#| fig-cap: "Estimación Bayesiana para serie de ciclos de Milankovitch (MCMC de mayor complejidad)."
+#| fig-cap: "Reconstrucción de la serie mediante el modelo MCMC ampliado, que incorpora una estructura periódica más flexible."
 # Graficamos la comparativa versus el mejor modelo.
 fig, ax = plt.subplots(figsize=(9, 5))
 ax.plot(
@@ -3440,7 +3453,7 @@ Una visualización interesante que permite ilustrar el resultado global de nuest
 
 ```{python}
 #| label: fig-modelos-lineales-regularizados-bayesianos-y-generalizados-18
-#| fig-cap: "Distribuciones estimadas para los parámetros de la regresión."
+#| fig-cap: "Densidades posteriores de los coeficientes de regresión, útiles para comparar magnitudes, signos e incertidumbre paramétrica."
 fig, ax = plt.subplots(figsize=(9, 5), ncols=4, nrows=2)
 
 # Definimos las posiciones, colores y etiquetas para cada parámetro.
@@ -3538,7 +3551,7 @@ med_delta_T, spread_delta_T = sample_chain(
 
 ```{python}
 #| label: fig-modelos-lineales-regularizados-bayesianos-y-generalizados-19
-#| fig-cap: "Estimación Bayesiana para serie de ciclos de Milankovitch (MCMC de mayor complejidad)."
+#| fig-cap: "Predicción posterior del modelo MCMC ampliado y bandas de incertidumbre resultantes sobre la serie paleoclimática."
 # Graficamos la comparativa versus el mejor modelo.
 fig, ax = plt.subplots(figsize=(9, 5))
 ax.plot(
@@ -3583,7 +3596,7 @@ Notemos que el modelo esperado (correspondiente a la predicción "promedio" asoc
 
 Una última visualización interesante que construiremos nos permitirá graficar las trayectorias que recorren los *walkers* durante la ejecución del algoritmo de muestreo, a fin de verificar las convergencias en cada caso. Tal ejercicio permite entender, entre otras cosas, cuál es el número ideal de iteraciones para cada número de *walkers* escogido por corrida.
 
-Cada cadena de Markov puede extraerse por medio del método `get_chain()`, aplicado a nuestro `EnsembleSampler` (una vez corrido el muestreo MCMC). El resultado será un arreglo de **<font color='darkmagenta'>Corner</font>** de dimensión `(n_iter, n_walkers, n)`. Nuestro interés es crear una figura con un total de `n` paneles, sobre los cuales dibujaremos las trayectorias de cada *walker* para cada parámetro que deseamos estimar:
+Cada cadena de Markov puede extraerse por medio del método `get_chain()`, aplicado a nuestro `EnsembleSampler` (una vez corrido el muestreo MCMC). El resultado será un arreglo de <strong><font color='darkmagenta'>Corner</font></strong> de dimensión `(n_iter, n_walkers, n)`. Nuestro interés es crear una figura con un total de `n` paneles, sobre los cuales dibujaremos las trayectorias de cada *walker* para cada parámetro que deseamos estimar:
 
 ```{python}
 # Obtenemos las cadenas de Markov resultantes del muestreo MCMC.
@@ -3592,7 +3605,7 @@ chains = sampler.get_chain()
 
 ```{python}
 #| label: fig-modelos-lineales-regularizados-bayesianos-y-generalizados-20
-#| fig-cap: "Cadenas de Markov obtenidas (walkers resultantes)."
+#| fig-cap: "Trayectorias de los walkers del muestreador MCMC, utilizadas para diagnosticar mezcla, estabilidad y exploración de la distribución posterior."
 fig, ax = plt.subplots(figsize=(9, 9), nrows=n)
 colors = ["indianred", "firebrick", "orange", "teal", "dodgerblue", "darkslateblue", "forestgreen"]
 
@@ -3614,7 +3627,7 @@ plt.tight_layout()
 
 Podemos observar que, para la iteración `400`, ya todos los *walkers* han convergido a un valor determinado. Los momentos de mayor incertidumbre se dan cerca las iteraciones `100` y `250`, porque en dichos entornos los *walkers* tienden a presentar una mayor variabilidad en sus posiciones. Sin embargo, cada *grumo* de alta variabilidad deriva en distribuciones marginales a posteriori multimodales, lo que evidentemente es un problema. Esto refuerza la tesis de que, probablemente, sea más factible probar otro modelo (linealizable), aunque eso se dejará como ejercicio al lector. ◼︎
 
-El ejemplo anterior simplemente araña la superficie de todo un mundo asociado a las técnicas de modelamiento probabilístico, y usando una librería muy sencilla como lo es **<font color='darkmagenta'>Emcee</font>**. La librería **<font color='darkmagenta'>PyMC</font>** es muchísimo más rica en opciones, personalización y análisis de resultados, y nos ofrece diversas alternativas de construcción de modelos similares a las revisadas aquí. No obstante, ya nos hemos escapado demasiado del alcance de estos apuntes. Para quienes deseen satisfacer su curiosidad, siempre será posible recurrir a la [documentación](https://www.pymc.io/welcome.html) de **<font color='darkmagenta'>PyMC</font>**, que es muy completa y nos ofrece diversos ejemplos a fin de profundizar en estos temas.
+El ejemplo anterior simplemente araña la superficie de todo un mundo asociado a las técnicas de modelamiento probabilístico, y usando una librería muy sencilla como lo es <strong><font color='darkmagenta'>Emcee</font></strong>. La librería <strong><font color='darkmagenta'>PyMC</font></strong> es muchísimo más rica en opciones, personalización y análisis de resultados, y nos ofrece diversas alternativas de construcción de modelos similares a las revisadas aquí. No obstante, ya nos hemos escapado demasiado del alcance de estos apuntes. Para quienes deseen satisfacer su curiosidad, siempre será posible recurrir a la [documentación](https://www.pymc.io/welcome.html) de <strong><font color='darkmagenta'>PyMC</font></strong>, que es muy completa y nos ofrece diversos ejemplos a fin de profundizar en estos temas.
 
 ## Modelos lineales generalizados
 
@@ -3887,7 +3900,7 @@ Por lo tanto, podemos concluir que:
 
 De esta manera, los parámetros que caracterizan el modelo de regresión de Poisson tienen una interpretación directa y útil en términos de cómo las variables predictoras afectan multiplicativamente la media esperada de la variable de respuesta. El efecto, por supuesto, es exponencial, con un impacto que tiene el mismo signo que el parámetro respectivo.
 
-Previo a revisar algunos ejemplos prácticos de implementación del modelo de Poisson en **<font color='darkmagenta'>Scikit-Learn</font>**, dejamos un cuadro resumen en la @tbl-glmmodels que sumariza los modelos lineales generalizados que hemos revisado en esta sección, incluyendo los que hemos ejemplificado de manera puramente práctica.
+Previo a revisar algunos ejemplos prácticos de implementación del modelo de Poisson en <strong><font color='darkmagenta'>Scikit-Learn</font></strong>, dejamos un cuadro resumen en la @tbl-glmmodels que sumariza los modelos lineales generalizados que hemos revisado en esta sección, incluyendo los que hemos ejemplificado de manera puramente práctica.
 
 ::: {.table-scroll}
 
@@ -3909,7 +3922,7 @@ En las componentes aleatorias especificadas en la @tbl-glmmodels, se tiene que (
 - $\mathcal{M}(1;p_{i1},...,p_{ik})$ es una distribución multinomial con probabilidades $p_{i1},...,p_{ik}$, para cada clase $1,...,k$.
 - $\mathcal{P}(\lambda_{i})$ es una distribución de Poisson de parámetro $\lambda_{i}$.
 
-**Ejemplo 6.16 – Implementación del modelo de Poisson en <font color='darkmagenta'>Scikit-Learn</font>:** La implementación de la regresión de Poisson en **<font color='darkmagenta'>Scikit-Learn</font>** es directa, y se realiza por medio de la clase `PoissonRegressor`, cuya dependencia es `sklearn.linear_model`. Para ilustrar su uso, mostraremos el desarrollo de un ejercicio que puede revisarse en detalle en la [documentación de **<font color='mediumorchid'>Scikit-Learn</font>**](https://scikit-learn.org/stable/auto_examples/linear_model/plot_poisson_regression_non_normal_loss.html#sphx-glr-auto-examples-linear-model-plot-poisson-regression-non-normal-loss-py), y que hace uso de un dataset conocido en muchísimos frameworks de aprendizaje automático como **<font color='forestgreen'>freMTPL2freq</font>** (acrónimo –o algo así– de *french motor third-party liability claims*), y que está disponible por medio de la plataforma de [OpenML](https://www.openml.org/search?type=data&sort=runs&id=41214&status=active). En **<font color='darkmagenta'>Scikit-Learn</font>**, podemos descargar este dataset por medio de la función `fetch_openml()` como sigue:
+**Ejemplo 6.16 – Implementación del modelo de Poisson en <font color='darkmagenta'>Scikit-Learn</font>:** La implementación de la regresión de Poisson en <strong><font color='darkmagenta'>Scikit-Learn</font></strong> es directa, y se realiza por medio de la clase `PoissonRegressor`, cuya dependencia es `sklearn.linear_model`. Para ilustrar su uso, mostraremos el desarrollo de un ejercicio que puede revisarse en detalle en la [documentación de <strong><font color='mediumorchid'>Scikit-Learn</font></strong>](https://scikit-learn.org/stable/auto_examples/linear_model/plot_poisson_regression_non_normal_loss.html#sphx-glr-auto-examples-linear-model-plot-poisson-regression-non-normal-loss-py), y que hace uso de un dataset conocido en muchísimos frameworks de aprendizaje automático como <strong><font color='forestgreen'>freMTPL2freq</font></strong> (acrónimo –o algo así– de *french motor third-party liability claims*), y que está disponible por medio de la plataforma de [OpenML](https://www.openml.org/search?type=data&sort=runs&id=41214&status=active). En <strong><font color='darkmagenta'>Scikit-Learn</font></strong>, podemos descargar este dataset por medio de la función `fetch_openml()` como sigue:
 
 ```{python}
 from sklearn.datasets import fetch_openml
@@ -3930,7 +3943,7 @@ Este conjunto de datos comprende una serie de variables relativas a riesgos para
 - La **exposición** es la duración de la cobertura de una póliza de seguros, normalmente medida en años.
 - La **frecuencia de demandas** es el número de demandas por unidad de exposición.
 
-En el conjunto de datos **<font color='forestgreen'>freMTPL2freq</font>**, cada instancia corresponde a una póliza de seguros asociada a una determinada compañía aseguadora de automóviles. Algunas de las variables independientes contemplan la edad del conductor, la edad del vehículo, la potencia del vehículo, entre otras. Nuestro objetivo es predecir la frecuencia esperada de demandas que siguen a accidentes vehiculares para un nuevo asegurado, dados los datos históricos para una población de asegurados *observados*.
+En el conjunto de datos <strong><font color='forestgreen'>freMTPL2freq</font></strong>, cada instancia corresponde a una póliza de seguros asociada a una determinada compañía aseguadora de automóviles. Algunas de las variables independientes contemplan la edad del conductor, la edad del vehículo, la potencia del vehículo, entre otras. Nuestro objetivo es predecir la frecuencia esperada de demandas que siguen a accidentes vehiculares para un nuevo asegurado, dados los datos históricos para una población de asegurados *observados*.
 
 Partimos pues observado las primeras filas de nuestro conjunto de datos:
 
@@ -3951,7 +3964,7 @@ Ahora, visualizamos estas variables:
 
 ```{python}
 #| label: fig-modelos-lineales-regularizados-bayesianos-y-generalizados-21
-#| fig-cap: "Número de demandas."
+#| fig-cap: "Distribución observada del número de demandas utilizada para evaluar el ajuste de un modelo de conteo."
 # Histogramas de frecuencias para las variables de interés.
 fig, ax = plt.subplots(figsize=(9, 3), ncols=3, sharey=True)
 
@@ -3986,7 +3999,7 @@ La pipeline de preprocesamiento contemplará las siguientes transformaciones:
 - Las columnas `"VehAge"` y `"DrivAge"` (que representan las edades de los correspondientes vehículos y sus conductores, y son de tipo entero) serán discretizadas en intervalos de tamaño `10` (años) de forma similar a lo que realizamos al construir histogramas, fijando la correspondiente semilla aleatoria a fin de garantizar la reproducibilidad de los resultados. Para ello, se hará uso de un transformador denominado `KBinsDiscretizer`. Denominaremos tal transformación simplemente como `"binned_numeric"`.
 - Las columnas `"VehBrand"`, `"VehGas"`, `"VehPower"`, `"Region"` y `"Area"` serán binarizadas en un esquema de tipo *one-hot* por medio del transformador `OneHotEncoder`.
 - A la columna `"Density"` (que representa la densidad de habitantes por kilómetro cuadrado en la región donde vive el correspondiente conductor) se le aplicará una transformación logarítmica compuesta, la que incluirá una normalización a fin de eliminar problemas de órdenes de magnitud típicos en las variables de tipo numéricas. Tal transformación se realizará por medio de una *sub-pipeline* que denominaremos `log_scale_transformer`, donde aplicaremos la transformación usando la clase `FunctionTransformer` (la que permite aplicar transformaciones funcionales arbitrarias), con respecto a la función `numpy.log()`. La normalización se implementará de manera regular en la misma sub-pipeline, haciendo uso de la clase `StandardScaler`.
-- A la columna `"BonusMalus"` (que representa una relación de riesgo para el asegurado dependiendo de su historial de demandas) no se le aplicará ninguna transformación. Para ello, simplemente se utilizarán identificadores propios del objeto `ColumnTransformer` que nos servirán para especificar tal acción en un esquema de tupla del tipo `(nombre_del_transformador, tipo_de_transformador, columna_de_interes)`: De esta manera, el nombre del transformador será `"passthrough_numeric"`, y simplemente indicará que no haremos ninguna cosa sobre esta variable, que es numérica. El tipo de transformador se especificará por medio de un identificador llamado `"passthrough"`, que indica a **<font color='darkmagenta'>Scikit-Learn</font>** que no se aplicará ninguna transformación sobre la columna individualizada. Finalmente, la columna de interés será, naturalmente, `"BonusMalus"`.
+- A la columna `"BonusMalus"` (que representa una relación de riesgo para el asegurado dependiendo de su historial de demandas) no se le aplicará ninguna transformación. Para ello, simplemente se utilizarán identificadores propios del objeto `ColumnTransformer` que nos servirán para especificar tal acción en un esquema de tupla del tipo `(nombre_del_transformador, tipo_de_transformador, columna_de_interes)`: De esta manera, el nombre del transformador será `"passthrough_numeric"`, y simplemente indicará que no haremos ninguna cosa sobre esta variable, que es numérica. El tipo de transformador se especificará por medio de un identificador llamado `"passthrough"`, que indica a <strong><font color='darkmagenta'>Scikit-Learn</font></strong> que no se aplicará ninguna transformación sobre la columna individualizada. Finalmente, la columna de interés será, naturalmente, `"BonusMalus"`.
 
 Todo el trabajo descrito se muestra en los siguientes bloques de código:
 
@@ -4051,13 +4064,13 @@ claims_fraction = df.loc[df["ClaimNb"] == 0, "Exposure"].sum() / df["Exposure"].
 print(f"Proporción de exposición con cero reclamaciones = {claims_fraction:.2%}")
 ```
 
-Es decir, más del 93% de los tenedores tienen cero reclamaciones. Por supuesto, si quisiéramos convertir este problema en uno de clasificación, binarizando esta variable en términos de la existencia o no de demandas a las correspondientes aseguradoras, el resultado sería un conjunto de datos extremadamente poco balanceado. Un modelo de clasificación *tonto* (o *"dummy"*, como suele llamarse en términos más elegantes) podría, basándose únicamente en las predicciones del valor medio de la variable de respuesta, tener una exactitud del 93% fácilmente, lo que nos aleja del objetivo de interés. Sin embargo, se trata de una línea base razonable para, desde ahí, empezar a construir un modelo verdaderamente efectivo. En **<font color='darkmagenta'>Scikit-Learn</font>**, es posible *entrenar* un modelo de regresión de tipo *dummy* por medio de la clase `DummyRegressor` (cuya dependencia es `sklearn.dummy`), que consistentemente retornará el valor medio de la variable de respuesta:
+Es decir, más del 93% de los tenedores tienen cero reclamaciones. Por supuesto, si quisiéramos convertir este problema en uno de clasificación, binarizando esta variable en términos de la existencia o no de demandas a las correspondientes aseguradoras, el resultado sería un conjunto de datos extremadamente poco balanceado. Un modelo de clasificación *tonto* (o *"dummy"*, como suele llamarse en términos más elegantes) podría, basándose únicamente en las predicciones del valor medio de la variable de respuesta, tener una exactitud del 93% fácilmente, lo que nos aleja del objetivo de interés. Sin embargo, se trata de una línea base razonable para, desde ahí, empezar a construir un modelo verdaderamente efectivo. En <strong><font color='darkmagenta'>Scikit-Learn</font></strong>, es posible *entrenar* un modelo de regresión de tipo *dummy* por medio de la clase `DummyRegressor` (cuya dependencia es `sklearn.dummy`), que consistentemente retornará el valor medio de la variable de respuesta:
 
 ```{python}
 from sklearn.dummy import DummyRegressor
 ```
 
-Debido a que no importa el orden de las instancias en nuestro conjunto de datos, podemos realizar cualquier tipo de separación para construir los correspondientes conjuntos de entrenamiento y de prueba. En estricto rigor, el procedimiento estándar debiese estar basado en un muestreo estratificado, a fin de asegurar representatividad, pero seremos fieles a la documentación de **<font color='darkmagenta'>Scikit-Learn</font>** y generaremos un muestreo aleatorizado sencillo, dejando un tercio de los datos como conjunto de prueba:
+Debido a que no importa el orden de las instancias en nuestro conjunto de datos, podemos realizar cualquier tipo de separación para construir los correspondientes conjuntos de entrenamiento y de prueba. En estricto rigor, el procedimiento estándar debiese estar basado en un muestreo estratificado, a fin de asegurar representatividad, pero seremos fieles a la documentación de <strong><font color='darkmagenta'>Scikit-Learn</font></strong> y generaremos un muestreo aleatorizado sencillo, dejando un tercio de los datos como conjunto de prueba:
 
 ```{python}
 from sklearn.model_selection import train_test_split
@@ -4088,7 +4101,7 @@ dummy_model.fit(
 )
 ```
 
-Para chequear la *potencia* de esta línea base, usaremos tres métricas de desempeño. Dos de ellas son ya conocidas (MSE y MAE). La tercera es llamada **desviación media de Poisson**, y nos permite saber cuán desviada está una distribución (observada) de Poisson con respecto a su media (también observada). Si la distribución de Poisson de interés tiene parámetro $\lambda$, entonces dicha desviación (comúnmente denotada como $D$) se calcula como $D=\mathrm{E} \left[ \left| X-\lambda \right| \right]$, donde $X$ es una variable aleatoria de Poisson (y que comúnmente se representa por medio de una variable de interés, como si fuera una realización). En **<font color='darkmagenta'>Scikit-Learn</font>**, la desviación media de Poisson puede calcularse fácilmente por medio de la función `mean_poisson_deviance()`, cuya dependencia es, naturalmente, el módulo `sklearn.metrics`:
+Para chequear la *potencia* de esta línea base, usaremos tres métricas de desempeño. Dos de ellas son ya conocidas (MSE y MAE). La tercera es llamada **desviación media de Poisson**, y nos permite saber cuán desviada está una distribución (observada) de Poisson con respecto a su media (también observada). Si la distribución de Poisson de interés tiene parámetro $\lambda$, entonces dicha desviación (comúnmente denotada como $D$) se calcula como $D=\mathrm{E} \left[ \left| X-\lambda \right| \right]$, donde $X$ es una variable aleatoria de Poisson (y que comúnmente se representa por medio de una variable de interés, como si fuera una realización). En <strong><font color='darkmagenta'>Scikit-Learn</font></strong>, la desviación media de Poisson puede calcularse fácilmente por medio de la función `mean_poisson_deviance()`, cuya dependencia es, naturalmente, el módulo `sklearn.metrics`:
 
 ```{python}
 from sklearn.metrics import mean_poisson_deviance
@@ -4181,7 +4194,7 @@ estimator_score(ridge_model, test_set)
 
 Podemos observar que nuestro modelo lineal no es suficiente para tratar este problema, y su desempeño es peor que el de nuestra línea base (que, recordemos, no es más que un "modelo" que simplemente retorna la media de los valores observados). Esto pone de manifiesto la incapacidad del modelo de regresión lineal (en todos sus *sabores*) para tratar cualquier problema, sobretodo aquellos que implican la predicción de cuantías.
 
-Ahora intentaremos entrenar un modelo de regresión de Poisson haciendo uso de una pipeline similar a la anterior. En **<font color='darkmagenta'>Scikit-Learn</font>**, este modelo también se regulariza por medio de un término que penaliza sus parámetros en norma $\ell_{2}$ (es decir, el mismo tipo de regularización que el modelo de tipo "ridge"). Algunos hiperparámetros importantes a considerar en la clase `PoissonRegressor` son los siguientes:
+Ahora intentaremos entrenar un modelo de regresión de Poisson haciendo uso de una pipeline similar a la anterior. En <strong><font color='darkmagenta'>Scikit-Learn</font></strong>, este modelo también se regulariza por medio de un término que penaliza sus parámetros en norma $\ell_{2}$ (es decir, el mismo tipo de regularización que el modelo de tipo "ridge"). Algunos hiperparámetros importantes a considerar en la clase `PoissonRegressor` son los siguientes:
 
 - `alpha`: Número flotante que determina la potencia del término de regularización $\ell_{2}$ de nuestro modelo. Por defecto, su valor es igual a `1`, pero puede variar en el rango `[0.0, inf)`.
 - `fit_intercept`: Al igual que en las implementaciones de los modelos de regresión lineal, este hiperparámetro Booleano permite definir si deseamos o no que nuestro modelo lleve consigo un parámetro de sesgo (o coeficiente de intercepción, en un lenguaje más clásico). Por defecto, su valor es igual a `True`.
@@ -4264,7 +4277,7 @@ Podemos observar que el modelo de regresión de tipo "ridge" falla en reproducir
 
 A fin de asegurar que nuestro modelo retorne estimaciones razonables para diferentes tenedores, podemos agrupar instancias de prueba en distintos intervalos de clase conforme a los valores que conforman el arreglo de valores predichos por cada modelo (que, por antonomasia, suele denominarse como `y_pred`). Luego, para cada uno de estos intervalos, comparamos las medias predichas con las medias reales en cada caso.
 
-Para fragmentar nuestras instancias en intervalos, haremos uso de una función utilitaria de **<font color='darkmagenta'>Scikit-Learn</font>**, denominada `gen_even_slices()`, y cuya dependencia es el módulo `sklearn.utils`. Esta función es sencilla de utilizar y nos permite crear intervalos del mismo tamaño para un conjunto de valores enteros, conforme los siguientes parámetros:
+Para fragmentar nuestras instancias en intervalos, haremos uso de una función utilitaria de <strong><font color='darkmagenta'>Scikit-Learn</font></strong>, denominada `gen_even_slices()`, y cuya dependencia es el módulo `sklearn.utils`. Esta función es sencilla de utilizar y nos permite crear intervalos del mismo tamaño para un conjunto de valores enteros, conforme los siguientes parámetros:
 
 - `n`: Número de elementos del conjunto a dividir.
 - `n_packs`: Número de intervalos que deseamos obtener.
@@ -4329,7 +4342,7 @@ def risk_group_wise_freq_mean(
 
 ```{python}
 #| label: fig-modelos-lineales-regularizados-bayesianos-y-generalizados-23
-#| fig-cap: "Las curvas de calibración de nuestros modelos."
+#| fig-cap: "Correspondencia entre probabilidades predichas y frecuencias observadas para comparar la calibración probabilística de los modelos."
 # Construimos las curvas de calibración de nuestros modelos.
 fig, ax = plt.subplots(figsize=(9, 9), nrows=3)
 models = [dummy_model, ridge_model, poisson_model]
