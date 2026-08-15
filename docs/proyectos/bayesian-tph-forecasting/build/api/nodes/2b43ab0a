@@ -1,0 +1,13 @@
+{
+  "code": "def build_geology_composition(geology_daily_raw: pd.DataFrame) -> pd.DataFrame:\n    \"\"\"\n    Convierte tonelajes diarios de litología y calidad en composiciones cerradas.\n\n    Parámetros:\n    -------------\n    geology_daily_raw : tonelajes y variables de calidad informados por día.\n\n    Retorna:\n    ---------\n    pd.DataFrame : proporciones geológicas y de calidad válidas, ordenadas por fecha.\n    \"\"\"\n    df = geology_daily_raw.copy()\n    df[\"date\"] = pd.to_datetime(df[\"date\"], errors=\"raise\").dt.normalize()\n    lithology_cols = sorted(column for column in df if column.startswith(\"lithology_\"))\n    quality_cols = sorted(column for column in df if column.startswith(\"quality_\"))\n    _require_columns(\n        df, [\"date\", \"feed_tonnes\", *lithology_cols, *quality_cols], \"geology_daily_raw\"\n    )\n    denominator = pd.to_numeric(df[\"feed_tonnes\"], errors=\"coerce\").replace(0, np.nan)\n    for column in [*lithology_cols, *quality_cols]:\n        df[column] = pd.to_numeric(df[column], errors=\"coerce\") / denominator\n    return df[[\"date\", *lithology_cols, *quality_cols]].dropna().sort_values(\"date\")\n",
+  "filepath": "bayesian-tph-forecasting/src/bayesian_tph_forecasting/pipelines/data_engineering/nodes.py",
+  "parameters": {},
+  "run_command": "kedro run --to-nodes='data_engineering.close_geological_compositions'",
+  "inputs": [
+    "geology_daily_raw"
+  ],
+  "outputs": [
+    "geology_composition_daily"
+  ],
+  "preview": null
+}

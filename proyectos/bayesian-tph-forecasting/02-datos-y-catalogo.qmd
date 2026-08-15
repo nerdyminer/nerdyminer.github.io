@@ -1,0 +1,183 @@
+---
+title: "2. Datos sintéticos, contratos y catálogo"
+description: "Cómo diseñar entradas industriales reproducibles y usar el catálogo de datos como frontera arquitectónica."
+toc: true
+toc-depth: 3
+---
+
+[← Volver al proyecto](index.qmd)
+
+## Un caso industrial pensado para su ejecución sencilla
+
+Este proyecto tiene su punto de partida en un conjunto de datos sintéticos que representa las condiciones contextuales de un circuito de conminución ficticio: alimentación, potencia, disponibilidad, granulometría, geología, dureza y fuentes de mineral. No provienen de mediciones reales ni de la transformación de una base industrial. Se generan desde cero mediante reglas probabilísticas documentadas, con fechas futuras y un sistema cartesiano local inventado. Esta decisión permite que el repositorio sea autosuficiente, que todos los lectores trabajen sobre el mismo experimento y que ninguna faena quede codificada indirectamente en sus coordenadas o escalas.
+
+::: {.callout-important}
+## Sin embargo, el mundo real es distinto...
+
+En un caso industrial real, los datos provienen de sistemas de control y de información de la planta. Un equipo de ingenieros de datos suele lidiar con múltiples fuentes, formatos y frecuencias de muestreo. Los datos no suelen vivir necesariamente en archivos estáticos, como hojas de cálculo o archivos `.csv`, sino que se consultan desde bases de datos corporativas, sistemas de gestión de flota e historizadores de proceso. En estos casos, los ingenieros de datos deben lidiar con problemas como la limpieza de datos, la integración de múltiples fuentes, la gestión de datos faltantes y la validación de la calidad de los datos. Además, es posible que se requiera el uso de consultas SQL para extraer datos específicos, así como el acceso a través de VPNs o redes corporativas para garantizar la seguridad y privacidad de los datos. Por lo tanto, aunque este proyecto utiliza datos sintéticos para simplificar la ejecución y permitir una mayor reproducibilidad, es importante tener en cuenta que en un entorno industrial real, el manejo de datos puede ser mucho más complejo y requerir habilidades adicionales que quedan fuera del alcance de este humilde blog.
+:::
+
+En la siguiente tabla se resumen los conjuntos de datos que se usan en el proyecto, así como su granularidad y qué representa cada fila:
+
+| Dataset lógico | Granularidad | Instancias | ¿Qué representa? |
+|------|---:|---:|----------|
+| `geology_daily_raw` | Diaria | 1.461 | Tonelajes sintéticos asociados a unidades geológicas e indicadores de calidad geotécnica. |
+| `plant_signals_hourly_raw` | Horaria | 17.520 | Señales ficticias de alimentación, potencia, niveles, granulometría y estados. |
+| `haulage_cycles_raw` | Por ciclo de transporte | 80.112 | Ciclos sintéticos con tiempos, unidades genéricas y posiciones en un marco cartesiano local. |
+| `hardness_block_model_raw` | Bloque 3D | 32.000 | Modelo sintético que caracteriza la dureza en el mismo marco tridimensional local. |
+
+Estos conjuntos de datos se suministran en un formato de tipo `.parquet`, salvo en el caso de los datos de reconciliación geológica, que se entregan en `.csv`. Ambos formatos se especializan en datos tabulares, así que, salvo la función que nos permitirá acceder a ellos, el resto del proyecto no distingue entre uno y otro. Serializaremos cada entidad en el formato que mejor se adapte a su tamaño y a la necesidad de inspección humana.
+
+## Dato sintético $\neq$ ruido aleatorio
+
+Un conjunto de datos sintéticos es inútil si no respeta invariantes del dominio. De lo contrario, el lector aprende a resolver un juguete que no se parece al problema industrial. En este caso se preservan, entre otras, las siguientes reglas claves de proceso:
+
+- Existen dos líneas paralelas de conminución cuyo rendimiento conjunto es la suma de sus partes.
+- El trade-off entre potencia y alimentación de los molinos SAG permite identificar un régimen estable de operación.
+- Las familias de litología, calidad, procedencia y dureza son composiciones cerradas. Es decir, su suma es $1$ y no pueden tomar valores negativos.
+- Los ciclos de transporte y el modelo de bloques comparten el mismo marco cartesiano local ficticio.
+- Los estados de los equipos pueden describirse por medio de unidades normalizadas entre $0$ y $1$, que representan porcentajes de disponibilidad.
+- La respuesta a modelar (el tratamiento de molienda) se construye con efectos contextuales, interacciones implícitas y ruido diario.
+- El orden cronológico de los datos de molienda (y afines) permite un particionamiento en datos de entrenamiento y de prueba que admite evaluación fuera de muestra, evitando problemas de *data leakage*.
+
+Por ejemplo, para un día $t$, exigimos una composición geológica diaria del tipo
+
+- Alimentación total positiva: $T_{t}^{\mathrm{feed}}>0$.
+- Cada unidad geológica $j$ se reparte proporcionalmente (en fracciones $p_{jt}$) con respecto a la alimentación total: $p_{jt}=\frac{T_{jt}}{T_{t}^{\mathrm{feed}}}$.
+- Si hay $k$ unidades geológicas, la suma de sus proporciones debe ser $1$: $\sum_{j=1}^{k} p_{jt}=1$.
+
+Naturalmente, para coordenadas y distancias exigimos valores finitos y unidades consistentes.
+
+Todas estas restricciones obedecen a un propósito sencillo: Definir el espacio matemático en que las transformaciones posteriores que construiremos tienen sentido. Por ejemplo, si un ciclo de transporte tiene coordenadas fuera del marco cartesiano sintético, no podemos calcular su distancia a la planta ni su dureza vecina. Si una composición geológica no cierra, no podemos calcular la dureza promedio de la alimentación. Si un molino SAG tiene alimentación cero, no podemos estimar su régimen estable ni su consumo específico de energía. Si un ciclo de transporte no tiene fecha, no podemos asociarlo a un día elegible para modelamiento. En otras palabras, la semántica de los datos es tan importante como su forma.
+
+## El contrato que exigimos a los conjuntos de datos
+
+En una tarea sencilla de análisis de datos, solemos conformarnos con entender qué representa cada columna en una tabla, comúnmente provista en un formato de DataFrame. Sin embargo, en proyectos industriales que exigen reproducibilidad y trazabilidad, es necesario ir más allá de la simple descripción de columnas. Por ello, definimos una especie de *contrato* que especifica las propiedades esenciales de cada conjunto de datos, asegurando que cualquier transformación o análisis posterior se realice sobre una base sólida y coherente.
+
+Como mínimo, un contrato de este tipo debe incluir:
+
+1. La **granularidad** de los datos, es decir, qué representa cada fila en términos de tiempo o entidad.
+2. La **llave primaria** que identifica de manera única cada observación, evitando duplicados y garantizando la integridad de los datos.
+3. Los **tipos de datos** de cada columna, asegurando que las fechas, categorías y magnitudes continuas se interpreten correctamente.
+4. La **unidad de medida** de cada variable, como toneladas por hora (tph), kilowatts (kW), metros (m), porcentaje (pp) o toneladas (t), para mantener la consistencia en los cálculos y análisis.
+5. El **dominio** de los valores, especificando rangos y categorías admisibles para cada variable, evitando valores fuera de contexto. Por ejemplo, un porcentaje de sólidos debe moverse siempre entre $0$ y $100$.
+6. La **semántica de ausencia**, que define cómo interpretar los valores faltantes, ya sea como desconocidos, ceros reales o no aplicables. Estas reglas pueden ser flexibles, dependiendo del contexto, pero deben ser explícitas para evitar malentendidos.
+7. La **regla temporal**, que establece qué información estaba disponible en cada fecha, evitando el uso de datos futuros para predecir eventos pasados y asegurando la validez de los análisis.
+
+En el conjunto de datos `plant_signals_hourly_raw`, una fila representa una hora de observación agregada, siendo la columna `timestamp` la llave primaria que debe ser única después de resolver duplicados. En el conjunto de datos `haulage_cycles_raw`, una fila corresponde a un ciclo sintético de transporte, y varios ciclos pueden compartir el mismo día y unidad. En el conjunto de datos `model_input_daily`, cada fila representa un día elegible para modelamiento. Por lo tanto, al realizar una operación de combinación entre estas tablas, es crucial respetar la granularidad de cada conjunto de datos para evitar la multiplicación silenciosa de filas y garantizar la coherencia del análisis.
+
+El código comprueba las columnas requeridas por medio de una función de uso interno llamada `_require_columns()`, que verifica la presencia de las columnas esperadas en cada DataFrame. Además, se realiza una conversión de tipos en la primera frontera de ingeniería de datos, asegurando que las variables tengan el tipo adecuado para su posterior procesamiento. Por ejemplo, las fechas se convierten a objetos `datetime`, las categorías a `category` y las magnitudes continuas a `float`. Si se requiere de una mayor criticidad en la validación de los datos, se podrían añadir herramientas como <strong><font color='darkmagenta'>Pydantic</font></strong> para validar objetos de configuración. Esta librería es especialmente útil para definir parámetros definidos por tipos y garantizar que los valores cumplan con las restricciones establecidas.
+
+Por ejemplo, podemos definir un modelo de parámetros espaciales utilizando <strong><font color='darkmagenta'>Pydantic</font></strong> de la siguiente manera:
+
+```python
+from pydantic import BaseModel, Field
+
+class SpatialParameters(BaseModel):
+    grid_m: float = Field(gt=0)
+    dbscan_eps_m: float = Field(gt=0)
+    max_hardness_match_distance_m: float = Field(gt=0)
+    min_cycles_per_day: int = Field(ge=1)
+```
+
+Un modelo como el anterior respondería la pregunta: *"¿Son válidos estos valores?"* <strong><font color='darkmagenta'>Kedro</font></strong>, por su parte, sigue respondiendo a la pregunta: *"¿Qué nodo consume estos valores, de qué ambiente provienen y qué datasets produce ese nodo?"*. Ambas responsabilidades son complementarias y necesarias para garantizar la integridad y coherencia de los datos en el proyecto.
+
+## El catálogo de datos como inversión de dependencias
+
+El catálogo de datos, definido en la entrada [`catalog.yml`](conf/base/catalog.yml), registra todos los datos que constituyen la información de entrada y salida del proyecto, incluyendo datos intermedios, siguiendo la [convención de ingeniería de datos](https://docs.kedro.org/en/stable/getting-started/faq/#what-is-data-engineering-convention) de <strong><font color='darkmagenta'>Kedro</font></strong>. Por ejemplo:
+
+```yaml
+haulage_cycles_raw:
+  type: pandas.ParquetDataset
+  filepath: data/01_raw/haulage_cycles.parquet
+
+model_input_daily:
+  type: pandas.ParquetDataset
+  filepath: data/05_model_input/model_input_daily.parquet
+
+final_inference_data:
+  type: bayesian_tph_forecasting.datasets.inference_data_dataset.InferenceDataDataset
+  filepath: data/06_models/final_inference_data.nc
+```
+
+La entrada catalogada como `haulage_cycles_raw` corresponde al conjunto de ciclos sintéticos de transporte. Se trata de un archivo en formato `.parquet` que está físicamente localizado en la carpeta `/data/01_raw`, siendo el nombre de dicho archivo `haulage_cycles.parquet`. <strong><font color='darkmagenta'>Kedro</font></strong> ignora el nombre físico y la ubicación del archivo en cuestión para acceder a él por medio de su nombre en el catálogo. Su acceso se realiza por medio de un tipo persistente de dataset, denominado `pandas.ParquetDataset`, que delega la lectura y escritura de datos a la librería <strong><font color='darkmagenta'>Pandas</font></strong>, la cual se hace cargo del acceso internamente por medio de la función `pd.read_parquet()`.
+
+Por otro lado, la entrada catalogada como `final_inference_data` corresponde al resultado final del modelo Bayesiano que estima el tratamiento esperado de la planta, que es un objeto de tipo `arviz.InferenceData` (provisto por la librería <strong><font color='darkmagenta'>ArViz</font></strong>). Este objeto se persiste en un archivo en formato NetCDF (`.nc`) y se accede a él por medio de un dataset propio, denominado `InferenceDataDataset`, que implementa la interfaz de persistencia de <strong><font color='darkmagenta'>Kedro</font></strong> y delega la lectura y escritura de datos a la librería <strong><font color='darkmagenta'>ArviZ</font></strong>.
+
+La estructura del catálogo de datos deriva en tres efectos importantes para la arquitectura del proyecto:1
+
+- **Factibilidad de testeo:** Podemos llamar a la función con un DataFrame pequeño en memoria.
+- **Portabilidad:** El almacenamiento cambia en YAML sin reescribir ninguna lógica en el código.
+- **Linaje:** El módulo `kedro-viz` de <strong><font color='darkmagenta'>Kedro</font></strong> puede mostrar el DAG completo de nodos y datasets, incluyendo los intermedios, sin necesidad de inspeccionar el código.
+
+La [documentación del Data Catalog](https://docs.kedro.org/en/latest/catalog-data/data_catalog/) explica además que los datasets de `kedro-datasets` delegan argumentos al backend correspondiente y que `fsspec` permite usar sistemas locales o remotos. El catálogo es, por tanto, una interfaz de infraestructura suficientemente pequeña para no contaminar la maquinaria interna inherente al proyecto mismo.
+
+## La convención de ingeniería de datos de <font color='darkmagenta'>Kedro</font>
+
+En general, en un proyecto de <strong><font color='darkmagenta'>Kedro</font></strong>, solemos adoptar la convención:
+
+```text
+01_raw → 02_intermediate → 03_primary → 04_feature →
+         05_model_input → 06_models → 07_model_output → 08_reporting
+```
+
+denominando *capas de madurez* a cada transición. Cada capa responde a un cambio semántico, no a una ubicación física en el sistema de archivos. Por ejemplo, la capa `01_raw` contiene los datos tal como fueron recibidos, mientras que la capa `02_intermediate` contiene los datos validados y enriquecidos cercanos a la fuente. La capa `03_primary` contiene las entidades de negocio construidas a partir de los datos, mientras que la capa `04_feature` contiene las representaciones o artefactos aprendidos a partir de los datos. La capa `05_model_input` contiene las tablas exactas que consumen los modelos, mientras que la capa `06_models` contiene los estados estadísticos ajustados por los modelos. La capa `07_model_output` contiene las predicciones y métricas generadas por los modelos, mientras que la capa `08_reporting` contiene los productos finales consumidos por las personas. Esta estructura obedece a la llamada **convención de ingeniería de datos** de <strong><font color='darkmagenta'>Kedro</font></strong>, que permite organizar los datos de manera coherente y reproducible, facilitando la colaboración entre equipos y la evolución del proyecto a lo largo del tiempo.
+
+Los cambios semánticos que definen cada capa de madurez en este proyecto son los siguientes:
+
+| Capa | Pregunta | Ejemplo |
+|---|---|---|
+| `01_raw` | ¿Qué recibió el proyecto? | Señales horarias de tipo operacional. |
+| `02_intermediate` | ¿Qué quedó tras validación y enriquecimiento cercano a fuente? | Ciclos de transporte con asociaciones de dureza. |
+| `03_primary` | ¿Qué entidad de negocio quedó construida? | Valor objetivo diario de tratamiento. |
+| `04_feature` | ¿Qué representación o artefacto fue aprendido? | Firmas geológicas y geometría. |
+| `05_model_input` | ¿Qué tabla exacta consume el modelo? | Contrato diario de consumo de datos del modelo. |
+| `06_models` | ¿Qué estado estadístico se ajustó? | Tratamiento a posteriori almacenado en formato NetCDF. |
+| `07_model_output` | ¿Qué predijo y cómo rindió? | Predicciones del modelo y métricas de desempeño. |
+| `08_reporting` | ¿Qué consume una persona? | Reportabilidad y webapp. |
+
+Los archivos en la capa `raw` se tratan como piezas inmutables. No significa que sean verdaderos por definición: Significa que una corrección debe crear otra versión o una transformación explícita, no sobrescribir silenciosamente el punto de partida. Los outputs intermedios pueden regenerarse; las cuatro entradas y los productos publicados son los elementos versionados que hacen autosuficiente el caso. En una convención más general, como la utilizada en la arquitectura *medallion* típica en cloud computing (por ejemplo, en Databricks), que distingue entre capas *bronze*, *silver* y *gold*, los archivos en la capa *bronze* se tratan como inmutables, mientras que los archivos en las capas *silver* y *gold* pueden ser sobrescritos si se requiere una corrección o actualización de los datos. En este proyecto, la convención de ingeniería de datos de <strong><font color='darkmagenta'>Kedro</font></strong> se centra en la inmutabilidad de los archivos en la capa `raw`, mientras que las capas intermedias y finales pueden ser regeneradas o actualizadas según sea necesario.
+
+## Los valores a posteriori como frontera de persistencia
+
+Los resultados provistos por los modelos Bayesianos desarrollados en <strong><font color='darkmagenta'>PyMC</font></strong> suelen almacenarse en un objeto de tipo `arviz.InferenceData`, que es una colección etiquetada de grupos como `posterior`, `sample_stats` y `observed_data`. Este objeto no es una tabla plana, sino que contiene múltiples dimensiones y estructuras de datos que representan las distribuciones a posteriori de los parámetros del modelo. Por lo tanto, no es posible persistirlo directamente en un archivo plano como `.csv` o `.parquet`, ya que se perdería la estructura y la información contenida en el objeto. Para incorporarlo en la abstracción del catálogo de datos de <strong><font color='darkmagenta'>Kedro</font></strong>, se implementa un dataset propio que permite leer y escribir el objeto `arviz.InferenceData` en un archivo en formato NetCDF (`.nc`), preservando su estructura y permitiendo su posterior análisis e interpretación:
+
+```python
+class InferenceDataDataset(AbstractDataset):
+    def _load(self):
+        return az.from_netcdf(self._filepath)
+
+    def _save(self, data):
+        data.to_netcdf(self._filepath)
+```
+
+Una vez definido este dataset propio, podemos registrar el objeto `arviz.InferenceData` en el catálogo de datos de <strong><font color='darkmagenta'>Kedro</font></strong> y acceder a él por medio de su nombre lógico, sin preocuparnos por los detalles de persistencia. Esto permite que el objeto científico tenga un nombre lógico, participe del DAG y pueda reemplazar su estrategia de persistencia sin tocar la función `fit_final_model()`. Crear un `AbstractDataset` propio es apropiado cuando el objeto científico tiene una serialización natural que los datasets estándar provistos por <strong><font color='darkmagenta'>Kedro</font></strong> no cubren.
+
+## Parámetros, ambientes y reproducibilidad
+
+El archivo `conf/base/parameters.yml` contiene los parámetros por defecto del proyecto. Por otro lado, el archivo `conf/test/parameters.yml` sobrescribe sólo el costo de muestreo y conserva el mismo DAG. Esta separación evita dos errores comunes: Copir una versión *"rápida"* del código que empieza a sufrir divergencias con la versión real, e interpretar una cadena MCMC corta como diagnóstico científico. La configuración es parte del experimento: Si cambia `geometry_training_end`, cambia qué puntos pueden aprender la geometría; si cambia `min_zone_mean_share_pct`, cambia la dimensión del modelo; si cambia `target_accept`, cambia la política de muestreo. Por eso cada valor debe ser visible y versionable.
+
+La documentación de <strong><font color='darkmagenta'>Kedro</font></strong> explica que los parámetros se pueden definir en archivos YAML y que se pueden sobrescribir por medio de ambientes, permitiendo la ejecución de pruebas y experimentos sin modificar el código fuente. Esto garantiza la reproducibilidad del proyecto y facilita la colaboración entre equipos, ya que los parámetros pueden ser versionados y compartidos de manera coherente.
+
+## Controles automáticos de semántica
+
+Las pruebas del repositorio comprueban propiedades que una inspección manual podría omitir:
+
+- Patrones válidos para IDs de equipos y áreas.
+- Destino de los ciclos coherente con la alimentación al chancado primario.
+- Coordenadas finitas y dentro del marco sintético esperado.
+- Promedio de cada línea en el régimen de diseño.
+- Cierre de composiciones y contratos de columnas.
+
+Estas pruebas se ejecutan automáticamente al correr `pytest` en la raíz del proyecto, lo que permite detectar errores de semántica y garantizar la integridad de los datos antes de ejecutar cualquier análisis o modelamiento. Por ejemplo, podemos ejecutar las pruebas con el siguiente comando:
+
+```bash
+uv run pytest
+```
+
+el cual usa de fondo a `uv` para crear un ambiente virtual y ejecutar `pytest` en la raíz del proyecto. Esto permite que las pruebas se ejecuten de manera aislada y reproducible, sin interferir con el entorno de desarrollo local.
+
+Si existiera una lección general que extraer en esta etapa del proyecto, es que la calidad de los datos debe expresarse como una condición ejecutable. El catálogo indica dónde vive el dato; el contrato explica qué significa; los tests impiden que una modificación viole sus invariantes sin avisar. Por lo tanto, es fundamental establecer un conjunto de pruebas automáticas que verifiquen la integridad y coherencia de los datos, asegurando que cualquier cambio en el proyecto no comprometa la validez de los resultados obtenidos.
+
+[← Problema, Kedro y arquitectura](01-problema-y-arquitectura.qmd) ·
+[Siguiente: Ingeniería de datos →](03-ingenieria-de-datos.qmd)

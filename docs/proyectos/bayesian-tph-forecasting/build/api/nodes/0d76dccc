@@ -1,0 +1,48 @@
+{
+  "code": "def fit_final_model(\n    model_input_daily: pd.DataFrame,\n    bayesian: dict,\n    features: dict,\n) -> tuple[Any, pd.DataFrame]:\n    \"\"\"\n    Ajusta el posterior final sobre todo el historial publicado.\n\n    Parámetros:\n    -------------\n    model_input_daily : contrato diario completo usado para el ajuste final.\n    bayesian : variables, priors, muestreo y semilla del modelo.\n    features : umbrales de selección de composiciones de procedencia y dureza.\n\n    Retorna:\n    ---------\n    tuple[Any, pd.DataFrame] : objeto de inferencia final y resumen tabular de parámetros.\n    \"\"\"\n    idata, _, _ = fit_hierarchical_model(\n        model_input_daily,\n        model_input_daily,\n        bayesian=bayesian,\n        features=features,\n        sampling=bayesian[\"sampling\"],\n        random_seed=int(bayesian[\"random_seed\"]),\n    )\n    summary = az.summary(\n        idata,\n        var_names=[\n            \"alpha\",\n            \"beta_regular\",\n            \"beta_zone\",\n            \"beta_hardness\",\n            \"signature_effect\",\n            \"sigma_observation\",\n        ],\n        hdi_prob=0.90,\n    ).reset_index(names=\"parameter\")\n    return idata, summary\n",
+  "filepath": "bayesian-tph-forecasting/src/bayesian_tph_forecasting/pipelines/bayesian_inference/nodes.py",
+  "parameters": {
+    "bayesian": {
+      "regular_features": [
+        "upstream_available_pct",
+        "discharge_sumps_in_range_pct",
+        "auxiliary_crushing_available_pct",
+        "secondary_grinding_available_pct",
+        "penetration_rate_mean",
+        "feed_fines_pct_mean",
+        "feed_fines_pct_centered_sq"
+      ],
+      "prior_std_multiplier": 2.0,
+      "hac_maxlags": 7,
+      "zone_scale_prior_tph": 55.0,
+      "hardness_scale_prior_tph": 45.0,
+      "cluster_scale_prior_tph": 75.0,
+      "random_seed": 123,
+      "sampling": {
+        "draws": 600,
+        "tune": 1000,
+        "chains": 4,
+        "cores": 4,
+        "target_accept": 0.99,
+        "progressbar": true
+      }
+    },
+    "features": {
+      "min_zone_mean_share_pct": 0.5,
+      "min_hardness_mean_share_pct": 0.5,
+      "zone_reference_strategy": "most_frequent",
+      "hardness_reference": "hardness_share__medium"
+    }
+  },
+  "run_command": "kedro run --to-nodes='bayesian_inference.fit_final_identifiable_hierarchical_model'",
+  "inputs": [
+    "model_input_daily",
+    "params:bayesian",
+    "params:features"
+  ],
+  "outputs": [
+    "final_inference_data",
+    "posterior_parameter_summary"
+  ],
+  "preview": null
+}

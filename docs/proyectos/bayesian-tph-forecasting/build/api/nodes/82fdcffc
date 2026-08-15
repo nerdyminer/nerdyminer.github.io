@@ -1,0 +1,23 @@
+{
+  "code": "def fit_geological_signatures(\n    geology_composition_daily: pd.DataFrame,\n    geology_clustering: dict,\n) -> tuple[pd.DataFrame, dict[str, Any], pd.DataFrame]:\n    \"\"\"\n    Selecciona el número de firmas por silueta usando únicamente la historia de entrenamiento.\n\n    Parámetros:\n    -------------\n    geology_composition_daily : composiciones geológicas diarias ordenables por fecha.\n    geology_clustering : configuración temporal y de hiperparámetros para ``KMeans``.\n\n    Retorna:\n    ---------\n    tuple[pd.DataFrame, dict[str, Any], pd.DataFrame] : firmas diarias, artefacto ajustado y\n    diagnóstico de silueta para cada número de clusters evaluado.\n    \"\"\"\n    df = geology_composition_daily.sort_values(\"date\").copy()\n    feature_cols = [column for column in df if column.startswith((\"lithology_\", \"quality_\"))]\n    training_end = pd.Timestamp(geology_clustering[\"training_end\"])\n    train_mask = df[\"date\"].le(training_end)\n    scaler = StandardScaler().fit(df.loc[train_mask, feature_cols])\n    train_scaled = scaler.transform(df.loc[train_mask, feature_cols])\n    full_scaled = scaler.transform(df[feature_cols])\n\n    diagnostics: list[dict[str, float]] = []\n    candidates: dict[int, KMeans] = {}\n    for n_clusters in range(\n        int(geology_clustering[\"min_clusters\"]),\n        int(geology_clustering[\"max_clusters\"]) + 1,\n    ):\n        model = KMeans(\n            n_clusters=n_clusters,\n            random_state=int(geology_clustering[\"random_seed\"]),\n            n_init=20,\n            max_iter=400,\n        )\n        labels = model.fit_predict(train_scaled)\n        score = float(silhouette_score(train_scaled, labels))\n        diagnostics.append({\"n_clusters\": n_clusters, \"silhouette_score\": score})\n        candidates[n_clusters] = model\n\n    diagnostics_df = pd.DataFrame(diagnostics).sort_values(\"n_clusters\")\n    best_k = int(diagnostics_df.loc[diagnostics_df[\"silhouette_score\"].idxmax(), \"n_clusters\"])\n    best_model = candidates[best_k]\n    signature_df = df[[\"date\"]].copy()\n    signature_df[\"geological_signature\"] = [\n        f\"SIGNATURE_{label + 1:02d}\" for label in best_model.predict(full_scaled)\n    ]\n    artifact = {\n        \"feature_columns\": feature_cols,\n        \"training_end\": str(training_end.date()),\n        \"best_k\": best_k,\n        \"scaler\": scaler,\n        \"model\": best_model,\n    }\n    return signature_df, artifact, diagnostics_df\n",
+  "filepath": "bayesian-tph-forecasting/src/bayesian_tph_forecasting/pipelines/data_science/nodes.py",
+  "parameters": {
+    "geology_clustering": {
+      "training_end": "2034-12-31",
+      "min_clusters": 2,
+      "max_clusters": 10,
+      "random_seed": 42
+    }
+  },
+  "run_command": "kedro run --to-nodes='data_science.fit_training_only_geological_signatures'",
+  "inputs": [
+    "geology_composition_daily",
+    "params:geology_clustering"
+  ],
+  "outputs": [
+    "geological_signatures_daily",
+    "geological_clustering_artifact",
+    "clustering_diagnostics"
+  ],
+  "preview": null
+}

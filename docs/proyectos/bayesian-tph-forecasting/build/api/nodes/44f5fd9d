@@ -1,0 +1,20 @@
+{
+  "code": "def build_bridge_summary(\n    backtest_predictions: pd.DataFrame,\n    reporting: dict,\n) -> pd.DataFrame:\n    \"\"\"\n    Materializa bridges mensuales y total respetando la identidad observado igual a modelo más residuo.\n\n    Parámetros:\n    -------------\n    backtest_predictions : predicciones diarias fuera de muestra y sus contribuciones.\n    reporting : configuración de presentación del producto de reporting.\n\n    Retorna:\n    ---------\n    pd.DataFrame : componentes ordenados del bridge para cada mes y para el período completo.\n    \"\"\"\n    df = _add_reporting_families(backtest_predictions)\n    df[\"date\"] = pd.to_datetime(df[\"date\"])\n    df[\"month\"] = df[\"date\"].dt.to_period(\"M\").astype(str)\n    periods: list[tuple[str, pd.DataFrame]] = [(\"TOTAL\", df)]\n    periods.extend((month, group) for month, group in df.groupby(\"month\", sort=True))\n\n    rows: list[dict[str, Any]] = []\n    for period, group in periods:\n        for order, (label, column, family, kind) in enumerate(BRIDGE_COMPONENTS):\n            rows.append(\n                {\n                    \"period\": period,\n                    \"order\": order,\n                    \"label\": label,\n                    \"column\": column,\n                    \"family\": family,\n                    \"kind\": kind,\n                    \"value_tph\": float(group[column].mean()),\n                    \"n_days\": int(group[\"date\"].nunique()),\n                }\n            )\n    return pd.DataFrame(rows)\n",
+  "filepath": "bayesian-tph-forecasting/src/bayesian_tph_forecasting/pipelines/reporting/nodes.py",
+  "parameters": {
+    "reporting": {
+      "bridge_period": "2035",
+      "credible_probability": 0.9,
+      "title": "Descomposición contextual del rendimiento observado"
+    }
+  },
+  "run_command": "kedro run --to-nodes='reporting.build_monthly_and_total_bridges'",
+  "inputs": [
+    "backtest_predictions",
+    "params:reporting"
+  ],
+  "outputs": [
+    "bridge_summary"
+  ],
+  "preview": null
+}

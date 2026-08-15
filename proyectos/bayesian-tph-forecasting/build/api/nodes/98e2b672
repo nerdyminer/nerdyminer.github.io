@@ -1,0 +1,27 @@
+{
+  "code": "def build_training_mine_geometry(\n    haulage_cycles_with_hardness: pd.DataFrame,\n    spatial: dict,\n) -> tuple[pd.DataFrame, pd.DataFrame]:\n    \"\"\"\n    Aprende zonas con historia previa al período evaluado para evitar fuga espacial.\n\n    Parámetros:\n    -------------\n    haulage_cycles_with_hardness : ciclos enriquecidos con procedencia, dureza y coordenadas.\n    spatial : configuración del período de entrenamiento, clustering y envolventes.\n\n    Retorna:\n    ---------\n    tuple[pd.DataFrame, pd.DataFrame] : componentes espaciales aprendidos y sus vértices.\n    \"\"\"\n    training_end = pd.Timestamp(spatial[\"geometry_training_end\"])\n    points = haulage_cycles_with_hardness.loc[\n        haulage_cycles_with_hardness[\"date\"].le(training_end)\n        & haulage_cycles_with_hardness[\"source_area\"].ne(\"UNCLASSIFIED\")\n    ].copy()\n    grid_m = float(spatial[\"grid_m\"])\n    points[\"x_bin\"] = np.rint(points[\"x\"] / grid_m) * grid_m\n    points[\"y_bin\"] = np.rint(points[\"y\"] / grid_m) * grid_m\n\n    components: list[dict] = []\n    vertices: list[dict] = []\n    component_id = 0\n    for source_area, area_df in points.groupby(\"source_area\", sort=True):\n        bins = area_df.groupby([\"x_bin\", \"y_bin\"], as_index=False).size()\n        if len(bins) >= spatial[\"dbscan_min_samples\"]:\n            bins[\"component\"] = DBSCAN(\n                eps=spatial[\"dbscan_eps_m\"],\n                min_samples=spatial[\"dbscan_min_samples\"],\n            ).fit_predict(bins[[\"x_bin\", \"y_bin\"]])\n        else:\n            bins[\"component\"] = 0\n        component_map = bins.set_index([\"x_bin\", \"y_bin\"])[\"component\"]\n        area_df = area_df.copy()\n        area_df[\"component\"] = list(zip(area_df[\"x_bin\"], area_df[\"y_bin\"], strict=False))\n        area_df[\"component\"] = area_df[\"component\"].map(component_map)\n        area_df = area_df.loc[area_df[\"component\"].ge(0)]\n        support = area_df[\"component\"].value_counts()\n        min_support = max(\n            int(spatial[\"min_cycles_per_component\"]),\n            int(np.ceil(len(area_df) * spatial[\"min_component_share\"])),\n        )\n        valid = support.loc[support.ge(min_support)].index.tolist()\n        if not valid and not support.empty:\n            valid = [support.index[0]]\n\n        for rank, label in enumerate(valid, start=1):\n            component_points = area_df.loc[area_df[\"component\"].eq(label)]\n            hull = _robust_hull(\n                component_points[[\"x\", \"y\"]].to_numpy(),\n                spatial[\"hull_trim_quantile\"],\n            )\n            if hull is None:\n                continue\n            component_id += 1\n            components.append(\n                {\n                    \"component_id\": component_id,\n                    \"source_area\": source_area,\n                    \"component_rank\": rank,\n                    \"n_training_cycles\": len(component_points),\n                    \"z_low\": component_points[\"z\"].quantile(0.05),\n                    \"z_high\": component_points[\"z\"].quantile(0.95),\n                }\n            )\n            vertices.extend(\n                {\n                    \"component_id\": component_id,\n                    \"vertex_order\": order,\n                    \"x\": float(x),\n                    \"y\": float(y),\n                }\n                for order, (x, y) in enumerate(hull, start=1)\n            )\n    return pd.DataFrame(components), pd.DataFrame(vertices)\n",
+  "filepath": "bayesian-tph-forecasting/src/bayesian_tph_forecasting/pipelines/data_engineering/nodes.py",
+  "parameters": {
+    "spatial": {
+      "geometry_training_end": "2034-12-31",
+      "grid_m": 25.0,
+      "dbscan_eps_m": 140.0,
+      "dbscan_min_samples": 3,
+      "min_cycles_per_component": 300,
+      "min_component_share": 0.005,
+      "hull_trim_quantile": 0.005,
+      "max_hardness_match_distance_m": 180.0,
+      "min_cycles_per_day": 20
+    }
+  },
+  "run_command": "kedro run --to-nodes='data_engineering.learn_training_only_mine_geometry'",
+  "inputs": [
+    "haulage_cycles_with_hardness",
+    "params:spatial"
+  ],
+  "outputs": [
+    "mine_zone_components",
+    "mine_zone_vertices"
+  ],
+  "preview": null
+}

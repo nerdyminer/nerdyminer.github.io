@@ -1,0 +1,67 @@
+{
+  "code": "def run_rolling_backtest(\n    model_input_daily: pd.DataFrame,\n    bayesian: dict,\n    features: dict,\n    backtest: dict,\n) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:\n    \"\"\"\n    Ejecuta la política de ventana móvil seleccionada y concatena sus resultados fuera de muestra.\n\n    Parámetros:\n    -------------\n    model_input_daily : contrato diario completo ordenable por fecha.\n    bayesian : configuración del modelo y semilla base.\n    features : umbrales de selección de familias composicionales.\n    backtest : ventanas, horizonte, soportes mínimos y configuración de muestreo.\n\n    Retorna:\n    ---------\n    tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame] : predicciones diarias, métricas por fold\n    y resumen agregado de la política móvil.\n    \"\"\"\n    df = model_input_daily.copy()\n    df[\"date\"] = pd.to_datetime(df[\"date\"])\n    start = pd.Timestamp(backtest[\"start\"])\n    end = min(pd.Timestamp(backtest[\"end\"]), df[\"date\"].max() + pd.Timedelta(days=1))\n    fold_starts = pd.date_range(\n        start, end - pd.Timedelta(days=1), freq=f\"{backtest['step_months']}MS\"\n    )\n    predictions: list[pd.DataFrame] = []\n    metrics: list[dict[str, Any]] = []\n\n    for fold_id, fold_start in enumerate(fold_starts, start=1):\n        fold_end = min(fold_start + pd.DateOffset(months=backtest[\"horizon_months\"]), end)\n        train_start = fold_start - pd.DateOffset(months=backtest[\"rolling_train_months\"])\n        train = df.loc[df[\"date\"].ge(train_start) & df[\"date\"].lt(fold_start)].copy()\n        test = df.loc[df[\"date\"].ge(fold_start) & df[\"date\"].lt(fold_end)].copy()\n        if len(train) < backtest[\"min_train_days\"] or len(test) < backtest[\"min_test_days\"]:\n            continue\n        idata, fold_prediction, metadata = fit_hierarchical_model(\n            train,\n            test,\n            bayesian=bayesian,\n            features=features,\n            sampling=backtest[\"sampling\"],\n            random_seed=int(bayesian[\"random_seed\"]) + fold_id,\n        )\n        fold_prediction[\"fold_id\"] = fold_id\n        fold_prediction[\"fold_start\"] = fold_start\n        fold_prediction[\"fold_end\"] = fold_end\n        fold_prediction[\"train_start\"] = train[\"date\"].min()\n        fold_prediction[\"train_end\"] = train[\"date\"].max()\n        predictions.append(fold_prediction)\n        metrics.append(\n            {\n                \"fold_id\": fold_id,\n                \"fold_start\": fold_start,\n                \"fold_end\": fold_end,\n                \"train_start\": train[\"date\"].min(),\n                \"train_end\": train[\"date\"].max(),\n                \"n_train\": len(train),\n                \"n_test\": len(test),\n                \"n_zone_features\": len(metadata[\"zone_features\"]),\n                \"n_hardness_features\": len(metadata[\"hardness_features\"]),\n                \"n_divergences\": metadata[\"n_divergences\"],\n                **_metrics(fold_prediction),\n            }\n        )\n        del idata\n\n    if not predictions:\n        raise ValueError(\"La configuración temporal no produjo folds válidos.\")\n    prediction_df = pd.concat(predictions, ignore_index=True)\n    fold_metrics_df = pd.DataFrame(metrics)\n    summary_df = pd.DataFrame([{\"policy\": \"rolling_12m\", **_metrics(prediction_df)}])\n    summary_df[\"n_divergences\"] = int(fold_metrics_df[\"n_divergences\"].sum())\n    return prediction_df, fold_metrics_df, summary_df\n",
+  "filepath": "bayesian-tph-forecasting/src/bayesian_tph_forecasting/pipelines/bayesian_inference/nodes.py",
+  "parameters": {
+    "bayesian": {
+      "regular_features": [
+        "upstream_available_pct",
+        "discharge_sumps_in_range_pct",
+        "auxiliary_crushing_available_pct",
+        "secondary_grinding_available_pct",
+        "penetration_rate_mean",
+        "feed_fines_pct_mean",
+        "feed_fines_pct_centered_sq"
+      ],
+      "prior_std_multiplier": 2.0,
+      "hac_maxlags": 7,
+      "zone_scale_prior_tph": 55.0,
+      "hardness_scale_prior_tph": 45.0,
+      "cluster_scale_prior_tph": 75.0,
+      "random_seed": 123,
+      "sampling": {
+        "draws": 600,
+        "tune": 1000,
+        "chains": 4,
+        "cores": 4,
+        "target_accept": 0.99,
+        "progressbar": true
+      }
+    },
+    "features": {
+      "min_zone_mean_share_pct": 0.5,
+      "min_hardness_mean_share_pct": 0.5,
+      "zone_reference_strategy": "most_frequent",
+      "hardness_reference": "hardness_share__medium"
+    },
+    "backtest": {
+      "start": "2035-01-01",
+      "end": "2035-12-31",
+      "rolling_train_months": 12,
+      "horizon_months": 2,
+      "step_months": 2,
+      "min_train_days": 180,
+      "min_test_days": 20,
+      "sampling": {
+        "draws": 300,
+        "tune": 500,
+        "chains": 4,
+        "cores": 4,
+        "target_accept": 0.99,
+        "progressbar": false
+      }
+    }
+  },
+  "run_command": "kedro run --to-nodes='bayesian_inference.run_rolling_twelve_month_backtest'",
+  "inputs": [
+    "model_input_daily",
+    "params:bayesian",
+    "params:features",
+    "params:backtest"
+  ],
+  "outputs": [
+    "backtest_predictions",
+    "backtest_fold_metrics",
+    "backtest_summary"
+  ],
+  "preview": null
+}

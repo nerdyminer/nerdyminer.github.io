@@ -1,4 +1,5 @@
 ---
+jupyter: nerdyminer
 title: "Una primera aproximación a los tensores"
 subtitle: "Del álgebra lineal al lenguaje tensorial del aprendizaje profundo"
 section_href: "/apuntes/tensores-y-variedades/"
@@ -704,7 +705,303 @@ $$
 
 El efecto de la transformación vía coordenadas polares sobre un conjunto de puntos del plano $(r, \theta)$ corresponde a la reorientación de dichos puntos conforme una grilla anular de distancias radiales en la dirección $\theta$ proyectadas desde el origen (llamado **polo** del sistema), con ecuaciones del tipo $\theta= \mathrm{constante}$, y círculos concéntricos centrados en el polo de radio $r= \mathrm{constante}$. Esto se ejemplifica en la @fig-square, donde podemos observar la transformación de un cuadrado de vértices $(1, 0.2)$, $(2, 0.2)$, $(1, 1.2)$ y $(2, 1.2)$ en el plano $(r, \theta)$ en un sector anular parecido a la sección de una "corona" proyectada desde el polo en el plano $(x, y)$.
 
-![Imagen de un cuadrado definido en el plano $(r, \theta)$ conforme la transformación en coordenadas polares $x=r\cos(\theta)\wedge r\sin(\theta)$. Notemos que, conforme dicha transformación, la imagen del cuadrado en coordenadas rectangulares corresponde a un segmento anular limitado por las curvas $r=\mathrm{constante}$ y $\theta = \mathrm{constante}$](images/fig_1_1.png){#fig-square fig-align="center" width="100%"}
+Las importaciones y utilidades que siguen se reutilizarán en las seis figuras interactivas del apunte. La función `show_plotly` carga la biblioteca gráfica una sola vez y desactiva expresamente la inclusión de MathJax por parte de Plotly, dejando que Quarto conserve el control exclusivo sobre el render de las ecuaciones.
+
+```{python}
+#| label: tensores-plotly-imports
+#| echo: false
+#| output: false
+
+import numpy as np
+import plotly.graph_objects as go
+import plotly.io as pio
+
+from IPython.display import HTML
+from plotly.subplots import make_subplots
+```
+
+```{python}
+#| label: tensores-plotly-helpers
+#| echo: false
+#| output: false
+
+PLOTLY_FONT = "Calibri, Arial, sans-serif"
+pio.templates.default = "plotly_white"
+_plotly_js_loaded = False
+
+
+def show_plotly(fig):
+    """Inserta Plotly sin permitir que reconfigure el MathJax de Quarto."""
+    global _plotly_js_loaded
+    include_plotlyjs = False if _plotly_js_loaded else "cdn"
+    html = fig.to_html(
+        full_html=False,
+        include_plotlyjs=include_plotlyjs,
+        include_mathjax=False,
+        config={
+            "responsive": True,
+            "displaylogo": False,
+            "scrollZoom": True,
+        },
+    )
+    _plotly_js_loaded = True
+    return HTML(html)
+
+
+def cylindrical_coordinates(r, theta, z):
+    """Transforma coordenadas cilíndricas en coordenadas rectangulares."""
+    return r * np.cos(theta), r * np.sin(theta), z
+
+
+def spherical_coordinates(rho, theta, phi):
+    """Transforma coordenadas esféricas en coordenadas rectangulares."""
+    x = rho * np.sin(theta) * np.cos(phi)
+    y = rho * np.sin(theta) * np.sin(phi)
+    z = rho * np.cos(theta)
+    return x, y, z
+
+
+def helix_frenet_frame(s, a=0.8, b=0.4):
+    """Evalúa una hélice parametrizada por arco y su triedro de Frenet."""
+    scale = np.sqrt(a**2 + b**2)
+    angle = s / scale
+    position = np.array(
+        [
+            a * np.cos(angle),
+            a * np.sin(angle),
+            b * s / scale,
+        ]
+    )
+    tangent = np.array(
+        [
+            -a * np.sin(angle) / scale,
+            a * np.cos(angle) / scale,
+            b * np.ones_like(angle) / scale,
+        ]
+    )
+    normal = np.array(
+        [
+            -np.cos(angle),
+            -np.sin(angle),
+            np.zeros_like(angle),
+        ]
+    )
+    binormal = np.array(
+        [
+            b * np.sin(angle) / scale,
+            -b * np.cos(angle) / scale,
+            a * np.ones_like(angle) / scale,
+        ]
+    )
+    return position, tangent, normal, binormal
+
+
+def append_polyline(target_x, target_y, target_z, x, y, z):
+    """Agrega una polilínea y un separador a un único trazo 3D."""
+    target_x.extend(np.asarray(x).tolist())
+    target_y.extend(np.asarray(y).tolist())
+    target_z.extend(np.asarray(z).tolist())
+    target_x.append(None)
+    target_y.append(None)
+    target_z.append(None)
+
+
+def transformed_box_wireframe(transform, bounds, grid_count=8, samples=48):
+    """Construye la malla de las seis caras de una caja paramétrica."""
+    target_x, target_y, target_z = [], [], []
+    grids = [np.linspace(low, high, grid_count) for low, high in bounds]
+
+    for varying_axis in range(3):
+        remaining_axes = [axis for axis in range(3) if axis != varying_axis]
+        varying_values = np.linspace(
+            bounds[varying_axis][0],
+            bounds[varying_axis][1],
+            samples,
+        )
+
+        for boundary_axis, grid_axis in (
+            (remaining_axes[0], remaining_axes[1]),
+            (remaining_axes[1], remaining_axes[0]),
+        ):
+            for boundary_value in bounds[boundary_axis]:
+                for grid_value in grids[grid_axis]:
+                    parameters = [
+                        np.full(samples, np.mean(axis_bounds))
+                        for axis_bounds in bounds
+                    ]
+                    parameters[varying_axis] = varying_values
+                    parameters[boundary_axis] = np.full(
+                        samples,
+                        boundary_value,
+                    )
+                    parameters[grid_axis] = np.full(samples, grid_value)
+                    x, y, z = transform(*parameters)
+                    append_polyline(
+                        target_x,
+                        target_y,
+                        target_z,
+                        x,
+                        y,
+                        z,
+                    )
+
+    return target_x, target_y, target_z
+
+
+def add_vector_3d(fig, origin, vector, color, name, scale=0.5):
+    """Añade un vector 3D mediante un eje y una punta cónica."""
+    endpoint = origin + scale * vector
+    fig.add_trace(
+        go.Scatter3d(
+            x=[origin[0], endpoint[0]],
+            y=[origin[1], endpoint[1]],
+            z=[origin[2], endpoint[2]],
+            mode="lines",
+            name=name,
+            line=dict(color=color, width=8),
+            hovertemplate=f"{name}<extra></extra>",
+        )
+    )
+    fig.add_trace(
+        go.Cone(
+            x=[endpoint[0]],
+            y=[endpoint[1]],
+            z=[endpoint[2]],
+            u=[vector[0]],
+            v=[vector[1]],
+            w=[vector[2]],
+            anchor="tip",
+            sizemode="absolute",
+            sizeref=0.16,
+            colorscale=[[0.0, color], [1.0, color]],
+            showscale=False,
+            showlegend=False,
+            hoverinfo="skip",
+        )
+    )
+```
+
+```{python}
+#| label: fig-square
+#| fig-cap: "Transformación interactiva de una región rectangular del espacio de parámetros polares en un sector anular del plano rectangular. Las fronteras r=constante se convierten en arcos y las fronteras θ=constante en segmentos radiales."
+#| echo: false
+
+# Recorremos ordenadamente la frontera del rectángulo paramétrico.
+r_min, r_max = 1.0, 2.0
+theta_min, theta_max = 0.2, 1.2
+edge_samples = 90
+
+r_boundary = np.concatenate(
+    [
+        np.full(edge_samples, r_min),
+        np.linspace(r_min, r_max, edge_samples),
+        np.full(edge_samples, r_max),
+        np.linspace(r_max, r_min, edge_samples),
+    ]
+)
+theta_boundary = np.concatenate(
+    [
+        np.linspace(theta_min, theta_max, edge_samples),
+        np.full(edge_samples, theta_max),
+        np.linspace(theta_max, theta_min, edge_samples),
+        np.full(edge_samples, theta_min),
+    ]
+)
+x_boundary = r_boundary * np.cos(theta_boundary)
+y_boundary = r_boundary * np.sin(theta_boundary)
+
+fig_polar_square = make_subplots(
+    rows=1,
+    cols=2,
+    horizontal_spacing=0.12,
+    subplot_titles=(
+        "Región rectangular en (r, θ)",
+        "Imagen bajo x=r cos(θ), y=r sin(θ)",
+    ),
+)
+
+fig_polar_square.add_trace(
+    go.Scatter(
+        x=r_boundary,
+        y=theta_boundary,
+        mode="lines",
+        fill="toself",
+        name="Región original",
+        line=dict(color="#b3261e", width=4),
+        fillcolor="rgba(179, 38, 30, 0.13)",
+        customdata=np.column_stack([r_boundary, theta_boundary]),
+        hovertemplate=(
+            "r=%{customdata[0]:.3f}<br>"
+            "θ=%{customdata[1]:.3f}<extra>Parámetros</extra>"
+        ),
+    ),
+    row=1,
+    col=1,
+)
+
+fig_polar_square.add_trace(
+    go.Scatter(
+        x=x_boundary,
+        y=y_boundary,
+        mode="lines",
+        fill="toself",
+        name="Sector anular",
+        line=dict(color="#b3261e", width=4),
+        fillcolor="rgba(179, 38, 30, 0.13)",
+        customdata=np.column_stack(
+            [r_boundary, theta_boundary, x_boundary, y_boundary]
+        ),
+        hovertemplate=(
+            "r=%{customdata[0]:.3f}<br>"
+            "θ=%{customdata[1]:.3f}<br>"
+            "x=%{customdata[2]:.3f}<br>"
+            "y=%{customdata[3]:.3f}<extra>Imagen</extra>"
+        ),
+    ),
+    row=1,
+    col=2,
+)
+
+fig_polar_square.update_xaxes(
+    title_text="r",
+    range=[0.9, 2.1],
+    row=1,
+    col=1,
+)
+fig_polar_square.update_yaxes(
+    title_text="θ",
+    range=[0.1, 1.3],
+    scaleanchor="x",
+    scaleratio=1,
+    row=1,
+    col=1,
+)
+fig_polar_square.update_xaxes(
+    title_text="x",
+    range=[-0.1, 2.1],
+    zeroline=True,
+    row=1,
+    col=2,
+)
+fig_polar_square.update_yaxes(
+    title_text="y",
+    range=[-0.1, 2.05],
+    scaleanchor="x2",
+    scaleratio=1,
+    zeroline=True,
+    row=1,
+    col=2,
+)
+fig_polar_square.update_layout(
+    title="De un cuadrado paramétrico a un sector anular",
+    height=560,
+    margin=dict(l=25, r=25, t=90, b=30),
+    font=dict(family=PLOTLY_FONT, size=13),
+    showlegend=False,
+)
+
+show_plotly(fig_polar_square)
+```
 
 Finalizaremos este ejercicio mostrando cómo definir un par de cartas y un atlas para el sistema polar. Recordemos que una carta es una representación local de un sistema de coordenadas arbitrario, donde "local" implica que sólo es representativo en un entorno "reducido" del mismo. Por lo tanto, siempre se necesitan al menos dos cartas para representar completamente dicho sistema, siendo su reunión un atlas del mismo. Las cartas, formalmente, son funciones que cumplen con varias restricciones y que introduciremos más adelante. Sin embargo, sí es de importancia saber que, incluso habiendo infinitas cartas que permitan describir localmente una vecindad de un sistema, siempre dispondremos de un número mínimo de ellas para obtener una descripción global del mismo. Esto es lo que llamamos un **atlas mínimo**. Este concepto es clave en el campo de la geometría diferencial.
 
@@ -837,7 +1134,87 @@ Los efectos de las transformaciones curvilíneas previamente descritas en figura
 
 En la @fig-cube se observan las transformaciones previamente descritas.
 
-![Imágenes de un "cubo" definido en los espacios $(r, \theta, z)$ y $(\rho, \theta, \phi)$, tal que su "arista" tiene una longitud igual a $1$ en cada uno de esos espacios, en un sistema de coordenadas rectangulares conforme las transformaciones cilíndrica y esférica $T_{c}$ y $T_{e}$. La imagen del "cubo", conforme $T_{c}$, es una porción de cilindro limitada por las "tapas" correspondientes, mientras que, conforme $T_{e}$, corresponde a una especie de "cáscara" o "casquete" esférico](images/fig_1_2.png){#fig-cube fig-align="center" width="100%"}
+```{python}
+#| label: fig-cube
+#| fig-cap: "Imágenes interactivas de cajas unitarias definidas en los espacios de parámetros cilíndrico y esférico. Las mallas muestran cómo las aristas rectas se convierten en familias de arcos, tapas y superficies coordenadas."
+#| echo: false
+
+# Definimos cajas de arista uno en ambos espacios de parámetros.
+cylindrical_bounds = ((1.0, 2.0), (0.2, 1.2), (0.0, 1.0))
+spherical_bounds = ((1.0, 2.0), (0.2, 1.2), (0.2, 1.2))
+
+x_cyl, y_cyl, z_cyl = transformed_box_wireframe(
+    cylindrical_coordinates,
+    cylindrical_bounds,
+)
+x_sph, y_sph, z_sph = transformed_box_wireframe(
+    spherical_coordinates,
+    spherical_bounds,
+)
+
+fig_transformed_cubes = make_subplots(
+    rows=1,
+    cols=2,
+    specs=[[{"type": "scene"}, {"type": "scene"}]],
+    horizontal_spacing=0.02,
+    subplot_titles=(
+        "Caja en (r, θ, z) transformada por T_c",
+        "Caja en (ρ, θ, φ) transformada por T_e",
+    ),
+)
+
+fig_transformed_cubes.add_trace(
+    go.Scatter3d(
+        x=x_cyl,
+        y=y_cyl,
+        z=z_cyl,
+        mode="lines",
+        name="Imagen cilíndrica",
+        line=dict(color="#b3261e", width=3),
+        hoverinfo="skip",
+    ),
+    row=1,
+    col=1,
+)
+fig_transformed_cubes.add_trace(
+    go.Scatter3d(
+        x=x_sph,
+        y=y_sph,
+        z=z_sph,
+        mode="lines",
+        name="Imagen esférica",
+        line=dict(color="#0b57a4", width=3),
+        hoverinfo="skip",
+    ),
+    row=1,
+    col=2,
+)
+
+scene_style = dict(
+    aspectmode="data",
+    xaxis_title="x",
+    yaxis_title="y",
+    zaxis_title="z",
+    camera=dict(eye=dict(x=1.45, y=1.45, z=1.1)),
+)
+fig_transformed_cubes.update_layout(
+    title="Transformación de cajas paramétricas en coordenadas curvilíneas",
+    height=640,
+    margin=dict(l=0, r=0, t=90, b=15),
+    font=dict(family=PLOTLY_FONT, size=13),
+    scene=scene_style,
+    scene2=scene_style,
+    legend=dict(
+        orientation="h",
+        x=0.5,
+        xanchor="center",
+        y=0.02,
+        yanchor="bottom",
+    ),
+)
+
+show_plotly(fig_transformed_cubes)
+```
 
 **Ejemplo 1.9 – Atlas mínimo diferenciable en base a coordenadas cilìndricas y esféricas:** Como en el caso del sistema de coordenadas polares, los sistemas de coordenadas cilíndrico y esférico también son el resultado de transformaciones curvilíneas que permiten describir todo el espacio (en este caso, $\mathbb{R}^{3}$). De la misma forma, debido a que ambos sistemas presentan singularidades geométricas que generan indeterminaciones de ciertas coordenadas en algunos dominios, no es posible utilizar una única función conforme las transformaciones curvilíneas $T_{c}$ ó $T_{e}$ que, de manera efectiva, describa todo el espacio $\mathbb{R}^{3}$. Tiene sentido pues, para estas transformaciones, el uso de cartas locales cuya reunión nos permita conseguir esa descripción global.
 
@@ -852,7 +1229,156 @@ Partamos por el sistema de coordenadas cilíndricas, descrito por $T_{c}$. Dicho
 
 Por lo tanto, necesitamos al menos dos cartas para cubrir todo el espacio, con excepción del eje $z$, una por cada "corte" angular, las cuales se basarán en la transformación curvilínea $T_{c}$. También necesitamos una carta para describir los puntos en un entorno alineado al eje $z$, usando en este caso el sistema de coordenadas rectangulares. Esta es la misma estrategia que usamos para mapear el espacio próximo al polo al trabajar el atlas diferencial mínimo para el sistema de coordenadas polares.
 
-![Representación del sistema de coordenadas cilíndricas en el espacio $\mathbb{R}^{3}$. El sistema presenta singularidades geométricas que impiden usar una única carta para generar todo punto del espacio, lo que hace de este sistema un ejemplo paradigmático que motiva la construcción de un atlas](images/fig_1_3.png){#fig-cylinder fig-align="center" width="80%"}
+```{python}
+#| label: fig-cylinder
+#| fig-cap: "Superficies coordenadas del sistema cilíndrico. Un valor fijo de r produce un cilindro, un valor fijo de θ produce un semiplano vertical y un valor fijo de z produce un plano horizontal."
+#| echo: false
+
+r_fixed = 1.25
+theta_fixed = 0.78
+z_fixed = 0.25
+
+# Superficie r=constante.
+theta_surface = np.linspace(0.0, 2.0 * np.pi, 100)
+z_surface = np.linspace(-1.35, 1.35, 45)
+theta_grid, z_grid = np.meshgrid(theta_surface, z_surface)
+x_r, y_r, z_r = cylindrical_coordinates(
+    r_fixed,
+    theta_grid,
+    z_grid,
+)
+
+# Superficie θ=constante.
+r_surface = np.linspace(0.0, 2.0, 50)
+z_plane = np.linspace(-1.35, 1.35, 45)
+r_grid, z_theta_grid = np.meshgrid(r_surface, z_plane)
+x_theta, y_theta, z_theta = cylindrical_coordinates(
+    r_grid,
+    theta_fixed,
+    z_theta_grid,
+)
+
+# Superficie z=constante.
+x_plane_values = np.linspace(-2.0, 2.0, 45)
+y_plane_values = np.linspace(-2.0, 2.0, 45)
+x_z, y_z = np.meshgrid(x_plane_values, y_plane_values)
+z_z = np.full_like(x_z, z_fixed)
+
+# Punto representativo P=(r,θ,z).
+r_point, theta_point, z_point = 1.6, theta_fixed, 0.72
+x_point, y_point, z_point_cartesian = cylindrical_coordinates(
+    r_point,
+    theta_point,
+    z_point,
+)
+
+fig_cylindrical_system = go.Figure()
+fig_cylindrical_system.add_trace(
+    go.Surface(
+        x=x_r,
+        y=y_r,
+        z=z_r,
+        surfacecolor=np.zeros_like(x_r),
+        colorscale=[[0.0, "#c45a3c"], [1.0, "#c45a3c"]],
+        opacity=0.36,
+        showscale=False,
+        name="r constante",
+        showlegend=True,
+        hovertemplate="r=1.25<extra>Superficie cilíndrica</extra>",
+    )
+)
+fig_cylindrical_system.add_trace(
+    go.Surface(
+        x=x_theta,
+        y=y_theta,
+        z=z_theta,
+        surfacecolor=np.zeros_like(x_theta),
+        colorscale=[[0.0, "#2e8b57"], [1.0, "#2e8b57"]],
+        opacity=0.34,
+        showscale=False,
+        name="θ constante",
+        showlegend=True,
+        hovertemplate="θ=0.78<extra>Semiplano vertical</extra>",
+    )
+)
+fig_cylindrical_system.add_trace(
+    go.Surface(
+        x=x_z,
+        y=y_z,
+        z=z_z,
+        surfacecolor=np.zeros_like(x_z),
+        colorscale=[[0.0, "#3178a8"], [1.0, "#3178a8"]],
+        opacity=0.22,
+        showscale=False,
+        name="z constante",
+        showlegend=True,
+        hovertemplate="z=0.25<extra>Plano horizontal</extra>",
+    )
+)
+fig_cylindrical_system.add_trace(
+    go.Scatter3d(
+        x=[0.0, 0.0],
+        y=[0.0, 0.0],
+        z=[-1.55, 1.55],
+        mode="lines",
+        name="Eje z: r=0",
+        line=dict(color="#202124", width=6),
+        hoverinfo="skip",
+    )
+)
+fig_cylindrical_system.add_trace(
+    go.Scatter3d(
+        x=[0.0, x_point],
+        y=[0.0, y_point],
+        z=[z_point, z_point],
+        mode="lines",
+        name="Dirección radial",
+        line=dict(color="#5f6368", width=4, dash="dash"),
+        hoverinfo="skip",
+    )
+)
+fig_cylindrical_system.add_trace(
+    go.Scatter3d(
+        x=[x_point],
+        y=[y_point],
+        z=[z_point_cartesian],
+        mode="markers+text",
+        name="P=(r,θ,z)",
+        marker=dict(color="#0b57a4", size=7),
+        text=["P=(r, θ, z)"],
+        textposition="top center",
+        customdata=[[r_point, theta_point, z_point]],
+        hovertemplate=(
+            "r=%{customdata[0]:.2f}<br>"
+            "θ=%{customdata[1]:.2f}<br>"
+            "z=%{customdata[2]:.2f}<extra>P</extra>"
+        ),
+    )
+)
+
+fig_cylindrical_system.update_layout(
+    title="Sistema cilíndrico y sus superficies coordenadas",
+    height=680,
+    margin=dict(l=0, r=0, t=75, b=0),
+    font=dict(family=PLOTLY_FONT, size=13),
+    scene=dict(
+        aspectmode="data",
+        xaxis_title="x",
+        yaxis_title="y",
+        zaxis_title="z",
+        camera=dict(eye=dict(x=1.55, y=1.45, z=1.05)),
+    ),
+    legend=dict(
+        orientation="h",
+        x=0.5,
+        xanchor="center",
+        y=1.0,
+        yanchor="bottom",
+    ),
+)
+
+show_plotly(fig_cylindrical_system)
+```
 
 **Entorno "tubular" del eje $z$:** Para cubrir el eje $z$ del espacio $\mathbb{R}^{3}$ (donde $r=0$), definimos el conjunto abierto $U_{0}=\{ \left( x,y,z \right) \in \mathbb{R}^{3} :\  x^{2}+y^{2}<1\}$. Este conjunto contiene a todo el eje $z$ y un entorno de tipo "tubular" centrado en dicho eje, con un radio igual a $1$. La elección de ese radio es arbitraria y, en general, suele bastar con definir un valor $\epsilon$ lo suficientemente pequeño para que, en dicho entorno, usemos coordenadas cartesianas para referenciar cualquier punto de $\mathbb{R}^{3}$ dentro del "tubo". Construimos pues la función $\varphi_{0} :U_{0}\longrightarrow \mathbb{R}^{3}$, definida explícitamente como $\varphi_{0}(x,y,z)=(x,y,z)$. El par $(U_{0},\varphi_{0})$, en efecto, constituye una carta válida para describir todo punto en el entorno "próximo" al eje $z$ (a un radio de $1$ unidad) en el espacio.
 
@@ -963,7 +1489,174 @@ Continuamos ahora con el sistema de coordenadas esféricas, descrito por $T_{e}$
 - Existen **polos angulares** en el sistema: Cuando $\theta =0\vee \theta =\pi$, se tiene que $\sin(\theta)=0$ y, por lo tanto, $x=y=0$. En estos puntos, la coordenada $\phi$ no está definida.
 - Existe un **polo absoluto** en el sistema: Cuando $\rho=0$, las coordenadas angulares $\theta$ y $\phi$ no están definidas.
 
-![Representación del sistema de coordenadas esféricas en el espacio $\mathbb{R}^{3}$. Este sistema también presenta singularidades geométricas que impiden usar una única carta para generar todo punto del espacio](images/fig_1_4.png){#fig-spherical fig-align="center" width="80%"}
+```{python}
+#| label: fig-spherical
+#| fig-cap: "Superficies coordenadas del sistema esférico. Un valor fijo de ρ produce una esfera, un valor fijo de θ produce un cono y un valor fijo de φ produce un semiplano que contiene al eje z."
+#| echo: false
+
+rho_fixed = 1.5
+theta_fixed_spherical = 0.82
+phi_fixed = 0.9
+
+# Superficie ρ=constante.
+theta_values = np.linspace(0.0, np.pi, 70)
+phi_values = np.linspace(0.0, 2.0 * np.pi, 100)
+theta_sphere_grid, phi_sphere_grid = np.meshgrid(
+    theta_values,
+    phi_values,
+)
+x_rho, y_rho, z_rho = spherical_coordinates(
+    rho_fixed,
+    theta_sphere_grid,
+    phi_sphere_grid,
+)
+
+# Superficie θ=constante.
+rho_values = np.linspace(0.0, 2.0, 60)
+phi_cone_values = np.linspace(0.0, 2.0 * np.pi, 100)
+rho_cone_grid, phi_cone_grid = np.meshgrid(
+    rho_values,
+    phi_cone_values,
+)
+x_cone, y_cone, z_cone = spherical_coordinates(
+    rho_cone_grid,
+    theta_fixed_spherical,
+    phi_cone_grid,
+)
+
+# Superficie φ=constante.
+radial_plane_values = np.linspace(0.0, 2.1, 45)
+z_plane_values = np.linspace(-2.0, 2.0, 50)
+radial_phi_grid, z_phi_grid = np.meshgrid(
+    radial_plane_values,
+    z_plane_values,
+)
+x_phi = radial_phi_grid * np.cos(phi_fixed)
+y_phi = radial_phi_grid * np.sin(phi_fixed)
+
+# Punto representativo P=(ρ,θ,φ).
+rho_point = 1.65
+theta_point_spherical = theta_fixed_spherical
+phi_point = phi_fixed
+x_spherical_point, y_spherical_point, z_spherical_point = (
+    spherical_coordinates(
+        rho_point,
+        theta_point_spherical,
+        phi_point,
+    )
+)
+
+fig_spherical_system = go.Figure()
+fig_spherical_system.add_trace(
+    go.Surface(
+        x=x_rho,
+        y=y_rho,
+        z=z_rho,
+        surfacecolor=theta_sphere_grid,
+        colorscale="Blues",
+        opacity=0.28,
+        showscale=False,
+        name="ρ constante",
+        showlegend=True,
+        hovertemplate="ρ=1.50<extra>Esfera</extra>",
+    )
+)
+fig_spherical_system.add_trace(
+    go.Surface(
+        x=x_cone,
+        y=y_cone,
+        z=z_cone,
+        surfacecolor=np.zeros_like(x_cone),
+        colorscale=[[0.0, "#c45a3c"], [1.0, "#c45a3c"]],
+        opacity=0.30,
+        showscale=False,
+        name="θ constante",
+        showlegend=True,
+        hovertemplate="θ=0.82<extra>Cono</extra>",
+    )
+)
+fig_spherical_system.add_trace(
+    go.Surface(
+        x=x_phi,
+        y=y_phi,
+        z=z_phi_grid,
+        surfacecolor=np.zeros_like(x_phi),
+        colorscale=[[0.0, "#2e8b57"], [1.0, "#2e8b57"]],
+        opacity=0.30,
+        showscale=False,
+        name="φ constante",
+        showlegend=True,
+        hovertemplate="φ=0.90<extra>Semiplano</extra>",
+    )
+)
+fig_spherical_system.add_trace(
+    go.Scatter3d(
+        x=[0.0, 0.0],
+        y=[0.0, 0.0],
+        z=[-2.1, 2.1],
+        mode="lines",
+        name="Eje z",
+        line=dict(color="#202124", width=6),
+        hoverinfo="skip",
+    )
+)
+fig_spherical_system.add_trace(
+    go.Scatter3d(
+        x=[0.0, x_spherical_point],
+        y=[0.0, y_spherical_point],
+        z=[0.0, z_spherical_point],
+        mode="lines",
+        name="Vector radial ρ",
+        line=dict(color="#0b57a4", width=7),
+        hoverinfo="skip",
+    )
+)
+fig_spherical_system.add_trace(
+    go.Scatter3d(
+        x=[x_spherical_point],
+        y=[y_spherical_point],
+        z=[z_spherical_point],
+        mode="markers+text",
+        name="P=(ρ,θ,φ)",
+        marker=dict(color="#0b57a4", size=7),
+        text=["P=(ρ, θ, φ)"],
+        textposition="top center",
+        customdata=[[
+            rho_point,
+            theta_point_spherical,
+            phi_point,
+        ]],
+        hovertemplate=(
+            "ρ=%{customdata[0]:.2f}<br>"
+            "θ=%{customdata[1]:.2f}<br>"
+            "φ=%{customdata[2]:.2f}<extra>P</extra>"
+        ),
+    )
+)
+
+fig_spherical_system.update_layout(
+    title="Sistema esférico y sus superficies coordenadas",
+    height=700,
+    margin=dict(l=0, r=0, t=75, b=0),
+    font=dict(family=PLOTLY_FONT, size=13),
+    scene=dict(
+        aspectmode="data",
+        xaxis_title="x",
+        yaxis_title="y",
+        zaxis_title="z",
+        camera=dict(eye=dict(x=1.5, y=1.45, z=1.1)),
+    ),
+    legend=dict(
+        orientation="h",
+        x=0.5,
+        xanchor="center",
+        y=1.0,
+        yanchor="bottom",
+    ),
+)
+
+show_plotly(fig_spherical_system)
+```
 
 Nuestra estrategia para construir un atlas mínimo a partir del sistema esférico será análoga a la utilizada en el caso cilíndrico. Describiremos cartas para cubrir en un entorno tubular eje $z$ para evitar las indeterminaciones en los polos, y dos cartas azimutales separadas por rayos o "cortes" en el espacio a fin de evitar ambigüedades debido a la periodicidad de la coordenada $\phi$.
 
@@ -1065,7 +1758,113 @@ La función $\tau(s)$ es llamada **torsión** de la curva en $s$.
 
 Notemos que, si $\kappa(s)$ se anula en algún punto, entonces la representación móvil conforme el triedro de Frenet-Serret falla en constituir un atlas (o representación global) para representar todo el espacio a partir de la curva $C$, porque la normal principal de la $C$ descrita por $\mathbf{r}$ deja de ser única. Esta es una singularidad geométrica que debemos abordar si deseamos construir un atlas para describir todo el espacio $\mathbb{R}^{3}$ a partir de una representación de este tipo.
 
-![Representación del sistema de coordenadas móvil a partir del triedro de Frenet-Serret sobre una trayectoria $\mathbf{r}$ parametrizada por longitud de arco que recorre una curva $C$ que "vive" en $\mathbb{R}^{3}$. En la imagen, se mapean dos puntos distintos sobre $C$ y se observa el movimiento del triedro en ambos casos](images/fig_1_5.png){#fig-frenet fig-align="center" width="80%"}
+```{python}
+#| label: fig-frenet
+#| fig-cap: "Triedros de Frenet–Serret evaluados en dos puntos de una hélice parametrizada por longitud de arco. Los vectores tangente, normal y binormal cambian de orientación mientras conservan su ortonormalidad."
+#| echo: false
+
+a_helix, b_helix = 0.8, 0.4
+helix_scale = np.sqrt(a_helix**2 + b_helix**2)
+s_end = 4.2 * np.pi * helix_scale
+s_curve = np.linspace(0.0, s_end, 420)
+position_curve, _, _, _ = helix_frenet_frame(
+    s_curve,
+    a=a_helix,
+    b=b_helix,
+)
+
+s_locations = [0.28 * s_end, 0.72 * s_end]
+frame_colors = {
+    "T": "#7b1fa2",
+    "N": "#188038",
+    "B": "#c04412",
+}
+
+fig_frenet_frame = go.Figure()
+fig_frenet_frame.add_trace(
+    go.Scatter3d(
+        x=position_curve[0],
+        y=position_curve[1],
+        z=position_curve[2],
+        mode="lines",
+        name="Curva C",
+        line=dict(color="#0b6eaa", width=7),
+        customdata=s_curve,
+        hovertemplate="s=%{customdata:.3f}<extra>Hélice C</extra>",
+    )
+)
+
+for index, s_location in enumerate(s_locations, start=1):
+    point, tangent, normal, binormal = helix_frenet_frame(
+        s_location,
+        a=a_helix,
+        b=b_helix,
+    )
+    fig_frenet_frame.add_trace(
+        go.Scatter3d(
+            x=[point[0]],
+            y=[point[1]],
+            z=[point[2]],
+            mode="markers+text",
+            name=f"x_{index}=r(s_{index})",
+            marker=dict(color="#0b57a4", size=7),
+            text=[f"x{index}=r(s{index})"],
+            textposition="bottom center",
+            hovertemplate=(
+                f"s{index}={s_location:.3f}<br>"
+                "x=%{x:.3f}<br>y=%{y:.3f}<br>z=%{z:.3f}"
+                f"<extra>x{index}</extra>"
+            ),
+        )
+    )
+    add_vector_3d(
+        fig_frenet_frame,
+        point,
+        tangent,
+        frame_colors["T"],
+        f"T(s{index})",
+        scale=0.62,
+    )
+    add_vector_3d(
+        fig_frenet_frame,
+        point,
+        normal,
+        frame_colors["N"],
+        f"N(s{index})",
+        scale=0.62,
+    )
+    add_vector_3d(
+        fig_frenet_frame,
+        point,
+        binormal,
+        frame_colors["B"],
+        f"B(s{index})",
+        scale=0.62,
+    )
+
+fig_frenet_frame.update_layout(
+    title="Movimiento del triedro de Frenet–Serret sobre una hélice",
+    height=700,
+    margin=dict(l=0, r=0, t=75, b=0),
+    font=dict(family=PLOTLY_FONT, size=13),
+    scene=dict(
+        aspectmode="data",
+        xaxis_title="x",
+        yaxis_title="y",
+        zaxis_title="z",
+        camera=dict(eye=dict(x=1.45, y=1.5, z=1.0)),
+    ),
+    legend=dict(
+        orientation="h",
+        x=0.5,
+        xanchor="center",
+        y=1.0,
+        yanchor="bottom",
+    ),
+)
+
+show_plotly(fig_frenet_frame)
+```
 
 Ahora procedemos con la construcción de la transformación curvilínea que describe este sistema móvil de coordenadas. Geométricamente, queremos que dicha transformación represente una especie de entorno "tubular" usando a la curva $C$ como eje central, a fin de describir los puntos cercanos a la misma haciendo uso del triedro de Frenet-Serret y las correspondientes funciones de curvatura y torsión. Sea pues $\mathbf{r}:[a,b]\longrightarrow \mathbb{R}$ una función que describe la trayectoria a lo largo de $C$ parametrizada por su longitud de arco $s$. Para cada punto $\mathbf{x}=\mathbf{r}(s)$ de $C$, cada vector del triedro es normal a un plano que contiene a los otros dos. En particular, el plano normal a $\mathbf{T}(s)$ está generado por los vectores $\mathbf{N}(s)$ y $\mathbf{B}(s)$. Dado un par $(u,v)\in \mathbb{R}^{2}$, interpretamos la expresión $u\mathbf{N} \left( s \right) +v\mathbf{B} \left( s \right)$ como un **desplazamiento** en el plano normal a $s$. De esta manera, un punto en el entorno "tubular" de la curva $C$ puede describirse por medio de una función $T_{m}:\Omega \subset \mathbb{R}^{3} \longrightarrow \mathbb{R}^{3}$, definida explícitamente como
 
@@ -1243,7 +2042,160 @@ $$
 
 En la @fig-curvy mostramos el gráfico de la hélice circular (representada por medio de una curva negra segmentada) y el correspondiente tubo helicoidal resultante de aplicar los puntos en el espacio de parámetros $(s,u,v)$ hacia $\mathbb{R}^{3}$ por medio de la transformación móvil $T_{m}$. En este caso, definimos los parámetros $a=0.8$ y $b=0.4$, construyendo un tubo de radio $1$ respecto de la hélice. Esta es la misma idea que hemos mostrado en @fig-square y @fig-cube, donde proyectamos un "cubo" en el espacio original transformado por medio de la aplicación $T_{m}$.
 
-![Imagen de un "cubo" transformado por medio de $T_{m}$ desde el espacio de parámetros $(s,u,v)$ a $\mathbb{R}^{3}$. Notemos que dicha imagen, en efecto, constituye un tubo helicoidal centrado en la hélice que hemos trabajado en este ejercicio, en la cual $a=0.8$ y $b=0.4$](images/fig_1_6.png){#fig-curvy fig-align="center" width="70%"}
+```{python}
+#| label: fig-curvy
+#| fig-cap: "Tubo helicoidal de radio 1 inducido por la transformación móvil Tₘ. La línea negra segmentada es la hélice central; las circunferencias y líneas de la malla son imágenes de curvas coordenadas del espacio de parámetros (s,u,v)."
+#| echo: false
+
+a_tube, b_tube = 0.8, 0.4
+tube_radius = 1.0
+helix_turns = 4.25
+helix_scale = np.sqrt(a_tube**2 + b_tube**2)
+s_tube = np.linspace(
+    0.0,
+    helix_turns * 2.0 * np.pi * helix_scale,
+    220,
+)
+psi_tube = np.linspace(0.0, 2.0 * np.pi, 72)
+s_grid, psi_grid = np.meshgrid(s_tube, psi_tube)
+
+center_grid, _, normal_grid, binormal_grid = helix_frenet_frame(
+    s_grid,
+    a=a_tube,
+    b=b_tube,
+)
+
+x_tube = (
+    center_grid[0]
+    + tube_radius * np.cos(psi_grid) * normal_grid[0]
+    + tube_radius * np.sin(psi_grid) * binormal_grid[0]
+)
+y_tube = (
+    center_grid[1]
+    + tube_radius * np.cos(psi_grid) * normal_grid[1]
+    + tube_radius * np.sin(psi_grid) * binormal_grid[1]
+)
+z_tube = (
+    center_grid[2]
+    + tube_radius * np.cos(psi_grid) * normal_grid[2]
+    + tube_radius * np.sin(psi_grid) * binormal_grid[2]
+)
+
+centerline, _, _, _ = helix_frenet_frame(
+    s_tube,
+    a=a_tube,
+    b=b_tube,
+)
+
+fig_helical_tube = go.Figure()
+fig_helical_tube.add_trace(
+    go.Surface(
+        x=x_tube,
+        y=y_tube,
+        z=z_tube,
+        surfacecolor=s_grid,
+        colorscale="Viridis",
+        opacity=0.72,
+        showscale=False,
+        name="Tubo helicoidal",
+        showlegend=True,
+        hovertemplate=(
+            "Tₘ(s,u,v)"
+            "<br>x=%{x:.2f}"
+            "<br>y=%{y:.2f}"
+            "<br>z=%{z:.2f}"
+            "<extra></extra>"
+        ),
+    )
+)
+
+# Añadimos dos familias de curvas coordenadas para hacer visible la
+# deformación de la grilla paramétrica sobre el tubo.
+grid_x, grid_y, grid_z = [], [], []
+for section_index in np.linspace(
+    0,
+    len(s_tube) - 1,
+    18,
+    dtype=int,
+):
+    append_polyline(
+        grid_x,
+        grid_y,
+        grid_z,
+        x_tube[:, section_index],
+        y_tube[:, section_index],
+        z_tube[:, section_index],
+    )
+
+for angle_index in np.linspace(
+    0,
+    len(psi_tube) - 1,
+    12,
+    dtype=int,
+):
+    append_polyline(
+        grid_x,
+        grid_y,
+        grid_z,
+        x_tube[angle_index, :],
+        y_tube[angle_index, :],
+        z_tube[angle_index, :],
+    )
+
+fig_helical_tube.add_trace(
+    go.Scatter3d(
+        x=grid_x,
+        y=grid_y,
+        z=grid_z,
+        mode="lines",
+        name="Curvas coordenadas",
+        line=dict(color="rgba(25, 46, 65, 0.52)", width=2),
+        hoverinfo="skip",
+    )
+)
+fig_helical_tube.add_trace(
+    go.Scatter3d(
+        x=centerline[0],
+        y=centerline[1],
+        z=centerline[2],
+        mode="lines",
+        name="Hélice central",
+        line=dict(color="#111827", width=7, dash="dash"),
+        customdata=s_tube,
+        hovertemplate=(
+            "r(s)"
+            "<br>s=%{customdata:.2f}"
+            "<br>x=%{x:.2f}"
+            "<br>y=%{y:.2f}"
+            "<br>z=%{z:.2f}"
+            "<extra></extra>"
+        ),
+    )
+)
+
+fig_helical_tube.update_layout(
+    title="Transformación móvil de un disco a lo largo de una hélice",
+    height=730,
+    margin=dict(l=0, r=0, t=75, b=0),
+    font=dict(family=PLOTLY_FONT, size=13),
+    scene=dict(
+        aspectmode="data",
+        xaxis_title="x",
+        yaxis_title="y",
+        zaxis_title="z",
+        camera=dict(eye=dict(x=1.45, y=1.55, z=0.9)),
+    ),
+    legend=dict(
+        orientation="h",
+        x=0.5,
+        xanchor="center",
+        y=1.0,
+        yanchor="bottom",
+    ),
+)
+
+show_plotly(fig_helical_tube)
+```
 
 ◼︎
 

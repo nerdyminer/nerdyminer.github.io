@@ -1,0 +1,20 @@
+{
+  "code": "def plot_bridge_chart(bridge_summary: pd.DataFrame, reporting: dict):\n    \"\"\"\n    Genera la vista estática principal del bridge para el período completo.\n\n    Parámetros:\n    -------------\n    bridge_summary : componentes mensuales y totales producidos para reporting.\n    reporting : configuración que contiene el título del gráfico.\n\n    Retorna:\n    ---------\n    matplotlib.figure.Figure : figura estática del gráfico de cascada.\n    \"\"\"\n    bridge = bridge_summary.loc[bridge_summary[\"period\"].eq(\"TOTAL\")].sort_values(\"order\")\n    bottoms, heights, endpoints = _waterfall_geometry(bridge)\n    colors = {\n        \"base\": \"#315B66\",\n        \"mine\": \"#C69C3C\",\n        \"plant\": \"#2B8C87\",\n        \"model\": \"#55717A\",\n        \"operation\": \"#C44E52\",\n        \"actual\": \"#202124\",\n    }\n    x = np.arange(len(bridge))\n    fig, ax = plt.subplots(figsize=(16, 7))\n    bars = ax.bar(\n        x,\n        heights,\n        bottom=bottoms,\n        color=[colors[family] for family in bridge[\"family\"]],\n        edgecolor=\"white\",\n        linewidth=0.8,\n        width=0.76,\n    )\n    endpoint_min, endpoint_max = min(endpoints), max(endpoints)\n    local_span = max(100.0, endpoint_max - endpoint_min)\n    offset = max(8.0, local_span * 0.045)\n    for bar, endpoint, row in zip(bars, endpoints, bridge.itertuples(index=False), strict=True):\n        label = f\"{row.value_tph:+,.0f}\" if row.kind == \"delta\" else f\"{row.value_tph:,.0f}\"\n        ax.text(\n            bar.get_x() + bar.get_width() / 2,\n            endpoint + offset,\n            label,\n            ha=\"center\",\n            va=\"bottom\",\n            fontsize=9,\n            fontweight=\"bold\",\n        )\n    ax.set_xticks(x)\n    ax.set_xticklabels(bridge[\"label\"], rotation=28, ha=\"right\")\n    ax.set_ylabel(\"Rendimiento promedio (tph)\")\n    ax.set_ylim(endpoint_min - 0.20 * local_span, endpoint_max + 0.28 * local_span)\n    fig.suptitle(reporting[\"title\"], x=0.065, y=0.98, ha=\"left\", fontsize=17, fontweight=\"bold\")\n    fig.text(\n        0.065,\n        0.93,\n        \"Caso ex post · ventana móvil de 12 meses · valores medios del período evaluado\",\n        color=\"#5F6B72\",\n        fontsize=10,\n    )\n    ax.grid(axis=\"y\", linestyle=\"--\", alpha=0.25)\n    ax.spines[[\"top\", \"right\"]].set_visible(False)\n    fig.tight_layout(rect=(0, 0, 1, 0.90))\n    return fig\n",
+  "filepath": "bayesian-tph-forecasting/src/bayesian_tph_forecasting/pipelines/reporting/nodes.py",
+  "parameters": {
+    "reporting": {
+      "bridge_period": "2035",
+      "credible_probability": 0.9,
+      "title": "Descomposición contextual del rendimiento observado"
+    }
+  },
+  "run_command": "kedro run --to-nodes='reporting.render_static_bridge_chart'",
+  "inputs": [
+    "bridge_summary",
+    "params:reporting"
+  ],
+  "outputs": [
+    "bridge_chart"
+  ],
+  "preview": null
+}

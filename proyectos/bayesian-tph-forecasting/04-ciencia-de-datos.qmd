@@ -1,0 +1,205 @@
+---
+title: "4. Ciencia de datos"
+description: "Composiciones, firmas geológicas, no linealidad y contrato diario sin fuga temporal."
+toc: true
+toc-depth: 3
+---
+
+[← Volver al proyecto](index.qmd)
+
+## La representación es parte del modelo
+
+Y llegamos a mi pipeline favorita: Ciencia de datos. Su objetivo es transformar la evidencia de soporte en un contrato diario que pueda alimentar nuestro modelo de inferencia Bayesiana. La pipeline de ciencia de datos no es un modelo en sí mismo, sino una capa de preprocesamiento que prepara los datos para la inferencia. Esta separación permite que la especificación probabilística permanezca intacta mientras se experimenta con diferentes representaciones de los datos.
+
+Por cierto... es mi capa favorita porque es mi nicho como practicante de ciencia de datos. Me gusta explorar patrones, probar transformaciones y construir artefactos que capturen la esencia de los datos. En este proyecto, la pipeline de ciencia de datos es donde se realiza la magia de transformar las composiciones geológicas en firmas recurrentes y ensamblar un contrato diario que pueda alimentar el modelo Bayesiano. Es, por lejos, la pipeline más *nerd* del proyecto.
+
+Y bueno, queremos maximizar tratamiento. Pero antes necesitamos realizar dos trabajos de alto nivel:
+
+- Dadas las composiciones geológicas del mix de mineral que alimenta la planta, aprender cuáles son las firmas geológicas que describen esas mezclas de manera recurrente.
+- Ensamblar una matriz diaria que incluya la variable de respuesta, las variables contextuales y las evidencias de soporte en cada registro.
+
+La separación de esta capa de la correspondiente al proceso de inferencia Bayesiana permite *meter nuestras manos* en la representación y transformación de los datos sin tocar la especificación probabilística. Por ejemplo, podemos reemplazar el algoritmo con el cual construiremos las firmas geológicas, introducir transformaciones logarítmicas sobre las composiciones o cambiar el criterio de elegibilidad de las variables contextuales sin afectar la capa inferencial. Esta separación de responsabilidades es clave para mantener la flexibilidad y la capacidad de experimentar con diferentes representaciones de los datos sin comprometer la integridad del modelo.
+
+## El problema geométrico inherente a las composiciones
+
+Tanto la litología como la calidad, procedencia del mineral y dureza in-situ son variables composicionales. Cada día, la planta recibe un mix de mineral que puede describirse como una composición de minerales descritos por estas características. Por ejemplo, un día podría recibir 40% de litología A, 30% de litología B y 30% de litología C. Estas proporciones suman 100%, lo que significa que si una categoría aumenta, al menos otra debe disminuir. Esta característica introduce dependencia lineal perfecta entre las variables composicionales.
+
+Matemáticamente, podemos representar una composición como un vector de proporciones $\mathbf p_d$ para un día $d$, donde cada componente $p_{dk}$ representa la proporción de la categoría $k$ en el mix de mineral (de un total de $p$ alternativas). La suma de todas las proporciones debe ser igual a 1:
+
+$$
+\mathbf p_d=(p_{d1},\ldots,p_{dp})\quad; \quad p_{dk}\ge0 \quad; \quad \sum_{k=1}^{p}p_{dk}=1.
+$$
+
+Por definición, los puntos que derivan de la composición no ocupan libremente el espacio $\mathbb{R}^{p}$, sino un "símplex" de dimensión $p-1$ (donde $p$ es el número de categorías). Esto significa que si una categoría aumenta, al menos otra debe disminuir para mantener la suma constante. Esta dependencia lineal perfecta puede causar problemas en modelos lineales, ya que una columna puede reconstruirse a partir de las demás. En palabras simples, su inclusión introduce redundancia por efecto de esta multicolinealidad perfecta.
+
+Para evitar este problema, es posible omitir una categoría al usarla como referencia. Esto permite que los coeficientes de las demás categorías se interpreten como contrastes respecto a la categoría omitida, evitando la dependencia lineal perfecta y permitiendo una interpretación más clara de los efectos de cada categoría en el modelo. Esto, además, introduce un efecto jerárquico en el modelo.
+
+Para las procedencias de mineral y la dureza in-situ seguiremos este procedimiento al pie de la letra. De esta manera, en cada *pliegue* de validación cruzada:
+
+- La referencia espacial es la fuente de mineral con mayor participación media en el conjunto de entrenamiento.
+- La referencia de dureza in-situ es la categoría `medium`, cuando ésta existe.
+- Por extensión, la categoría de dureza definida como `unmatched` se excluye de los efectos de dureza.
+- Para evitar la *sobre-parametrización*, las categorías con participación media inferior a 0.5% en el soporte no serán incluidas en el modelo.
+
+A pesar de lo que parece, la categoría omitida no es "invisible" para el modelo ni tampoco ve mermada su participación "física" en el mismo. **Su efecto se refleja en el parámetro de sesgo del modelo** (o coeficiente de intercepción), que captura la contribución de la categoría omitida al resultado. Por lo tanto, aunque no se incluya explícitamente en el modelo, su influencia sigue presente y puede interpretarse a través del sesgo y los coeficientes de las demás categorías, describiendo una especie de "punto de partida" o condición base.
+
+Esta estrategia es muy simple, identificable y conveniente para una representación explicativa de tipo *cascada*. No es la única posible. Una representación composicional más rigurosa puede usar otras transformaciones de naturaleza aditiva, centrada o logarítmica. Una opción popular de la última es, para el día $d$ y la categoría de referencia $k$:
+
+$$
+\operatorname{alr}_{k}(\mathbf{p}_{d})=\log \frac{p_{dk}}{p_{dp}}
+$$
+
+Sin embargo, requiere de la resolución de casos en los cuales $p_{dk}=0$ y cambia la interpretación de los coeficientes.
+
+## Firmas geológicas como estados recurrentes
+
+Los datos proporcionados por el área de geología están compuestos por dos familias de variables que explican las propiedades mecánicas de las rocas que entran a la planta: Tipo litológico y calidad geotécnica. La primera describe el tipo de roca en términos de su composición mineralógica y textura, mientras que la segunda describe la resistencia mecánica de la roca a la fractura y deformación. Ambas variables son categóricas y se presentan como proporciones diarias de cada categoría en el mix de mineral que alimenta a la planta. De esta manera, las rocas se expresan como composiciones de estas familias que caen en el problema de representatividad descrito previamente. La inclusión de todas las categorías como efectos lineales independientes podría introducir redundancia y ocultar patrones de mezcla. Por lo tanto, buscamos una representación más compacta y significativa de estas composiciones.
+
+Para capturar la estructura subyacente de las composiciones geológicas, aplicamos un procedimiento de clustering por medio del algoritmo de $k$-medias. Para un conjunto de entrenamiento con datos no etiquetados expresados por una colección de $m$ vectores $\mathbf{x}_{1}, \ldots, \mathbf{x}_{m}$, con $\mathbf{x}_{i}\in \mathbb{R}^{n}$ para todo $i=1, \ldots ,m$, nuestro objetivo es encontrar $k$ puntos en el espacio de entrada $\mathcal{X}\subseteq \mathbb{R}^{n}$, denominados **centroides**, que minimicen la suma de los cuadrados de las distancias de cada punto a su centroide más cercano. Formalmente, queremos encontrar un conjunto de centroides $\{\mathbf{c}_{1} ,\ldots ,\mathbf{c}_{k}\}$ que minimicen la siguiente función objetivo:
+
+$$
+\sum_{i=1}^{m} \min_{j=1,\ldots,k} \|\mathbf{x}_{i} - \mathbf{c}_{j}\|^2
+$$
+
+Debido a que no es posible, a priori, determinar el número de clusters $k$ que mejor represente la estructura de los datos, evaluamos diferentes valores de $k$ y seleccionamos aquel que maximice una métrica de calidad de agrupamiento, denominada **coeficiente de silueta**. Esta métrica evalúa qué tan bien se encuentra cada punto dentro de su cluster en comparación con otros clusters, proporcionando una medida de cohesión y separación: No queremos solamente *muchos clusters*, sino que la separación entre ellos sea significativa y que los puntos dentro de cada cluster estén lo más cerca posible entre sí.
+
+### Paso 1: Definición del conjunto de entrenamiento
+
+Vamos a modificar la notación y escribiremos $\mathbf{p}_{d}$ para denotar el vector de proporciones geológicas del día $d$. De esta manera, el conjunto de entrenamiento $\mathcal{D}$, al estar cronológicamente ordenado, se separa del conjunto de prueba $\mathcal{T}$ conforme un día umbral $d_{\mathrm{split}}$, que, en este caso sintético, corresponde a `2034-12-31`. Para toda composición $\mathbf{p}_{d}$ en $\mathcal{D}$, introducimos una estandarización de cada componente $j$ de la mezcla geológica conforme
+
+$$
+\tilde{p}_{dj}= \frac{p_{dj}-\bar{p}_{j, \mathcal{D}}}{s_{j, \mathcal{D}}}
+$$
+
+donde $p_{dj}$ es la proporción de la categoría $j$ en el día $d$, $\bar{p}_{j, \mathcal{D}}$ es la composición media de la categoría $j$ en el conjunto de entrenamiento $\mathcal{D}$ y $s_{j, \mathcal{D}}$ es la desviación estándar de la categoría $j$ en el conjunto de entrenamiento $\mathcal{D}$. Esta estandarización asegura que cada componente tenga media nula y desviación estándar unitaria, evitando que las categorías con mayor varianza dominen la distancia euclidiana utilizada por el algoritmo de clustering.
+
+Este escalamiento se codifica en <strong><font color='darkmagenta'>Scikit-Learn</font></strong> por medio de la clase `StandardScaler`, que ajusta los parámetros de media y desviación estándar únicamente con el conjunto de entrenamiento. Posteriormente, se utiliza el mismo objeto `scaler` para transformar las composiciones del conjunto de prueba $\mathcal{T}$, asegurando que la estandarización sea consistente y no introduzca información del futuro, evitando así cualquier ocurrencia de *data leakage*.
+
+### Paso 2: Evaluación del número de clusters
+
+Consideremos hasta $k_{\max}=10$ clusters. Para cada $k\in\{2,\ldots,10\}$ se ajusta el algoritmo de $k$-medias con un total de 20 inicializaciones, conforme la función objetivo previamente establecida. La elección de $k$ se realiza evaluando el coeficiente de silueta promedio para cada valor de $k$, seleccionando aquel que maximice esta métrica. Designamos por $a(d)$ la distancia media de la composición $\mathbf{p}_{d}$ al centroide de su propio clúster, y por $b(d)$ la menor distancia media de $\mathbf{p}_{d}$ a los centroides de los demás clústeres. El coeficiente de silueta individual para cada composición se calcula entonces como
+
+$$
+S(d)=\frac{b(d)-a(d)}{\max\{a(d),b(d)\}}
+$$
+
+Una vez definido el número de clusters óptimo $k^{*}$, se ajusta el modelo final de $k$-medias con este valor y se obtienen los centroides $\mathbf{c}_{1}, \ldots, \mathbf{c}_{k^{*}}$. Cada composición $\mathbf{p}_{d}$ en el conjunto de entrenamiento se asigna a su centroide más cercano, generando así una etiqueta de cluster que representa la firma geológica del día $d$. Esta etiqueta se codifica como `SIGNATURE_01`, `SIGNATURE_02`, etc., y se utiliza como una variable categórica en el modelo Bayesiano posterior.
+
+### Paso 3: Transformación de las composiciones futuras
+
+El modelo final de $k$-medias, junto con el `scaler` ajustado, se utiliza para transformar las composiciones geológicas de los días futuros en el conjunto de prueba $\mathcal{T}$. Cada composición $\mathbf{p}_{d}$ en $\mathcal{T}$ se estandariza utilizando los parámetros del `scaler` ajustado con el conjunto de entrenamiento y luego se asigna al centroide más cercano del modelo de $k$-medias. Esta asignación genera la **firma geológica** correspondiente para cada día futuro, permitiendo que el modelo Bayesiano utilice estas firmas como variables explicativas en la predicción del tratamiento de molienda.
+
+El artefacto final, que incluye los centroides, el `scaler` y las firmas geológicas asignadas, se guarda para su uso en la inferencia Bayesiana, y almacena los siguientes elementos:
+
+- Nombres y orden de las 10 columnas que constituyen las variables composicionales originales.
+- Media y desviación estándar utilizadas para la estandarización de las composiciones (parámetros asociados al `scaler`).
+- Número de clusters óptimo $k^{*}$ y las coordenadas de los centroides correspondientes.
+- Fecha umbral que separa el conjunto de entrenamiento del conjunto de prueba.
+- Diagnósticos de calidad del clustering para cada candidato, incluyendo el coeficiente de silueta promedio y la distribución de las composiciones dentro de cada cluster.
+
+::: {.callout-warning}
+## Momento... ¿Y por qué $k$-medias sobre proporciones estandarizadas?
+
+Un lector afin a la geometría de composiciones podría objetar que el algoritmo de $k$-medias sobre proporciones estandarizadas sigue usando geometría euclidiana, no la geometría natural del "símplex" que describe una matriz de composiciones (siendo un "símplex" la generalización a $n$ dimensiones de un triángulo). Esto es cierto: La firma geológica resultante es una compresión operacional reproducible, no el descubrimiento de *tipos naturales* de mineral. La elección del algoritmo de $k$-medias se justifica por su simplicidad, interpretabilidad y capacidad para capturar patrones recurrentes en las composiciones geológicas, aunque no necesariamente refleje la estructura geométrica subyacente del espacio composicional.
+
+En definitiva, para propósitos de este proyecto, funciona. Permite construir clusters diferenciados y que capturan aspectos relevantes de las composiciones geológicas, facilitando la interpretación y el uso de estas firmas en el modelo Bayesiano posterior. Sin embargo, es importante reconocer que esta elección implica ciertas limitaciones y que podrían explorarse alternativas más sofisticadas en futuros trabajos.
+:::
+
+## Las variables no composicionales del modelo
+
+Definidas las firmas geológicas, adicionamos esta información al resto de las variables no composicionales que describen el contexto de la planta y el soporte de evidencia. Estas variables se describen rápidamente en la siguiente tabla:
+
+| Feature | Interpretación esperada | Forma |
+|:--------|:------------------------|:------|
+| `upstream_available_pct` | Tasa de disponibilidad del circuito aguas arriba conforme continuidad operacional (sin *starving*). | Porcentaje diario. |
+| `discharge_sumps_in_range_pct` | Estabilidad hidráulica de ambas líneas (proxy de oferta y demanda de pulpa). | Porcentaje diario. |
+| `auxiliary_crushing_available_pct` | Disponibilidad de al menos una unidad ficticia de chancado auxiliar. | Porcentaje diario. |
+| `secondary_grinding_available_pct` | Runtime conjunto del sistema bomba + molino de bolas en circuito aguas abajo. | Porcentaje diario. |
+| `penetration_rate_mean` | Velocidad de penetración de perforadoras in-situ (proxy de dureza en la mina). | Valor medio por ciclo de transporte. |
+| `feed_fines_pct_mean` | Fracción de mineral fino (bajo 1") en la alimentación de stockpile. | Porcentaje continuo. |
+| `feed_fines_pct_centered_sq` | Curvatura respecto del régimen habitual. | Porcentaje al cuadrado. |
+
+Las primeras cuatro variables, como verificamos en la capa de ingeniería de datos, constituyen el contexto asociado al estado de la planta concentradora en términos de los sistemas periféricos que operan antes, durante y después de la molienda, y que pueden afectar su tratamiento dependiendo de si los equipos constitutivos estrangulan o bloquean el flujo de mineral. La tasa de penetración constituye un *proxy* de la dureza del mineral desde la perspectiva de un proceso de *ore control*. La firma geológica estimada por medio del algoritmo de $k$-medias agrega una estructura que no se espera capturar con una única tendencia continua, y que permite describir efectos atribuibles a las rocas que alimentan a la planta concentradora.
+
+Naturalmente, llama la atención que la granulometría de la alimentación se represente con dos variables: Una lineal y otra cuadrática. La razón es que, en la práctica, alejarse del régimen habitual de finos puede afectar la estabilidad del proceso de molienda, y un modelo lineal simple podría no capturar adecuadamente este efecto. Por lo tanto, se introduce una variable cuadrática centrada para permitir que el modelo capture posibles efectos no lineales de la granulometría en el tratamiento de molienda. Las distribuciones de tamaño siguen una ley potencial que castiga o beneficia enormemente sus colas, dependiendo de si ésta representa finos o gruesos. Por lo tanto, la inclusión de un término cuadrático permite que el modelo capture la curvatura en la relación entre la granulometría y el tratamiento, reflejando cómo desviaciones significativas del régimen habitual pueden impactar la eficiencia del proceso.
+
+En definitiva, alejarse del tamaño medio de alimentación ($F_{50}$) puede afectar la estabilidad del proceso de molienda, y un modelo lineal simple podría no capturar adecuadamente este efecto. Introducimos pues la variable complementaria
+
+$$
+q_{d}=(f_{d}-c_{f})^{2} \quad ; \quad c_{f}=\frac{1}{m_{\mathcal{D}}}\sum_{d\in \mathcal{D}}f_{d}
+$$
+
+donde $f_{d}$ es la fracción de finos en el día $d$ y $c_{f}$ es la media de finos en el conjunto de entrenamiento $\mathcal{D}$. Esta variable cuadrática centrada permite que el modelo capture la curvatura en la relación entre la granulometría y el tratamiento, reflejando cómo desviaciones significativas del régimen habitual pueden impactar la eficiencia del proceso.
+
+El predictor asociado a la granulometría de alimentación será entonces
+
+$$
+g(f_{d})=\beta_{f} z(f_{d})+\beta_{q} z(q_{d})
+$$
+
+donde el operador $z(\cdot)$ indica la aplicación de un procedimiento de estandarización posterior dentro del conjunto de entrenamiento. la razón es práctica: Centrar estos valores antes de elevarlos al cuadrado reduce la correlación entre los términos lineal y cuadrático, permitiendo que el coeficiente $\beta_{f}$ describa la pendiente cerca del régimen medio, mientras que $\beta_{q}$ captura la curvatura en la relación entre la granulometría y el tratamiento. El centro $c_{f}$ se calcula únicamente con el período de entrenamiento publicado, asegurando que no se introduzca información del futuro en la construcción de las variables predictoras.
+
+## Ensamblaje de la matriz diaria de entrenamiento
+
+Una vez construidas todas las variables contextuales que alimentaerán al modelo de inferencia Bayesiana, se procede a ensamblar la matriz de diseño diaria. Esta matriz incluye la variable de respuesta, las firmas geológicas, las variables contextuales y las evidencias de soporte para cada día. El ensamblaje se realiza mediante una unión interna (intersección o *inner join*) por fecha entre los diferentes datasets que contienen la información de interés. Este tipo de combinación asegura que sólo se incluyan los días para los cuales se dispone de información completa, evitando la introducción de valores nulos o incompletos en la matriz final. La elección de un *inner join* es deliberada: Una fecha sin cualquiera de las entidades no tiene el contexto mínimo para la pregunta formulada, y su inclusión podría sesgar los resultados del modelo.
+
+Una vez realizada la combinación de los datasets, se aplican cuatro reglas para garantizar la calidad y consistencia de la matriz diaria:
+
+1. Participaciones composicionales ausentes se completan con cero, ya que significan ausencia de esa categoría en la matriz diaria de entrenamiento. Esto permite que la matriz final refleje correctamente la composición de cada día, incluso si algunas categorías no están presentes.
+2. Respuesta, firma geológica, soporte y variables no composicionales no pueden estar ausentes. La ausencia de cualquiera de estas variables clave podría comprometer la capacidad del modelo para aprender patrones significativos, por lo que se excluyen los días con valores nulos en estas columnas.
+3. Se requieren al menos 20 ciclos de alimentación en el día para garantizar que la información disponible sea representativa y suficiente para el análisis. Días con menos ciclos podrían no reflejar adecuadamente las condiciones del proceso y podrían introducir ruido en el modelo.
+4. Se limita la tabla al final del período de evaluación, asegurando que la matriz diaria de entrenamiento refleje únicamente los días relevantes para el análisis y evitando la inclusión de datos que podrían no ser representativos del período de interés.
+
+El resultado final de esta combinación contiene hasta dos años de días sintéticos entre enero de 2034 y diciembre de 2035, sujeto a los filtros de elegibilidad, sin registros nulos en las columnas requeridas. Además, se materializa un archivo `model_input_schema.json` que describe la estructura de la matriz diaria de entrenamiento, incluyendo:
+
+- Granularidad y variable de respuesta.
+- Familias de variables contextuales y composicionales.
+- Columnas de soporte y metadatos asociados.
+- Valor central de granulometría y rango temporal de los datos.
+- Rango temporal y número de filas en la matriz final.
+
+El esquema así definido no genera duplicidad de la matriz diaria de entrenamiento, sino que proporciona una guía sobre cómo debe interpretarse y utilizarse. Cuando un artefacto se entrega a otra pipeline o a otro equipo, esta semántica es tan importante como el tipo físico del archivo `.parquet` que contiene los datos, asegurando que la información se interprete correctamente y se utilice de manera consistente en diferentes contextos.
+
+## Uso de taxonomía práctica de *data leakage*
+
+En un modelo predictivo que depende de series de tiempo, es crucial evitar problemas de *data leakage* en secuencias de validación. La fuga temporal puede introducir sesgos y afectar la capacidad del modelo para generalizar a datos futuros. Para mitigar este riesgo, se implementa una taxonomía práctica de *data leakage* que identifica y previene diferentes tipos de información que podrían filtrarse al conjunto de prueba. En particular, en este proyecto, podrían filtrarse al menos cinco clases de información, conforme la siguiente tabla:
+
+| Fuga | Ejemplo incorrecto | Prevención aplicada |
+|:-----|:-------------------|:--------------------|
+| Respuesta. | Elegir variables predictoras con correlación sobre todo el período de entrenamiento. | Selección definida antes del particionamiento con datos de prueba. |
+| Escalamiento. | Ajuste de media y desviación del escalamiento con todos los datos disponibles. | Escalamiento definido sólo con datos de entrenamiento. |
+| Representación. | Entrenar el modelo de clustering con datos futuros. | Artefacto geológico congelado antes del particionamiento. |
+| Espacio. | Uso de ciclos de transporte futuros para elegir una referencia sobre procedencias de mineral. | Se construyen geometrías hasta fecha de partición. |
+| Soporte/Categorías. | Elegir referencia según todo el historial. | Decisión dentro de cada *pliegue* Bayesiano. |
+
+Se desprende de ésto que un algoritmo de aprendizaje no supervisado también puede incluir *data leakage*, incluso aunque no "conozca" la variable de respuesta. El problema no es si el algoritmo vio la respuesta; el problema es si utilizó información que no habría estado disponible al momento simulado de predicción. Por lo tanto, es crucial implementar medidas preventivas para garantizar que el modelo se entrene y evalúe de manera justa y realista, evitando la introducción de sesgos que podrían comprometer su capacidad para generalizar a datos futuros.
+
+## Parámetros, artefactos y características
+
+<strong><font color='darkmagenta'>Kedro</font></strong> nos permite mantener tres conceptos separados: Parámetros, artefactos y características (*features*) que describen internamente a nuestro proyecto a nivel estructural. Esta separación es fundamental para garantizar la reproducibilidad y la claridad en el flujo de trabajo de ciencia de datos. Los parámetros son valores que se definen antes de ejecutar la pipeline y pueden ajustarse para explorar diferentes configuraciones del modelo. Los artefactos son objetos aprendidos durante el entrenamiento, como el `scaler` y los centroides del clustering, que se guardan para su uso posterior. Las características son las variables generadas para cada fecha, como la firma geológica, que se utilizan como entradas para el modelo Bayesiano.
+
+En la siguiente tabla se muestran algunos ejemplos concretos de cada concepto y el momento en que se definen o generan:
+
+| Concepto | Ejemplo | Momento |
+|:---------|:--------|:--------|
+| Parámetro. | `min_clusters: 2` | Número mínimo de clusters en el algoritmo de $k$-medias. Se define antes de ejecutar la pipeline. |
+| Artefacto. | Escalamiento y centroides. | Se aprende por medio del entrenamiento del modelo de clustering. |
+| Característica. | `geological_signature` | Columna que describe la firma geológica y se asigna a cada fila de la matriz diaria de entrenamiento. |
+
+La pipeline de ciencia de datos tiene sólo dos nodos principales, cada uno representando una unidad cohesionada y verificable. Estos nodos encapsulan decisiones clave que pueden probarse, persistirse y reemplazarse sin afectar la integridad del modelo Bayesiano:
+
+```text
+fit_training_only_geological_signatures
+  ├─ geological_signatures_daily
+  ├─ geological_clustering_artifact
+  └─ clustering_diagnostics
+
+assemble_daily_model_contract
+  ├─ model_input_daily
+  └─ model_input_schema
+```
+
+Las mejores prácticas del desarrollo de pipelines sugieren que un nodo no debe ser tan grande que mezcle demasiadas responsabilidades; por ejemplo, clustering, modelamiento predictivo y reportabilidad. Tampoco tan pequeño que cada asignación de columna se convierta en una especie de *checkpoint* sin significado. Aquí las fronteras coinciden con dos decisiones que pueden probarse, persistirse y reemplazarse, asegurando que cada nodo tenga un propósito claro y una salida verificable.
+
+[← Ingeniería de datos](03-ingenieria-de-datos.qmd) ·
+[Siguiente: Inferencia Bayesiana →](05-inferencia-bayesiana.qmd)

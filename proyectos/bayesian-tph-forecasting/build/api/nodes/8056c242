@@ -1,0 +1,15 @@
+{
+  "code": "def build_daily_spatial_context(\n    haulage_cycles_with_hardness: pd.DataFrame,\n    mine_zone_components: pd.DataFrame,\n    mine_zone_vertices: pd.DataFrame,\n) -> pd.DataFrame:\n    \"\"\"\n    Asigna zonas aprendidas a cada ciclo y agrega procedencia y dureza por día.\n\n    Parámetros:\n    -------------\n    haulage_cycles_with_hardness : ciclos enriquecidos que se desea clasificar.\n    mine_zone_components : metadatos de los componentes espaciales aprendidos.\n    mine_zone_vertices : vértices ordenados de los polígonos de cada componente.\n\n    Retorna:\n    ---------\n    pd.DataFrame : soporte diario y composiciones porcentuales de zona y dureza.\n    \"\"\"\n    cycles = haulage_cycles_with_hardness.copy()\n    cycles[\"mine_zone\"] = \"UNASSIGNED\"\n    for component in mine_zone_components.itertuples(index=False):\n        mask = cycles[\"source_area\"].eq(component.source_area)\n        if not mask.any():\n            continue\n        polygon = (\n            mine_zone_vertices.loc[mine_zone_vertices[\"component_id\"].eq(component.component_id)]\n            .sort_values(\"vertex_order\")[[\"x\", \"y\"]]\n            .to_numpy()\n        )\n        inside = PolygonPath(polygon).contains_points(cycles.loc[mask, [\"x\", \"y\"]].to_numpy())\n        indices = cycles.loc[mask].index[inside]\n        cycles.loc[indices, \"mine_zone\"] = (\n            f\"{component.source_area}_ZONE_{int(component.component_rank)}\"\n        )\n    fallback = cycles[\"mine_zone\"].eq(\"UNASSIGNED\") & cycles[\"source_area\"].ne(\"UNCLASSIFIED\")\n    cycles.loc[fallback, \"mine_zone\"] = cycles.loc[fallback, \"source_area\"] + \"_OUTSIDE\"\n\n    daily = cycles.groupby(\"date\", as_index=False).agg(\n        n_feed_cycles=(\"mine_zone\", \"size\"),\n        penetration_rate_mean=(\"penetration_rate\", \"mean\"),\n        hardness_match_pct=(\"has_hardness_match\", lambda x: 100 * x.mean()),\n    )\n    zone_shares = (\n        pd.crosstab(cycles[\"date\"], cycles[\"mine_zone\"], normalize=\"index\")\n        .mul(100)\n        .rename(columns=lambda value: f\"zone_share__{value.lower()}\")\n        .reset_index()\n    )\n    hardness_shares = (\n        pd.crosstab(cycles[\"date\"], cycles[\"hardness_class\"], normalize=\"index\")\n        .mul(100)\n        .rename(columns=lambda value: f\"hardness_share__{str(value).lower()}\")\n        .reset_index()\n    )\n    return daily.merge(zone_shares, on=\"date\", how=\"left\").merge(\n        hardness_shares, on=\"date\", how=\"left\"\n    )\n",
+  "filepath": "bayesian-tph-forecasting/src/bayesian_tph_forecasting/pipelines/data_engineering/nodes.py",
+  "parameters": {},
+  "run_command": "kedro run --to-nodes='data_engineering.aggregate_daily_spatial_context'",
+  "inputs": [
+    "haulage_cycles_with_hardness",
+    "mine_zone_components",
+    "mine_zone_vertices"
+  ],
+  "outputs": [
+    "spatial_context_daily"
+  ],
+  "preview": null
+}

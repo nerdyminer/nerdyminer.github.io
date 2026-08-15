@@ -1,0 +1,58 @@
+# Modelo Bayesiano jerárquico para la estimación de tratamiento de molienda esperado
+
+Un proyecto educativo y reproducible que convierte un análisis de rendimiento de molienda en un conjunto de pipelines modulares de <strong><font color="darkmagenta">Kedro</font></strong>. El caso se construye sobre un circuito de conminución deliberadamente ficticio y usa exclusivamente datos sintéticos generados para este repositorio.
+
+El objetivo de este caso es explicar, con base en variables estrictamente contextuales, el rendimiento observado de molienda conforme una estrategia de forecasting de tipo *ex post*. La inferencia Bayesiana permite separar el nivel esperado de rendimiento asociado al contexto geológico y de planta del residuo operacional que no explican las variables contextuales disponibles.
+
+El caso se define como *ex post* debido a que el objetivo es explicar el rendimiento observado, no predecirlo (*ex ante*). Sin embargo, es posible escalar esta metodología para generar pronósticos de rendimiento de molienda conforme planes de producción y estrategias de transporte, siempre que se cuente con un conjunto de datos históricos suficientemente amplio y representativo.
+
+## Pipelines
+
+El proyecto está constituido por cuatro pipelines modulares que representan las etapas de ingeniería de datos, ciencia de datos, inferencia Bayesiana y reportabilidad:
+
+```text
+data_engineering -> data_science -> bayesian_inference -> reporting
+```
+
+En términos de ingeniería de software, cada pipeline es un módulo independiente que puede ejecutarse y probarse aisladamente. En términos de ingeniería de datos, cada pipeline representa una etapa del flujo de trabajo que transforma los datos desde su forma cruda hasta la presentación final de resultados.
+
+Las pipelines previamente mencionadas se encargan, en líneas generales, de las siguientes tareas:
+
+- `data_engineering`: Ingestión de señales operacionales historizadas de la planta concentradora, ciclos de transporte, modelo de dureza in–situ y agregación diaria de variables contextuales.
+- `data_science`: Estimación de firmas geológicas por medio de algoritmos de aggrupamiento, selección de variables contextuales y construcción de la matriz diaria de entrada y salida para nuestro modelo.
+- `bayesian_inference`: Backtesting móvil de la estrategia de forecasting, construcción de un modelo Bayesiano jerárquico y cuantificación de la doble incertidumbre (paramétrica y predictiva).
+- `reporting`: Descomposición de contribuciones de rendimiento, construcción de un gráfico de cascada interactivo y generación de una aplicación web estática para reportabilidad.
+
+## Ejecución del proyecto
+
+Este proyecto se ejecuta por medio de la interfaz de línea de comandos de <strong><font color="darkmagenta">Kedro</font></strong>, haciendo uso de `uv` como gestor de entornos virtuales. La instalación de dependencias se realiza por medio de la sincronización de entornos virtuales, considerando las librerías registradas en el archivo `pyproject.toml`. En nuestra terminal, la ejecución de este proyecto se realiza con los siguientes comandos:
+
+```bash
+uv sync --extra dev
+uv run kedro run
+uv run kedro viz run
+```
+
+La instrucción `uv run kedro run` ejecuta todos los pipelines del proyecto, mientras que `uv run kedro viz run` genera un archivo HTML navegable con la visualización del grafo dirigido acíclico (DAG) que permite mapear entradas y salidas de las pipelines y nodos que constituyen el proyecto completo.
+
+Este proyecto incluye un conjunto de pruebas unitarias (*smoke tests*) que permiten validar la integridad de los pipelines y nodos. La ejecución de estas pruebas se realiza con el siguiente comando:
+
+```bash
+uv run kedro run --env test
+```
+
+Estas pruebas unitarias se ejecutan en un entorno virtual aislado, sin acceso a redes privadas ni credenciales de ningún tipo. La ejecución de estas pruebas permite validar la reproducibilidad del proyecto y la integridad de los pipelines y nodos que lo constituyen. No incluyen toda la cobertura establecida en la inferencia Bayesiana, pero permiten validar la integridad de los pipelines y nodos que constituyen el proyecto completo.
+
+## Datos
+
+El proyecto hace uso de datos generados desde cero que representan señales plausibles de un circuito de conminución. También se incluyen dureza y variables espaciales sintéticas que permiten explicar el rendimiento observado. Las fechas se sitúan intencionalmente en el futuro, las coordenadas pertenecen a un sistema cartesiano local inventado y las capacidades, identificadores, procedencias y relaciones estadísticas fueron definidos para el ejercicio. El generador reproducible se encuentra en `scripts/generate_public_synthetic_data.py`.
+
+Este caso no representa, deriva, transforma ni reproduce datos, activos, coordenadas, calendarios, parámetros o configuraciones de una operación real. Tampoco debe emplearse para inferir las características de una faena determinada: su única finalidad es enseñar arquitectura de datos e inferencia Bayesiana con contratos autocontenidos.
+
+La procedencia, las salvaguardas y el procedimiento de regeneración están documentados en [DATA_PROVENANCE.md](DATA_PROVENANCE.md).
+
+Por seguridad y confidencialidad, no existen conectores SQL, credenciales ni dependencias de redes privadas.
+
+## Licencia
+
+Este proyecto se distribuye bajo la licencia MIT. Los datos sintéticos incluidos se entregan para educación y reproducibilidad. Cualquier mención de marcas, nombres de productos o servicios es meramente ilustrativa y no implica respaldo ni relación con los propietarios de dichas marcas. Para más información, consulte el archivo [LICENSE](LICENSE).

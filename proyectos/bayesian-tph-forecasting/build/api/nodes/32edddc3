@@ -1,0 +1,26 @@
+{
+  "code": "def build_daily_plant_tables(\n    plant_signals_hourly_clean: pd.DataFrame,\n    plant: dict,\n) -> tuple[pd.DataFrame, pd.DataFrame]:\n    \"\"\"\n    Construye el objetivo diario y las condiciones contextuales del circuito didáctico.\n\n    Parámetros:\n    -------------\n    plant_signals_hourly_clean : señales horarias limpias de ambas líneas de molienda.\n    plant : umbrales operacionales para estabilidad y disponibilidad de equipos.\n\n    Retorna:\n    ---------\n    tuple[pd.DataFrame, pd.DataFrame] : rendimiento diario y contexto operacional diario.\n    \"\"\"\n    df = plant_signals_hourly_clean.copy()\n    df[\"date\"] = df[\"timestamp\"].dt.normalize()\n    online_threshold = float(plant[\"online_threshold\"])\n\n    line_a_stable = df[\"line_a_feed_tph\"].ge(plant[\"stable_feed_min_tph\"]) & df[\n        \"line_a_power_kw\"\n    ].ge(plant[\"stable_power_min_kw\"])\n    line_b_stable = df[\"line_b_feed_tph\"].ge(plant[\"stable_feed_min_tph\"]) & df[\n        \"line_b_power_kw\"\n    ].ge(plant[\"stable_power_min_kw\"])\n    line_a_daily = df[\"line_a_feed_tph\"].where(line_a_stable).groupby(df[\"date\"]).mean()\n    line_b_daily = df[\"line_b_feed_tph\"].where(line_b_stable).groupby(df[\"date\"]).mean()\n    target_df = pd.concat(\n        [line_a_daily.rename(\"line_a_tph\"), line_b_daily.rename(\"line_b_tph\")], axis=1\n    ).reset_index()\n    target_df[\"plant_total_tph\"] = target_df[\"line_a_tph\"] + target_df[\"line_b_tph\"]\n\n    upstream_available = df[\"intermediate_stockpile_level_m\"].gt(\n        plant[\"intermediate_stockpile_min_m\"]\n    )\n    low_sump, high_sump = plant[\"discharge_sump_range_pct\"]\n    sumps_in_range = df[\"line_a_discharge_sump_pct\"].between(low_sump, high_sump) & df[\n        \"line_b_discharge_sump_pct\"\n    ].between(low_sump, high_sump)\n    auxiliary_crushing_available = (\n        df[[\"auxiliary_crusher_1_state\", \"auxiliary_crusher_2_state\", \"auxiliary_crusher_3_state\"]]\n        .ge(online_threshold)\n        .any(axis=1)\n    )\n\n    phase_availability: list[pd.Series] = []\n    for line in (\"a\", \"b\"):\n        pumps_online = (\n            df[\n                [\n                    f\"line_{line}_pump_1_state\",\n                    f\"line_{line}_pump_2_state\",\n                    f\"line_{line}_pump_3_state\",\n                ]\n            ]\n            .ge(online_threshold)\n            .sum(axis=1)\n        )\n        mills_online = (\n            df[[f\"line_{line}_ball_mill_1_state\", f\"line_{line}_ball_mill_2_state\"]]\n            .ge(online_threshold)\n            .all(axis=1)\n        )\n        phase_availability.append(pumps_online.ge(2) & mills_online)\n    secondary_available = pd.concat(phase_availability, axis=1).mean(axis=1)\n\n    hourly_context = pd.DataFrame(\n        {\n            \"date\": df[\"date\"],\n            \"upstream_available\": upstream_available.astype(float),\n            \"discharge_sumps_in_range\": sumps_in_range.astype(float),\n            \"auxiliary_crushing_available\": auxiliary_crushing_available.astype(float),\n            \"secondary_grinding_available\": secondary_available,\n            \"feed_fines_pct\": df[\"feed_fines_pct\"].where(df[\"feed_fines_pct\"].between(0, 100)),\n        }\n    )\n    context_df = hourly_context.groupby(\"date\", as_index=False).agg(\n        upstream_available_pct=(\"upstream_available\", lambda x: 100 * x.mean()),\n        discharge_sumps_in_range_pct=(\"discharge_sumps_in_range\", lambda x: 100 * x.mean()),\n        auxiliary_crushing_available_pct=(\"auxiliary_crushing_available\", lambda x: 100 * x.mean()),\n        secondary_grinding_available_pct=(\"secondary_grinding_available\", lambda x: 100 * x.mean()),\n        feed_fines_pct_mean=(\"feed_fines_pct\", \"mean\"),\n    )\n    return target_df, context_df\n",
+  "filepath": "bayesian-tph-forecasting/src/bayesian_tph_forecasting/pipelines/data_engineering/nodes.py",
+  "parameters": {
+    "plant": {
+      "stable_feed_min_tph": 700.0,
+      "stable_power_min_kw": 3500.0,
+      "intermediate_stockpile_min_m": 8.0,
+      "discharge_sump_range_pct": [
+        40.0,
+        90.0
+      ],
+      "online_threshold": 0.5
+    }
+  },
+  "run_command": "kedro run --to-nodes='data_engineering.aggregate_daily_plant_context'",
+  "inputs": [
+    "plant_signals_hourly_clean",
+    "params:plant"
+  ],
+  "outputs": [
+    "plant_target_daily",
+    "plant_context_daily"
+  ],
+  "preview": null
+}

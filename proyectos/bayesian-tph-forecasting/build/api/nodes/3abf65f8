@@ -1,0 +1,27 @@
+{
+  "code": "def enrich_haulage_with_hardness(\n    haulage_cycles_raw: pd.DataFrame,\n    hardness_block_model_raw: pd.DataFrame,\n    spatial: dict,\n) -> pd.DataFrame:\n    \"\"\"\n    Asocia cada punto de carguío sintético al bloque de dureza más cercano.\n\n    Parámetros:\n    -------------\n    haulage_cycles_raw : ciclos de transporte con origen, destino y coordenadas de carguío.\n    hardness_block_model_raw : bloques espaciales con penetración y clase de dureza.\n    spatial : tolerancias y parámetros del emparejamiento espacial.\n\n    Retorna:\n    ---------\n    pd.DataFrame : ciclos destinados al chancador primario enriquecidos con dureza y procedencia.\n    \"\"\"\n    cycle_cols = [\n        \"cycle_timestamp\",\n        \"destination\",\n        \"source_code\",\n        \"truck_id\",\n        \"loading_unit_id\",\n        \"x\",\n        \"y\",\n        \"z\",\n    ]\n    block_cols = [\"x\", \"y\", \"z\", \"penetration_rate\", \"hardness_class\"]\n    _require_columns(haulage_cycles_raw, cycle_cols, \"haulage_cycles_raw\")\n    _require_columns(hardness_block_model_raw, block_cols, \"hardness_block_model_raw\")\n\n    cycles = haulage_cycles_raw[cycle_cols].copy()\n    cycles[\"cycle_timestamp\"] = pd.to_datetime(cycles[\"cycle_timestamp\"], errors=\"coerce\")\n    cycles = cycles.loc[cycles[\"destination\"].eq(\"PROCESS_FEED\")].dropna(\n        subset=[\"cycle_timestamp\", \"x\", \"y\", \"z\"]\n    )\n    blocks = hardness_block_model_raw[block_cols].dropna(subset=block_cols).copy()\n    tree = cKDTree(blocks[[\"x\", \"y\", \"z\"]].to_numpy(dtype=float))\n    distance, index = tree.query(cycles[[\"x\", \"y\", \"z\"]].to_numpy(dtype=float), k=1)\n    matched = blocks.iloc[index].reset_index(drop=True)\n    cycles = cycles.reset_index(drop=True)\n    cycles[\"hardness_match_distance_m\"] = distance\n    within_tolerance = cycles[\"hardness_match_distance_m\"].le(\n        spatial[\"max_hardness_match_distance_m\"]\n    )\n    cycles[\"penetration_rate\"] = matched[\"penetration_rate\"].where(within_tolerance)\n    cycles[\"hardness_class\"] = matched[\"hardness_class\"].where(within_tolerance, \"unmatched\")\n    cycles[\"has_hardness_match\"] = within_tolerance\n    cycles[\"date\"] = cycles[\"cycle_timestamp\"].dt.normalize()\n    cycles[\"source_area\"] = cycles[\"source_code\"].map(classify_source_area)\n    return cycles\n",
+  "filepath": "bayesian-tph-forecasting/src/bayesian_tph_forecasting/pipelines/data_engineering/nodes.py",
+  "parameters": {
+    "spatial": {
+      "geometry_training_end": "2034-12-31",
+      "grid_m": 25.0,
+      "dbscan_eps_m": 140.0,
+      "dbscan_min_samples": 3,
+      "min_cycles_per_component": 300,
+      "min_component_share": 0.005,
+      "hull_trim_quantile": 0.005,
+      "max_hardness_match_distance_m": 180.0,
+      "min_cycles_per_day": 20
+    }
+  },
+  "run_command": "kedro run --to-nodes='data_engineering.match_haulage_cycles_to_hardness'",
+  "inputs": [
+    "haulage_cycles_raw",
+    "hardness_block_model_raw",
+    "params:spatial"
+  ],
+  "outputs": [
+    "haulage_cycles_with_hardness"
+  ],
+  "preview": null
+}

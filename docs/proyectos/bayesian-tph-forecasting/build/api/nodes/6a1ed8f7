@@ -1,0 +1,21 @@
+{
+  "code": "def build_model_card(\n    backtest_summary: pd.DataFrame,\n    model_input_schema: dict,\n    reporting: dict,\n) -> dict[str, Any]:\n    \"\"\"\n    Resume propósito, límites, contrato de datos y métricas del modelo.\n\n    Parámetros:\n    -------------\n    backtest_summary : métricas agregadas del backtesting.\n    model_input_schema : contrato publicado de la matriz modelable.\n    reporting : configuración de los intervalos y productos de reporting.\n\n    Retorna:\n    ---------\n    dict[str, Any] : ficha técnica serializable del modelo y su validación.\n    \"\"\"\n    metrics = {\n        key: float(value)\n        if isinstance(value, (np.floating, float))\n        else int(value)\n        if isinstance(value, (np.integer, int))\n        else value\n        for key, value in backtest_summary.iloc[0].to_dict().items()\n    }\n    return {\n        \"model_name\": \"bayesian_tph_forecasting\",\n        \"intended_use\": \"Explicación ex post de desviaciones contextuales de rendimiento.\",\n        \"not_intended_for\": [\n            \"atribución causal automática\",\n            \"pronóstico ex ante sin covariables de plan\",\n            \"control directo de equipos\",\n        ],\n        \"validation_policy\": \"rolling 12 months, two-month horizon\",\n        \"uncertainty\": {\n            \"credible_mean_interval\": \"incertidumbre de la media contextual\",\n            \"posterior_predictive_interval\": \"incertidumbre de una observación diaria\",\n            \"probability\": reporting[\"credible_probability\"],\n        },\n        \"data_contract\": model_input_schema,\n        \"metrics\": metrics,\n    }\n",
+  "filepath": "bayesian-tph-forecasting/src/bayesian_tph_forecasting/pipelines/reporting/nodes.py",
+  "parameters": {
+    "reporting": {
+      "bridge_period": "2035",
+      "credible_probability": 0.9,
+      "title": "Descomposición contextual del rendimiento observado"
+    }
+  },
+  "run_command": "kedro run --to-nodes='reporting.materialize_model_card'",
+  "inputs": [
+    "backtest_summary",
+    "model_input_schema",
+    "params:reporting"
+  ],
+  "outputs": [
+    "model_card"
+  ],
+  "preview": null
+}

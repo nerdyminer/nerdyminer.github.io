@@ -1,0 +1,62 @@
+{
+  "code": "def assemble_model_input(\n    plant_target_daily: pd.DataFrame,\n    plant_context_daily: pd.DataFrame,\n    geological_signatures_daily: pd.DataFrame,\n    spatial_context_daily: pd.DataFrame,\n    analysis: dict,\n    spatial: dict,\n    bayesian: dict,\n) -> tuple[pd.DataFrame, dict[str, Any]]:\n    \"\"\"\n    Construye el contrato diario que separa variables, objetivo y metadatos temporales.\n\n    Parámetros:\n    -------------\n    plant_target_daily : rendimiento diario observado de la planta.\n    plant_context_daily : condiciones operacionales agregadas por día.\n    geological_signatures_daily : firma geológica asignada a cada fecha.\n    spatial_context_daily : procedencias y dureza agregadas por día.\n    analysis : límites temporales del análisis y de la evaluación.\n    spatial : umbrales mínimos de soporte espacial.\n    bayesian : configuración de las variables regulares del modelo.\n\n    Retorna:\n    ---------\n    tuple[pd.DataFrame, dict[str, Any]] : matriz diaria modelable y descripción de su esquema.\n    \"\"\"\n    df = (\n        plant_target_daily.merge(plant_context_daily, on=\"date\", how=\"inner\")\n        .merge(geological_signatures_daily, on=\"date\", how=\"inner\")\n        .merge(spatial_context_daily, on=\"date\", how=\"inner\")\n        .sort_values(\"date\")\n        .reset_index(drop=True)\n    )\n    share_cols = sorted(\n        column\n        for column in df\n        if column.startswith(\"zone_share__\") or column.startswith(\"hardness_share__\")\n    )\n    df[share_cols] = df[share_cols].fillna(0.0)\n    training_end = pd.Timestamp(analysis[\"training_end\"])\n    fines_center = float(df.loc[df[\"date\"].le(training_end), \"feed_fines_pct_mean\"].mean())\n    df[\"feed_fines_pct_centered_sq\"] = (df[\"feed_fines_pct_mean\"] - fines_center) ** 2\n\n    required = [\n        \"plant_total_tph\",\n        \"geological_signature\",\n        \"n_feed_cycles\",\n        *bayesian[\"regular_features\"],\n    ]\n    df = (\n        df.dropna(subset=required)\n        .loc[lambda frame: frame[\"n_feed_cycles\"].ge(spatial[\"min_cycles_per_day\"])]\n        .loc[lambda frame: frame[\"date\"].le(pd.Timestamp(analysis[\"evaluation_end\"]))]\n        .reset_index(drop=True)\n    )\n    schema = {\n        \"grain\": \"one row per calendar day\",\n        \"target\": \"plant_total_tph\",\n        \"signature\": \"geological_signature\",\n        \"regular_features\": list(bayesian[\"regular_features\"]),\n        \"zone_share_features\": [\n            column for column in share_cols if column.startswith(\"zone_share__\")\n        ],\n        \"hardness_share_features\": [\n            column for column in share_cols if column.startswith(\"hardness_share__\")\n        ],\n        \"support_only\": [\"n_feed_cycles\", \"hardness_match_pct\"],\n        \"fines_center_training_only\": fines_center,\n        \"date_min\": str(df[\"date\"].min().date()),\n        \"date_max\": str(df[\"date\"].max().date()),\n        \"n_rows\": int(len(df)),\n    }\n    return df, schema\n",
+  "filepath": "bayesian-tph-forecasting/src/bayesian_tph_forecasting/pipelines/data_science/nodes.py",
+  "parameters": {
+    "analysis": {
+      "training_end": "2034-12-31",
+      "evaluation_start": "2035-01-01",
+      "evaluation_end": "2035-12-30"
+    },
+    "spatial": {
+      "geometry_training_end": "2034-12-31",
+      "grid_m": 25.0,
+      "dbscan_eps_m": 140.0,
+      "dbscan_min_samples": 3,
+      "min_cycles_per_component": 300,
+      "min_component_share": 0.005,
+      "hull_trim_quantile": 0.005,
+      "max_hardness_match_distance_m": 180.0,
+      "min_cycles_per_day": 20
+    },
+    "bayesian": {
+      "regular_features": [
+        "upstream_available_pct",
+        "discharge_sumps_in_range_pct",
+        "auxiliary_crushing_available_pct",
+        "secondary_grinding_available_pct",
+        "penetration_rate_mean",
+        "feed_fines_pct_mean",
+        "feed_fines_pct_centered_sq"
+      ],
+      "prior_std_multiplier": 2.0,
+      "hac_maxlags": 7,
+      "zone_scale_prior_tph": 55.0,
+      "hardness_scale_prior_tph": 45.0,
+      "cluster_scale_prior_tph": 75.0,
+      "random_seed": 123,
+      "sampling": {
+        "draws": 600,
+        "tune": 1000,
+        "chains": 4,
+        "cores": 4,
+        "target_accept": 0.99,
+        "progressbar": true
+      }
+    }
+  },
+  "run_command": "kedro run --to-nodes='data_science.assemble_daily_model_contract'",
+  "inputs": [
+    "plant_target_daily",
+    "plant_context_daily",
+    "geological_signatures_daily",
+    "spatial_context_daily",
+    "params:analysis",
+    "params:spatial",
+    "params:bayesian"
+  ],
+  "outputs": [
+    "model_input_daily",
+    "model_input_schema"
+  ],
+  "preview": null
+}

@@ -1,0 +1,192 @@
+---
+title: "1. Problema, <strong><font color='darkmagenta'>Kedro</font></strong> y arquitectura"
+description: "De una pregunta industrial a un sistema analítico modular, reproducible y auditable."
+toc: true
+toc-depth: 3
+---
+
+[← Volver al proyecto](index.qmd)
+
+## ¿Cuál es la pregunta que deseamos responder?
+
+El tratamiento de molienda diario en una planta concentradora no es una medida pura de ejecución de planes mineros, aunque es una señal poderosa para comprender los rendimientos asociados al proceso de molienda. Mezcla la competencia de la roca, la procedencia del mineral, la granulometría, el estado del circuito, decisiones operacionales, perturbaciones no observadas y errores de medición. Comparar dos períodos sólo por su promedio de tratamiento confunde todos esos mecanismos: Una planta puede procesar menos con una operación competente si recibió un contexto más exigente, o superar su promedio gracias a un contexto favorable aun cuando existan oportunidades.
+
+Resulta razonable pues determinar qué tanta exigencia estamos dispuestos a aceptar en un día dado, y qué rendimiento era razonable esperar bajo ese contexto. La diferencia entre lo observado y lo esperado constituye un *residuo* que puede orientar la investigación de causas, pero no identifica por sí solo una causa. Sin embargo, resulta muy útil para separar dos familias importantísimas de variables: Las contextuales, que describen las condiciones en las cuales procesamos mineral, y las operacionales, que describen la gestión de la planta. La primera familia es externa a la operación; la segunda es interna y puede ser ajustada. La pregunta que deseamos responder es: ¿Cuánto rendimiento era razonable esperar bajo un contexto dado, y cuánto de lo observado se explica por la operación?
+
+La referencia que necesitamos es, por definición, condicional. Para cada día $t$ definimos:
+
+$$
+y_{t}=m(x_{t})+r_{t}\quad ;\quad m(x_{t})=E(Y_{t}\mid X_{t}=x_{t})
+$$
+
+donde $y_t$ es el tratamiento observado en el día $t$, $x_t$ reúne las variables contextuales y $r_t$ es la diferencia que el modelo no explica. El término $m(x_t)$ contesta la pregunta clave de cualquier gerencia de recursos mineros y desarrollo: «¿Qué rendimiento era razonable esperar bajo este contexto?»; el residuo, por otro lado, cierra la identidad, pero no identifica por sí solo una causa.
+
+::: {.callout-important}
+## Esta inferencia no es causal
+
+**Asociación no es atribución causal.** Un residuo negativo puede contener ejecución, eventos no registrados, covariables omitidas, error del modelo y ruido irreducible. El producto final de este proyecto, que es un gráfico de cascada de tipo "bridge", sirve para ordenar una investigación y/o como un *guideline* para expertos de proceso; no es una certificación automática de responsabilidad.
+:::
+
+El caso de estudio es deliberadamente ***ex post***: Al terminar el día conocemos el material y las condiciones realizadas (y muchas veces el detalle del material procesado nos llega al día siguiente. mediante reportes de reconcicliación). Un producto ***ex ante*** necesitaría sustituirlas por variables propuestas en un plan de producción y propagar además la incertidumbre del plan. La arquitectura admite esa extensión, pero sería otra pregunta que responder, con implicancias de tipo predictiva y, naturalmente, otro caso de estudio, el cual dejaremos como ejercicio para el lector.
+
+## ¿Por qué un notebook deja de ser suficiente?
+
+Un notebook de Jupyter es excelente para formular hipótesis, visualizar y conversar con los datos. El problema aparece cuando el análisis debe ser ejecutado por otra persona, repetirse con otra configuración o entregar una cifra auditable. Entonces importan preguntas que una secuencia de celdas propuesta en un notebook no resuelve por sí sola:
+
+- ¿Qué función produjo exactamente esta tabla?
+- ¿Qué archivos y parámetros necesita?
+- ¿Puede ejecutarse sólo la ingeniería espacial?
+- ¿Se ajustó algún scaler con información futura?
+- ¿Qué artefactos deben persistirse y con qué formato?
+- ¿El reporte se regeneró desde las predicciones o fue editado a mano?
+
+El objetivo no es «convertir celdas en scripts». Es hacer explícito un sistema de dependencias. Una función debe poder probarse sin abrir archivos; una entidad debe tener un nombre lógico y un contrato; la ejecución debe derivarse del flujo de datos; los supuestos ajustables deben estar fuera del código. Ese es el espacio que ocupa <strong><font color='darkmagenta'>Kedro</font></strong> en este proyecto, y al cual le dedicaremos unas líneas.
+
+## De QuantumBlack a una herramienta abierta
+
+<strong><font color='darkmagenta'>Kedro</font></strong> nació dentro de QuantumBlack (que es la consultora de analítica avanzada e IA de propiedad de McKinsey & Company) para resolver problemas encontrados al entregar proyectos analíticos reales. La [historia oficial de su comité técnico](https://docs.kedro.org/en/stable/about/technical_steering_committee/) identifica a Aris Valtazanos y Nikolaos Tsaousis como sus diseñadores originales y explica que la idea se convirtió después en un producto interno. El proyecto evolucionó a código abierto y hoy es mantenido por su equipo y contribuyentes externos.
+
+Mi primer contacto con <strong><font color='darkmagenta'>Kedro</font></strong> fue a fines de 2020, cuando tuve la fortuna de hacer *pairing* con ingenieros de QuantumBlack en un proyecto colaborativo. Mi experiencia en ciencia de datos era un tanto *hardcore*, ya que venía de formarme de manera mayormente autodidacta en el desarrollo de modelos de clasificación de riesgo geomecánico en minería subterránea masica en estados tensionales extremadamente exigentes. Sin embargo, mi trabajo fue mayormente autoguiado. Era 2019, no existían los *guidelines* de hoy en el campo del aprendizaje automático, ni mucho menos la disciplina de *MLOps*. Por eso, cuando me encontré con Kedro, me sorprendió su enfoque en la reproducibilidad, la modularidad y la separación de responsabilidades. Pero fue mi primera vez colaborando en un equipo de alto rendimiento, con foco fuerte en la ingeniería de software. No mentiré... Lo pasé horrible. Aprender las bases de <strong><font color='darkmagenta'>Kedro</font></strong> en sólo algunas semanas fue un desafío en extremo complicado, ya que, por mucho que hoy por hoy programar sea parte de mi vida, nunca me ha sido fácil aprender aspectos nuevos de esta apasionante disciplina. Sin embargo, la experiencia fue muy enriquecedora y me permitió comprender la importancia de la ingeniería de software en el desarrollo de proyectos de ciencia de datos. Y, también, lo POCO que yo sabía del mundo que comenzaba a explorar con mayor confianza en esos años.
+
+Pero bueno... volvamos a <strong><font color='darkmagenta'>Kedro</font></strong>. Se trata, en términos generales, de una *librería* de Python que permite estructurar proyectos de ciencia de datos y aprendizaje automático de manera reproducible, modular y escalable. Como tal, no intenta inventar otro lenguaje para el análisis de datos: Aplica separación de responsabilidades, modularidad y contratos a equipos en los que conviven ingeniería, ciencia de datos y NEGOCIO (sí, con mayúsculas, no estamos aquí para practicar ejercicios académicos, por divertidos que sean). Su propio repositorio resume la motivación como una respuesta a notebooks, scripts aislados y *glue code* difíciles de mantener, además de una forma de facilitar colaboración y reutilización. El detalle puede leerse en [Why does Kedro exist?](https://github.com/kedro-org/kedro#why-does-kedro-exist).
+
+<strong><font color='darkmagenta'>Kedro</font></strong> tampoco es un servicio administrado ni un planificador distribuido. Es el sistema de diseño del proyecto: Estructura el código, describe el proyecto por medio de un [grafo dirigido acíclico](/apuntes/grafos-e-informacion/teoria-de-grafos/) (DAG), resuelve datos y configuración, y entrega puntos de integración para ejecutar localmente o bajo un orquestador. En definitiva, facilita la construcción de un sistema analítico modular, reproducible y auditable, que pueda desplegarse en producción y evolucionar con el tiempo. Porque, por supuesto, queremos que nuestros proyectos no vivan en nuestro computador personal, sino que puedan ser ejecutados por otros miembros del equipo, en otros ambientes y con otros datos. Y, además, queremos que puedan evolucionar con el tiempo, sin perder la trazabilidad de las decisiones que tomamos.
+
+## Las cuatro primitivas que articulan el proyecto
+
+### 1. El nodo: Una función con contrato
+
+En <strong><font color='darkmagenta'>Kedro</font></strong>, un nodo asocia una función Python con nombres lógicos de entrada y salida. Por ejemplo:
+
+```python
+node(
+    func=build_daily_plant_tables,
+    inputs=["plant_signals_hourly_clean", "params:plant"],
+    outputs=["plant_target_daily", "plant_context_daily"],
+    name="aggregate_daily_plant_context",
+    tags=["plant", "daily"],
+)
+```
+
+La función `build_daily_plant_tables()` recibe un `DataFrame` de <strong><font color='darkmagenta'>Pandas</font></strong> y un diccionario de Python ordinario. No conoce rutas, no abre archivos y no llama al catálogo (que es donde se listan todas las entradas y salidas de datos consumidas y generadas por nuestro proyecto). Esta restricción vuelve la lógica comprobable con datos en memoria. Los argumentos `inputs` y `outputs` constituyen su firma dentro del DAG del proyecto completo; `name` permite bautizarlo con un nombre *ad-hoc* y seleccionarlo, mientras que `tags` añade una clasificación transversal que permite clasificar al nodo dentro de una familia o *región* del DAG con responsabilidades comunes.
+
+### 2. La pipeline: Dependencias, no orden textual
+
+Una `Pipeline` reúne nodos. <strong><font color='darkmagenta'>Kedro</font></strong> ordena la ejecución por las entidades que consumen y producen datos, no por la posición en que aparecen en el archivo. La [documentación oficial](https://docs.kedro.org/en/stable/nodes_and_pipelines/index.html) presenta precisamente nodos, pipelines, modularidad, *namespaces* y registro como un mismo modelo. De esta manera, la ejecución de un pipeline no depende de la posición de los nodos en el archivo, sino de las dependencias entre ellos.
+
+Si un nodo produce la salida `plant_target_daily` y otro la consume, existe entonces una arista en el DAG. Esto permite detectar entradas ausentes, outputs duplicados y ciclos antes de gastar tiempo en el modelo. También habilita la ejecución localizada de entidades desde nuestra terminal. Por ejemplo, las instrucciones:
+
+```bash
+uv run kedro run --pipelines data_engineering
+uv run kedro run --tags spatial
+uv run kedro run --nodes data_engineering.aggregate_daily_plant_context
+```
+
+Ejecutan sólo la pipeline de ingeniería de datos (que hemos *registrado* adecuadamente como `data_engineering`), sólo los nodos etiquetados como `spatial` o sólo el nodo `aggregate_daily_plant_context`, que pertenece a la pipeline `data_engineering`, respectivamente. La ejecución de una pipeline no depende de la posición de los nodos en el archivo, sino de las dependencias entre ellos.
+
+::: {.callout-important}
+## La importancia de un gestor de paquetes
+
+En proyectos *reales*, donde no dependemos de notebooks monolíticos, estamos interesados es gestionar adecuadamente todas las librerías y dependencias de nuestro proyecto. Y no sólo eso: Queremos aislar nuestro proyecto en un entorno virtual, de manera que podamos reproducirlo en cualquier computador y en cualquier momento. Y también queremos testear nuestro proyecto, de manera que podamos detectar errores y problemas antes de que lleguen a producción. Por eso, es importante utilizar un gestor de paquetes, que es una herramienta que nos permite controlar estos aspectos mediante una interfaz de tipo "todo-en-uno". En este proyecto, utilizamos `uv`, que es un gestor de paquetes moderno y eficiente, que nos permite crear entornos virtuales, instalar dependencias, ejecutar scripts y testear nuestro proyecto de manera sencilla y rápida. Además, `uv` nos permite crear un archivo `pyproject.toml`, que es constituye un archivo de configuración estándar para proyectos de Python, que nos permite definir las dependencias, los scripts y los test de nuestro proyecto de manera clara y concisa. Se trata de un gestor extremadamente rápido, y mi favorito cuando se trata de proyectos de ciencia de datos y aprendizaje automático. Recomiendo ampliamente su uso, y lo utilizaremos a lo largo de este proyecto.
+:::
+
+### 3. El catálogo de datos: Nombres antes que ubicaciones
+
+En <strong><font color='darkmagenta'>Kedro</font></strong>, el **catálogo de datos** registra cada fuente y cada artefacto. Según la [definición oficial](https://docs.kedro.org/en/latest/catalog-data/data_catalog/), es el registro de las fuentes disponibles para el proyecto; en YAML vincula los nombres usados por los nodos con tipos y ubicaciones concretas. Por ejemplo:
+
+```yaml
+plant_signals_hourly_raw:
+  type: pandas.ParquetDataset
+  filepath: data/01_raw/plant_signals_hourly.parquet
+```
+
+De esta manera, `plant_signals_hourly_raw` es un nombre que declaramos como parte del catálogo. Como mínimo, <strong><font color='darkmagenta'>Kedro</font></strong> requiere que definamos el formato de persistencia (en este caso, un archivo Parquet) y la ubicación física del archivo. Pero el catálogo puede hacer mucho más: Validar esquemas, versionar artefactos, habilitar almacenamiento en la nube, cifrar datos sensibles y hasta permitir que un mismo nombre se resuelva en distintas ubicaciones según el ambiente de ejecución. Por ejemplo, podemos tener un `plant_signals_hourly_raw` distinto para desarrollo, pruebas y producción, sin cambiar el código de los nodos.
+
+Notemos que todo nodo que consuma `plant_signals_hourly_raw` no necesita conocer la ubicación física del archivo. La función `build_daily_plant_tables()` recibe un `DataFrame` de <strong><font color='darkmagenta'>Pandas</font></strong> y un diccionario de Python ordinario, pero no sabe que su entrada proviene de un archivo Parquet en `data/01_raw/plant_signals_hourly.parquet`. Esa abstracción permite cambiar la ubicación física del archivo sin modificar la función científica. Por ejemplo, podemos cambiar disco local por almacenamiento de objetos, habilitar versionado o sustituir una implementación sin modificar la función científica. Esa inversión de dependencias es una decisión arquitectónica, no sólo comodidad de configuración.
+
+<strong><font color='darkmagenta'>Kedro</font></strong> permite crear tipos de persistencia propios, de manera que podamos registrar artefactos que no son archivos. Por ejemplo, podemos crear un tipo `PIDataset` que persista artefactos en un sistema de control de procesos donde descargamos datos desde el historizador PI System, lo que es típico en proyectos industriales que consumen datos de planta. Toda abstracción de este tipo hereda la interfaz de `AbstractDataSet` y se registraría en el catálogo con un nombre lógico, de manera que los nodos que consumen o producen artefactos no necesitan conocer la implementación concreta. Esa separación de responsabilidades es una de las fortalezas de <strong><font color='darkmagenta'>Kedro</font></strong>.
+
+### 4. Los parámetros: Supuestos visibles (y estáticos)
+
+Una mala práctica típica de los notebooks es esconder supuestos en el código por medio de *hard–coding*. Esto es, escribir parámetros estáticos dentro de funciones o celdas, de manera que no puedan ser auditados ni modificados sin alterar el código. Por ejemplo, si en nuestro circuito didáctico definimos un límite ficticio de potencia de 6,8 MW, resulta común, en ejercicios rápidos, anteceder nuestro código con una línea como `POWER_THRESHOLD_MW = 6.8`. Esto es aceptable en análisis de tipo exploratorio, pero nada recomendable en un proyecto que deba ser reproducible y auditable. Por eso, <strong><font color='darkmagenta'>Kedro</font></strong> propone separar los parámetros de la lógica del código, de manera que puedan ser auditados y modificados sin alterar la función científica.
+
+De esta manera, umbrales de régimen, tolerancias espaciales, fechas de corte, información a priori y política de *backtesting* viven en `conf/base/parameters.yml`. <strong><font color='darkmagenta'>Kedro</font></strong> los expone como `params:plant`, `params:spatial` o `params:bayesian`. La [guía de parámetros](https://docs.kedro.org/en/0.19.11/configuration/parameters.html) explica cómo la configuración base puede ser sobrescrita por ambiente o en tiempo de ejecución. La regla práctica es simple:
+
+| Si el valor... | Debe vivir en... | Ejemplo |
+|---|---|---|
+| describe una entidad persistente | catálogo | `model_input_daily` |
+| cambia el comportamiento de una corrida | parámetros | `target_accept: 0.99` |
+| se aprende desde los datos | artefacto catalogado | centroides vía algoritmo de $k$-medias |
+| implementa una transformación | código del nodo | cierre composicional |
+
+Guardar un centroide en YAML confundiría un resultado aprendido con un supuesto. Ocultar una fecha de corte dentro de Python impediría auditar la ejecución del proyecto completo.
+
+## ¿Cómo se organiza este repositorio?
+
+La separación física sigue el mismo razonamiento:
+
+```text
+bayesian-tph-forecasting/
+├── conf/base/                      # Catálogo y parámetros publicables
+├── conf/test/                      # Overrides para smoke tests
+├── data/01_raw ... 08_reporting/
+├── src/bayesian_tph_forecasting/
+│   ├── datasets/                   # Tipos de persistencia propios
+│   ├── pipelines/
+│   │   ├── data_engineering/
+│   │   ├── data_science/
+│   │   ├── bayesian_inference/
+│   │   └── reporting/
+│   └── pipeline_registry.py
+└── tests/
+```
+
+Las cuatro pipelines responden preguntas distintas:
+
+| Pipeline | Responsabilidad | Frontera pública |
+|---|---|---|
+| `data_engineering` | Construir entidades de planta, geología y espacio | tablas diarias con semántica industrial |
+| `data_science` | Representar contexto y ensamblar features | una fila modelable por día |
+| `bayesian_inference` | Estimar posterior y simular fuera de muestra | predicciones, intervalos y parámetros |
+| `reporting` | Traducir inferencia a decisión | bridge, model card, PNG y app |
+
+El registro global suma esas unidades:
+
+```python
+# Registro de pipelines en src/bayesian_tph_forecasting/pipeline_registry.py
+de_pipeline = data_engineering.create_pipeline()
+ds_pipeline = data_science.create_pipeline()
+bi_pipeline = bayesian_inference.create_pipeline()
+reporting_pipeline = reporting.create_pipeline()
+
+# Orden de ejecución global --> Invocado mediante `uv run kedro run`.
+global_pipeline = de_pipeline + ds_pipeline + bi_pipeline + reporting_pipeline
+```
+
+Cada pipeline se instancia con un `namespace`. Los nombres internos quedan aislados; las entradas y salidas declaradas permanecen como conectores públicos. Esta capacidad es central en las [pipelines modulares](https://docs.kedro.org/en/0.18.14/nodes_and_pipelines/modular_pipelines.html): Una misma estructura puede reutilizarse con otros inputs, outputs, parámetros o *namespace*.
+
+::: {.callout-tip}
+## ¿Modularidad?
+
+La modularidad es un principio de diseño que consiste en dividir un sistema en partes más pequeñas y manejables, llamadas módulos. Cada módulo tiene una responsabilidad específica y puede ser desarrollado, probado y mantenido de manera independiente. En el contexto de <strong><font color='darkmagenta'>Kedro</font></strong>, la modularidad permite organizar el código en pipelines y nodos, facilitando la colaboración entre equipos, la reutilización de componentes y la evolución del proyecto a lo largo del tiempo.
+
+No conozco a ningún practicante de analítica avanzada que no sufra al principio con la exigencia de un proyecto de ser modular y parametrizable, dado lo redundante que resulta a veces la construcción de archivos YAML, muchas veces enormes, para declarar artefactos y parámetros. Sin embargo, la modularidad es una inversión que se paga con creces cuando el proyecto crece, se vuelve más complejo o debe ser mantenido por un equipo. Por eso, en este proyecto, nos esforzaremos por mantener la modularidad y la claridad en la organización del código y los datos.
+
+Todos agradecen mantener un proyecto modular. Todos odian desarrollarlo (en mi humilde experiencia). Es parte del juego.
+:::
+
+## Decisiones que el DAG del proyecto vuelve visibles
+
+La arquitectura de este caso contiene hipótesis de negocio e inferencia estadística:
+
+1. El target suma el rendimiento estable de dos líneas; no promedia detenciones con régimen.
+2. Geometría, clusters, referencias, estandarización e información a priori se ajustan sólo con entrenamiento.
+3. Los valores a posteriori finales sirven para interpretar parámetros, mientras las métricas provienen del procedimiento de *backtesting* fuera de muestra (en datos de prueba).
+4. Cada *pliegue* de validación usa los doce meses anteriores y pronostica los dos siguientes, sobre una lógica *ex-post* de ventanas móviles.
+5. La reportabilidad consume contribuciones catalogadas, de modo que ninguna cifra se copia manualmente.
+
+La ventana móvil es una política de trabajo en este proyecto, no una propiedad universal. Una ventana expansiva reduce varianza si el proceso es estable; una móvil responde más rápido a cambios de régimen, que son esperables (y hasta razonables) en una planta concentradora. Como el gráfico de cascada final se interpreta de forma agregada, aquí privilegiamos un sesgo neto bajo en magnitud: Errores positivos y negativos no deben acumular una falsa brecha operacional.
+
+Al terminar esta serie, el lector no sólo podrá ejecutar `kedro run`. Podrá reconocer qué debe ser un nodo, dónde termina una pipeline, cómo diseñar un catálogo, qué pertenece a parámetros y cómo mantener esas decisiones alineadas con la inferencia.
+
+[Siguiente: Datos sintéticos, contratos y catálogo →](02-datos-y-catalogo.qmd)

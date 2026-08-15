@@ -80,7 +80,9 @@ def main() -> None:
     pattern = re.compile(re.escape(START) + r".*?" + re.escape(END), re.DOTALL)
     if not pattern.search(html):
         raise SystemExit(f"No se encontraron los marcadores en {INCLUDE}")
-    INCLUDE.write_text(pattern.sub(lambda _: block, html), encoding="utf-8")
+    updated_html = pattern.sub(lambda _: block, html)
+    if updated_html != html:
+        INCLUDE.write_text(updated_html, encoding="utf-8")
 
     total = sum(len(s["items"]) for s in notes_order)
     print(f"notes-order: {total} entradas en {len(notes_order)} secciones")

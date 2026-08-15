@@ -1,0 +1,236 @@
+---
+title: "3. Ingeniería de datos"
+description: "De señales horarias y ciclos sintéticos de transporte a variables contextuales diarias con semántica industrial."
+toc: true
+toc-depth: 3
+---
+
+[← Volver al proyecto](index.qmd)
+
+## ¿Qué debe (y qué no debe) hacer esta capa?
+
+La ingeniería de datos construye entidades que el negocio puede reconocer y consumir de manera razonable. Por ejemplo, rendimiento estable, disponibilidad contextual, composición geológica, procedencias de mineral y dureza de la roca. No selecciona variables, no construye modelos predictivos, no ajusta hiperparámetros, no establece información a priori para ser usada en un modelo Bayesiano ni tampoco decide cómo mostrar estimaciones a posteriori. Esta frontera de responsabilidades es crucial, ya que permite discutir la validez de una variable antes de discutir su coeficiente en un modelo de regresión. La capa de ingeniería de datos entrega evidencia, no conclusiones.
+
+En este proyecto, la ingeniería de datos está definida por medio de una pipeline de <strong><font color='darkmagenta'>Kedro</font></strong> que *vive* en [`data_engineering/pipeline.py`](src/bayesian_tph_forecasting/pipelines/data_engineering/pipeline.py). Esta pipeline está constituida por seis nodos que reciben DataFrames y parámetros ordinarios, y producen ocho datasets. La persistencia de los resultados se gestiona mediante un catálogo de datos, y <strong><font color='darkmagenta'>Kedro</font></strong> infiere el orden de ejecución a partir de las dependencias entre nodos.
+
+No todos los datasets producidos por la pipeline son consumidos en la siguiente etapa del proyecto; algunos se mantienen como evidencia auditable. La estructura de la pipeline se puede visualizar de la siguiente manera:
+
+```text
+señales horarias ── limpieza ──┬── target diario
+                               └── contexto de planta
+geología diaria ── cierre ──────── composición geológica
+ciclos + bloques ── vecino ────┬── ciclos con dureza
+                               ├── geometría aprendida
+                               └── contexto espacial diario
+```
+
+La secuencia lógica de la pipeline refleja la semántica industrial: Primero se limpian y agregan las señales horarias, después se cierra la geología por medio de una repartición proporcional a modo de reconciliación y finalmente se asocia cada ciclo de transporte con un bloque de dureza usando las coordenadas georreferenciadas de las palas. La persistencia de los resultados se gestiona nuevamente en el catálogo de datos, y <strong><font color='darkmagenta'>Kedro</font></strong> infiere el orden de ejecución a partir de las dependencias entre nodos.
+
+## 1. Validación de la serie horaria
+
+El primer nodo que constituye la pipeline es `clean_plant_signals`. Su objetivo es garantizar que los datos de planta sean consistentes y estén listos para agregación. Recibe como input el dataset `"plant_signals_hourly_raw"` y retorna `"plant_signals_hourly_clean"`. Exige, además de una serie de columnas previamente establecidas por medio de una especie de *contrato* conforme una variable de uso interno denominada `PLANT_SIGNAL_COLUMNS`, una columna `"timestamp"` que contiene los tiempos asociados a las observaciones de las señales historizadas de variables de planta. La limpieza es más bien sencilla, y consiste en la conversión de tipos de datos a numérico, eliminación de registros duplicados y un ordenamiento cronológico de las observaciones. La función no imputa valores faltantes, sino que los deja como `NaN` para que sean tratados explícitamente en la agregación posterior.
+
+La decisión anterior es práctica y tiene el objetivo de no alterar la distribución observada de los datos por variable, además de no introducir sesgos de imputación: Los ceros podrían sugerir detenciones, mientras que los valores faltantes podrían indicar que no se sabe qué ocurrió, siendo ambas conclusiones razonables, pero no siempre ciertas.
+
+## 2. Definición de rendimiento en régimen estable
+
+El rendimiento "bruto" horario de molienda no constituye aún la variable de respuesta que deseamos estimar. Durante las detenciones operacionales y/o mantenciones de un molino, su tratamiento puede caer a cero incluso aunque nuestro objetivo sea estimar capacidad de procesamiento en términos únicamente de contexto geometalúrgico. Para cada línea de molienda $\ell\in\{A,B\}$ y hora $h$ definimos un indicador binario de régimen estable:
+
+$$
+I_{\ell h}
+=\mathbf{1}\{F_{\ell h}\ge F_{\min}\}
+ \mathbf{1}\{P_{\ell h}\ge P_{\min}\}
+$$
+
+donde $\mathbf{1}$ es la función indicatriz, $F_{\min}=700$ tph y $P_{\min}=3500$ kW son umbrales ficticios que describen el piso del régimen estable definido para este ejercicio, los que se almacenan en el **diccionario de parámetros** de nuestro proyecto (o, en la jerga de <strong><font color='darkmagenta'>Kedro</font></strong>, `params:plant`). En otras palabras, una hora se considera estable si el flujo de alimentación y la potencia de molienda superan los umbrales mínimos establecidos, descartándose cuando no es así. Estos valores no deben interpretarse como límites de diseño de una planta real.
+
+De esta manera, el estimador diario por línea se define como la media de los flujos horarios en régimen estable. Es decir,
+
+$$
+\bar F_{\ell d}^{\text{estable}}
+=\frac{\sum_{h\in d}I_{\ell h}F_{\ell h}}{\sum_{h\in d}I_{\ell h}}
+$$
+
+El target conjunto se define pues como la suma de los rendimientos estables de ambas líneas:
+
+$$
+y_d=\bar F_{Ad}^{\text{estable}}+\bar F_{Bd}^{\text{estable}}
+$$
+
+El uso de la suma respeta la arquitectura paralela de las líneas de molienda, ya que promediar ambas líneas dividiría artificialmente la capacidad por dos. Condicionar por régimen evita interpretar horas detenidas como una propiedad de la roca. A cambio, la variable de respuesta ya no representa la producción diaria total, sino que una tasa de tratamiento estable. Esta diferencia semántica debe conservarse al comunicar resultados: Cualquier experto metalurgista preguntaría por un filtro así, como mínimo, en una revisión exhaustiva de un proyecto de este tipo.
+
+En nuestro caso, las medias estables por línea son, aproximadamente, 3246 y 3262 tph, respectivamente. El nivel conjunto, por tanto, se sitúa alrededor de 6500 tph.
+
+## 3. Traducción de señales de estados a contexto operacional
+
+Los sistemas periféricos de la molienda están constituidos por equipos cuyo estado suele estar traducido a variables binarias y/o categóricas. Por ejemplo, un chancador puede estar representado, a nivel funcional, por un estado de motor que retorne tres categorías: `on`, `off` y `standby`. La traducción de estos estados a indicadores binarios de disponibilidad es un paso crucial para que la información de planta sea interpretable por un modelo predictivo, independiente de su naturaleza. Por ejemplo, un chancador en `standby` no está disponible para procesar mineral, aunque su motor no esté apagado.
+
+Para cualquier indicador horario $A_h\in[0,1]$, la disponibilidad diaria se define como el promedio de los indicadores horarios:
+
+$$
+A_d^{\%}=100\frac{1}{|H_d|}\sum_{h\in H_d}A_h
+$$
+
+en unidades porcentuales.
+
+Los sistemas periféricos de la molienda son aquellos que operan antes, durante y después de la misma, y cuya detención puede afectar la continuidad del proceso en diferentes grados. De la teoría de Excelencia Operacional, estos sistemas pueden constituir cuellos de botella que limitan la capacidad de procesamiento, y por tanto deben ser considerados como covariables contextuales en un modelo predictivo. Individualmente, los equipos que los constituyen pueden ser redundantes (su detención no afecta la continuidad del proceso), estrangulantes (su detención degrada el rendimiento de molienda, siendo estrangulantes críticos si esa degradación es severa, como mínimo) y bloqueantes (su detención no permite que la molienda continúe, aunque sea a un rendimiento reducido). La condición de cada sistema periférico se define como un indicador binario horario que refleja si el sistema está disponible o no, y su promedio diario constituye la covariable contextual que será usada en el modelo predictivo.
+
+Las cuatro variables que representan a estos sistemas periféricos se listas a continuación.
+
+### Riesgo de starving en el circuito aguas arriba
+
+La molienda se alimenta por medio de un stock de mineral intermedio que actúa como regulador o *buffer* de alimentación. Su misión es empatar la operación en *batch* de chancado primario con la operación continua de la molienda, inventariando mineral a modo de *pulmón* de alimentación cuando el chancado primario no puede entregar mineral debido a detenciones o falta de mineral desde la mina. Definimos la condición de **starving** de la molienda cuando el nivel de stock cae a un nivel que degrada el tratamiento de molienda en más de un 50%. En tales condiciones, el chancado primario se convierte en un cuello de botella que limita la capacidad de procesamiento, y por tanto debe ser considerado como covariable contextual en un modelo predictivo y, por extensión, como un estrangulante que puede ser crítico bajo starving.
+
+Por el contrario, un stock se define como sano si su altura mantiene una variabilidad de tratamiento relativamente baja, lo que permite que la molienda opere en régimen estable. En este proyecto, se definen tres rangos de operación del stock:
+
+- Starving: $L_h^{\text{stock}}<10$ m.
+- Riesgo de starving: $10\le L_h^{\text{stock}}<20$ m.
+- Sano: $L_h^{\text{stock}}\ge20$ m.
+
+Donde $L_h^{\text{stock}}$ es la altura del stock en metros. El indicador de operación para el circuito aguas arriba se define entonces como
+
+$$
+A_h^{\text{upstream}}
+=\mathbf{1}\{L_h^{\text{stock}}>20\text{ m}\}
+$$
+
+Por supuesto, un stock sano representa continuidad de alimentación hacia molienda; no mide directamente la eficiencia del chancado primario.
+
+### Oferta y demanda de pulpa focalizada en clasificación
+
+El cliente directo de la molienda SAG en el circuito didáctico es la clasificación por medio de hidrociclones. La oferta de pulpa es la cantidad de mineral que entrega la molienda, mientras que la demanda es la cantidad de mineral que puede recibir la clasificación. La continuidad operacional de la clasificación depende del uso de un buffer de pulpa que reciba fracción más fina de la descarga del molino SAG y el mineral que retorna desde la misma clasificación. Dicho buffer es una piscina o *cuba* de descarga, donde incorporamos agua al circuito para mantener un porcentaje de sólidos consistente con la operación de los hidrociclones. La condición de la clasificación se define como un indicador binario horario que refleja si la oferta y demanda de pulpa están dentro de un rango de operación razonable, sin rebalse (sobre–oferta) ni starving (sobre-demanda). En este proyecto, la cuba actúa como proxy de este trade–off, siendo su rango aceptado como normal cuando el nivel de la misma fluctúa entre 40% y 90% de su capacidad nominal. El indicador horario de la clasificación se define entonces como
+
+$$
+A_h^{\text{sumps}}=\mathbf{1}\{40\le S_{Ah}\le90\} \mathbf{1}\{40\le S_{Bh}\le90\}
+$$
+
+Naturalmente, se exige que ambas líneas estén dentro de rango. Un nivel extremo puede reflejar restricciones de bombeo o estabilidad hidráulica. Sea cual sea el caso, el nivel de cuba no es causal de degradación de tratamiento, sólo un indicador de que la continuidad de la molienda puede verse afectada por la oferta y demanda de pulpa.
+
+### Disponibilidad del chancado auxiliar
+
+Consideraremos tres unidades ficticias de chancado auxiliar que operan en paralelo. La disponibilidad conjunta se define como un indicador binario horario que refleja si al menos una unidad se encuentra disponible para recibir el material recirculado. El supuesto conserva el problema lógico de redundancia de equipos sin pretender reproducir la distribución física de una instalación real.
+
+Para tres chancadores con estado $C_{kh}$, el indicador horario de la línea $\ell$ se define como:
+
+$$
+A_h^{\text{aux}}=\mathbf{1}\left\{\sum_{k=1}^{3}\mathbf{1}(C_{kh}\ge0.5)\ge1\right\}
+$$
+
+El valor $0.5$ es un umbral que discrimina entre chancadores disponibles y no disponibles a partir de sus estados de motor. Dicho de otra forma, debido a que esa variable puede tomar valores solamente iguales a $0$ o $1$ en régimen estable, al generar agregaciones horarias, esa naturaleza binaria se pierde y se requiere un umbral para recuperar la semántica de disponibilidad.
+
+Esta variable responde simplemente si existe capacidad auxiliar disponible, no cuántos equipos están encendidos.
+
+### Runtime de molienda secundaria
+
+La molienda secundaria es el cliente del *underflow* de las baterías de hidrociclones: Se encargan de procesar los gruesos que provienen de dichas baterías. Sin embargo, existe una dependencia funcional entre cada molino y su correspondiente bomba impulsora de pulpa. En general, necesitamos esas bombas para llevar el flujo acumulado en la cuba hacia los ciclones. Si esas bombas no están disponibles, el molino no puede operar. esto suele salvaguardarse por medio de la redundancia de bombas, teniendo al menos una más en standby. En este proyecto, existen tres bombas por línea de molienda, que se encargan de llevar la pulpa a un circuito de clasificación inverso con dos baterías de hidrociclones, cuyo undeflow va hacia molinos de bolas. Las bombas bloquean el funcionamiento de uno de los molinos si hay dos de ellas fuera de servicio, pero no al revés. Por lo tanto, la capacidad de uso del circuito depende de la disponibilidad conjunta de los molinos y de las bombas:
+
+$$
+A_{\ell h}^{\text{secondary}}
+=\mathbf{1}\left\{\sum_{k=1}^{3}B_{\ell kh}\ge2\right\} \mathbf{1}\{M_{\ell1h}=1,M_{\ell2h}=1\}
+$$
+
+El indicador horario de planta es $(A_{Ah}+A_{Bh})/2$, por lo que una hora puede valer $0$, $0.5$ o $1$. Su promedio diario conserva la idea de fracción de capacidad paralela disponible.
+
+## 4. Fracción fina de alimentación
+
+Un elemento contextual importante en la estimación de un tratamiento esperado en cualquier planta concentradora corresponde a la granulometría de la alimentación. Tal granulometría no constituye una única variable, sino que una distribución de tamaños completa que puede *mutar* en función del mix de mineral alimentado y del setting operacional del chancado primario.
+
+En términos operacionales, la granulometría es una especie de *compromiso* que la mina firma con la planta concentradora: La mina entrega un mineral con cierta distribución de tamaños compatible con los parámetros de diseño del equipo reductor, y la planta debe procesarlo. Las desviaciones de esa distribución pueden alterar el tamaño de producto de chancado, lo que, por supuesto, genera un efecto de cascada sobre la molienda y su eficiencia: Partículas más gruesas de los esperado requieren de un mayor tiempo de residencia en los molinos, lo que degrada la tasa de tratamiento. Partículas más finas de lo esperado también pueden ser problemáticas, ya que pueden saturar la oferta de pulpa en la clasificación y derivar en un proceso de *sobre-molienda* (u *overgrinding*), que puede deterioriar la eficiencia de flotación y la recuperación del mineral de interés.
+
+En general, solemos fijar un valor umbral de finos en la alimentación cuando nuestro nuestro objetivo es simplemente maximizar el tratamiento de molienda. En este proyecto, se define un mineral como *fino* cuando su tamaño es menor a 1", siendo beneficioso para la molienda, conforme criterio experto, que la fracción de ese mineral sea de un 40% de la alimentación o mayor. La columna `"feed_fines_pct_mean"` representa la media diaria de la fracción fina de alimentación, y se calcula a partir de los datos de granulometría horaria alimentados desde el historizador de datos de planta. Naturalmente, se descartan valores fuera del rango $[0,100]$ para evitar sesgos por errores de medición o registros atípicos.
+
+## 5. Composición geológica reconciliada (o mix de mineral)
+
+Los datos de reconciliación geológica se entregan por medio de un libro de cálculo que contiene tonelajes reconciliados por litología y clase de calidad geotécnica. La reconciliación se realiza a nivel diario, y se entrega como un dataset con granularidad diaria. Esta reconciliación es, por supuesto, de tipo *ex post*: Se entrega siempre el día $d+1$ la información de reconciliación del día $d$. Por lo tanto, no es posible usar la composición geológica de un día para predecir el rendimiento de ese mismo día (*ex ante*). No obstante, es perfecta para reconocer rotaciones de mezcla y cambios de dureza que pueden afectar la eficiencia de molienda, y por tanto constituye una covariable contextual importante para un modelo predictivo.
+
+La composición geológica se expresa como proporciones de tonelaje por familia, y se calcula a partir de los tonelajes reconciliados por litología y clase de calidad. Para cada familia $j$ y día $d$, la proporción se define como:
+
+$$
+p_{dj}=\frac{T_{dj}}{T_{d,\text{feed}}}
+$$
+
+Si el denominador el cero, asumimos que no hubo alimentación y la proporción queda ausente. Esto es razonable, porque la reconciliación depende de la llegada de mineral a la planta y su posterior procesamiento en el chancado primario. Cuando dicho proceso se encuentra detenido, no tiene sentido definir proporciones de mezcla. La pipeline entrega las proporciones en escala $[0,1]$, y más adelante serán usadas para construir firmas geológicas por medio de un modelo de clustering geométrico, mientras que las composiciones de procedencia y dureza se expresan como porcentajes. La diferencia de escala es deliberada y se neutraliza mediante estandarización dentro del modelo.
+
+## 6. Dureza in-situ y reconciliación espacial
+
+Las unidades geológicas, por sí solas, no explican completamente la dureza. Su denominación parte de una convención geológica que discrimina las rocas por propiedades físicas asociadas a litologías concretas (por ejemplo, andesitas, brechas, tonalitas, etc.). Dos litologías pueden tener durezas similares, por lo que un modelo podría no reconocer diferencias entre una y otra, aunque sí es posible discriminar patrones de tratamiento entre combinaciones.
+
+Un procedimiento típico de *ore control* permite estudiar la velocidad de penetración de las perforadoras en las actividades de perforación y tronadura (P&T). Dicha velocidad es un *proxy* de la dureza del mineral in-situ, porque a mayor velocidad de penetración, menor dureza. Debido a que las tronaduras siempre intentan asociarse a un bloque del modelo geológico, se asocian estas velocidades de penetración al modelo de bloques y, por tanto, constituyen una propiedad geológica en sí misma.
+
+En general, los equipos de carguío en una mina vienen equipados con sistemas de posicionamiento y telemetría que permiten estimar su ubicación con una precisión suficiente frente al tamaño de los bloques del modelo. Tales coordenadas son registradas con granularidad fina y almacenadas en bases de datos, lo que permite reconciliar esas **coordenadas de carguío** con la dureza *in situ* provista por los geólogos. El resultado de esa conciliación es un dataset de ciclos de transporte donde cada unidad de carguío se asocia a una posición $\mathbf{q}_{i}=(x_{i},y_{i},z_{i})$ *promedio*, y el tiempo de ciclo permite trazar el mineral desde su fuente hasta la planta concentradora. En nuestro caso, tanto las posiciones como la discretización espacial son ficticias y viven en un marco cartesiano local sin referencia geográfica.
+
+Si cada bloque de dureza se representa por su centroide $\mathbf{b}_{j}=(x_{j},y_{j},z_{j})$, podemos asociar cada ciclo de carguío con el bloque más cercano. La distancia euclidiana entre un ciclo y un bloque se define como:
+
+$$
+\begin{array}{lll}d\left( \mathbf{q}_{i} ,\mathbf{b}_{j} \right)&=&d_{ij}\\ &=&\left\Vert \mathbf{q}_{i} -\mathbf{b}_{j} \right\Vert\\ &=&\sqrt{(x_{i}-x_{j})^{2}+(y_{i}-y_{j})^{2}+(z_{i}-z_{j})^{2}}\end{array}
+$$
+
+Notemos que, para $m$ ciclos y $n$ bloques, la matriz de distancias $D\in\mathbb{R}^{m\times n}$ tiene $mn$ elementos. El modelo de bloques de nuestro yacimiento contiene casi 200000 bloques, mientras que el dataset de ciclos contiene más de 230000 registros. Por lo tanto, la matriz de distancias tendría más de 46 mil millones de elementos, lo que hace inviable su construcción y almacenamiento en memoria para un proyecto *académico* como éste. Al menos desde una mirada tradicional.
+
+Para salvaguardar este problema, utilizamos una implementación del algoritmo de $k$ vecinos más cercanos (kNN) que indexa los bloques y permite consultas de vecino más cercano con un costo de complejidad típico cercano a $O(m \log n)$ (a diferencia del costo de calcular distancias, que es $O(mn)$). En particular, hacemos uso de la clase `cKDTree`, provista por el módulo `scipy.spatial`, que permite implementar este algoritmo por medio de una secuencia de árboles de búsqueda binaria, lo que posibilita una reconciliación espacial en un tiempo razonable.
+
+La reconciliación tiene un criterio de aceptación conforme una distancia $d_{ij}\leq 95$ m, siendo asignada a la columna `"penetration_rate"` del dataset correspondiente. Si esta condición no se cumple (esto es, no existe un bloque con dureza reconciliada lo suficientemente cercano a la posición de una pala), el correspondiente registro queda vacío, lo que se traza por medio del parámetro `hardness_class`, seteándolo en el valor `"unmatched"`.
+
+## 7. Atribución agnóstica de propiedades físicas a fuentes de mineral
+
+Las fuentes o procedencias del mineral que es enviado a la planta concentradora son designaciones de naturaleza *política*, en el sentido de que éstas obedecen a reglas de secuencialidad minera y no a las propiedades del mineral que éstas contienen. Distintas fuentes pueden enviar minerales de calidades y/o propiedades similares a la planta, lo que hace difícil discriminar *a priori* su "responsabilidad" en las fluctuaciones del tratamiento de molienda. Más aún, nos impiden proyectar tasas de producción en un esquema *ex ante*, porque si una fase nueva de un rajo entra en producción, no tenemos historia detrás que nos permita incorporar dicha categoría a un modelo, sin importar lo complejo y bueno que éste sea.
+
+De esta manera, la incorporación de las fuentes de mineral se realiza por medio de una asociación geoespacial mediante una regla explícita, la que permite reconstruir la geometría de los dominios de cada origen restringiendo dicha construcción a los datos de entrenamiento, evitando la generación de *data leakage*, conforme el siguiente procedimiento:
+
+- Las coordenadas de carguío $(x_{i},y_{i})$ en el plano $(x,y)$ se redondean a una grilla regularizada de $10\times 10$ m, a fin de reducir la densidad de puntos por pixel y el efecto de *jitter*.
+- Se implementa un algoritmo de clustering basado en densidades denominado DBSCAN dentro de cada área, con un radio de vecindad $\varepsilon=165$ m y un mínimo de 3 muestras por cluster. El objetivo es identificar componentes conexas de ciclos de carguío que puedan ser representadas por un polígono, a fin de discriminar zonas aisladas que no constituyen un dominio geoespacial estable.
+- Se calcula el soporte de cada componente, definido como el número de ciclos de carguío que la constituyen, a fin de descartar componentes con muy pocos ciclos, que probablemente puedan ser pequeños stocks de remanejo de naturaleza circunstancial.
+- Se retienen únicamente los componentes con al menos $\max(300,\lceil0.005N_{\text{área}}\rceil)$ ciclos, donde $N_{\text{área}}$ es el número de ciclos de transporte en el área correspondiente, a fin de asegurar un mínimo soporte estadístico para la construcción de la geometría.
+- Para evitar que los polígonos resultantes tengan bordes muy dispersos, se recorta el 0.5% extremo de los puntos por eje, eliminando así outliers que puedan distorsionar la forma del polígono, intentando buscar una envolvente más representativa de la distribución de los ciclos de transporte.
+- Para cada componente válido, se construye su **envolvente convexa**, que es el polígono convexo más pequeño que contiene todos los puntos del cluster, a fin de representar la geometría de la fuente de mineral de manera compacta y eficiente. La razón de usar una geometría de este tipo es garantizar que cada localización de una pala en una procedencia de mineral pueda unirse con otra con una línea recta sin salir del polígono, lo que permite una asignación más robusta de nuevas observaciones.
+
+::: {.callout-note}
+### ¿Y por qué usar DBSCAN y no un algoritmo más sencillo de agrupamiento?
+
+El uso de DBSCAN es un riesgo en sí mismo, puesto que es un algoritmo que asigna puntos a clusters conforme densidades locales de manera eficiente, pero que no dispone de un método que permita estimar la pertenencia de puntos nuevos a clusters ya aprendidos. Por lo tanto, cabría preguntarse: ¿Por qué no usar un método de clustering geométrico, como el algoritmo de $k$-medias, que salvaguarda este problema?
+
+La razón es, irónicamente, geométrica. Resulta que las rutas que siguen los camiones y los traslados cortos y largos de las palas entre distintas frentes de carguío tienen topologías irregulares y que constituyen formas similares a polígonos con una dimensión mucho más grande que la otra, lo que impide la implementación de clustering basado en centroides. Una frente de carguío estrecha puede ser fácilmente ignorada por una asignación vía $k$-medias porque tal asignación produce grupos geométricamente compactos y parecidos a círculos, debido a su dependencia de la distancia Euclidiana al centroide. Por el contrario, DBSCAN permite identificar clusters de forma arbitraria, lo que es crucial para representar correctamente la geometría de las fuentes de mineral.
+
+La falta de un método estimativo, por supuesto, es un problema. Y esa es la razón por la que optamos por la construcción de una envolvente convexa, que permite proyectar nuevas observaciones sobre la geometría aprendida y asignarlas a un cluster existente o etiquetarlas como ruido. La combinación de DBSCAN y una envolvente convexa permite discriminar zonas de mineral con geometrías irregulares y asignar nuevas observaciones de manera robusta, sin necesidad de conocer el número de clusters a priori.
+:::
+
+Para cualquier frente de carguío localizada en un punto *futuro*. se evalúa primero su área aproximada (barriendo los puntos que la constituyen), y después se comprueba si dicho punto cae dentro de uno de los polígonos aprendidos. Si pertenece al área pero a ningún polígono se asigna `AREA_OUTSIDE`; si el código no se reconoce, `UNASSIGNED`. Nada del período evaluado mueve los límites.
+
+::: {.callout-note}
+## Y todo esto es para evitar el fenómeno de *data leakage*
+
+La pertenencia a un origen de mineral se define por la geometría aprendida a partir de los datos de entrenamiento. No se permite que un punto futuro pueda alterar la geometría de un cluster ya aprendido, ni que pueda crear un nuevo cluster. Esto es crucial para evitar *data leakage*, ya que el conocimiento de la ubicación futura de un frente de carguío podría alterar la representación del pasado y, por tanto, sesgar las estimaciones del modelo predictivo.
+
+Por cierto, en esta aproximación, usamos deliberadamente proyecciones de las localizaciones de las palas en el plano $(x,y)$, ignorando la coordenada $z$. Esto es razonable porque la altura de los frentes de carguío es relativamente pequeña frente a su extensión horizontal, y porque en este proyecto, las procedencias *reconocidas visualmente* están separadas en dicho plano. En minas más profundas, la coordenada $z$ sí puede ser importante, porque puede existir una superposición de fases en el fondo mina con respecto a sectores intermedios o más cercanos a la superficie. Las envolventes convexas, en este caso, se transforman en poliedros. No obstante, esto no es un problema per sé, ya que su construcción es escalable.
+:::
+
+## 7. Agregación de soporte y composiciones espaciales
+
+A partir de la reconciliación espacial de dureza y procedencia, podemos agregar los ciclos de transporte por día y construir composiciones de ambas entidades. La agregación se realiza por medio de una agregación agrupada con frecuencia diaria, y se calcula el número de ciclos con destino relevante, el promedio de matches válidos, la fracción con bloque cercano y los porcentajes de ciclos por zona y clase de dureza. Todas estas variables se almacenan en un dataset con granularidad diaria, que constituye evidencia de soporte para la construcción de un modelo predictivo. Las columnas en cada caso se denominan `"n_feed_cycles"`, `"penetration_rate_mean"`, `"hardness_match_pct"`, `"zone_share__*"` y `"hardness_share__*"`, respectivamente. La agregación se realiza de manera que la suma de los porcentajes por categoría sea igual a 100%, lo que permite interpretar la composición de cada día en términos relativos. Es decir, para una categoría $k$ en el día $d$:
+
+$$
+s_{dk}=100\frac{N_{dk}}{N_d}\quad; \quad \sum_k s_{dk}=100
+$$
+
+Las columnas `"n_feed_cycles"` y `"hardness_match_pct"` constituyen variables de soporte. No entran necesariamente al modelo, pero permiten descartar días sustentados por pocos ciclos e interpretar la confiabilidad de la mezcla. Esta separación entre variables de soporte y evidencias de calidad evita la disposición de un número arbitrario asignado a la variable de respuesta se traduzca inmediatamente como una garantía de que la estimación es confiable.
+
+## Algunos comentarios importantes sobre ejecución localizada
+
+El nodo `build_daily_plant_tables` permite generar la tabla constituida por la variable de respuesta (tratamiento) y las correspondientes variables contextuales que alimentarán a nuestro modelo en una única llamada, ya que todas estas variables comparten los mismos procedimientos de limpieza, abstracción cronológica y semántica horaria. Sin embargo, la construcción de las variables geoespaciales requiere de un procedimiento de reconciliación que debe persistirse y auditarse, lo que le vale su inclusión en su propio set de nodos por medio de un tag en el DAG de <strong><font color='darkmagenta'>Kedro</font></strong>. Por lo tanto, la ejecución de la pipeline puede realizarse de manera localizada, ejecutando únicamente los nodos que nos interesen, sin necesidad de reconstruir toda la capa de ingeniería de datos.
+
+Algunos ejemplos de ejecución localizada son los siguientes:
+
+```bash
+uv run kedro run --pipelines data_engineering
+uv run kedro run --tags spatial
+uv run kedro run --nodes data_engineering.match_haulage_cycles_to_hardness
+```
+
+- La primera instrucción ejecuta toda la pipeline de ingeniería de datos.
+- La segunda, todos los nodos "taggeados" como `spatial`, que corresponden a la reconciliación espacial de dureza y procedencia.
+- La tercera, únicamente el nodo que realiza la reconciliación espacial de dureza.
+
+En un proyecto de este tipo, la granularidad de los nodos es crucial. La ejecución localizada permite reconstruir únicamente los datasets que nos interesen, sin necesidad de reconstruir toda la capa de ingeniería de datos. Esto es especialmente útil cuando se realizan cambios en un nodo específico y se desea validar su salida sin tener que ejecutar toda la pipeline. Esto es, por supuesto, independiente del framework que usemos para empaquetar nuestro proyecto. <strong><font color='darkmagenta'>Kedro</font></strong> es una opción de muchas disponibles.
+
+[← Datos sintéticos, contratos y catálogo](02-datos-y-catalogo.qmd) ·
+[Siguiente: Ciencia de datos →](04-ciencia-de-datos.qmd)

@@ -1,0 +1,178 @@
+---
+title: "Un modelo de forecasting Bayesiano jerárquico para explicar el tratamiento de molienda"
+subtitle: "De archivos estáticos a una explicación contextual del rendimiento con Kedro y <strong><font color='darkmagenta'>PyMC</font></strong>"
+toc: true
+toc-depth: 2
+page-layout: full
+---
+
+Este proyecto es un ejemplo de cómo un modelo Bayesiano jerárquico puede ser usado para explicar el rendimiento de una planta de molienda en función del contexto operacional. A través de un flujo reproducible que integra datos sintéticos, ingeniería de datos, ciencia de datos y modelamiento Bayesiano, se construye un sistema que permite descomponer el rendimiento observado en componentes explicables por el contexto y un residuo no explicado.
+
+::: {.callout-note title="Un caso ficticio, construido para aprender"}
+Todos los datos del proyecto fueron generados desde cero para este blog. Las fechas futuras, las coordenadas cartesianas locales, las capacidades, los identificadores y la configuración del circuito son supuestos didácticos: no representan ni fueron derivados de una operación minera real. Esta separación es importante porque nos permite conservar relaciones industriales plausibles sin publicar la huella de una faena.
+:::
+
+Nuestro objetivo es responder a la pregunta: **¿Cuánto del rendimiento observado era esperable por el contexto que recibió la planta y cuánto queda sin explicar por ese contexto?**. La respuesta se presenta en forma de un gráfico de cascada auditable, que permite visualizar las contribuciones de diferentes variables contextuales al rendimiento esperado. Tales variables incluyen geología, procedencias de mineral, granulometría, estado de sistemas periféricos de la molienda y dureza in-situ del mineral.
+
+## La planta concentradora
+
+La planta concentradora es un sistema complejo que recibe mineral de diferentes procedencias y con distintas características físicas y químicas. La eficiencia del proceso de molienda depende de múltiples factores, incluyendo la dureza del mineral, la distribución granulométrica, la disponibilidad de los equipos y las condiciones operacionales.
+
+```{mermaid}
+flowchart TB
+  subgraph FUENTES["Fuentes de mineral"]
+    direction LR
+    FA["Fuente A"]
+    FB["Fuente B"]
+    FP["⋯"]
+    FN["Fuente N"]
+  end
+
+  FA & FB & FP & FN --> CR["Chancado primario<br/>"]
+  CR --> IOS[("Stock de mineral<br/>intermedio · IOS")]
+
+  IOS --> SAGA["Molino SAG A"]
+  IOS --> SAGB["Molino SAG B"]
+
+  SAGA --> PA{"Clasificación<br/>de material recirculado"}
+  SAGB --> PB{"Clasificación<br/>de material recirculado"}
+  PA -- "Sobretamaño" --> CP["Chancado auxiliar"]
+  PB -- "Sobretamaño" --> CP
+  CP -. "Retorno" .-> SAGA
+  CP -. "Retorno" .-> SAGB
+
+  PA -- "Bajo tamaño" --> CA["Cuba de descarga A"]
+  PB -- "Bajo tamaño" --> CB["Cuba de descarga B"]
+  CA --> HCA["Hidrociclones A"]
+  CB --> HCB["Hidrociclones B"]
+  HCA -- "Gruesos" --> BMA["Molinos de bolas A2–A3"]
+  HCB -- "Gruesos" --> BMB["Molinos de bolas B2–B3"]
+  BMA -. "Recirculación" .-> CA
+  BMB -. "Recirculación" .-> CB
+  HCA -- "Finos" --> PROD["Producto de molienda"]
+  HCB -- "Finos" --> PROD
+
+  classDef fuente fill:#f4e8f1,stroke:#7d2b6a,color:#3f1536;
+  classDef acopio fill:#0875bd,stroke:#075985,color:#fff;
+  classDef molienda fill:#7d2b6a,stroke:#5d1f4f,color:#fff;
+  classDef proceso fill:#3d6b61,stroke:#284a43,color:#fff;
+  class FA,FB,FP,FN fuente;
+  class IOS acopio;
+  class SAGA,SAGB,BMA,BMB molienda;
+  class CR,PA,PB,CP,CA,CB,HCA,HCB,PROD proceso;
+```
+
+Nos enfocaremos en la molienda SAG y en sus interacciones con diversos sistemas periféricos que ocurren antes, durante y después de la molienda misma, tales como la alimentación primaria, el procesamiento del material recirculado, la molienda secundaria y la clasificación por medio de hidrociclones. Para conservar la riqueza del problema sin imitar una faena, supondremos un circuito didáctico de dos líneas que recibe mineral desde ocho fuentes ficticias, etiquetadas de `SOURCE_A` a `SOURCE_H`. Cada fuente posee una mezcla geológica y una dureza distintas, construidas por el generador del proyecto para que el contexto cambie a través del tiempo.
+
+## El producto final
+
+El modelo Bayesiano de tratamiento tiene por objetivo desacoplar el rendimiento observado en componentes explicables por el contexto y un residuo no explicado. La salida del modelo es un gráfico de cascada que muestra cómo cada variable contextual contribuye al rendimiento esperado, permitiendo a los operadores y analistas entender mejor las causas detrás de las variaciones en el rendimiento.
+
+<iframe src="app/bridge.html" title="Aplicación interactiva del bridge contextual" width="100%" height="820" style="border:1px solid #dfe7e5;border-radius:12px;"></iframe>
+
+En todo el período ficticio fuera de muestra, el tratamiento contextual medio fue de aproximadamente 2232 tph, prácticamente igual al tratamiento sintético observado. La diferencia entre ambos es el residuo operacional agregado, cercano a cero en esta ejecución de prueba. No conviene leer esta coincidencia como una propiedad de una planta: es una comprobación del generador y de la identidad contable del bridge. La consistencia entre el residuo agregado y el sesgo neto reportado en validación sigue siendo una prueba útil de que la reportería no alteró el universo, la agregación o el signo del tratamiento.
+
+## Mapa del recorrido
+
+Este proyecto se presenta en un formato pedagógico, donde cada módulo aborda un aspecto específico del flujo de trabajo, desde la definición del problema hasta la implementación de la aplicación web final. Los módulos se muestran a continuación, y cada uno puede ser explorado de manera independiente para profundizar en los conceptos y técnicas utilizadas.
+
+<nav class="project-roadmap" aria-label="Recorrido de aprendizaje del proyecto">
+  <a class="project-roadmap-card roadmap-architecture" href="01-problema-y-arquitectura.qmd">
+    <div class="project-roadmap-top"><span class="project-roadmap-number">01</span><i class="bi bi-diagram-3" aria-hidden="true"></i></div>
+    <div class="project-roadmap-eyebrow">Fundamentos</div>
+    <h3>Problema y arquitectura</h3>
+    <p>Convertimos una pregunta industrial en un DAG reproducible y entendemos la génesis, las primitivas y el lugar de Kedro en el ecosistema.</p>
+    <div class="project-roadmap-tags"><span>Negocio</span><span>Arquitectura</span><span>Kedro</span></div>
+    <div class="project-roadmap-action">Comenzar <span aria-hidden="true">↗</span></div>
+  </a>
+  <a class="project-roadmap-card roadmap-catalog" href="02-datos-y-catalogo.qmd">
+    <div class="project-roadmap-top"><span class="project-roadmap-number">02</span><i class="bi bi-database" aria-hidden="true"></i></div>
+    <div class="project-roadmap-eyebrow">Contratos</div>
+    <h3>Datos sintéticos y catálogo</h3>
+    <p>Diseñamos las capas de datos, el Data Catalog y la frontera que desacopla funciones científicas de archivos y formatos.</p>
+    <div class="project-roadmap-tags"><span>Catálogo</span><span>Esquemas</span><span>Pydantic</span></div>
+    <div class="project-roadmap-action">Abrir módulo <span aria-hidden="true">↗</span></div>
+  </a>
+  <a class="project-roadmap-card roadmap-engineering" href="03-ingenieria-de-datos.qmd">
+    <div class="project-roadmap-top"><span class="project-roadmap-number">03</span><i class="bi bi-bezier2" aria-hidden="true"></i></div>
+    <div class="project-roadmap-eyebrow">Transformación</div>
+    <h3>Ingeniería de datos</h3>
+    <p>Derivamos el target, las disponibilidades, la dureza y la procedencia espacial desde señales horarias y ciclos sintéticos de transporte.</p>
+    <div class="project-roadmap-tags"><span>Ecuaciones</span><span>Espacio 3D</span><span>Calidad</span></div>
+    <div class="project-roadmap-action">Abrir módulo <span aria-hidden="true">↗</span></div>
+  </a>
+  <a class="project-roadmap-card roadmap-science" href="04-ciencia-de-datos.qmd">
+    <div class="project-roadmap-top"><span class="project-roadmap-number">04</span><i class="bi bi-boxes" aria-hidden="true"></i></div>
+    <div class="project-roadmap-eyebrow">Representación</div>
+    <h3>Ciencia de datos</h3>
+    <p>Tratamos composiciones, firmas geológicas, no linealidad y fuga temporal hasta obtener el contrato modelable diario.</p>
+    <div class="project-roadmap-tags"><span>Clustering</span><span>Features</span><span>Backtest</span></div>
+    <div class="project-roadmap-action">Abrir módulo <span aria-hidden="true">↗</span></div>
+  </a>
+  <a class="project-roadmap-card roadmap-bayesian" href="05-inferencia-bayesiana.qmd">
+    <div class="project-roadmap-top"><span class="project-roadmap-number">05</span><i class="bi bi-graph-up-arrow" aria-hidden="true"></i></div>
+    <div class="project-roadmap-eyebrow">Modelamiento</div>
+    <h3>Inferencia Bayesiana</h3>
+    <p>Construimos en PyMC el modelo jerárquico, sus priors, restricciones de identificabilidad y posterior predictivo.</p>
+    <div class="project-roadmap-tags"><span>PyMC</span><span>MCMC</span><span>Incertidumbre</span></div>
+    <div class="project-roadmap-action">Abrir módulo <span aria-hidden="true">↗</span></div>
+  </a>
+  <a class="project-roadmap-card roadmap-product" href="06-bridge-app-y-operacion.qmd">
+    <div class="project-roadmap-top"><span class="project-roadmap-number">06</span><i class="bi bi-window-stack" aria-hidden="true"></i></div>
+    <div class="project-roadmap-eyebrow">Producto</div>
+    <h3>Bridge, app y operación</h3>
+    <p>Cerramos la identidad contable, publicamos la aplicación y usamos Kedro-Viz para inspeccionar y operar el sistema.</p>
+    <div class="project-roadmap-tags"><span>Bridge</span><span>Plotly</span><span>Kedro-Viz</span></div>
+    <div class="project-roadmap-action">Ver resultado <span aria-hidden="true">↗</span></div>
+  </a>
+  <a class="project-roadmap-card roadmap-source" href="07-codigo-fuente.qmd">
+    <div class="project-roadmap-top"><span class="project-roadmap-number">07</span><i class="bi bi-code-square" aria-hidden="true"></i></div>
+    <div class="project-roadmap-eyebrow">Implementación</div>
+    <h3>Código fuente, paso a paso</h3>
+    <p>Recorremos configuración, pipelines, nodos, registro y pruebas en el mismo orden en que se construye y verifica el proyecto.</p>
+    <div class="project-roadmap-tags"><span>Python</span><span>YAML</span><span>Pruebas</span></div>
+    <div class="project-roadmap-action">Revisar el código <span aria-hidden="true">↗</span></div>
+  </a>
+</nav>
+
+## Arquitectura, *framework* y ejecución
+
+El proyecto está construido sobre <strong><font color='darkmagenta'>Kedro</font></strong>, un *framework* de ingeniería y ciencia de datos que permite estructurar proyectos de manera modular y reproducible. La arquitectura del proyecto sigue un enfoque de pipelines, donde cada etapa del flujo de trabajo se encapsula en una pipeline independiente, con entradas, salidas y parámetros claramente definidos.
+
+Suponiendo que el proyecto ya ha sido clonado y que se han instalado las dependencias en una carpeta denominada `proyectos/bayesian-tph-forecasting`, la ejecución del flujo completo se puede realizar con los siguientes comandos:
+
+```bash
+cd proyectos/bayesian-tph-forecasting
+uv sync --extra dev
+uv run kedro run
+uv run kedro viz run
+```
+
+Después del acceso al proyecto mismo, las instrucciones anteriores realizan las siguientes acciones:
+
+- `uv sync --extra dev` instala las dependencias de desarrollo y sincroniza el entorno virtual.
+- `uv run kedro run` ejecuta todas las pipelines del proyecto, generando los artefactos intermedios y finales según lo definido en el catálogo de datos.
+- `uv run kedro viz run` inicia `kedro-viz`, una herramienta de visualización del DAG (grafo dirigido acíclico) de las pipelines, permitiendo inspeccionar la estructura y las dependencias del flujo de trabajo.
+
+Las pipelines del proyecto se registran en el archivo [`pipeline_registry.py`](src/bayesian_tph_forecasting/pipeline_registry.py), donde se definen las entradas, salidas y parámetros de cada pipeline. Los datos utilizados en el proyecto están declarados en el catálogo de datos, descrito por el archivo [`catalog.yml`](conf/base/catalog.yml), mientras que los parámetros ajustables se encuentran enel diccionario [`parameters.yml`](conf/base/parameters.yml). Estas piezas son típicas en un proyecto de <strong><font color='darkmagenta'>Kedro</font></strong> y permiten una gestión clara de los datos y la configuración del proyecto.
+
+[Abrir `kedro-viz` estático](build/){.btn .btn-outline-primary}
+[Revisar el código paso a paso](07-codigo-fuente.qmd){.btn .btn-outline-primary}
+[Leer el README](README.md){.btn .btn-outline-secondary}
+
+## DAG global del proyecto
+
+En términos de flujo de datos, el proyecto puede representarse como un DAG global que muestra cómo las diferentes pipelines se conectan entre sí. Cada pipeline representa una etapa del proceso, desde la extracción de datos hasta la generación de reportes y la aplicación final.
+
+```{mermaid}
+flowchart LR
+  R["4 extractos estáticos"] --> DE["data_engineering\n6 nodos"]
+  DE --> DS["data_science\n2 nodos"]
+  DS --> BI["bayesian_inference\n2 nodos"]
+  BI --> RP["reporting\n4 nodos"]
+  RP --> B["Bridge PNG"]
+  RP --> A["App HTML"]
+  RP --> M["Model card"]
+```
+
+El registro global suma las cuatro pipelines. Cada una conserva su `namespace`, sus entradas y salidas públicas y sus parámetros explícitos. Esa composición —no un notebook que depende de su estado de ejecución— es la unidad reproducible del proyecto.
