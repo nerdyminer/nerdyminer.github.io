@@ -59,7 +59,7 @@ $$
 
 El uso de la suma respeta la arquitectura paralela de las líneas de molienda, ya que promediar ambas líneas dividiría artificialmente la capacidad por dos. Condicionar por régimen evita interpretar horas detenidas como una propiedad de la roca. A cambio, la variable de respuesta ya no representa la producción diaria total, sino que una tasa de tratamiento estable. Esta diferencia semántica debe conservarse al comunicar resultados: Cualquier experto metalurgista preguntaría por un filtro así, como mínimo, en una revisión exhaustiva de un proyecto de este tipo.
 
-En nuestro caso, las medias estables por línea son, aproximadamente, 3246 y 3262 tph, respectivamente. El nivel conjunto, por tanto, se sitúa alrededor de 6500 tph.
+En la realización sintética publicada, las medias diarias estables por línea son, aproximadamente, 1178.94 y 1052.54 tph, respectivamente. El nivel conjunto se sitúa, por tanto, alrededor de 2231.48 tph. Estas magnitudes son una propiedad del generador didáctico y no una aproximación a la capacidad de una instalación real.
 
 ## 3. Traducción de señales de estados a contexto operacional
 
@@ -79,19 +79,13 @@ Las cuatro variables que representan a estos sistemas periféricos se listas a c
 
 ### Riesgo de starving en el circuito aguas arriba
 
-La molienda se alimenta por medio de un stock de mineral intermedio que actúa como regulador o *buffer* de alimentación. Su misión es empatar la operación en *batch* de chancado primario con la operación continua de la molienda, inventariando mineral a modo de *pulmón* de alimentación cuando el chancado primario no puede entregar mineral debido a detenciones o falta de mineral desde la mina. Definimos la condición de **starving** de la molienda cuando el nivel de stock cae a un nivel que degrada el tratamiento de molienda en más de un 50%. En tales condiciones, el chancado primario se convierte en un cuello de botella que limita la capacidad de procesamiento, y por tanto debe ser considerado como covariable contextual en un modelo predictivo y, por extensión, como un estrangulante que puede ser crítico bajo starving.
+La molienda se alimenta por medio de un stock de mineral intermedio que actúa como regulador o *buffer* de alimentación. Su misión es empatar la operación en *batch* de chancado primario con la operación continua de la molienda, inventariando mineral a modo de *pulmón* de alimentación cuando el chancado primario no puede entregar mineral debido a detenciones o falta de mineral desde la mina. En el ejercicio usamos el nivel bajo del stock como una señal esquemática de **starving**, sin intentar cuantificar la degradación física de una instalación. En tales condiciones, el circuito aguas arriba puede convertirse en un cuello de botella que limita la capacidad de procesamiento, y por tanto debe ser considerado como covariable contextual en el modelo.
 
-Por el contrario, un stock se define como sano si su altura mantiene una variabilidad de tratamiento relativamente baja, lo que permite que la molienda opere en régimen estable. En este proyecto, se definen tres rangos de operación del stock:
-
-- Starving: $L_h^{\text{stock}}<10$ m.
-- Riesgo de starving: $10\le L_h^{\text{stock}}<20$ m.
-- Sano: $L_h^{\text{stock}}\ge20$ m.
-
-Donde $L_h^{\text{stock}}$ es la altura del stock en metros. El indicador de operación para el circuito aguas arriba se define entonces como
+En este proyecto no intentamos reconstruir todos los estados físicos posibles del stock. Definimos, de manera deliberadamente sencilla, un único umbral ficticio de 8 m. Donde $L_h^{\text{stock}}$ es la altura sintética del stock en metros, el indicador de operación para el circuito aguas arriba se define como
 
 $$
 A_h^{\text{upstream}}
-=\mathbf{1}\{L_h^{\text{stock}}>20\text{ m}\}
+=\mathbf{1}\{L_h^{\text{stock}}>8\text{ m}\}
 $$
 
 Por supuesto, un stock sano representa continuidad de alimentación hacia molienda; no mide directamente la eficiencia del chancado primario.
@@ -137,7 +131,7 @@ Un elemento contextual importante en la estimación de un tratamiento esperado e
 
 En términos operacionales, la granulometría es una especie de *compromiso* que la mina firma con la planta concentradora: La mina entrega un mineral con cierta distribución de tamaños compatible con los parámetros de diseño del equipo reductor, y la planta debe procesarlo. Las desviaciones de esa distribución pueden alterar el tamaño de producto de chancado, lo que, por supuesto, genera un efecto de cascada sobre la molienda y su eficiencia: Partículas más gruesas de los esperado requieren de un mayor tiempo de residencia en los molinos, lo que degrada la tasa de tratamiento. Partículas más finas de lo esperado también pueden ser problemáticas, ya que pueden saturar la oferta de pulpa en la clasificación y derivar en un proceso de *sobre-molienda* (u *overgrinding*), que puede deterioriar la eficiencia de flotación y la recuperación del mineral de interés.
 
-En general, solemos fijar un valor umbral de finos en la alimentación cuando nuestro nuestro objetivo es simplemente maximizar el tratamiento de molienda. En este proyecto, se define un mineral como *fino* cuando su tamaño es menor a 1", siendo beneficioso para la molienda, conforme criterio experto, que la fracción de ese mineral sea de un 40% de la alimentación o mayor. La columna `"feed_fines_pct_mean"` representa la media diaria de la fracción fina de alimentación, y se calcula a partir de los datos de granulometría horaria alimentados desde el historizador de datos de planta. Naturalmente, se descartan valores fuera del rango $[0,100]$ para evitar sesgos por errores de medición o registros atípicos.
+El generador entrega directamente una fracción fina sintética, sin asociarla a la abertura de una malla industrial concreta. Tampoco imponemos un umbral que separe una fracción "buena" de una "mala": La columna `"feed_fines_pct_mean"` conserva su media diaria y el modelo estudia su relación continua —lineal y cuadrática— con el tratamiento. La variable se calcula a partir de los datos horarios sintéticos y se descartan valores fuera del rango $[0,100]$ para evitar sesgos por errores de medición o registros atípicos.
 
 ## 5. Composición geológica reconciliada (o mix de mineral)
 
@@ -165,11 +159,11 @@ $$
 \begin{array}{lll}d\left( \mathbf{q}_{i} ,\mathbf{b}_{j} \right)&=&d_{ij}\\ &=&\left\Vert \mathbf{q}_{i} -\mathbf{b}_{j} \right\Vert\\ &=&\sqrt{(x_{i}-x_{j})^{2}+(y_{i}-y_{j})^{2}+(z_{i}-z_{j})^{2}}\end{array}
 $$
 
-Notemos que, para $m$ ciclos y $n$ bloques, la matriz de distancias $D\in\mathbb{R}^{m\times n}$ tiene $mn$ elementos. El modelo de bloques de nuestro yacimiento contiene casi 200000 bloques, mientras que el dataset de ciclos contiene más de 230000 registros. Por lo tanto, la matriz de distancias tendría más de 46 mil millones de elementos, lo que hace inviable su construcción y almacenamiento en memoria para un proyecto *académico* como éste. Al menos desde una mirada tradicional.
+Notemos que, para $m$ ciclos y $n$ bloques, la matriz de distancias $D\in\mathbb{R}^{m\times n}$ tiene $mn$ elementos. El modelo sintético publicado contiene 32000 bloques, mientras que el dataset de ciclos contiene 80112 registros. Por lo tanto, la matriz de distancias tendría más de 2,56 mil millones de elementos, lo que hace poco conveniente su construcción y almacenamiento completo en memoria para un proyecto *académico* como éste. Al menos desde una mirada tradicional.
 
 Para salvaguardar este problema, utilizamos una implementación del algoritmo de $k$ vecinos más cercanos (kNN) que indexa los bloques y permite consultas de vecino más cercano con un costo de complejidad típico cercano a $O(m \log n)$ (a diferencia del costo de calcular distancias, que es $O(mn)$). En particular, hacemos uso de la clase `cKDTree`, provista por el módulo `scipy.spatial`, que permite implementar este algoritmo por medio de una secuencia de árboles de búsqueda binaria, lo que posibilita una reconciliación espacial en un tiempo razonable.
 
-La reconciliación tiene un criterio de aceptación conforme una distancia $d_{ij}\leq 95$ m, siendo asignada a la columna `"penetration_rate"` del dataset correspondiente. Si esta condición no se cumple (esto es, no existe un bloque con dureza reconciliada lo suficientemente cercano a la posición de una pala), el correspondiente registro queda vacío, lo que se traza por medio del parámetro `hardness_class`, seteándolo en el valor `"unmatched"`.
+La reconciliación tiene un criterio de aceptación conforme una distancia $d_{ij}\leq 180$ m, siendo asignada a la columna `"penetration_rate"` del dataset correspondiente. Si esta condición no se cumple (esto es, no existe un bloque con dureza reconciliada lo suficientemente cercano a la posición de una pala), el correspondiente registro queda vacío, lo que se traza por medio del parámetro `hardness_class`, seteándolo en el valor `"unmatched"`.
 
 ## 7. Atribución agnóstica de propiedades físicas a fuentes de mineral
 
@@ -177,8 +171,8 @@ Las fuentes o procedencias del mineral que es enviado a la planta concentradora 
 
 De esta manera, la incorporación de las fuentes de mineral se realiza por medio de una asociación geoespacial mediante una regla explícita, la que permite reconstruir la geometría de los dominios de cada origen restringiendo dicha construcción a los datos de entrenamiento, evitando la generación de *data leakage*, conforme el siguiente procedimiento:
 
-- Las coordenadas de carguío $(x_{i},y_{i})$ en el plano $(x,y)$ se redondean a una grilla regularizada de $10\times 10$ m, a fin de reducir la densidad de puntos por pixel y el efecto de *jitter*.
-- Se implementa un algoritmo de clustering basado en densidades denominado DBSCAN dentro de cada área, con un radio de vecindad $\varepsilon=165$ m y un mínimo de 3 muestras por cluster. El objetivo es identificar componentes conexas de ciclos de carguío que puedan ser representadas por un polígono, a fin de discriminar zonas aisladas que no constituyen un dominio geoespacial estable.
+- Las coordenadas de carguío $(x_{i},y_{i})$ en el plano $(x,y)$ se redondean a una grilla regularizada de $25\times 25$ m, a fin de reducir la densidad de puntos por pixel y el efecto de *jitter*.
+- Se implementa un algoritmo de clustering basado en densidades denominado DBSCAN dentro de cada área, con un radio de vecindad $\varepsilon=140$ m y un mínimo de 3 muestras por cluster. El objetivo es identificar componentes conexas de ciclos de carguío que puedan ser representadas por un polígono, a fin de discriminar zonas aisladas que no constituyen un dominio geoespacial estable.
 - Se calcula el soporte de cada componente, definido como el número de ciclos de carguío que la constituyen, a fin de descartar componentes con muy pocos ciclos, que probablemente puedan ser pequeños stocks de remanejo de naturaleza circunstancial.
 - Se retienen únicamente los componentes con al menos $\max(300,\lceil0.005N_{\text{área}}\rceil)$ ciclos, donde $N_{\text{área}}$ es el número de ciclos de transporte en el área correspondiente, a fin de asegurar un mínimo soporte estadístico para la construcción de la geometría.
 - Para evitar que los polígonos resultantes tengan bordes muy dispersos, se recorta el 0.5% extremo de los puntos por eje, eliminando así outliers que puedan distorsionar la forma del polígono, intentando buscar una envolvente más representativa de la distribución de los ciclos de transporte.

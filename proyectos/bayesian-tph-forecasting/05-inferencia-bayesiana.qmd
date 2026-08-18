@@ -17,8 +17,8 @@ El gráfico de cascada permite a un ingeniero de planta ver qué parte del trata
 
 Esta representación desacoplada del tratamiento, por definición, requiere de una referencia contextual, pero también debe ser capaz de distinguir entre dos afirmaciones:
 
-- *La media esperada de tratamiento, para este contexto, es cercana a los 6500 tph*.
-- *El próximo día observado "debiera" caer cerca de los 6500 tph*.
+- *La media esperada de tratamiento, para este contexto, es cercana a los 2230 tph*.
+- *El próximo día observado "debiera" caer cerca de los 2230 tph*.
 
 La segunda afirmación incluye la incertidumbre sobre la media **más** la variabilidad diaria que el contexto no captura. Un modelo Bayesiano conserva ambas fuentes como distribuciones y permite regularizar familias con soporte desigual dentro de una misma especificación. Esta es la razón por la que el producto final no es un punto, sino una distribución de muestras que permite calcular intervalos creíbles y predictivos. Y también la razón por la cual naturaleza del producto es *ex post* y no *ex ante*: El modelo se ajusta a los datos observados y no a un conocimiento externo.
 
@@ -68,7 +68,7 @@ $$
 \frac{\partial \mu_{d}}{\partial \tilde{x}_{dj}} =\beta_{j} \quad ;\quad \frac{\partial \mu_{d}}{\partial \tilde{z}_{dr}} =\gamma_{r} \quad ;\quad \frac{\partial \mu_{d}}{\partial \tilde{h}_{ds}} =\delta_{s}
 $$
 
-En este modelo, cuando hablamos de "global", no nos referimos a causalidad ni universalidad, sino a que no permitimos que la pendiente cambie por cluster, mes o línea. Esta elección de modelamiento controla la complejidad del modelo con 518 días observados, la que se estima debe ser razonablemente baja. Alternativas más sofisticadas podrían permitir pendientes variables por firma, pero añadirían parámetros e interacciones que necesitarían soporte y validación propios.
+En este modelo, cuando hablamos de "global", no nos referimos a causalidad ni universalidad, sino a que no permitimos que la pendiente cambie por cluster, mes o línea. Esta elección de modelamiento controla la complejidad del modelo frente a los 716 días observados del contrato diario completo. Dentro del *backtesting*, cada ajuste utiliza cerca de 358 días de entrenamiento. Alternativas más sofisticadas podrían permitir pendientes variables por firma, pero añadirían parámetros e interacciones que necesitarían soporte y validación propios.
 
 Procedimentalmente, cada variable contextual se estandariza dentro del conjunto de entrenamiento de cada *pliegue de validación*, de manera que los coeficientes se expresen aproximadamente en tph por desviación estándar (cambio típico) y los valores a priori de escala sean comparables. El conjunto de prueba utiliza exactamente la misma media y desviación estándar calculadas sobre el conjunto de entrenamiento, ya que se recálculo sobre el conjunto de prueba derivaría en *data leakage*.
 
@@ -82,7 +82,7 @@ $$
 
 donde $a$ es un valor arbitrario. Esta simetría deja la media esperada de tratamiento $\mu_{d}$ sin cambios, lo que implica que la distribución a posteriori de tratamiento tendría una dirección redundante y el parámetro de sesgo $\alpha$ perdería interpretación. Para evitar esta situación, imponemos una restricción de suma nula sobre los efectos de las firmas geológicas, de manera tal que el parámetro de sesgo $\alpha$ represente el nivel promedio de tratamiento sobre todas las firmas geológicas, y $u_c$ represente un desvío relativo respecto de ese promedio. La restricción se implementa mediante la siguiente parametrización:
 
-- Distribuciones asumidas para los efectos de las firmas geológicas y su escala: $u_{c}^{\text{raw}}\sim \mathcal{N}(0, 1)$ y $\sigma_{u}\sim \bar{\mathcal{N}}(180)$, donde $\bar{\mathcal{N}}$ representa una distribución normal truncada a valores positivos. El número $180$ representa una escala inicial para la desviación estándar de los efectos de las firmas geológicas, que puede ajustarse según la variabilidad observada en los datos.
+- Distribuciones asumidas para los efectos de las firmas geológicas y su escala: $u_{c}^{\text{raw}}\sim \mathcal{N}(0, 1)$ y $\sigma_{u}\sim \bar{\mathcal{N}}(75)$, donde $\bar{\mathcal{N}}$ representa una distribución normal truncada a valores positivos. El número $75$ representa la escala inicial, en tph, para la desviación estándar de los efectos de las firmas geológicas y permanece declarado como parámetro auditable.
 - Transformación de los efectos de las firmas geológicas para garantizar suma nula:
 
   $$
@@ -113,13 +113,13 @@ Las categorías de procedencia y dureza in–situ tienen soportes muy diferentes
 Para la procedencia, asumimos que los efectos de las categorías de procedencia $k$ se distribuyen normalmente alrededor de cero, con una desviación estándar $\sigma_z$ que es aprendida a partir de los datos:
 
 $$
-\eta_{k} \sim \mathcal{N} \left( 0,1 \right) \quad ;\quad \sigma_{z} \sim \bar{\mathcal{N}} \left( 120 \right) \quad ;\quad \gamma_{k} =\sigma_{z} \eta_{k}
+\eta_{k} \sim \mathcal{N} \left( 0,1 \right) \quad ;\quad \sigma_{z} \sim \bar{\mathcal{N}} \left( 55 \right) \quad ;\quad \gamma_{k} =\sigma_{z} \eta_{k}
 $$
 
 Y para la dureza in–situ, asumimos que los efectos de las categorías de dureza $m$ se distribuyen normalmente alrededor de cero, con una desviación estándar $\sigma_h$ que también es aprendida a partir de los datos:
 
 $$
-\xi_{m} \sim \mathcal{N} \left( 0,1 \right) \quad ;\quad \sigma_{h} \sim \bar{\mathcal{N}} \left( 100 \right) \quad ;\quad \delta_{m} =\sigma_{h} \xi_{m}
+\xi_{m} \sim \mathcal{N} \left( 0,1 \right) \quad ;\quad \sigma_{h} \sim \bar{\mathcal{N}} \left( 45 \right) \quad ;\quad \delta_{m} =\sigma_{h} \xi_{m}
 $$
 
 Si la correspondiente familia de categorías muestra poca variabilidad sistemática, la escala se contrae y todos los efectos colapsan a cero. Si existe señal consistente, la escala puede crecer. La expresión $\gamma_{k} =\sigma_{z} \eta_{k}$ es una parametrización no centrada, que en jerarquías débiles suele producir una geometría a posterior más fácil para métodos MCMC como Monte Carlo Hamiltoniano, porque separa la variable estandarizada de su escala. Esta técnica de agrupamiento parcial es más flexible que forzar igualdad entre los efectos de las categorías, y más regularizada que estimar cada categoría sin relación, lo que permite obtener estimaciones más robustas y confiables para las categorías con pocos datos.
@@ -208,7 +208,7 @@ El muestreo de la distribución a posteriori (para los parámetros del modelo) s
 
 En este proyecto, se utiliza la función `pm.sample` para realizar el muestreo de la distribución a posteriori utilizando NUTS. La función permite especificar varios parámetros de control, como el número de cadenas de Markov, el número de iteraciones de ajuste y el número de muestras guardadas por cadena. Además, se puede especificar el parámetro `target_accept`, que controla la tasa de aceptación de las propuestas de muestreo y puede ayudar a reducir el riesgo de divergencias en el muestreo. En este proyecto, seteamos `target_accept=0.99`, lo que indica que se desea una tasa de aceptación alta y conservadora, lo que puede ayudar a reducir el riesgo de divergencias en el muestreo.
 
-Las **divergencias muestrales** son advertencias que indican que el muestreo no pudo explorar adecuadamente una región de alta curvatura en la distribución a posteriori. Esto puede deberse a una mala parametrización del modelo, escalas inadecuadas o problemas geométricos inherentes a la topología de la distribución a posteriori. Las divergencias pueden afectar la calidad de las inferencias obtenidas y deben ser revisadas cuidadosamente. En este proyecto, se reporta que la corrida final terminó con cero divergencias y un valor de $\hat R_{\max}=1.01$, lo que indica que las cadenas de Markov convergieron adecuadamente y que las inferencias obtenidas son confiables.
+Las **divergencias muestrales** son advertencias que indican que el muestreo no pudo explorar adecuadamente una región de alta curvatura en la distribución a posteriori. Esto puede deberse a una mala parametrización del modelo, escalas inadecuadas o problemas geométricos inherentes a la topología de la distribución a posteriori. Las divergencias pueden afectar la calidad de las inferencias obtenidas y deben ser revisadas cuidadosamente. Después de regenerar los datos sintéticos, la corrida final con cuatro cadenas terminó con cero divergencias, un valor de $\hat R_{\max}=1.01$ y un tamaño efectivo mínimo (*bulk ESS*) de 894 muestras. Estos diagnósticos respaldan la convergencia del ajuste final. Algunos parámetros de determinados pliegues del *backtesting* emitieron advertencias de tamaño efectivo menor a 100; por ello, las métricas fuera de muestra deben leerse como una evaluación reproducible del conjunto y no como garantía de estabilidad de cada parámetro local.
 
 ## Formato de salida del modelo: Media a posteriori versus predictibilidad
 
@@ -247,9 +247,9 @@ La documentación de <strong><font color='darkmagenta'>PyMC</font></strong> pres
 
 Para validar los resultados del modelo Bayesiano, a nivel estadístico (digamos, métricas de error y cobertura predictiva) y a nivel de negocio (digamos, confiabilidad de la predicción para la operación), se realiza un procedimiento de *backtesting* que simula lo que habría sabido el modelo en cada momento del tiempo. Este procedimiento permite evaluar la capacidad del modelo para generalizar a datos no vistos y proporciona una medida más realista de su desempeño en situaciones del mundo real.
 
-Supongamos que disponemos de un conjunto de datos completo $\mathcal{M}$ que contiene un total de $M$ meses de observaciones (con granularidad diaria), siendo $12< M\leq 24$ (es decir, $\mathcal{M}$ contiene entre 1 y 2 años de datos). Para cada mes $t$ en el rango $[13, M-2]$, se define un conjunto de entrenamiento $\mathcal{D}_t$ que contiene los datos de los 12 meses anteriores a $t$, es decir, $\mathcal{D}_t = \{y_{d}, \mathbf{x}_{d}\}_{d=t-12}^{t-1}$. A partir de este conjunto de entrenamiento, se ajusta el modelo Bayesiano y se generan predicciones para los dos meses siguientes, es decir, para el conjunto de prueba $\mathcal{T}_t = \{y_{d}, \mathbf{x}_{d}\}_{d=t}^{t+1}$.
+Supongamos que disponemos de un conjunto de datos completo $\mathcal{M}$ que contiene un total de $M$ meses de observaciones con granularidad diaria. Para cada fecha de corte $t$, se define un conjunto de entrenamiento $\mathcal{D}_t$ que contiene los 12 meses anteriores, y un conjunto de prueba $\mathcal{T}_t$ que contiene los dos meses siguientes. Si escribimos los límites en meses, la idea es $\mathcal{D}_t = \{y_{d}, \mathbf{x}_{d}\}_{d=t-12}^{t-1}$ y $\mathcal{T}_t = \{y_{d}, \mathbf{x}_{d}\}_{d=t}^{t+1}$.
 
-En palabras menos rimbombantes, el modelo se entrena con un año móvil de datos y se prueba con los dos meses siguientes, avanzando el corte de entrenamiento y prueba en pasos de dos meses, a modo de *forecasting*. Este procedimiento se repite para cada mes $t$ en el rango $[13, M-2]$, generando un total de $N = M - 14$ conjuntos de entrenamiento y prueba. De esta manera, se obtiene un conjunto de predicciones para cada mes $t$, que se pueden comparar con las observaciones reales para evaluar el desempeño del modelo.
+En palabras menos rimbombantes, el modelo se entrena con un año móvil de datos y se prueba con los dos meses siguientes, avanzando el corte en pasos de dos meses, a modo de *forecasting*. Para el año sintético 2035, la configuración base produce seis pliegues consecutivos y no superpuestos. De esta manera, cada día elegible del período fuera de muestra recibe una predicción que puede compararse con su observación sintética.
 
 En cada ventana móvil, se recalculan las referencias y columnas composicionales con soporte, las medias y desviaciones de estandarización, los coeficientes de regresión lineal y los errores estándar robustos para los valores a priori empíricos, la distribución a posteriori de los parámetros del modelo y el ruido operacional, así como las contribuciones de cada variable contextual al tratamiento esperado para las fechas del conjunto de prueba. Esto permite que el modelo se ajuste a los cambios en la distribución de los datos a lo largo del tiempo y capture la variabilidad operacional que puede afectar las observaciones futuras.
 
@@ -262,17 +262,20 @@ Las métricas de desempeño que se reportan para cada ventana móvil de prueba s
 - Sesgo de predicción: $\text{B} =\frac{1}{\mathcal{T}_{p}} \sum_{t=1}^{\mathcal{T}_{p}} (\hat{y}_{t} -y_{t})$.
 - Cobertura predictiva nominal al 90%: $\text{Cob}_{90} =\frac{1}{\mathcal{T}_{p}} \sum_{t=1}^{\mathcal{T}_{p}} \mathbb{1}\{q_{0.05,t} \leq y_{t} \leq q_{0.95,t}\}$, donde $q_{0.05,t}$ y $q_{0.95,t}$ son los percentiles 5% y 95% de la distribución predictiva para el día $t$, respectivamente. Esta métrica permite evaluar la capacidad del modelo para capturar la variabilidad operacional que puede afectar las observaciones futuras, y proporciona una medida de la confiabilidad de las predicciones generadas por el modelo.
 
-En la ejecución del procedimiento de *backtesting* final para este proyecto, se evaluaron un total de 169 días, generando predicciones para cada uno de ellos y comparándolas con las observaciones reales. Los resultados obtenidos para las métricas de desempeño fueron los siguientes:
+Después de regenerar el proyecto con datos completamente sintéticos, la corrida reproducible publicada evaluó 358 días fuera de muestra, generando predicciones para cada uno de ellos y comparándolas con las observaciones sintéticas. Los resultados obtenidos fueron los siguientes:
 
 | Métrica fuera de muestra | Resultado |
 |:-------------------------|----------:|
-| Días evaluados | 169 |
-| RMSE | 298 tph |
-| MAE | 240 tph |
-| Sesgo predictivo | +18.5 tph |
-| Cobertura predictiva nominal al 90% | 91.7% |
+| Días evaluados | 358 |
+| RMSE | 102.83 tph |
+| MAE | 89.71 tph |
+| Sesgo predictivo | +0.0234 tph |
+| Cobertura predictiva nominal al 90% | 92.74% |
+| Divergencias durante el *backtesting* | 0 |
 
-El sesgo predictivo local corresponde, en términos relativos, a un 0.28% del nivel medio de tratamiento de molienda observado en la planta. Esto indica que, en promedio, las predicciones generadas por el modelo tienden a sobreestimar ligeramente el tratamiento observado, pero la magnitud de este sesgo es relativamente pequeña en comparación con el nivel medio de planta (modelo virtualmente *insesgado*). Sin embargo, es importante tener en cuenta que este sesgo puede variar localmente a lo largo del tiempo, y que los *pliegues* de validación pueden mostrar desviaciones tanto positivas como negativas.
+El sesgo agregado es prácticamente nulo frente al nivel sintético medio de 2231.79 tph: La diferencia media entre predicción y observación es de sólo +0.0234 tph. Esta cancelación no significa que cada *pliegue* sea insesgado. De hecho, los seis pliegues muestran sesgos aproximados de −21.36, −24.11, −3.65, +11.22, +24.74 y +13.15 tph, respectivamente. El cambio de signo explica por qué el promedio global queda tan cerca de cero y recuerda que una única cifra agregada puede esconder variación temporal.
+
+La cobertura predictiva alcanza 92.74%, algo por encima del 90% nominal. En esta corrida, los intervalos predictivos son levemente conservadores: Contienen la observación en cerca de 93 de cada 100 días evaluados. La proximidad al nivel nominal es una señal favorable de calibración agregada, aunque no reemplaza la inspección por pliegue ni elimina las advertencias de tamaño efectivo observadas en algunos ajustes móviles.
 
 ::: {.callout-note}
 ## ¿Y por qué no se reporta el R²?

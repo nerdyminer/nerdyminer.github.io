@@ -1,0 +1,1380 @@
+---
+jupyter: nerdyminer
+title: "Variedades y fibrados vectoriales"
+subtitle: "Conectando el cálculo diferencial con geometrías locales y no Euclídeas"
+section_href: "/apuntes/tensores-y-variedades/"
+toc: true
+toc-depth: 3
+page-layout: article
+number-offset: 4
+---
+
+::: {.callout-important}
+## Idea central
+Una **variedad diferenciable** es un espacio que puede tener una geometría global curva o una topología compleja, pero que, visto suficientemente cerca de cada punto, se comporta como un espacio Euclidiano. Las **cartas** asignan coordenadas a esas regiones locales; un **atlas** las reúne y exige que, allí donde se superponen, sus cambios de coordenadas sean diferenciables. Esta estructura permite trasladar el cálculo diferencial a espacios que no necesitan vivir dentro de un espacio Euclidiano mayor y, a partir de ella, construir objetos como espacios tangentes, fibrados y aplicaciones suaves.
+:::
+
+::: {.callout-warning}
+## Apunte en construcción
+
+Esta entrada se encuentra actualmente en desarrollo. El recorrido general ya está trazado y puedes leer con normalidad las secciones disponibles, pero algunos argumentos, ejemplos y figuras todavía pueden crecer, cambiar de lugar o recibir correcciones mientras completo el apunte.
+:::
+
+## Introducción
+
+**Punto de partida.** Las herramientas desarrolladas en las primeras secciones de este set de apuntes, sumadas a la abstracción topológica y a nuestro siempre confiable conocimiento de cálculo diferencial, nos brindan los insumos necesarios para generalizar el concepto de superficie en $\mathbb{R}^{n}$ al de **variedad** en un dominio arbitrario. Este dominio puede tener muchas dimensiones y una geometría que no sea Euclidiana a escala global, aunque localmente sí se comporte de esa manera.
+
+**Por qué vale la pena estudiarlas.** Las variedades han permitido desarrollar teorías fascinantes y fundamentales para la física y la ingeniería modernas. La teoría general de la relatividad, por ejemplo, describe la gravedad mediante una geometría estructurada sobre variedades. La belleza de este enfoque radica en que estos espacios se *parecen* localmente a objetos Euclidianos que nos son familiares, por lo que podemos preservar las reglas del cálculo diferencial en cada vecindad. Al mismo tiempo, la teoría permite estudiar una geometría de manera intrínseca: Sus elementos y propiedades pueden definirse desde la propia variedad, sin depender necesariamente del espacio ambiente en que imaginemos que está contenida.
+
+**Qué construiremos.** Comenzaremos por las cartas, los atlas y sus funciones de transición; luego formalizaremos la noción de variedad y su topología. Sobre esa base estudiaremos subvariedades, aplicaciones suaves y el fibrado tangente. Finalmente, ampliaremos esta construcción hacia fibrados vectoriales, sumersiones, inmersiones, transversalidad y algunos resultados que permiten reconocer la estructura geométrica de conjuntos definidos mediante aplicaciones diferenciables.
+
+La ruta conceptual del apunte puede resumirse así:
+
+1. Pasar de coordenadas locales compatibles a una estructura diferenciable.
+2. Usar esa estructura para definir tangentes y diferenciar aplicaciones.
+3. Organizar los espacios tangentes como un nuevo objeto geométrico: El fibrado tangente.
+4. Generalizar esta idea mediante fibrados vectoriales y estudiar aplicaciones con propiedades estructurales especiales.
+
+No se trata, en absoluto, de un campo sencillo de entender *a la primera*: La geometría diferencial desafía varias reglas que solemos considerar incuestionables cuando pensamos únicamente dentro de un marco Euclidiano. Pero ése es precisamente el bonito desafío. Este estudio también va bastante más allá de entender la naturaleza de un tensor por su asociación con algoritmos de *deep learning*: Nos entrega un lenguaje para hablar rigurosamente de geometría, variación y estructura local.
+
+... dicho en palabras simples, escribo esta entrada porque AMO la geometría diferencial.
+
+## Construyendo la definición de variedad
+
+Partamos pues en modo MVP: Antes de formalizar el concepto de variedad, construiremos los peldaños que constituirán nuestra escalera a ese conocimiento. Algunos de estos peldaños ya fueron tratados, aunque someramente, en otras entradas del blog.
+
+### Cartas y atlas
+
+Para establecer formalmente el concepto de variedad, primero necesitamos introducir una clase especial de objetos locales que soporten las reglas del cálculo diferencial sobre ellos, para luego definir un proceso que permita "pegarlos" entre sí de manera *suave* o *regular*. Antes de entrar de lleno en este campo, es buena idea desarrollar algo de intuición. En el espacio $\mathbb{R}^{n+1}$, consideremos la $n$-esfera $S^{n}$, representada por todos los puntos $\mathbf{x}\in \mathbb{R}^{n+1}$, tales que $\left\Vert \mathbf{x} \right\Vert =1$ ($\left\Vert \cdot \right\Vert$ representa la norma Euclidiana). Queremos construir funciones biyectivas que *conviertan* puntos de $S^{n}$ en imágenes de $\mathbb{R}^{n}$, para lo cual existen varias alternativas. La más común se realiza a partir de una **proyección esterográfica** desde el polo *sur* de la esfera sobre un hiperplano tangente a la misma en su polo *norte*. El resultado de esta proyección es una función biyectiva que mapea todos los puntos de la esfera, excepto el polo sur, a un punto en $\mathbb{R}^{n}$. Similarmente, podemos intercambiar los roles de ambos polos y obtener una proyección estereográfica en la dirección opuesta, resultando en una función biyectiva que mapea todos los puntos de la esfera, excepto el polo norte, a un punto en $\mathbb{R}^{n}$. Esta situación se observa en la @fig-stereogram.
+
+```{python}
+#| label: fig-stereogram
+#| fig-cap: "Una esfera puede leerse desde un plano: cada rayo que nace en el polo sur atraviesa un punto de $S^{2}$ y deja en el plano tangente su representación en coordenadas Euclidianas. La construcción hace visible cómo una carta reemplaza una geometría curva por coordenadas planas."
+#| echo: false
+#| warning: false
+#| fig-width: 9
+#| fig-height: 6.5
+
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+from matplotlib.patches import FancyArrowPatch, PathPatch, Polygon
+from matplotlib.path import Path
+
+sns.set_theme()
+plt.rcParams["figure.dpi"] = 90
+
+# Construimos la esfera unitaria y el plano tangente z = 1.
+azimuth = np.linspace(0, 2 * np.pi, 100)
+polar = np.linspace(0, np.pi, 70)
+azimuth_grid, polar_grid = np.meshgrid(azimuth, polar)
+sphere_x = np.sin(polar_grid) * np.cos(azimuth_grid)
+sphere_y = np.sin(polar_grid) * np.sin(azimuth_grid)
+sphere_z = np.cos(polar_grid)
+
+# El plano se acota para mantener a la esfera como protagonista de la figura.
+plane_axis = np.linspace(-1.45, 1.45, 2)
+plane_x, plane_y = np.meshgrid(plane_axis, plane_axis)
+plane_z = np.ones_like(plane_x)
+
+# Punto de la esfera, polo de proyección y su imagen en el plano tangente.
+point_on_sphere = np.array([0.72, -0.48, 0.50])
+point_on_sphere = point_on_sphere / np.linalg.norm(point_on_sphere)
+south_pole = np.array([0.0, 0.0, -1.0])
+scale = 2.0 / (point_on_sphere[2] + 1.0)
+point_on_plane = south_pole + scale * (point_on_sphere - south_pole)
+
+fig = plt.figure(figsize=(9, 6.5))
+ax = fig.add_subplot(111, projection="3d")
+fig.patch.set_facecolor("white")
+ax.set_facecolor("white")
+
+# Superficie tenue más un wireframe de aire clásico.
+ax.plot_surface(
+    sphere_x,
+    sphere_y,
+    sphere_z,
+    color="#b9cee9",
+    alpha=0.38,
+    linewidth=0,
+    shade=True,
+)
+ax.plot_wireframe(
+    sphere_x,
+    sphere_y,
+    sphere_z,
+    rstride=7,
+    cstride=10,
+    color="#4f6072",
+    linewidth=0.65,
+    alpha=0.72,
+)
+ax.plot_surface(
+    plane_x,
+    plane_y,
+    plane_z,
+    color="#d9e1e8",
+    alpha=0.34,
+    linewidth=0,
+    shade=False,
+)
+
+# Rayo de proyección y puntos notables.
+ax.plot(
+    [south_pole[0], point_on_plane[0]],
+    [south_pole[1], point_on_plane[1]],
+    [south_pole[2], point_on_plane[2]],
+    color="#343a40",
+    linewidth=2.2,
+)
+ax.scatter(*south_pole, color="#343a40", s=34, depthshade=False)
+ax.scatter(*point_on_sphere, color="#2c66c9", s=38, depthshade=False)
+ax.scatter(*point_on_plane, color="#1f4f9e", s=42, depthshade=False)
+ax.scatter(0, 0, 1, color="#2c66c9", s=34, depthshade=False)
+
+ax.text(0, 0, -1.13, "Polo sur", ha="center", color="#343a40")
+ax.text(0, 0, 1.12, "Polo norte", ha="center", color="#343a40")
+ax.text(*(point_on_sphere + np.array([0.08, 0.03, 0.03])), r"$p\in S^2$", color="#343a40")
+ax.text(*(point_on_plane + np.array([0.06, 0.03, 0.02])), r"$\varphi(p)\in\mathbb{R}^2$", color="#343a40")
+
+# La caja comparte una escala unitaria en las tres direcciones y queda oculta.
+ax.set_xlim(-1.5, 1.5)
+ax.set_ylim(-1.5, 1.5)
+ax.set_zlim(-1.5, 1.5)
+ax.set_box_aspect((1, 1, 1))
+ax.view_init(elev=18, azim=-52)
+ax.set_axis_off()
+fig.subplots_adjust(left=0, right=1, bottom=0, top=1)
+plt.tight_layout()
+```
+
+Consideremos la topología usual sobre $S^{n}$ como un subconjunto de $\mathbb{R}^{n+1}$. De esta manera, ambas proyecciones estereográficas constituyen homeomorfismos entre conjuntos abiertos de $S^{n}$ y $\mathbb{R}^{n}$. Cada una de estas funciones toma todos los puntos de la esfera, salvo el polo correspondiente, y los *lleva* a un codominio abierto de $\mathbb{R}^{n}$. Si recorrimos el camino inverso, yendo desde $\mathbb{R}^{n}$ hacia la esfera por medio de una de estas funciones (usando su correspondiente función inversa), y luego nos *devolvemos* a $\mathbb{R}^{n}$ usando la otra, obtendremos como resultado una función que mapea un conjunto abierto de $\mathbb{R}^{n}$ a otro conjunto abierto de $\mathbb{R}^{n}$. Cada función usada para proyectar la esfera en el espacio Euclidiano asigna un sistema de coordenadas generales a $S^{n}$ que la recubre "casi" en su totalidad (de nuevo, exceptuando a un polo). La unión de los dominios de ambas funciones es igual a $S^{n}$. De esta manera, no es posible describir a $S^{n}$ por medio de un único homeomorfismo tomando como codominio a un conjunto abierto de $\mathbb{R}^{n}$. Necesitamos al menos dos funciones para cubrir a la esfera completa. Por lo tanto, decimos que estas funciones resultan **compatibles** entre sí: En la región cubierta por ambos sistemas coordenados, el cambio de uno a otro es *suave* o *regular*; es decir, la composición de una función con la inversa de la otra es diferenciable.
+
+::: {.callout-note}
+## Espacio de Banach
+En adelante, haremos uso de un tipo especial de espacio vectorial denominado **espacio de Banach**, el cual puede definirse como un espacio vectorial normado completo. En otras palabras, es un espacio vectorial dotado de una norma que permite medir la longitud de los vectores, y además, es completo en el sentido de que toda sucesión de Cauchy converge dentro del espacio. Los espacios de Banach son fundamentales en análisis funcional y tienen aplicaciones en diversas áreas de las matemáticas y la física.
+
+Los espacios de Banach no nos son ajenos: En nuestros primeros apuntes de álgebra lineal, definimos a los espacios vectoriales y sus normas, y en nuestro estudio de la topología definimos el concepto de métrica, que nos permite medir la distancia entre puntos de un conjunto. Un espacio métrico completo es un espacio de Banach, y viceversa. Por lo tanto, podemos considerar a los espacios de Banach como una generalización de los espacios vectoriales Euclidianos, donde las nociones de longitud y convergencia se mantienen, pero en un contexto más amplio y abstracto.
+:::
+
+Esto motiva la siguiente definición.
+
+<strong><font color="blue">Definición 4.1 – Carta y atlas:</font></strong> Sea $S$ un conjunto arbitrario. Una **carta** sobre $S$ es una función biyectiva $\varphi: U\subseteq S \longrightarrow \Omega$, donde $U$ es un conjunto abierto de $S$ y $\Omega$ es un conjunto abierto de algún espacio de Banach. Solemos explicitar una carta como una dupla $(U,\varphi)$ a fin de resaltar su dominio. Por otro lado, un **atlas** de clase $C^{k}$ sobre $S$ es una familia de cartas $\mathcal{A} =\left\{ \left( U_{i},\varphi_{i} \right) |i\in I \right\}$, tal que se cumplen las siguientes propiedades:
+
+- **(P1):** La unión de todos los dominios de las cartas cubre a $S$; es decir, $\bigcup_{i\in I} U_{i} = S$.
+- **(P2):** Cualquier par arbitrario de vartas en $\mathcal{A}$ es compatible en el sentido de que las superposiciones entre ellas pueden representarse como difeomorfismos de clase $C^{k}$: Para dos cartas $(U_{i},\varphi_{i})$ y $(U_{j},\varphi_{j})$ en $\mathcal{A}$, con $U_{i}\cap U_{j}\neq \varnothing$, construimos la **función de transición** $\varphi_{ji} =\varphi_{j} \circ \varphi_{i}^{-1} |\varphi_{i} \left( U_{i}\cap U_{j} \right)$, donde $\varphi_{i}^{-1} |\varphi_{i} \left( U_{i}\cap U_{j} \right)$ denota la restricción de $\varphi_{i}^{-1}$ al conjunto $\varphi_{i} \left( U_{i}\cap U_{j} \right)$. En general, requerimos que $\varphi_{i} \left( U_{i}\cap U_{j} \right)$ sea un conjunto abierto y que $\varphi_{ji}$ sea un difeomorfismo de clase $C^{k}$ entre conjuntos abiertos de espacios de Banach.
+
+La @fig-chart-transition resume geométricamente esta última condición. Las cartas $\varphi_i$ y $\varphi_j$ llevan dos regiones superpuestas de la variedad hacia espacios de coordenadas distintos. Allí, la función de transición $\varphi_{ji}$ expresa cómo traducir una descripción local a la otra sin abandonar el lenguaje Euclidiano.
+
+```{python}
+#| label: fig-chart-transition
+#| fig-cap: 'Dos observadores locales pueden asignar coordenadas diferentes a una misma región sin perder información geométrica. La compatibilidad del atlas reside precisamente en que la traducción $\varphi_{ji}$ sobre la zona común sea suave.'
+#| echo: false
+#| warning: false
+#| fig-width: 11
+#| fig-height: 7
+
+fig, ax = plt.subplots(figsize=(9, 5.75))
+ax.set_xlim(0, 12)
+ax.set_ylim(0, 8)
+ax.set_aspect("equal")
+ax.axis("off")
+
+ink = "#25282b"
+surface = "#dce2e8"
+surface_shadow = "#aeb8c3"
+chart_i = "#d8e5f7"
+chart_j = "#c9d8ec"
+overlap = "#39424c"
+accent = "#2c66c9"
+
+# Una banda curva representa la variedad sin recurrir a una superficie 3D.
+manifold_vertices = [
+    (0.8, 1.0), (0.7, 3.8), (1.5, 6.8), (3.2, 7.5),
+    (4.7, 7.0), (5.5, 5.6), (4.3, 4.2), (3.5, 3.1),
+    (3.2, 0.9), (2.0, 0.45), (0.8, 1.0),
+]
+
+manifold_codes = [
+    Path.MOVETO, Path.CURVE4, Path.CURVE4, Path.CURVE4,
+    Path.CURVE4, Path.CURVE4, Path.CURVE4, Path.CURVE4,
+    Path.CURVE4, Path.CURVE4, Path.CLOSEPOLY,
+]
+
+ax.add_patch(
+    PathPatch(
+        Path(manifold_vertices, manifold_codes),
+        facecolor=surface,
+        edgecolor=ink,
+        linewidth=2.3,
+    )
+)
+
+# Cartas locales superpuestas sobre la variedad.
+ui = PathPatch(
+    Path(
+        [(1.35, 2.9), (1.2, 4.0), (1.6, 5.3), (2.2, 5.7),
+         (3.0, 5.25), (3.4, 4.5), (3.0, 3.3), (2.2, 2.65), (1.35, 2.9)],
+        [Path.MOVETO] + [Path.CURVE4] * 7 + [Path.CLOSEPOLY],
+    ),
+    facecolor=chart_i,
+    edgecolor=ink,
+    linewidth=2.1,
+    alpha=0.95,
+)
+uj = PathPatch(
+    Path(
+        [(2.0, 1.9), (1.9, 2.8), (2.2, 4.0), (2.9, 4.1),
+         (3.65, 3.9), (3.75, 3.2), (3.15, 2.25), (2.5, 1.55), (2.0, 1.9)],
+        [Path.MOVETO] + [Path.CURVE4] * 7 + [Path.CLOSEPOLY],
+    ),
+    facecolor=chart_j,
+    edgecolor=ink,
+    linewidth=2.1,
+    alpha=0.92,
+)
+
+ax.add_patch(ui)
+ax.add_patch(uj)
+ax.add_patch(
+    PathPatch(
+        Path(
+            [(2.05, 2.75), (2.25, 3.35), (2.55, 3.95), (3.2, 3.9),
+             (3.6, 3.75), (3.45, 3.2), (3.0, 2.65), (2.45, 2.45), (2.05, 2.75)],
+            [Path.MOVETO] + [Path.CURVE4] * 7 + [Path.CLOSEPOLY],
+        ),
+        facecolor=overlap,
+        edgecolor=ink,
+        linewidth=1.7,
+        alpha=0.96,
+    )
+)
+
+# Imágenes de las cartas en dos espacios de Banach esquemáticos.
+fi = Polygon(
+    [(8.0, 5.1), (10.35, 5.1), (10.75, 5.55), (10.7, 7.05), (10.25, 7.4), (8.0, 7.4)],
+    closed=True,
+    facecolor=surface,
+    edgecolor=ink,
+    linewidth=2.2,
+    joinstyle="round",
+)
+
+fj = Polygon(
+    [(8.15, 1.0), (9.2, 1.0), (10.75, 2.55), (10.75, 3.35), (8.15, 3.35)],
+    closed=True,
+    facecolor=surface_shadow,
+    edgecolor=ink,
+    linewidth=2.2,
+    joinstyle="round",
+)
+
+ax.add_patch(fi)
+ax.add_patch(fj)
+ax.add_patch(Polygon([(8.75, 5.1), (10.35, 5.1), (10.75, 5.55), (10.75, 6.25), (8.75, 6.25)], closed=True, facecolor=overlap, alpha=0.96, edgecolor=ink, linewidth=1.5))
+ax.add_patch(Polygon([(8.15, 2.25), (9.65, 2.25), (9.65, 3.35), (8.15, 3.35)], closed=True, facecolor=overlap, alpha=0.96, edgecolor=ink, linewidth=1.5))
+
+def curved_arrow(start, end, bend, label, label_xy):
+    arrow = FancyArrowPatch(
+        start,
+        end,
+        connectionstyle=f"arc3,rad={bend}",
+        arrowstyle="Simple,tail_width=0.8,head_width=8,head_length=10",
+        color=ink,
+        linewidth=0.8,
+    )
+    ax.add_patch(arrow)
+    ax.text(*label_xy, label, fontsize=18, color=ink)
+
+curved_arrow((2.75, 4.9), (9.0, 6.75), -0.12, r"$\varphi_i$", (6.05, 6.55))
+curved_arrow((2.65, 2.2), (8.45, 1.75), 0.16, r"$\varphi_j$", (5.65, 1.65))
+curved_arrow((9.4, 5.8), (9.05, 2.85), 0.14, r"$\varphi_{ji}$", (9.65, 4.25))
+
+ax.text(1.55, 5.55, r"$U_i$", fontsize=18, color=ink)
+ax.text(1.55, 1.75, r"$U_j$", fontsize=18, color=ink)
+ax.text(10.95, 6.9, r"$F_i$", fontsize=20, fontweight="bold", color=ink)
+ax.text(10.95, 2.75, r"$F_j$", fontsize=20, fontweight="bold", color=ink)
+ax.text(9.5, 5.75, r"$\varphi_i(U_i\cap U_j)$", fontsize=14, color="white", ha="center")
+ax.text(8.9, 2.65, r"$\varphi_j(U_i\cap U_j)$", fontsize=14, color="white", ha="center")
+
+plt.tight_layout()
+```
+
+Algunos ejemplos de atlas compatibles son los siguientes:
+
+- Todo espacio de Banach (de nuevo, un espacio vectorial normado completo) $F$ admite un atlas constituido por una única carta $(F, \text{identidad})$.
+- Un ejemplo menos trivial corresponde al atlas constituido por las dos proyecciones estereográficas de $S^{n}$ sobre $\mathbb{R}^{n}$, que resultan compatibles entre sí. En términos generales, si $N=(1,0,\ldots,0)$ y $S=(-1,0,\ldots,0)$ son los polos "norte" y "sur" de la $n$-esfera $S^{n}$, entonces las correspondientes proyecciones estereográficas desde $N$ y $S$ serán
+
+::: {.eq-scroll}
+$$
+\begin{array}{l}\varphi_{1} :S^{n}\setminus \left\{ N \right\} \longrightarrow \mathbb{R}^{n} \quad ,\quad \varphi_{1} \left( x^{1},\ldots ,x^{n+1} \right) =\left( \dfrac{x^{2}}{1-x^{1}} ,\ldots ,\dfrac{x^{n+1}}{1-x^{1}} \right)\\ \varphi_{2} :S^{n}\setminus \left\{ S \right\} \longrightarrow \mathbb{R}^{n} \quad ,\quad \varphi_{2} \left( x^{1},\ldots ,x^{n+1} \right) =\left( \dfrac{x^{2}}{1+x^{1}} ,\ldots ,\dfrac{x^{n+1}}{1+x^{1}} \right)\end{array}
+\tag{4.1}
+$$
+:::
+
+y la función de transición $\varphi_{2} \circ \varphi_{1}^{-1} :\mathbb{R}^{n} \setminus \left\{ 0 \right\} \longrightarrow \mathbb{R}^{n} \setminus \left\{ 0 \right\}$ queda definida explícitamente como $\varphi_{2} \circ \varphi_{1}^{-1} \left( z \right) =\mathbf{z} /\left\Vert \mathbf{z} \right\Vert^{2}$, para todo $\mathbf{z}\in \mathbb{R}^{n} \setminus \left\{ 0 \right\}$, siendo de clase $C^{\infty}$ en todo su dominio (al igual que su inversa).
+
+### Definición formal de variedad
+
+Y bueno, después de esta introducción y tres entradas completas del blog versando sobre tensores y topología, ya estamos listos para formalizar el concepto de variedad (junto con otros elementos estructurales que la acompañan) de manera rigurosa.
+
+<strong><font color="blue">Definición 4.2 – Variedad diferenciable (y sus elementos estructurales):</font></strong> Dos atlas diferenciables de clase $C^{k}$, digamos $\mathcal{A}_{1}$ y $\mathcal{A}_{2}$, son **equivalentes** si su intersección $\mathcal{A}_{1}\cap \mathcal{A}_{2}$ es también un atlas diferenciable de clase $C^{k}$. Una **estructura diferenciable** $\mathcal{D}$ de clase $C^{k}$ sobre un conjunto $S$ es una clase de equivalencia de atlas diferenciables de clase $C^{k}$ sobre $S$. La unión de los atlas en $\mathcal{D}$, a saber
+
+::: {.eq-scroll}
+$$
+\begin{gathered}\mathcal{A}_{\mathcal{D}} =\bigcup_{i=1}^{n} \left\{ \mathcal{A}_{i} |\mathcal{A}_{i} \in \mathcal{D} \right\}\end{gathered}
+\tag{4.2}
+$$
+:::
+
+es el **atlas máximo** de $\mathcal{D}$, y una carta $(U,\varphi)\in \mathcal{A}_{\mathcal{D}}$ se denomina **carta local admisible** para $\mathcal{D}$. Si $\mathcal{A}$ es un atlas diferenciable de clase $C^{k}$ sobre $S$, entonces la unión de todos los atlas equivalentes a $\mathcal{A}$ constituye la estructura diferenciable de clase $C^{k}$ generada por $\mathcal{A}$.
+
+Definimos una **variedad diferenciable** $M$ como una dupla $(S,\mathcal{D})$, donde $S$ es un conjunto arbitrario y $\mathcal{D}$ es una estructura diferenciable de clase $C^{k}$ sobre $S$. Con frecuencia, identificaremos a $M$ como una variedad sin hacer mención explícita a su dominio $S$ y a su estructura diferenciable $\mathcal{D}$. Si una cobertura por medio de cartas toma sus valores en un espacio de Banach $E$, entonces $E$ se denomina el **espacio de Banach modelo** de $M$, siendo $M$ por tanto una variedad diferenciable de clase $C^{k}$ **modelada sobre** $E$. Si no se hace mención a la clase de diferenciabilidad de la estructura subyacente de $M$, se asumirá que la correspondiente variedad es de clase $C^{\infty}$ (llamada **variedad diferenciable suave** o **regular**).
+
+**Ejemplo 4.1 – La esfera $S^{n}$ como variedad diferenciable:** Consideremos la esfera unitaria
+
+::: {.eq-scroll}
+$$
+S^{n}=\left\{ \mathbf{x}=\left(x^{1},\ldots,x^{n+1}\right)\in\mathbb{R}^{n+1}:\left\Vert\mathbf{x}\right\Vert=1 \right\}
+\tag{4.3}
+$$
+:::
+
+Aunque $S^{n}$ vive dentro de $\mathbb{R}^{n+1}$, su dimensión intrínseca es $n$: La condición $\left\Vert\mathbf{x}\right\Vert=1$ impone una restricción escalar y elimina un grado de libertad. Para dotarla de una estructura diferenciable no necesitamos encontrar una parametrización global. De hecho, una única carta con imagen en un abierto de $\mathbb{R}^{n}$ no puede cubrir toda la esfera. Usaremos, en cambio, las dos proyecciones estereográficas introducidas anteriormente.
+
+Sean
+
+$$
+N=(1,0,\ldots,0),\qquad S=(-1,0,\ldots,0)
+\tag{4.4}
+$$
+
+los polos norte y sur, respectivamente, y definamos los abiertos
+
+$$
+U_{1}=S^{n}\setminus\{N\}\quad; \quad U_{2}=S^{n}\setminus\{S\}
+\tag{4.5}
+$$
+
+Ambos conjuntos son abiertos en la topología inducida sobre $S^{n}$ y satisfacen $U_{1}\cup U_{2}=S^{n}$. Sobre ellos consideramos las cartas
+
+::: {.eq-scroll}
+$$
+\begin{array}{l}\varphi_{1} :U_{1}\longrightarrow \mathbb{R}^{n} \quad ;\quad \varphi_{1} \left( \mathbf{x} \right) =\dfrac{\left( x^{2},\ldots ,x^{n+1} \right)}{1-x^{1}}\\ \varphi_{2} :U_{2}\longrightarrow \mathbb{R}^{n} \quad ;\quad \varphi_{2} \left( \mathbf{x} \right) =\dfrac{\left( x^{2},\ldots ,x^{n+1} \right)}{1+x^{1}}\end{array}
+\tag{4.6}
+$$
+:::
+
+Cada una es biyectiva. Sus inversas pueden escribirse, para $\mathbf{z}\in\mathbb{R}^{n}$, como
+
+::: {.eq-scroll}
+$$
+\varphi_{1}^{-1} \left( \mathbf{z} \right) =\left( \frac{\left\Vert \mathbf{z} \right\Vert^{2} -1}{\left\Vert \mathbf{z} \right\Vert^{2} +1} ,\frac{2\mathbf{z}}{\left\Vert \mathbf{z} \right\Vert^{2} +1} \right) \wedge \varphi_{2}^{-1} \left( \mathbf{z} \right) =\left( \frac{1-\left\Vert \mathbf{z} \right\Vert^{2}}{\left\Vert \mathbf{z} \right\Vert^{2} +1} ,\frac{2\mathbf{z}}{\left\Vert \mathbf{z} \right\Vert^{2} +1} \right)
+\tag{4.7}
+$$
+:::
+
+Estas expresiones son regulares en todo $\mathbb{R}^{n}$ porque su denominador $1+\|\mathbf{z}\|^{2}$ nunca se anula. Falta comprobar la compatibilidad en la superposición. Como
+
+$$
+U_{1}\cap U_{2}=S^{n}\setminus\{N,S\}
+\tag{4.8}
+$$
+
+su imagen mediante cualquiera de las cartas es $\mathbb{R}^{n}\setminus\{\mathbf{0}\}$. En este conjunto, el cambio de coordenadas está dado por
+
+::: {.eq-scroll}
+$$
+\left(\varphi_{2}\circ\varphi_{1}^{-1}\right)(\mathbf{z})=\frac{\mathbf{z}}{\|\mathbf{z}\|^{2}}\quad ; \quad \mathbf{z}\in\mathbb{R}^{n}\setminus\{\mathbf{0}\}
+\tag{4.9}
+$$
+:::
+
+La aplicación anterior es suave y coincide con su propia inversa, pues
+
+$$
+\frac{\mathbf{z}/\|\mathbf{z}\|^{2}}
+{\left\|\mathbf{z}/\|\mathbf{z}\|^{2}\right\|^{2}}=\mathbf{z}
+\tag{4.10}
+$$
+
+Por lo tanto, las cartas $(U_{1},\varphi_{1})$ y $(U_{2},\varphi_{2})$ son compatibles y forman un atlas suave para $S^{n}$. Este atlas genera una estructura diferenciable que convierte a la esfera en una variedad suave de dimensión $n$, modelada sobre $\mathbb{R}^{n}$.
+
+El ejemplo condensa la idea esencial de toda variedad: Ninguna de las cartas ve la esfera completa, pero ambas ofrecen descripciones Euclidianas locales y concuerdan suavemente donde sus dominios se superponen. La curvatura global de $S^{n}$ no impide hacer cálculo diferencial; sólo nos obliga a cambiar de coordenadas cuando una carta deja de ser válida. ◼︎
+
+**Ejemplo 4.2 – La banda de Möbius como variedad diferenciable:** Para construir una banda de Möbius podemos comenzar con una tira de papel rectangular. Antes de unir sus extremos, damos medio giro a uno de ellos. Así, el punto situado a una altura $t$ en un extremo se encuentra con el punto situado a la altura $-t$ en el otro. Esta instrucción de pegado puede resumirse como
+
+::: {.eq-scroll}
+$$
+(0,t)\longleftrightarrow(2\pi,-t)\quad ;\quad -1<t<1
+\tag{4.11}
+$$
+:::
+
+El símbolo $\longleftrightarrow$ sólo indica qué puntos de los extremos de la tira se unen físicamente; no introduce todavía ninguna construcción nueva. Usamos $-1<t<1$ para estudiar una banda sin sus bordes. Más adelante veremos cómo tratar la tira cerrada de papel.
+
+La superficie resultante puede dibujarse en $\mathbb{R}^{3}$ mediante la aplicación
+
+::: {.eq-scroll}
+$$
+F\left( \theta ,t \right) =\left( \left( 1+\frac{t}{2} \cos \left( \frac{\theta}{2} \right) \right) \cos \left( \theta \right) ,\left( 1+\frac{t}{2} \cos \left( \frac{\theta}{2} \right) \right) \sin \left( \theta \right) ,\frac{t}{2} \sin \left( \frac{\theta}{2} \right) \right)
+\tag{4.12}
+$$
+:::
+
+donde $0\leq\theta\leq2\pi$ señala cuánto hemos avanzado alrededor de la banda y $t$ indica la posición transversal dentro de la tira. La fórmula reproduce el medio giro porque
+
+$$
+F(\theta+2\pi,t)=F(\theta,-t)
+\tag{4.13}
+$$
+
+La @fig-mobius-band permite recorrer visualmente este pegado. La línea central completa una vuelta sin ambigüedad, mientras que las posiciones transversales positivas y negativas intercambian su lugar a medida que $\theta$ avanza.
+
+```{python}
+#| label: fig-mobius-band
+#| fig-cap: 'Representación en $\mathbb{R}^{3}$ de la banda de Möbius. El medio giro no altera su apariencia local: cada pequeña región sigue pareciéndose a un plano. Su efecto sólo se revela al completar el recorrido, cuando una posición transversal regresa al lado opuesto de la tira.'
+#| echo: false
+#| warning: false
+
+import plotly.graph_objects as go
+import plotly.io as pio
+from IPython.display import HTML, display
+
+
+mobius_theta = np.linspace(0, 2 * np.pi, 180)
+mobius_t = np.linspace(-0.96, 0.96, 42)
+mobius_theta_grid, mobius_t_grid = np.meshgrid(mobius_theta, mobius_t)
+
+mobius_x = (
+    1 + 0.5 * mobius_t_grid * np.cos(mobius_theta_grid / 2)
+) * np.cos(mobius_theta_grid)
+mobius_y = (
+    1 + 0.5 * mobius_t_grid * np.cos(mobius_theta_grid / 2)
+) * np.sin(mobius_theta_grid)
+mobius_z = 0.5 * mobius_t_grid * np.sin(mobius_theta_grid / 2)
+
+mobius_figure = go.Figure()
+mobius_figure.add_trace(
+    go.Surface(
+        x=mobius_x,
+        y=mobius_y,
+        z=mobius_z,
+        surfacecolor=mobius_theta_grid,
+        # Equivalente explícito del colormap ``cool`` de Matplotlib.
+        colorscale=[[0.0, "#00ffff"], [1.0, "#ff00ff"]],
+        opacity=0.84,
+        showscale=False,
+        lighting={"ambient": 0.72, "diffuse": 0.82, "roughness": 0.8},
+        hovertemplate="θ=%{surfacecolor:.2f}<extra>Banda de Möbius</extra>",
+        name="Banda de Möbius",
+    )
+)
+
+# Enmallado completo para hacer visible la parametrización de la superficie.
+wireframe_color = "rgba(37, 40, 43, 0.58)"
+for transverse_index in range(0, len(mobius_t), 4):
+    mobius_figure.add_trace(
+        go.Scatter3d(
+            x=mobius_x[transverse_index, :],
+            y=mobius_y[transverse_index, :],
+            z=mobius_z[transverse_index, :],
+            mode="lines",
+            line={"color": wireframe_color, "width": 2},
+            hoverinfo="skip",
+            showlegend=False,
+        )
+    )
+
+for longitudinal_index in range(0, len(mobius_theta), 12):
+    mobius_figure.add_trace(
+        go.Scatter3d(
+            x=mobius_x[:, longitudinal_index],
+            y=mobius_y[:, longitudinal_index],
+            z=mobius_z[:, longitudinal_index],
+            mode="lines",
+            line={"color": wireframe_color, "width": 2},
+            hoverinfo="skip",
+            showlegend=False,
+        )
+    )
+
+# Curva central y borde: ayudan a reconocer el giro y la continuidad global.
+for transverse_value, line_color, line_width in [
+    (0.0, "#25282b", 6),
+    (0.96, "#39424c", 4),
+    (-0.96, "#39424c", 4),
+]:
+    curve_x = (
+        1 + 0.5 * transverse_value * np.cos(mobius_theta / 2)
+    ) * np.cos(mobius_theta)
+    curve_y = (
+        1 + 0.5 * transverse_value * np.cos(mobius_theta / 2)
+    ) * np.sin(mobius_theta)
+    curve_z = 0.5 * transverse_value * np.sin(mobius_theta / 2)
+    mobius_figure.add_trace(
+        go.Scatter3d(
+            x=curve_x,
+            y=curve_y,
+            z=curve_z,
+            mode="lines",
+            line={"color": line_color, "width": line_width},
+            hoverinfo="skip",
+            showlegend=False,
+        )
+    )
+
+mobius_figure.update_layout(
+    height=610,
+    font={"family": "Calibri, Arial, sans-serif", "color": "#343a40"},
+    margin={"l": 0, "r": 0, "t": 10, "b": 0},
+    paper_bgcolor="white",
+    plot_bgcolor="white",
+    showlegend=False,
+    scene={
+        "aspectmode": "data",
+        "camera": {"eye": {"x": 1.45, "y": 1.65, "z": 1.15}},
+        "xaxis": {
+            "title": "x",
+            "tickmode": "linear",
+            "tick0": -1.5,
+            "dtick": 0.5,
+            "range": [-1.55, 1.55],
+            "showbackground": True,
+            "backgroundcolor": "white",
+            "gridcolor": "#d8dee4",
+            "zerolinecolor": "#9aa0a6",
+        },
+        "yaxis": {
+            "title": "y",
+            "tickmode": "linear",
+            "tick0": -1.5,
+            "dtick": 0.5,
+            "range": [-1.55, 1.55],
+            "showbackground": True,
+            "backgroundcolor": "white",
+            "gridcolor": "#d8dee4",
+            "zerolinecolor": "#9aa0a6",
+        },
+        "zaxis": {
+            "title": "z",
+            "tickmode": "linear",
+            "tick0": -0.5,
+            "dtick": 0.25,
+            "range": [-0.6, 0.6],
+            "showbackground": True,
+            "backgroundcolor": "white",
+            "gridcolor": "#d8dee4",
+            "zerolinecolor": "#9aa0a6",
+        },
+        "bgcolor": "white",
+    },
+)
+
+mobius_html = pio.to_html(
+    mobius_figure,
+    full_html=False,
+    include_plotlyjs="cdn",
+    include_mathjax=False,
+    config={"displaylogo": False, "responsive": True},
+)
+mobius_html = mobius_html.replace(
+    "<script>window.PlotlyConfig = {MathJaxConfig: 'local'};</script>",
+    "",
+)
+display(HTML(mobius_html))
+```
+
+Ahora preguntémonos si esta superficie satisface la idea que estamos construyendo de variedad. Para ello no necesitamos comprender toda la banda de una vez. Escogemos un intervalo abierto $I\subset\mathbb{R}$ de longitud menor que $2\pi$ y observamos solamente el fragmento
+
+::: {.eq-scroll}
+$$
+U_I=\left\{F(\theta,t):(\theta,t)\in I\times(-1,1)\right\}.
+\tag{4.14}
+$$
+:::
+
+Como el fragmento no alcanza a dar una vuelta completa, cada uno de sus puntos posee un único par de coordenadas $(\theta,t)$ dentro de $I\times(-1,1)$. Podemos, por tanto, “desenrollarlo” mediante la carta
+
+::: {.eq-scroll}
+$$
+\varphi_I:U_I\longrightarrow I\times(-1,1)\quad ;\quad
+\varphi_I\bigl(F(\theta,t)\bigr)=(\theta,t).
+\tag{4.15}
+$$
+:::
+
+La imagen $I\times(-1,1)$ es simplemente una región abierta del plano. En consecuencia, aunque la banda se vea curvada y retorcida en el espacio tridimensional, cada fragmento suficientemente pequeño puede describirse con dos coordenadas ordinarias.
+
+Todavía debemos comprobar que dos de estas descripciones no se contradigan donde se superponen. Lejos de la unión de los extremos, ambas cartas asignan las mismas coordenadas, salvo por un desplazamiento de una vuelta completa. Cerca de la unión aparece además el medio giro. Los cambios posibles tienen la forma
+
+::: {.eq-scroll}
+$$
+\left(\varphi_J\circ\varphi_I^{-1}\right)(\theta,t)=\left(\theta+2k\pi,(-1)^k t\right)
+\tag{4.16}
+$$
+:::
+
+para algún número entero $k$ fijo en cada pequeño sector de la superposición. Estas funciones sólo trasladan la primera coordenada y, dependiendo del número de vueltas, conservan o invierten la segunda. Son funciones suaves y sus inversas también lo son. Las cartas son, por tanto, compatibles y forman un atlas suave. Concluimos que la banda de Möbius abierta es una variedad diferenciable de dimensión $2$.
+
+La diferencia con un cilindro sólo se descubre al completar una vuelta: La coordenada transversal cambia de $t$ a $-t$. Por ahora, lo importante es que este giro no puede detectarse mirando una región pequeña, pues cada una sigue pareciéndose a un fragmento del plano.
+
+::: {.callout-note}
+## ¿Y la banda con sus bordes?
+
+Si permitimos también $t=-1$ y $t=1$, obtenemos la banda que suele construirse con papel. Esos puntos forman el borde de la tira y sus pequeñas vecindades se parecen a fragmentos situados junto al borde de un semiplano. Más adelante formalizaremos esta situación con la noción de **variedad diferenciable con borde**.
+:::
+
+Este ejemplo muestra que una variedad puede ser localmente tan sencilla como un plano y, aun así, presentar una estructura global imposible de detectar dentro de una única carta. En la esfera, el obstáculo era cubrir toda la geometría con un solo sistema de coordenadas; en la banda de Möbius, el fenómeno distintivo aparece al cerrar el recorrido y descubrir que la dirección transversal ha cambiado de signo. ◼︎
+
+### Topología subyacente de una variedad
+
+A fin de poder hablar de continuidad y convergencia en una variedad, necesitamos dotarla de una topología. Para ello, primero debemos definir qué significa que un conjunto de puntos de la variedad sea abierto. Esto motiva la siguiente definición.
+
+<strong><font color="blue">Definición 4.3 – Conjunto abierto de una variedad:</font></strong> Sea $M$ una variedad diferenciable de clase arbitraria. Un conjunto $A\subseteq M$ se dice **abierto** si, para cada punto $p\in A$ existe una carta local admisible $(U,\varphi)$ tal que $p\in U$ y $U\subset A$.
+
+En palabras simples, un conjunto de puntos que pertenencen a una variedad es abierto si, alrededor de cada uno de sus elementos, podemos encontrar una carta local que se mantenga completamente dentro del conjunto. Esta definición nos permite hablar de continuidad y convergencia en la variedad, ya que podemos trasladar estas nociones desde los espacios de Banach a través de las cartas locales.
+
+::: {.callout-note}
+## Proposición 4.1
+
+Los conjuntos abiertos de una variedad diferenciable $M$ forman una topología sobre $M$. Esta topología se denomina **topología subyacente** de la variedad.
+:::
+
+La demostración de esta proposición se basa en verificar que la colección de conjuntos abiertos cumple con los axiomas de una topología: la unión arbitraria de conjuntos abiertos es abierta, la intersección finita de conjuntos abiertos es abierta, y tanto el conjunto vacío como la propia variedad son abiertos. Esto asegura que podemos tratar a la variedad como un espacio topológico, lo cual es fundamental para el desarrollo del análisis y la geometría diferencial sobre ella. ◆
+
+<strong><font color="blue">Definición 4.4 – Dimensión de una variedad:</font></strong> Una variedad diferenciable $M$ se dice de **dimensión $n$** (o $n$-variedad) cuando cada carta local admisible de $M$ toma sus valores en un espacio vectorial normado de dimensión $n$. De esta manera, sin pérdida de generalidad, para cada punto $\mathbf{p}\in M$ existe una carta local admisible $(U, \varphi)$, con $\mathbf{p}\in U$ y $\varphi(U)\subset \mathbb{R}^{n}$. Escribimos $n=\dim M$ y decimos que $M$ es una variedad diferenciable de dimensión $n$ modelada sobre $\mathbb{R}^{n}$.
+
+En lo que resta de estos apuntes, una variedad de dimensión $n$ será siempre una variedad diferenciable de clase $C^{k}$ modelada sobre un espacio topológico con la propiedad de Hausdorff; es decir, un espacio topológico en el que para cada par de puntos distintos existen vecindades abiertas disjuntas que los contienen. Esta condición garantiza que los puntos de la variedad pueden separarse mediante conjuntos abiertos, lo cual es esencial para muchas construcciones y resultados en geometría diferencial y topología.
+
+Finalmente, una variedad diferenciable será llamada **variedad de dimensión finita** si sus componentes conexas son todas variedades de dimensión $n$.
+
+::: {.callout-warning}
+## Momento... ¿Qué?
+
+El nivel de abstracción creció bastante rápido, pero la idea práctica es más familiar de lo que parece. En cálculo multivariable trabajamos con puntos de $\mathbb{R}^{n}$, los representamos mediante $n$ coordenadas y estudiamos funciones en pequeños conjuntos abiertos alrededor de ellos. En una variedad queremos hacer exactamente lo mismo, sólo que quizá no exista un único sistema de coordenadas que sirva para todo el espacio.
+
+Una carta actúa como un **traductor local**. Si $\mathbf{p}\in M$ y $(U,\varphi)$ es una carta alrededor de $\mathbf{p}$, entonces
+
+$$
+ \mathbf{p}\in M\quad\longleftrightarrow\quad
+\varphi(\mathbf{p})=(x^{1},\ldots,x^{n})\in\mathbb{R}^{n}
+$$
+
+Una vez realizada esta traducción, regresamos al álgebra y al cálculo de siempre: Podemos operar con vectores de coordenadas, calcular límites, derivar funciones y estudiar curvas usando $x^{1},\ldots,x^{n}$. Si otra carta también describe la misma región, la función de transición nos dice cómo convertir unas coordenadas en otras, del mismo modo que convertimos coordenadas cartesianas en polares.
+
+Por ejemplo, pensemos en una superficie dada localmente por
+
+$$
+z=f(x,y)
+$$
+
+Aunque sus puntos viven en $\mathbb{R}^{3}$, basta el par $(x,y)$ para identificar cada punto cercano:
+
+$$
+(x,y,f(x,y))\quad\longleftrightarrow\quad(x,y)
+$$
+
+Por eso decimos que la superficie tiene dimensión $2$: Localmente necesitamos dos números, no tres. La topología subyacente formaliza qué entendemos por vecindad, cercanía y continuidad; la compatibilidad entre las cartas garantiza, por separado, que sus coordenadas concuerden suavemente cuando los fragmentos se superponen.
+
+La condición de Hausdorff tampoco introduce una operación nueva. Exige que dos puntos distintos puedan distinguirse mediante vecindades que no se toquen, tal como ocurre automáticamente en $\mathbb{R}^{n}$. Así evitamos espacios extraños en los que dos puntos diferentes serían imposibles de separar mediante observaciones locales.
+
+En resumen, no necesitamos abandonar nuestra intuición algebraica ni aprender otra forma de cálculo. La topología organiza las **regiones locales**; las cartas les asignan **coordenadas**; y la estructura diferenciable garantiza que el **cálculo** produce resultados coherentes al cambiar de carta. La abstracción sólo nos permite repetir estas operaciones conocidas sobre objetos que globalmente pueden ser una esfera, una banda de Möbius o geometrías de mayor dimensión.
+
+:::
+
+Un comentario sobre conexión: No hemos hecho ninguna suposición de que la variedad sea conexa. De hecho, una variedad puede tener varias componentes conexas, cada una de las cuales es una variedad diferenciable de dimensión $n$. En este caso, cada componente puede ser tratada de manera independiente, y la dimensión de la variedad se define como la dimensión común de todas sus componentes conexas. De hecho, las variedades diferenciables son objetos *populares* en la geometría diferencial por estar localmente conectadas por medio de arcos: Su estructura local, de naturaleza Euclídea, permite que toda trayectoria continua pueda construirse por medio de segmentos de curvas diferenciables, lo que facilita el estudio de sus propiedades globales a partir de su comportamiento local.
+
+**Ejemplo 4.3 – Variedades compactas y conectadas:** Cerremos esta primera discusión introduciendo dos propiedades globales que aparecerán con frecuencia. Ambas describen a la variedad completa y, por lo tanto, no pueden decidirse mirando una sola carta.
+
+Diremos, por ahora, que una variedad es **compacta** cuando no se extiende indefinidamente ni deja fuera puntos límite que deberían pertenecerle. En un subconjunto de $\mathbb{R}^{n}$, esta intuición coincide con un criterio conocido del cálculo: Un conjunto cerrado y acotado es compacto. La definición general mediante recubrimientos abiertos será importante más adelante, pero no la necesitamos todavía para reconocer nuestros primeros ejemplos.
+
+Una variedad es **conectada** cuando está formada por una sola pieza. Dicho con un poco más de precisión, no podemos separarla en dos regiones abiertas, disjuntas y no vacías. Una manera muy concreta de comprobarlo consiste en preguntarnos si podemos viajar continuamente entre dos puntos cualesquiera sin abandonar la variedad. Cuando esto es posible, la variedad es conexa por caminos y, en particular, conectada.
+
+Comencemos con la circunferencia
+
+$$
+S^{1}=\left\{(x,y)\in\mathbb{R}^{2}:x^{2}+y^{2}=1\right\}.
+$$
+
+La circunferencia es acotada, pues todos sus puntos permanecen a distancia $1$ del origen, y contiene todos sus puntos límite. Por ello es compacta. También es conectada: Dados dos puntos cualesquiera, siempre podemos recorrer uno de los dos arcos que los unen sin salir de $S^{1}$. La @fig-compact-circle muestra esta idea; los nodos del enmallado no son puntos aislados, sino muestras de una única curva continua.
+
+```{python}
+#| label: fig-compact-circle
+#| fig-cap: 'La circunferencia reúne dos ideas globales distintas: permanece confinada en una región finita del plano y, al mismo tiempo, cualquiera de sus puntos puede alcanzarse recorriendo la misma curva continua. El enmallado sólo hace visible una coordenada angular que localmente se comporta como la recta.'
+#| echo: false
+#| warning: false
+
+circle_theta = np.linspace(0, 2 * np.pi, 361)
+circle_mesh_theta = np.linspace(0, 2 * np.pi, 25)[:-1]
+
+circle_figure = go.Figure()
+circle_figure.add_trace(
+    go.Scatter(
+        x=np.cos(circle_theta),
+        y=np.sin(circle_theta),
+        mode="lines",
+        line={"color": "#8b0a67", "width": 5},
+        hovertemplate="θ=%{customdata:.2f} rad<extra>S¹</extra>",
+        customdata=circle_theta,
+        showlegend=False,
+    )
+)
+
+for mesh_angle in circle_mesh_theta:
+    mesh_x, mesh_y = np.cos(mesh_angle), np.sin(mesh_angle)
+    circle_figure.add_trace(
+        go.Scatter(
+            x=[0.92 * mesh_x, 1.08 * mesh_x],
+            y=[0.92 * mesh_y, 1.08 * mesh_y],
+            mode="lines",
+            line={"color": "rgba(52, 58, 64, 0.48)", "width": 2},
+            hoverinfo="skip",
+            showlegend=False,
+        )
+    )
+
+circle_figure.add_trace(
+    go.Scatter(
+        x=np.cos(circle_mesh_theta),
+        y=np.sin(circle_mesh_theta),
+        mode="markers",
+        marker={"size": 5, "color": "#343a40"},
+        hoverinfo="skip",
+        showlegend=False,
+    )
+)
+
+circle_figure.update_layout(
+    height=540,
+    font={"family": "Calibri, Arial, sans-serif", "color": "#343a40"},
+    margin={"l": 20, "r": 20, "t": 10, "b": 10},
+    paper_bgcolor="white",
+    plot_bgcolor="white",
+    xaxis={
+        "title": "x",
+        "range": [-1.25, 1.25],
+        "dtick": 0.5,
+        "gridcolor": "#e1e5e8",
+        "zerolinecolor": "#9aa0a6",
+        "scaleanchor": "y",
+        "scaleratio": 1,
+    },
+    yaxis={
+        "title": "y",
+        "range": [-1.25, 1.25],
+        "dtick": 0.5,
+        "gridcolor": "#e1e5e8",
+        "zerolinecolor": "#9aa0a6",
+    },
+    showlegend=False,
+)
+
+circle_html = pio.to_html(
+    circle_figure,
+    full_html=False,
+    include_plotlyjs="cdn",
+    include_mathjax=False,
+    config={"displaylogo": False, "responsive": True},
+)
+circle_html = circle_html.replace(
+    "<script>window.PlotlyConfig = {MathJaxConfig: 'local'};</script>",
+    "",
+)
+display(HTML(circle_html))
+```
+
+Ahora imaginemos que deformamos una esfera y le añadimos asas, como en la @fig-sphere-with-handles. Cada asa abre un túnel y cambia profundamente la forma global de la superficie, pero no destruye las dos propiedades anteriores. La superficie continúa siendo compacta porque permanece cerrada y acotada. También continúa siendo conectada porque las asas están unidas suavemente al cuerpo principal: Podemos trazar un camino continuo entre cualesquiera dos puntos, incluso si el recorrido debe atravesar uno de los túneles.
+
+```{python}
+#| label: fig-sphere-with-handles
+#| fig-cap: 'Representación esquemática de una esfera con dos asas, construida mediante superficies superpuestas. En la variedad suave que ilustra, los túneles modifican la organización global sin dividirla ni hacerla escapar al infinito: un enmallado continuo podría recorrer toda la figura compacta y conectada.'
+#| echo: false
+#| warning: false
+
+surface_u = np.linspace(0, 2 * np.pi, 120)
+surface_v = np.linspace(0, np.pi, 64)
+surface_u_grid, surface_v_grid = np.meshgrid(surface_u, surface_v)
+
+sphere_radius = 1.16
+sphere_x = sphere_radius * np.sin(surface_v_grid) * np.cos(surface_u_grid)
+sphere_y = sphere_radius * np.sin(surface_v_grid) * np.sin(surface_u_grid)
+sphere_z = sphere_radius * np.cos(surface_v_grid)
+
+handles_figure = go.Figure()
+handles_figure.add_trace(
+    go.Surface(
+        x=sphere_x,
+        y=sphere_y,
+        z=sphere_z,
+        surfacecolor=sphere_z,
+        colorscale=[[0.0, "#d9c7d5"], [0.5, "#f3eaf1"], [1.0, "#8b0a67"]],
+        opacity=0.97,
+        showscale=False,
+        hoverinfo="skip",
+        lighting={"ambient": 0.7, "diffuse": 0.85, "roughness": 0.82},
+    )
+)
+
+handle_u = np.linspace(0, 2 * np.pi, 120)
+handle_v = np.linspace(0, 2 * np.pi, 36)
+handle_u_grid, handle_v_grid = np.meshgrid(handle_u, handle_v)
+
+def handle_coordinates(center_x, center_z, major_radius, minor_radius):
+    radial = major_radius + minor_radius * np.cos(handle_v_grid)
+    return (
+        center_x + radial * np.cos(handle_u_grid),
+        minor_radius * np.sin(handle_v_grid),
+        center_z + radial * np.sin(handle_u_grid),
+    )
+
+handle_surfaces = [
+    handle_coordinates(0.0, 0.98, 0.72, 0.20),
+    handle_coordinates(-0.92, -0.48, 0.62, 0.18),
+]
+
+for handle_x, handle_y, handle_z in handle_surfaces:
+    handles_figure.add_trace(
+        go.Surface(
+            x=handle_x,
+            y=handle_y,
+            z=handle_z,
+            surfacecolor=handle_z,
+            colorscale=[[0.0, "#d9c7d5"], [0.5, "#f3eaf1"], [1.0, "#8b0a67"]],
+            opacity=0.97,
+            showscale=False,
+            hoverinfo="skip",
+            lighting={"ambient": 0.7, "diffuse": 0.85, "roughness": 0.82},
+        )
+    )
+
+wire_color = "rgba(45, 48, 52, 0.48)"
+
+def add_wireframe(figure, x_values, y_values, z_values, row_step, column_step):
+    for row_index in range(0, x_values.shape[0], row_step):
+        figure.add_trace(
+            go.Scatter3d(
+                x=x_values[row_index, :],
+                y=y_values[row_index, :],
+                z=z_values[row_index, :],
+                mode="lines",
+                line={"color": wire_color, "width": 1.5},
+                hoverinfo="skip",
+                showlegend=False,
+            )
+        )
+    for column_index in range(0, x_values.shape[1], column_step):
+        figure.add_trace(
+            go.Scatter3d(
+                x=x_values[:, column_index],
+                y=y_values[:, column_index],
+                z=z_values[:, column_index],
+                mode="lines",
+                line={"color": wire_color, "width": 1.5},
+                hoverinfo="skip",
+                showlegend=False,
+            )
+        )
+
+add_wireframe(handles_figure, sphere_x, sphere_y, sphere_z, 6, 10)
+for handle_x, handle_y, handle_z in handle_surfaces:
+    add_wireframe(handles_figure, handle_x, handle_y, handle_z, 4, 10)
+
+handles_figure.update_layout(
+    height=640,
+    font={"family": "Calibri, Arial, sans-serif", "color": "#343a40"},
+    margin={"l": 0, "r": 0, "t": 10, "b": 0},
+    paper_bgcolor="white",
+    showlegend=False,
+    scene={
+        "aspectmode": "data",
+        "camera": {"eye": {"x": 1.55, "y": 1.8, "z": 1.15}},
+        "xaxis": {"title": "x", "showbackground": True, "backgroundcolor": "white", "gridcolor": "#dde2e6"},
+        "yaxis": {"title": "y", "showbackground": True, "backgroundcolor": "white", "gridcolor": "#dde2e6"},
+        "zaxis": {"title": "z", "showbackground": True, "backgroundcolor": "white", "gridcolor": "#dde2e6"},
+        "bgcolor": "white",
+    },
+)
+
+handles_html = pio.to_html(
+    handles_figure,
+    full_html=False,
+    include_plotlyjs="cdn",
+    include_mathjax=False,
+    config={"displaylogo": False, "responsive": True},
+)
+handles_html = handles_html.replace(
+    "<script>window.PlotlyConfig = {MathJaxConfig: 'local'};</script>",
+    "",
+)
+display(HTML(handles_html))
+```
+
+La lección es que **compacta** y **conectada** responden preguntas diferentes. La primera pregunta si la variedad puede controlarse globalmente sin que aparezcan fugas hacia el infinito o extremos ausentes; la segunda pregunta si la variedad consta de una sola pieza. Una circunferencia, una esfera y una esfera con cualquier número finito de asas satisfacen ambas propiedades, aunque no tengan la misma forma ni puedan deformarse suavemente unas en otras sin cortar o pegar. ◼︎
+
+**Ejemplo 4.4 – Variedades de Grassmann:** Sea $m\geq n$ y consideremos el conjunto
+
+::: {.eq-scroll}
+$$
+\mathbb{G}_{n}\left( \mathbb{R}^{m} \right)
+=\left\{F\leq\mathbb{R}^{m}:\dim(F)=n\right\}
+\tag{4.17}
+$$
+:::
+
+formado por todos los subespacios vectoriales de dimensión $n$ contenidos en $\mathbb{R}^{m}$. Este conjunto se denomina **variedad de Grassmann** o **Grassmanniana**. Su definición merece una pausa: Los puntos de $\mathbb{G}_{n}(\mathbb{R}^{m})$ no son vectores de $\mathbb{R}^{m}$, sino subespacios completos. Así, movernos dentro de esta variedad significa deformar continuamente un subespacio sin cambiar su dimensión.
+
+El ejemplo más visual corresponde a
+
+$$
+\mathbb{G}_{1}\left(\mathbb{R}^{3}\right)
+=\left\{\text{rectas vectoriales contenidas en }\mathbb{R}^{3}\right\}
+\tag{4.18}
+$$
+
+Cada una de estas rectas pasa por el origen. Para describir una recta basta escoger un vector unitario $\mathbf{u}\in S^{2}$ que señale su dirección, pero $\mathbf{u}$ y $-\mathbf{u}$ generan exactamente el mismo subespacio:
+
+$$
+\left<\left\{\mathbf{u}\right\}\right>
+=\left<\left\{-\mathbf{u}\right\}\right>
+\tag{4.19}
+$$
+
+Por eso $\mathbb{G}_{1}(\mathbb{R}^{3})$ puede imaginarse como una esfera en la cual cada par de puntos antipodales representa un único elemento. Este espacio también recibe el nombre de **plano proyectivo real** y se denota por $\mathbb{RP}^{2}$. La @fig-grassmann-lines muestra varias rectas de esta variedad Grassmanniana: Cada segmento completo, y no cada uno de sus extremos, representa un punto del espacio que queremos estudiar.
+
+```{python}
+#| label: fig-grassmann-lines
+#| fig-cap: 'Una muestra de elementos de $\mathbb{G}_{1}(\mathbb{R}^{3})$. Cada recta que atraviesa el origen corta la esfera en dos puntos antipodales, pero ambos extremos codifican el mismo subespacio unidimensional; la esfera enmallada funciona aquí como un catálogo redundante de direcciones.'
+#| echo: false
+#| warning: false
+
+grassmann_u = np.linspace(0, 2 * np.pi, 96)
+grassmann_v = np.linspace(0, np.pi, 48)
+grassmann_u_grid, grassmann_v_grid = np.meshgrid(grassmann_u, grassmann_v)
+
+grassmann_sphere_x = np.sin(grassmann_v_grid) * np.cos(grassmann_u_grid)
+grassmann_sphere_y = np.sin(grassmann_v_grid) * np.sin(grassmann_u_grid)
+grassmann_sphere_z = np.cos(grassmann_v_grid)
+
+grassmann_figure = go.Figure()
+grassmann_figure.add_trace(
+    go.Surface(
+        x=grassmann_sphere_x,
+        y=grassmann_sphere_y,
+        z=grassmann_sphere_z,
+        surfacecolor=grassmann_sphere_z,
+        colorscale=[[0.0, "#edf0f2"], [0.5, "#f9fafb"], [1.0, "#d5dbe0"]],
+        opacity=0.24,
+        showscale=False,
+        hoverinfo="skip",
+        lighting={"ambient": 0.85, "diffuse": 0.55, "roughness": 0.9},
+    )
+)
+
+grassmann_wire_color = "rgba(76, 86, 96, 0.38)"
+for row_index in range(0, grassmann_sphere_x.shape[0], 5):
+    grassmann_figure.add_trace(
+        go.Scatter3d(
+            x=grassmann_sphere_x[row_index, :],
+            y=grassmann_sphere_y[row_index, :],
+            z=grassmann_sphere_z[row_index, :],
+            mode="lines",
+            line={"color": grassmann_wire_color, "width": 1.5},
+            hoverinfo="skip",
+            showlegend=False,
+        )
+    )
+
+for column_index in range(0, grassmann_sphere_x.shape[1], 8):
+    grassmann_figure.add_trace(
+        go.Scatter3d(
+            x=grassmann_sphere_x[:, column_index],
+            y=grassmann_sphere_y[:, column_index],
+            z=grassmann_sphere_z[:, column_index],
+            mode="lines",
+            line={"color": grassmann_wire_color, "width": 1.5},
+            hoverinfo="skip",
+            showlegend=False,
+        )
+    )
+
+grassmann_directions = np.array(
+    [
+        [1.0, 0.0, 0.0],
+        [0.0, 1.0, 0.0],
+        [0.0, 0.0, 1.0],
+        [1.0, 1.0, 0.55],
+        [1.0, -0.55, 0.85],
+        [0.35, 1.0, -0.72],
+    ]
+)
+grassmann_directions /= np.linalg.norm(
+    grassmann_directions, axis=1, keepdims=True
+)
+
+for direction_index, direction in enumerate(grassmann_directions):
+    is_featured = direction_index == 3
+    line_color = "#8b0a67" if is_featured else "rgba(25, 135, 145, 0.76)"
+    line_width = 7 if is_featured else 4
+    grassmann_figure.add_trace(
+        go.Scatter3d(
+            x=[-direction[0], direction[0]],
+            y=[-direction[1], direction[1]],
+            z=[-direction[2], direction[2]],
+            mode="lines+markers",
+            line={"color": line_color, "width": line_width},
+            marker={"color": line_color, "size": 5 if is_featured else 3},
+            hovertemplate="Dos extremos, una misma recta<extra>G₁(ℝ³)</extra>",
+            showlegend=False,
+        )
+    )
+
+grassmann_figure.add_trace(
+    go.Scatter3d(
+        x=[0],
+        y=[0],
+        z=[0],
+        mode="markers",
+        marker={"color": "#25282b", "size": 5},
+        hovertemplate="Origen<extra></extra>",
+        showlegend=False,
+    )
+)
+
+grassmann_figure.update_layout(
+    height=620,
+    font={"family": "Calibri, Arial, sans-serif", "color": "#343a40"},
+    margin={"l": 0, "r": 0, "t": 10, "b": 0},
+    paper_bgcolor="white",
+    showlegend=False,
+    scene={
+        "aspectmode": "cube",
+        "camera": {"eye": {"x": 1.45, "y": 1.65, "z": 1.15}},
+        "xaxis": {"title": "x", "range": [-1.15, 1.15], "dtick": 0.5, "showbackground": True, "backgroundcolor": "white", "gridcolor": "#dde2e6"},
+        "yaxis": {"title": "y", "range": [-1.15, 1.15], "dtick": 0.5, "showbackground": True, "backgroundcolor": "white", "gridcolor": "#dde2e6"},
+        "zaxis": {"title": "z", "range": [-1.15, 1.15], "dtick": 0.5, "showbackground": True, "backgroundcolor": "white", "gridcolor": "#dde2e6"},
+        "bgcolor": "white",
+    },
+)
+
+grassmann_html = pio.to_html(
+    grassmann_figure,
+    full_html=False,
+    include_plotlyjs="cdn",
+    include_mathjax=False,
+    config={"displaylogo": False, "responsive": True},
+)
+grassmann_html = grassmann_html.replace(
+    "<script>window.PlotlyConfig = {MathJaxConfig: 'local'};</script>",
+    "",
+)
+display(HTML(grassmann_html))
+```
+
+**Parte I: Construcción de las cartas.**
+
+Volvamos al caso general. El desafío consiste en asignar coordenadas numéricas a un subespacio $H\in\mathbb{G}_{n}(\mathbb{R}^{m})$. Para ello, fijemos primero un subespacio $F\in\mathbb{G}_{n}(\mathbb{R}^{m})$ y escojamos un subespacio complementario $G\leq\mathbb{R}^{m}$, de dimensión $m-n$, tal que
+
+$$
+\mathbb{R}^{m}=F\oplus G
+\tag{4.20}
+$$
+
+De acuerdo con la definición de suma directa de subespacios, cada vector $\mathbf{x}\in\mathbb{R}^{m}$ admite una descomposición única $\mathbf{x}=\mathbf{f}+\mathbf{g}$, con $\mathbf{f}\in F$ y $\mathbf{g}\in G$. Denotaremos por
+
+$$
+\pi_F(\mathbf{x})=\mathbf{f}\quad ;\quad
+\pi_G(\mathbf{x})=\mathbf{g}
+\tag{4.21}
+$$
+
+las proyecciones lineales inducidas por esta descomposición. No es necesario que $F$ y $G$ sean ortogonales: Sólo necesitamos que no compartan direcciones y que, en conjunto, generen todo $\mathbb{R}^{m}$.
+
+Consideremos ahora la región de la variedad Grassmanniana formada por los subespacios que siguen siendo complementarios a $G$:
+
+::: {.eq-scroll}
+$$
+U_G=\left\{H\in\mathbb{G}_{n}\left(\mathbb{R}^{m}\right):
+\mathbb{R}^{m}=H\oplus G\right\}
+\tag{4.22}
+$$
+:::
+
+La idea algebraica central es sencilla: Todo $H\in U_G$ puede escribirse como el gráfico de una única transformación lineal desde $F$ hacia $G$. Si denotamos por $\mathbb{L}(F,G)$ al espacio vectorial de transformaciones lineales $\alpha:F\longrightarrow G$, definimos
+
+::: {.eq-scroll}
+$$
+\Gamma_{F,G}(\alpha)
+=\left\{\mathbf{f}+\alpha(\mathbf{f}):\mathbf{f}\in F\right\}
+\leq\mathbb{R}^{m}
+\tag{4.23}
+$$
+:::
+
+Podemos leer esta expresión como una inclinación de $F$: Partimos desde $\mathbf{f}\in F$ y agregamos una corrección $\alpha(\mathbf{f})$ que apunta en la dirección complementaria $G$. Si $\alpha=0$, recuperamos $F$; si $\alpha$ cambia ligeramente, obtenemos un subespacio cercano que todavía no se alínea con $G$.
+
+Para recuperar $\alpha$ a partir de $H$, observemos que la restricción $\pi_F|_H:H\longrightarrow F$ es un isomorfismo de espacios vectoriales. En efecto, su kernel es $H\cap G=\{\mathbf{0}\}$ y ambos espacios tienen dimensión $n$. Por lo tanto, podemos definir la carta
+
+::: {.eq-scroll}
+$$
+\begin{array}{rcl}
+\varphi_{F,G}:U_G&\longrightarrow&\mathbb{L}(F,G)\\
+H&\longmapsto&\pi_G|_H\circ\left(\pi_F|_H\right)^{-1}
+\end{array}
+\tag{4.24}
+$$
+:::
+
+Esta fórmula sólo realiza tres operaciones familiares. Comienza con $\mathbf{f}\in F$, encuentra el único vector $\mathbf{h}\in H$ cuya componente en $F$ es $\mathbf{f}$ y, finalmente, extrae la componente de $\mathbf{h}$ que pertenece a $G$. Esa última componente es precisamente $\alpha(\mathbf{f})$.
+
+La aplicación $\varphi_{F,G}$ es biyectiva y su inversa es
+
+$$
+\varphi_{F,G}^{-1}(\alpha)=\Gamma_{F,G}(\alpha)
+\tag{4.25}
+$$
+
+En efecto, el gráfico $\Gamma_{F,G}(\alpha)$ tiene dimensión $n$, intersecta a $G$ únicamente en $\{\mathbf{0}\}$ y satisface $\mathbb{R}^{m}=\Gamma_{F,G}(\alpha)\oplus G$. De esta manera, una región cuyos elementos son subespacios completos queda representada por un espacio ordinario de transformaciones lineales.
+
+**Parte II: Compatibilidad y dimensión.**
+
+Las regiones anteriores cubren toda la variedad Grassmanniana: Dado cualquier $H\in\mathbb{G}_{n}(\mathbb{R}^{m})$, podemos extender una base de $H$ hasta formar una base de $\mathbb{R}^{m}$. Los vectores agregados generan un complemento $G$ tal que $\mathbb{R}^{m}=H\oplus G$. Usando la construcción con $F=H$, el propio subespacio $H$ queda representado por la transformación nula.
+
+Nos resta revisar qué ocurre al cambiar de carta. Consideremos otra descomposición $\mathbb{R}^{m}=F'\oplus G'$ y un subespacio presente en ambas regiones. Si $H=\Gamma_{F,G}(\alpha)$, definamos la transformación $J_{\alpha}:F\longrightarrow H$ mediante
+
+$$
+J_{\alpha}(\mathbf{f})=\mathbf{f}+\alpha(\mathbf{f})
+\tag{4.26}
+$$
+
+Las componentes de $J_{\alpha}$ con respecto a $F'\oplus G'$ son
+
+$$
+A_{\alpha}=\pi_{F'}\circ J_{\alpha}\quad ;\quad
+B_{\alpha}=\pi_{G'}\circ J_{\alpha}
+\tag{4.27}
+$$
+
+Como $H$ también es complementario a $G'$, la transformación $A_{\alpha}:F\longrightarrow F'$ es un isomorfismo. La nueva coordenada $\beta\in\mathbb{L}(F',G')$ queda entonces determinada por
+
+::: {.eq-scroll}
+$$
+\left(\varphi_{F',G'}\circ\varphi_{F,G}^{-1}\right)(\alpha)
+=\beta=B_{\alpha}\circ A_{\alpha}^{-1}
+\tag{4.28}
+$$
+:::
+
+Al escoger bases ordenadas para $F$, $G$, $F'$ y $G'$, las transformaciones anteriores se representan mediante matrices. La superposición de ambas cartas queda descrita precisamente por las matrices de $\alpha$ para las cuales $\det(A_{\alpha})\neq0$. Esta condición define un conjunto abierto: Si el determinante es distinto de cero, una perturbación suficientemente pequeña de las entradas no lo vuelve cero. Además, las entradas de $A_{\alpha}$ y $B_{\alpha}$ dependen linealmente de las entradas de $\alpha$, mientras que $A_{\alpha}^{-1}$ depende suavemente de ellas dentro de este conjunto abierto. Por consiguiente, las funciones de transición son suaves. Las cartas $(U_G,\varphi_{F,G})$ forman un atlas y convierten a $\mathbb{G}_{n}(\mathbb{R}^{m})$ en una variedad diferenciable.
+
+Finalmente, una transformación lineal $\alpha:F\longrightarrow G$ queda determinada por una matriz con $m-n$ filas y $n$ columnas. Por lo tanto,
+
+$$
+\dim\left(\mathbb{G}_{n}\left(\mathbb{R}^{m}\right)\right)
+=\dim\left(\mathbb{L}(F,G)\right)=n(m-n)
+\tag{4.29}
+$$
+
+Este resultado también es intuitivo: Cada uno de los $n$ vectores de una base de $F$ admite $m-n$ componentes independientes en la dirección complementaria. Las cartas eliminan la redundancia que aparecería si intentáramos describir el mismo subespacio usando todas sus posibles bases.
+
+**Parte III: Compacidad y conexión.**
+
+Para comprobar la compacidad, consideremos el conjunto de todas las bases ortonormales ordenadas de $n$ vectores en $\mathbb{R}^{m}$:
+
+::: {.eq-scroll}
+$$
+\mathcal{B}(n,m)=\left\{(\mathbf{e}_{1},\ldots,\mathbf{e}_{n})\in
+(\mathbb{R}^{m})^{n}:\left<\mathbf{e}_{i},\mathbf{e}_{j}\right>=
+\begin{cases}1&;\ i=j,\\0&;\ i\neq j
+\end{cases}\right\}
+\tag{4.30}
+$$
+:::
+
+Este conjunto es cerrado y acotado en $(\mathbb{R}^{m})^{n}$, por lo que es compacto (el conjunto $(\mathbb{R}^{m})^{n}$ es el producto cartesiano de $n$ copias de $\mathbb{R}^{m}$). La aplicación
+
+$$
+(\mathbf{e}_{1},\ldots,\mathbf{e}_{n})
+\longmapsto
+\left<\left\{\mathbf{e}_{1},\ldots,\mathbf{e}_{n}\right\}\right>
+\tag{4.31}
+$$
+
+es continua y alcanza todos los elementos de $\mathbb{G}_{n}(\mathbb{R}^{m})$, pues todo subespacio de dimensión $n$ admite una base ortonormal. La continuidad puede comprobarse dentro de cualquiera de las cartas anteriores: Una pequeña variación de los vectores de la base produce una pequeña variación de la matriz que representa al correspondiente gráfico. Como la imagen continua de un conjunto compacto es compacta, concluimos que la correspondiente variedad Grassmanniana es compacta.
+
+Esta variedad también es conexa. Para verlo sin introducir *carpintería* adicional, tomemos dos subespacios $F,H\in\mathbb{G}_{n}(\mathbb{R}^{m})$, escojamos bases ortonormales para ambos y completémoslas hasta obtener bases ortonormales de $\mathbb{R}^{m}$. Existe una rotación continua del espacio ambiente que lleva la primera base hacia la segunda; al aplicar gradualmente esa rotación sobre $F$, obtenemos un camino de subespacios de dimensión $n$ que termina en $H$. Los casos $n=0$ y $n=m$ son todavía más simples: La variedad Grassmanniana contiene un único punto.
+
+Hemos demostrado, por tanto, que $\mathbb{G}_{n}(\mathbb{R}^{m})$ es una variedad suave, compacta y conectada de dimensión $n(m-n)$. La construcción resume muy bien el espíritu de lo que hemos presentado ahora en esta entrada del blog: Aunque sus puntos son objetos algebraicos tan grandes como subespacios completos, cerca de un subespacio fijo basta una matriz de tamaño $(m-n)\times n$ para asignar coordenadas y realizar las operaciones típicas del cálculo infinitesimal. ◼︎
+
+**Ejemplo 4.5 – Compactificación de $\mathbb{R}^{n}$ mediante un punto:** El espacio Euclidiano $\mathbb{R}^{n}$ no es compacto: Podemos alejarnos indefinidamente del origen sin abandonar el espacio. Intentaremos corregir esta propiedad agregando un único punto, denotado por $\infty$, cuya función será representar todas las posibles maneras de escapar hacia regiones cada vez más lejanas.
+
+Definamos, entonces,
+
+$$
+\mathbb{R}^{n}_{c}=\mathbb{R}^{n}\cup\left\{\infty\right\}
+\tag{4.32}
+$$
+
+El símbolo $\infty$ no representa un vector ni un número real adicional. Es simplemente un nuevo elemento del conjunto. En particular, no debemos imaginarlo como el extremo derecho de una recta: Cuando $n=1$, tanto avanzar hacia $+\infty$ como hacerlo hacia $-\infty$ conduce al mismo punto agregado. En dimensiones mayores ocurre algo similar con todas las direcciones de escape.
+
+**Parte I: Construcción de la estructura diferenciable.**
+
+Consideremos las regiones $U=\mathbb{R}^{n}$ y $U_{\infty}=\mathbb{R}^{n}_{c}\setminus\{\mathbf{0}\}$. Sobre ellas definimos las cartas
+
+::: {.eq-scroll}
+$$
+\begin{array}{rclcrcl}
+\varphi:U&\longrightarrow&\mathbb{R}^{n}
+&\quad;&
+\varphi_{\infty}:U_{\infty}&\longrightarrow&\mathbb{R}^{n}\\
+\mathbf{x}&\longmapsto&\mathbf{x}
+&&
+\mathbf{x}&\longmapsto&
+\begin{cases}
+\dfrac{\mathbf{x}}{\|\mathbf{x}\|^{2}}&;\ \mathbf{x}\neq\infty,\\[6pt]
+\mathbf{0}&;\ \mathbf{x}=\infty.
+\end{cases}
+\end{array}
+\tag{4.33}
+$$
+:::
+
+La primera carta conserva las coordenadas Euclidianas usuales. La segunda hace algo distinto: Envía los puntos muy alejados del origen hacia puntos muy próximos a $\mathbf{0}$ y asigna al nuevo punto $\infty$ exactamente la coordenada $\mathbf{0}$. En efecto,
+
+$$
+\left\|\frac{\mathbf{x}}{\|\mathbf{x}\|^{2}}\right\|
+=\frac{1}{\|\mathbf{x}\|}
+\tag{4.34}
+$$
+
+Así, aumentar la distancia en las coordenadas originales equivale a acercarse al origen en la carta que observa el infinito.
+
+Ambas cartas son biyectivas. Para $\mathbf{y}\neq\mathbf{0}$, la inversa de $\varphi_{\infty}$ vuelve a aplicar la misma operación, mientras que $\mathbf{0}$ regresa al punto agregado:
+
+$$
+\varphi_{\infty}^{-1}(\mathbf{y})=
+\begin{cases}
+\dfrac{\mathbf{y}}{\|\mathbf{y}\|^{2}}&;\ \mathbf{y}\neq\mathbf{0},\\[6pt]
+\infty&;\ \mathbf{y}=\mathbf{0}
+\end{cases}
+\tag{4.35}
+$$
+
+La superposición de las cartas corresponde a $U\cap U_{\infty}=\mathbb{R}^{n}\setminus\{\mathbf{0}\}$. Allí, el cambio de coordenadas queda dado por
+
+$$
+\left(\varphi_{\infty}\circ\varphi^{-1}\right)(\mathbf{x})
+=\frac{\mathbf{x}}{\|\mathbf{x}\|^{2}}
+\tag{4.36}
+$$
+
+Esta transformación es suave en $\mathbb{R}^{n}\setminus\{\mathbf{0}\}$: Cada componente tiene la forma $z_{i}=\frac{x_{i}}{x_{1}^{2}+\cdots +x_{n}^{2}}$, cuyo denominador no se anula dentro del dominio. Además, la función coincide con su propia inversa, pues
+
+$$
+\frac{\mathbf{x}/\|\mathbf{x}\|^{2}}
+{\left\|\mathbf{x}/\|\mathbf{x}\|^{2}\right\|^{2}}
+=\mathbf{x}
+\tag{4.37}
+$$
+
+Por lo tanto, las dos cartas son compatibles y
+
+$$
+\mathcal{A}_{c}=\left\{(U,\varphi),(U_{\infty},\varphi_{\infty})\right\}
+\tag{4.38}
+$$
+
+es un atlas suave o regular sobre $\mathbb{R}^{n}_{c}$. Hemos construido así una variedad diferenciable de dimensión $n$. Al igual que en la esfera, ninguna carta describe cómodamente todos sus puntos: La primera omite $\infty$ y la segunda omite el origen original.
+
+**Parte II: Compacidad.**
+
+La topología inducida por el atlas nos permite precisar qué significa estar cerca de $\infty$. Sea $V\subseteq\mathbb{R}^{n}_{c}$ un conjunto abierto que contiene a $\infty$. Como $\varphi_{\infty}(V\cap U_{\infty})$ es un abierto de $\mathbb{R}^{n}$ que contiene a $\mathbf{0}$, existe algún $\varepsilon>0$ tal que
+
+$$
+B_{\varepsilon}(\mathbf{0})
+\subseteq\varphi_{\infty}(V\cap U_{\infty})
+\tag{4.39}
+$$
+
+Usando la relación (4.34), esto significa que $V$ contiene al punto $\infty$ y a todos los vectores que satisfacen
+
+$$
+\|\mathbf{x}\|>\frac{1}{\varepsilon}
+\tag{4.40}
+$$
+
+En otras palabras, una vecindad de $\infty$ contiene todo lo que queda fuera de alguna bola cerrada. Ésta es la pieza que faltaba en $\mathbb{R}^{n}$: Las regiones que antes escapaban sin límite ahora quedan reunidas alrededor de un único punto.
+
+Probemos formalmente la compacidad. Sea $\{V_i\}_{i\in I}$ un recubrimiento abierto de $\mathbb{R}^{n}_{c}$. Algún elemento del recubrimiento, digamos $V_{i_{\infty}}$, contiene a $\infty$ y, por el argumento anterior, también contiene el exterior de cierta bola cerrada $\overline{B}_{R}(\mathbf{0})$. Sólo queda por cubrir esta bola. Como $\overline{B}_{R}(\mathbf{0})$ es cerrada y acotada en $\mathbb{R}^{n}$, es compacta. Por ello, podemos escoger una cantidad finita de conjuntos del recubrimiento original que, en conjunto, cubran toda la bola. Al agregar $V_{i_{\infty}}$ a esa selección finita cubrimos todo $\mathbb{R}^{n}_{c}$. Concluimos que $\mathbb{R}^{n}_{c}$ es compacto.
+
+::: {.callout-note}
+## Una imagen para $n=1$
+
+La compactificación de la recta mediante un punto puede imaginarse doblando ambos extremos hasta hacerlos coincidir. El resultado tiene la forma de una circunferencia: El punto agregado une las dos direcciones en las que podíamos alejarnos indefinidamente. Esta intuición será formalizada en la Parte IV para cualquier dimensión.
+:::
+
+**Parte III: La carta compleja cuando $n=2$.**
+
+Identifiquemos $\mathbb{R}^{2}$ con $\mathbb{C}$ mediante $(x,y)\longleftrightarrow z=x+iy$ y escribamos $\mathbb{C}_{c}=\mathbb{C}\cup\{\infty\}$. Podemos reemplazar la carta del infinito por
+
+$$
+\psi_{\infty}(z)=
+\begin{cases}
+z^{-1}&;\ z\neq\infty,\\
+0&;\ z=\infty.
+\end{cases}
+\tag{4.41}
+$$
+
+Sobre $\mathbb{C}\setminus\{0\}$, la función $z\mapsto z^{-1}$ es suave cuando la interpretamos como una transformación de $\mathbb{R}^{2}$ en sí mismo. Para comprobar que esta carta genera la misma estructura diferenciable, comparemos sus coordenadas con las de $\varphi_{\infty}$. Si $z\neq0$, entonces
+
+$$
+\varphi_{\infty}(z)=\frac{z}{|z|^{2}}=\frac{1}{\overline{z}},
+\quad\Longrightarrow\quad
+\left(\psi_{\infty}\circ\varphi_{\infty}^{-1}\right)(w)=\overline{w}
+\tag{4.42}
+$$
+
+La conjugación $w=a+bi\mapsto\overline{w}=a-bi$ es, en coordenadas reales, la transformación lineal $(a,b)\mapsto(a,-b)$. Es un isomorfismo suave y su inversa es ella misma. Por lo tanto, $(U,\varphi)$ y $(U_{\infty},\psi_{\infty})$ proporcionan una descripción alternativa de la misma variedad diferenciable $\mathbb{R}^{2}_{c}$.
+
+**Parte IV: Relación con la esfera.**
+
+La @fig-stereogram ya nos mostró que la proyección estereográfica permite describir una esfera usando coordenadas Euclidianas, salvo por uno de sus polos. Ahora podemos comprender qué representa precisamente ese punto ausente.
+
+Sea $N=(1,0,\ldots,0)\in S^{n}$ y definamos $\Sigma:\mathbb{R}^{n}_{c}\longrightarrow S^{n}$ mediante
+
+::: {.eq-scroll}
+$$
+\Sigma(\mathbf{x})=
+\begin{cases}
+\left(\dfrac{\|\mathbf{x}\|^{2}-1}{\|\mathbf{x}\|^{2}+1},
+\dfrac{2\mathbf{x}}{\|\mathbf{x}\|^{2}+1}\right)&;\ \mathbf{x}\in\mathbb{R}^{n},\\[10pt]
+N&;\ \mathbf{x}=\infty.
+\end{cases}
+\tag{4.43}
+$$
+:::
+
+Para los puntos finitos, esta fórmula es la inversa de la proyección estereográfica utilizada anteriormente. Cuando $\|\mathbf{x}\|$ crece, su primera componente se aproxima a $1$ y las restantes se aproximan a $\mathbf{0}$; es decir, $\Sigma(\mathbf{x})$ se acerca al polo $N$.
+
+La continuidad en el punto agregado se vuelve todavía más transparente usando las coordenadas $\mathbf{y}=\varphi_{\infty}(\mathbf{x})$. Para $\mathbf{y}\neq\mathbf{0}$ tenemos $\mathbf{x}=\mathbf{y}/\|\mathbf{y}\|^{2}$, de modo que
+
+::: {.eq-scroll}
+$$
+\left(\Sigma\circ\varphi_{\infty}^{-1}\right)(\mathbf{y})
+=\left(\frac{1-\|\mathbf{y}\|^{2}}{1+\|\mathbf{y}\|^{2}},
+\frac{2\mathbf{y}}{1+\|\mathbf{y}\|^{2}}\right)
+\tag{4.44}
+$$
+:::
+
+La expresión también está bien definida en $\mathbf{y}=\mathbf{0}$ y allí toma el valor $N$. Por tanto, $\Sigma$ es continua incluso en $\infty$. Además, es biyectiva: Cada punto distinto de $N$ posee una única coordenada estereográfica en $\mathbb{R}^{n}$ y $N$ corresponde únicamente a $\infty$.
+
+Como $\mathbb{R}^{n}_{c}$ es compacto, $S^{n}$ es Hausdorff y $\Sigma$ es una biyección continua, su inversa también es continua. En consecuencia,
+
+$$
+\mathbb{R}^{n}_{c}\cong S^{n}
+\tag{4.45}
+$$
+
+La igualdad anterior debe entenderse como un homeomorfismo: Ambos espacios tienen la misma estructura topológica. La compactificación mediante un punto no crea una frontera artificial para $\mathbb{R}^{n}$; recoge todas sus direcciones lejanas en el polo que faltaba para completar la esfera. ◼︎
