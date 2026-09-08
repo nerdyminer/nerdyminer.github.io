@@ -1,0 +1,265 @@
+---
+title: "10. Visor 3D, animación y producto analítico"
+description: "Cómo convertir estados densos en una experiencia interactiva con React, canvas y SVG."
+toc: true
+toc-depth: 3
+page-layout: full
+---
+
+[← Volver al proyecto](index.qmd)
+
+[Abrir Digital Twin Lab](app/){.btn .btn-primary}
+
+## El producto no es una captura
+
+Una imagen 3D comunica forma, pero no permite seguir la relación entre tiempo, cortes, alimentadores y reconciliación. El producto final mantiene un cuadro compartido entre seis consumidores:
+
+```{mermaid}
+flowchart LR
+  T["Selector temporal"] --> F["Frame activo"]
+  F --> P["Planta"]
+  F --> E["Corte Este"]
+  F --> N["Corte Norte"]
+  F --> V["Vista 3D"]
+  F --> H["Altura"]
+  F --> G["Granulometría"]
+```
+
+Mover el cursor actualiza todas las vistas. Hacer clic en el gráfico de altura cambia el cuadro. La coordinación es más importante que el número de controles: permite relacionar una depresión con el alimentador activo y una diferencia granulométrica en el mismo instante.
+
+## React como coordinador
+
+<strong><font color='darkmagenta'>React</font></strong> mantiene estado de rango, cuadro, reproducción, velocidad, exageración, alimentadores y unidad. Los componentes de dibujo reciben datos inmutables y redibujan cuando cambia el cuadro.
+
+La aplicación no usa una librería de gráficos 3D. Para un campo de alturas regular, canvas 2D y una proyección explícita son suficientes. Esto reduce el bundle y hace auditable la relación entre coordenadas y píxeles.
+
+## Proyección de la cámara
+
+Con azimut $\theta$ y elevación $\phi$, un punto $(x,y,z)$ se transforma:
+
+$$
+r=x\cos\theta+y\sin\theta,
+$$
+
+$$
+f=-x\sin\theta+y\cos\theta,
+$$
+
+$$
+x_{screen}=x_0+sr,
+\qquad
+y_{screen}=y_0+s(f\sin\phi-z\cos\phi).
+$$
+
+Cada columna se dibuja como prisma. Ordenamos por $f$ de fondo a frente y aplicamos el algoritmo del pintor. No resuelve intersecciones generales, pero la grilla y el orden de cámara hacen suficiente la oclusión para esta superficie.
+
+## Interacción orbital
+
+Arrastrar actualiza azimut y elevación; los límites evitan invertir la cámara. `Ctrl` o `Cmd` más rueda controla zoom, mientras la rueda sola desplaza la página. Esta distinción evita atrapar al usuario dentro de un canvas alto.
+
+Los botones de zoom y restablecimiento ofrecen una alternativa accesible. La posición de cámara se muestra como texto para hacer reproducible una vista.
+
+## Las tres vistas 2D
+
+La planta Este-Norte pinta el tamaño medio de cada columna. Es la vista natural para segregación radial y posición relativa de alimentadores.
+
+El corte Este-Vertical y el corte Norte-Vertical pasan por el eje. Cada celda se colorea por su propio P80 y su opacidad depende del llenado. Una regla lateral expresa altura en metros. Sin esa regla, la exageración visual puede confundirse con una diferencia física.
+
+Los alimentadores se dibujan sobre la base incluso bajo material. No representan visibilidad; representan geometría de recuperación.
+
+## Color como variable, no decoración
+
+El color codifica tamaño de fino a grueso mediante una escala `RdYlGn` fija: verde para el extremo fino, amarillo para el rango intermedio y rojo para el extremo grueso. Mantener una sola codificación evita que un cambio de paleta se interprete erróneamente como un cambio del mineral entre cuadros o vistas.
+
+La leyenda mantiene extremos numéricos y unidad. Cambiar de pulgadas a milímetros afecta etiquetas y reconciliación, no el estado interno. La conversión ocurre en presentación.
+
+## Por qué catorce días
+
+Cada día contiene 96 cuadros de quince minutos. Catorce días suman:
+
+$$
+14\times96=1\,344\ \text{cuadros}.
+$$
+
+La ventana permite observar ciclos operacionales sin convertir la pestaña en un archivo histórico completo. Los cuadros cuantizados se almacenan por día y se cargan bajo demanda; los 61 días públicos pesan del orden de cientos de megabytes, pero el navegador descarga únicamente los binarios diarios del rango elegido.
+
+El límite se aplica dos veces:
+
+- el selector deshabilita días fuera de alcance;
+- `loadRange` rechaza programáticamente rangos mayores.
+
+La segunda guarda importa porque una función pública puede invocarse sin usar la UI.
+
+## Escenario visual público
+
+`frames.ts` decodifica 61 días de cuadros industriales trasladados a fechas futuras sobre una grilla de $51\times51\times31$. Para cada cuadro utiliza:
+
+- alturas simuladas y observadas multiplicadas por $0{,}88$, con los caudales originales en escala;
+- depresiones y conos invertidos contenidos en el microestado del autómata original;
+- tamaños característicos ficticios coherentes entre alimentación y descarga;
+- estratificación y asimetría espacial conservadas en los cuadros binarios, no reconstruidas en el navegador;
+- series sintéticas de altura y PSD para reconciliación.
+
+El algoritmo es determinista. El estado inicial muestra catorce días que incluyen la detención primaria prolongada y la recuperación; el usuario puede elegir cualquier ventana de hasta catorce días dentro del período público.
+
+## Reconciliación de altura en SVG
+
+El gráfico superpone medición y simulación, muestra altura de diseño y reserva una banda para material no modelado. El cursor vertical comparte `frameIndex` con la animación. El sesgo medio se calcula sólo sobre pares válidos.
+
+<strong><font color='darkmagenta'>SVG</font></strong> —como tecnología del navegador, no librería Python— resulta adecuado porque son pocas líneas y necesitamos texto, ejes y eventos. La superficie 3D usa canvas porque redibuja miles de celdas por cuadro.
+
+## Reconciliación granulométrica
+
+Cada panel muestra:
+
+- curva de entrada sintética;
+- curva medida de la línea;
+- marcador P80 simulado sobre 80 % pasante;
+- zonas fina, intermedia y gruesa;
+- escala logarítmica de tamaño.
+
+La nota aclara que el autómata transporta un solo tamaño característico. No dibujamos una curva simulada completa que el estado no contiene.
+
+## Formato binario del prototipo
+
+Aunque el blog no publica cuadros, la arquitectura original cuantiza a `uint16`:
+
+```text
+height | column_size | east_size | east_fill | north_size | north_fill
+```
+
+El índice declara forma, escalas, intervalo, rango de tamaño, alimentadores y validez por día. Las series de reconciliación permanecen en JSON sin cuantizar porque diferencias pequeñas importan para métricas.
+
+Separar índice, binario y series ofrece:
+
+- descarga selectiva por día;
+- validación de longitud esperada;
+- memoria acotada;
+- precisión donde se compara con sensores;
+- evolución de formato explícita.
+
+## Rendimiento
+
+La vista 3D usa arreglos tipados y evita crear objetos por celda. Los componentes 2D pintan rectángulos directamente. El bundle compilado pesa menos de 200 kB de JavaScript sin comprimir, excluyendo HTML y CSS.
+
+Para producción consideraríamos:
+
+- `Web Worker` para decodificación;
+- caché LRU de días;
+- `OffscreenCanvas`;
+- nivel de detalle por zoom;
+- WebGL si la grilla crece;
+- cancelación de cargas al cambiar rango;
+- pruebas de memoria en dispositivos modestos.
+
+## Accesibilidad y lectura honesta
+
+Canvas no expone cada celda a lectores de pantalla. El visor acompaña con títulos, captions, valores numéricos, leyendas y reconciliaciones SVG. Una tabla resumida por línea sería una extensión apropiada.
+
+No dependemos sólo de color para distinguir medido y simulado: usamos trazo, marcador, texto y leyenda. Las escalas divergentes incluyen una nota sobre su interpretación.
+
+## Despliegue estático
+
+La compilación usa <strong><font color='darkmagenta'>Vite</font></strong> con base relativa `./`, de modo que `app/index.html` funciona como una aplicación independiente bajo la ruta del proyecto en GitHub Pages. El laboratorio no requiere API, servidor de aplicación ni credenciales.
+
+```bash
+cd app-src
+npm install
+npm run build
+```
+
+El directorio `dist` se copia a `app/`. `node_modules` y `dist` se ignoran; el bundle final sí se versiona porque forma parte del sitio estático.
+
+## Operar responsablemente una versión real
+
+Una versión industrial debería mostrar además:
+
+- timestamp y frescura de cada entrada;
+- particiones faltantes;
+- procedencia del reparto por alimentador;
+- versión del modelo y hash de configuración;
+- validez geométrica;
+- material recortado;
+- checks aprobados y fallidos;
+- incertidumbre y modo degradado.
+
+El visor no debe convertir una estimación latente en una “medición” por efecto de una visualización convincente. La etiqueta de escenario, la reconciliación y las limitaciones son parte del producto.
+
+## Del arreglo numérico a un cuadro de animación
+
+El autómata almacena matrices, pero el navegador necesita un contrato serializable. Cada cuadro reúne timestamp, superficie, propiedad coloreada, cortes y series de reconciliación. La aplicación no debería volver a ejecutar la física con reglas distintas; en esta edición consume señales sintéticas y construye una representación superficial determinista con el mismo contrato visual.
+
+Separar generación y dibujo evita dos fuentes de verdad. Si cambia el modelo, se regeneran cuadros. El componente 3D sólo decide cómo proyectarlos y responder a interacción.
+
+## Cómo una coordenada 3D termina en la pantalla
+
+Un punto del acopio tiene coordenadas $(x,y,z)$. Primero se rota alrededor del eje vertical según el azimut de cámara; después se inclina según elevación. Finalmente se traduce y escala a píxeles. De forma conceptual:
+
+$$
+\begin{bmatrix}u\\v\end{bmatrix}=s\,\mathbf{P}\,\mathbf{R}_{\mathrm{elev}}\mathbf{R}_{\mathrm{azim}}\begin{bmatrix}x\\y\\z\end{bmatrix}+\begin{bmatrix}u_0\\v_0\end{bmatrix}.
+$$
+
+No necesitamos dominar álgebra gráfica avanzada para usar la fórmula. $\mathbf R$ orienta el objeto, $\mathbf P$ descarta o comprime profundidad, $s$ controla zoom y $(u_0,v_0)$ centra la escena.
+
+## Proyección ortográfica y perspectiva
+
+En perspectiva, objetos lejanos se ven más pequeños. Es familiar visualmente, pero dificulta comparar alturas porque la escala cambia con profundidad. Una proyección ortográfica conserva tamaño aparente y resulta útil para un visor técnico.
+
+La réplica utiliza una proyección de tipo axonométrico sobre canvas. No intenta simular una cámara fotográfica; prioriza inspección de forma y relación con planta y cortes.
+
+## El bucle de animación
+
+Una animación no ejecuta necesariamente un minuto real por segundo. El estado de reproducción contiene índice actual, velocidad y rango. `requestAnimationFrame` pide al navegador dibujar cuando la pantalla está lista; un acumulador temporal decide cuándo avanzar al siguiente cuadro.
+
+Si la velocidad es 96× y cada cuadro representa quince minutos, el usuario recorre un día simulado en aproximadamente quince segundos. La etiqueta debe distinguir velocidad de reproducción de paso físico del modelo.
+
+## Seleccionar hasta dos semanas
+
+El usuario elige fechas de inicio y término dentro de 61 días trasladados al calendario público. La aplicación rechaza rangos mayores que catorce días y construye únicamente la ventana necesaria. El límite controla memoria y costo de dibujo, pero también mantiene legible la historia temporal.
+
+Una ventana larga permite observar llenado, descarga y cambio de patrón. Una ventana corta permite inspeccionar transitorios. El producto ofrece ambas escalas sin presentar dos semanas como horizonte científico universal.
+
+## Leer las tres vistas 2D
+
+La planta responde dónde están zonas altas, bajas, finas o gruesas. El corte norte-sur muestra estratificación a través del centro. El corte este-oeste permite comparar la otra dirección y la relación con líneas de alimentadores.
+
+Las vistas deben compartir cuadro, escala y posición de corte. Si cada panel seleccionara un instante distinto, el usuario podría inferir una geometría que nunca existió. La coordinación central de <strong><font color='darkmagenta'>React</font></strong> protege esa coherencia.
+
+## Color y percepción
+
+Una escala secuencial sirve para una magnitud ordenada como altura. Una escala divergente sirve para una desviación respecto de cero. Una paleta categórica sirve para fuentes sin orden. Reutilizar la misma paleta para significados distintos crea falsas asociaciones.
+
+También debemos evitar depender exclusivamente de rojo y verde. Leyenda, números, patrones y contraste ayudan a usuarios con deficiencias de visión cromática y a impresiones en escala de grises.
+
+## Reconciliación junto al estado, no en otra página
+
+Una superficie convincente puede ocultar que el modelo se aleja de la altura medida. Por eso el visor coloca reconciliación en el mismo contexto. Al mover el rango temporal, las métricas y curvas cambian con él.
+
+El gráfico granulométrico diferencia curva medida y P80 simulado. No dibuja una PSD simulada completa porque el estado sólo conserva un tamaño característico. La visualización respeta la resolución informacional del modelo.
+
+## Rendimiento explicado por presupuesto
+
+Cada cuadro implica recorrer celdas, proyectar caras visibles y pintar. El costo depende de resolución, número de cuadros y frecuencia de redibujo. Técnicas habituales son omitir celdas vacías, ordenar sólo superficies visibles, reutilizar buffers, reducir detalle durante arrastre y volver a dibujar al finalizar.
+
+Antes de optimizar medimos. Un canvas lento puede estar limitado por miles de primitivas, generación de datos o reconciliaciones. Optimizar el componente equivocado sólo agrega complejidad.
+
+## Un contrato de interacción honesto
+
+Cada control debería responder una pregunta reconocible:
+
+- fechas: ¿qué período observo?;
+- play/pausa: ¿cómo evoluciona?;
+- velocidad: ¿a qué ritmo recorro cuadros?;
+- exageración: ¿quiero destacar relieve sin cambiar datos?;
+- unidad: ¿pulgadas o milímetros?;
+- alimentadores: ¿qué geometría de descarga está activa?;
+
+La exageración vertical es especialmente sensible: cambia apariencia, no estado. El visor debe mostrar su valor para que una pendiente exagerada no se interprete como física real.
+
+## Pruebas del producto visual
+
+Además de compilar, conviene comprobar fechas extremas, rango máximo, play/pausa, cambio de unidad, redimensionamiento, navegación por teclado, leyendas y ausencia de errores en consola. Una prueba visual debe confirmar que 3D, cortes y gráficos avanzan juntos.
+
+La compilación de TypeScript protege tipos; no detecta un texto superpuesto o una paleta ilegible. Por eso la validación combina pruebas automáticas y revisión humana.
+
+[← Reconciliación y validación](09-reconciliacion-y-validacion.qmd) · [Siguiente: código fuente →](11-codigo-fuente.qmd)

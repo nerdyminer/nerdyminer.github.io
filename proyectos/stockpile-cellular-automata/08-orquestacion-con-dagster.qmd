@@ -1,0 +1,245 @@
+---
+title: "8. Orquestación con <strong><font color='darkmagenta'>Dagster</font></strong> y comparación ex post"
+description: "Activos, checks, recursos y una contrapropuesta deliberada a la arquitectura Kedro del proyecto bayesiano."
+toc: true
+toc-depth: 3
+---
+
+[← Volver al proyecto](index.qmd)
+
+## La contrapropuesta
+
+El proyecto bayesiano del blog se construyó con <strong><font color='darkmagenta'>Kedro</font></strong>: pipelines compuestas por nodos puros, un catálogo que desacopla nombres lógicos de persistencia y parámetros declarados en YAML. Ese patrón sigue siendo sólido y ampliamente adoptado en industria.
+
+Aquí elegimos <strong><font color='darkmagenta'>Dagster</font></strong> más <strong><font color='darkmagenta'>Pydantic</font></strong> como contrapropuesta deliberada. No buscamos concluir que una combinación reemplaza universalmente a la otra. Queremos comparar dos centros de gravedad:
+
+- <strong><font color='darkmagenta'>Kedro</font></strong> organiza ejecución alrededor de **pipelines y nodos**;
+- <strong><font color='darkmagenta'>Dagster</font></strong> organiza el sistema alrededor de **activos de software** y su ciclo de vida.
+
+## Qué es un DAG para quien nunca ha usado un orquestador
+
+Un DAG es un grafo dirigido sin ciclos. Cada flecha indica que una entidad depende de otra. “Sin ciclos” significa que no podemos necesitar A para construir B y, al mismo tiempo, B para construir A. Esa restricción permite ordenar el trabajo desde las raíces hasta los productos finales.
+
+En este proyecto la cadena principal es:
+
+$$
+\text{public\_minute\_raw}\rightarrow
+\text{public\_minute\_curated}\rightarrow
+\text{stockpile\_replay}.
+$$
+
+El primer activo lee la ventana sintética pública, el segundo la vuelve simulable y el tercero reproduce el autómata. Los checks se conectan al activo que evalúan. Una flecha no significa necesariamente que un archivo se copie: significa que el activo aguas abajo necesita el valor o existencia del anterior.
+
+## Función, op, asset y materialización
+
+Una función Python transforma argumentos en resultados. Una `op` de <strong><font color='darkmagenta'>Dagster</font></strong> agrega contexto de ejecución a una unidad computacional. Un `asset` desplaza el centro desde “ejecutar esta función” hacia “producir o actualizar este objeto de datos”. Una materialización es el evento registrado que afirma que una versión del activo fue producida.
+
+Esta diferencia cambia las preguntas de operación:
+
+- con funciones preguntamos qué llamada falló;
+- con activos preguntamos qué producto está desactualizado, qué lo alimentó y qué checks aprobó;
+- con particiones preguntamos para qué día o ventana falta materialización.
+
+## De nodo a activo
+
+Un nodo expresa una transformación: entradas, función, salidas. Un activo expresa una entidad que interesa materializar: una tabla curada, un modelo, un reporte. La función de cómputo sigue existiendo, pero la identidad primaria es el resultado.
+
+```python
+@dg.asset(group_name="engineering", kinds={"python", "polars"})
+def public_minute_curated(public_minute_raw: pl.DataFrame) -> pl.DataFrame:
+    return curate_minute_series(public_minute_raw)
+```
+
+La firma declara la dependencia. <strong><font color='darkmagenta'>Dagster</font></strong> deriva el grafo, registra materializaciones y permite seleccionar activos sin construir manualmente una pipeline global.
+
+## DAG público
+
+```{mermaid}
+flowchart LR
+  R["public_minute_raw"] --> C["public_minute_curated"]
+  C --> S["stockpile_replay"]
+  C --> QC{"minute_contract"}
+  S --> QR{"height_reconciliation"}
+```
+
+Los checks cuelgan del activo que evalúan. `minute_contract` es bloqueante: si la tabla curada viola esquema, orden, rangos o nulidad, la reproducción no debería continuar. `height_reconciliation` publica métricas y sólo falla por resultados no finitos; un RMSE grande es evidencia científica, no necesariamente un error de ejecución.
+
+## Asset checks
+
+Un `asset_check` tiene identidad, historial y metadata. Esta separación evita mezclar tres políticas:
+
+- una excepción para estados que hacen imposible computar;
+- un check bloqueante para contratos que invalidan consumidores;
+- un check no bloqueante para calidad que requiere juicio.
+
+```python
+@dg.asset_check(asset=stockpile_replay)
+def height_reconciliation(stockpile_replay: pl.DataFrame) -> dg.AssetCheckResult:
+    metrics = agreement(...)
+    return dg.AssetCheckResult(
+        passed=bool(np.isfinite(metrics.rmse)),
+        metadata={"bias_m": metrics.bias, "mae_m": metrics.mae, "rmse_m": metrics.rmse},
+    )
+```
+
+Convertir `np.bool_` a `bool` parece trivial, pero revela una frontera real: metadata y resultados del orquestador necesitan tipos serializables y contratos propios.
+
+## Resources e IO managers
+
+Los recursos encapsulan sistemas externos: cliente de historiador, almacenamiento, secretos o sesión de base de datos. Los IO managers controlan cómo persiste la salida de un activo sin contaminar su función.
+
+En producción podríamos declarar:
+
+```text
+SourceResource -> adaptador de señales
+ParquetIOManager -> tablas columnares
+BinaryFrameIOManager -> cuadros cuantizados
+```
+
+La edición pública usa el IO manager por defecto y un generador local. El dominio no importa ninguna de estas piezas.
+
+## Particiones
+
+Una historia larga se particiona naturalmente por mes para ingesta y por día para cuadros del visor. Particionar ofrece:
+
+- recomputación acotada;
+- observabilidad por período;
+- paralelismo;
+- backfills explícitos;
+- fallos que no invalidan toda la historia.
+
+La clave de partición debe ser semántica. Particionar cuadros por día no significa que la simulación pueda comenzar cada día desde cero: el estado debe fluir desde la partición previa o reconstruirse con calentamiento. El orquestador administra unidades de materialización; no elimina dependencias dinámicas del dominio.
+
+## Comparación con <strong><font color='darkmagenta'>Kedro</font></strong>
+
+| Tema | <strong><font color='darkmagenta'>Kedro</font></strong> en forecasting | <strong><font color='darkmagenta'>Dagster</font></strong> aquí |
+|---|---|---|
+| Unidad primaria | nodo/pipeline | activo |
+| Grafo | composición explícita | dependencias por firma/defs |
+| Persistencia | `DataCatalog` | IO managers |
+| Parámetros | configuración YAML | config, recursos y contratos |
+| Calidad | nodos/pruebas/hooks | asset checks de primera clase |
+| UI | <strong><font color='darkmagenta'>Kedro-Viz</font></strong> | <strong><font color='darkmagenta'>Dagster UI</font></strong> |
+| Particiones/backfills | posibles, menos centrales | primitivas centrales |
+| Operación | pipeline runs | materializaciones de activos |
+| Dominio puro | natural en nodos | requiere disciplina para no acoplar assets |
+
+<strong><font color='darkmagenta'>Kedro</font></strong> hace especialmente claro el flujo de funciones y datasets. <strong><font color='darkmagenta'>Dagster</font></strong> hace especialmente claro qué activos existen, cuándo se materializaron, qué checks aprobaron y cómo reejecutar particiones.
+
+## Comparación ex post con el proyecto bayesiano
+
+El forecasting ex post tenía cuatro pipelines y un producto final que dependía de ingeniería, ciencia de datos, inferencia y reporting. La secuencia era relativamente acíclica y por lotes; leerla como pipeline era natural.
+
+El autómata agrega condiciones operacionales diferentes:
+
+- historia incremental y particionada;
+- estado que persiste entre ventanas;
+- cuadros diarios numerosos;
+- checks geométricos por materialización;
+- necesidad de inspeccionar activos y degradaciones de entrada;
+- consumidores distintos para tablas, estado y visor.
+
+Por ello el enfoque de activos resulta atractivo. No porque el problema sea “más moderno”, sino porque sus preguntas operacionales son “qué estado está materializado y bajo qué checks” más que “qué pipeline completa ejecuté”.
+
+## El papel deliberado de <strong><font color='darkmagenta'>Pydantic</font></strong>
+
+<strong><font color='darkmagenta'>Dagster</font></strong> incluye un sistema de configuración y tipos. Aun así mantenemos <strong><font color='darkmagenta'>Pydantic</font></strong> en el dominio para que los contratos puedan:
+
+- construirse desde una CLI, una prueba o un notebook sin runtime de orquestación;
+- ser inmutables y reutilizables;
+- expresar relaciones físicas;
+- mantener independencia tecnológica.
+
+El activo recibe un `SimulationSpec`; no redefine el significado del ángulo o de la grilla. Esta separación evita que cambiar de orquestador obligue a reescribir el dominio.
+
+## Selección y ejecución
+
+```bash
+export DAGSTER_HOME="$PWD/.dagster_home"
+uv run dagster asset materialize --select '*' -m stockpile_ca.definitions
+```
+
+En la versión instalada, la CLI advierte que el comando clásico está siendo supersedido por `dg launch`. El README conserva la forma compatible con el entorno del proyecto, pero una actualización debe revisar la CLI oficial y fijar versiones. Éste es un ejemplo de por qué la reproducibilidad incluye `uv.lock`, no sólo código.
+
+## Evitar lógica científica en assets
+
+Es tentador implementar todo dentro de la función decorada. Eso vuelve cómoda la UI y difícil la prueba. El patrón preferido es:
+
+```python
+@dg.asset
+def stockpile_replay(public_minute_curated: pl.DataFrame) -> pl.DataFrame:
+    spec = load_spec()
+    return replay(public_minute_curated, spec)
+```
+
+`replay` pertenece al dominio o a una capa de aplicación ordinaria. El asset resuelve dependencias, contexto, metadata y persistencia. Esta disciplina conserva la ventaja de nodos puros que apreciamos en <strong><font color='darkmagenta'>Kedro</font></strong>.
+
+## Cuándo elegir cada enfoque
+
+Preferiría <strong><font color='darkmagenta'>Kedro</font></strong> cuando el equipo razona en pipelines reproducibles de ciencia de datos, el catálogo es la frontera principal y una estructura convencional reduce variación. Preferiría <strong><font color='darkmagenta'>Dagster</font></strong> cuando particiones, materializaciones, checks, múltiples consumidores y operación diaria de activos son centrales.
+
+En ambos casos exigiría:
+
+- funciones de dominio importables;
+- configuración versionada sin secretos;
+- pruebas fuera del orquestador;
+- contratos de datos explícitos;
+- trazabilidad entre insumo y producto;
+- una UI como ayuda de inspección, no como única documentación.
+
+::: {.callout-note title="La herramienta no sustituye al diseño"}
+Es posible construir un monolito acoplado dentro de <strong><font color='darkmagenta'>Dagster</font></strong> y un sistema modular con <strong><font color='darkmagenta'>Kedro</font></strong>, o al revés. La comparación útil se hace sobre primitivas y costos operacionales, no sobre capturas de pantalla del DAG.
+:::
+
+## Recorrido web del Asset Graph
+
+La siguiente vista se genera desde el grafo que <strong><font color='darkmagenta'>Dagster</font></strong> resuelve en `Definitions`. Los activos, grupos, tipos, checks y dependencias no se mantienen en una segunda lista manual. El script `build_dagster_snapshot.py` llama `defs.resolve_asset_graph()`, recorre los niveles topológicos y construye un artefacto web estático.
+
+<iframe src="dagster/" title="Dagster Asset Graph del proyecto" width="100%" height="760" style="border:1px solid #dfe7e5;border-radius:12px;"></iframe>
+
+[Abrir el Asset Graph en una pestaña](dagster/){.btn .btn-outline-primary}
+
+Podemos seleccionar un activo para revisar grupo, dependencias, `kinds` y checks. El filtro permite aislar activos o verificaciones. La finalidad es la misma que perseguimos con <strong><font color='darkmagenta'>Kedro‑Viz</font></strong> en el proyecto de forecasting: leer arquitectura y linaje sin reconstruir el sistema mentalmente desde imports.
+
+## Interfaz oficial y publicación estática
+
+Durante desarrollo levantamos la interfaz oficial con:
+
+```bash
+export DAGSTER_HOME="$PWD/.dagster_home"
+uv run dagster dev -m stockpile_ca.definitions
+```
+
+La página web oficial ofrece Asset Graph, historial de materializaciones, logs, metadata, selección, ejecuciones, checks y el backend GraphQL. Esta edición incluye `dagster-webserver` en el grupo de desarrollo para que el comando sea reproducible.
+
+La interfaz oficial no puede copiarse directamente a GitHub Pages como `kedro viz build`. <strong><font color='darkmagenta'>Dagster</font></strong> consulta un servidor y una instancia mediante GraphQL; GitHub Pages sólo entrega archivos. Por eso publicamos una instantánea navegable derivada de las mismas `Definitions`, y reservamos la UI oficial para operación local o un despliegue con backend.
+
+::: {.callout-important title="Una instantánea no es el plano de control"}
+La vista embebida muestra definición y linaje, pero no pretende simular ejecuciones, logs o estados en vivo. Esos elementos pertenecen a <strong><font color='darkmagenta'>Dagster UI</font></strong> y requieren el servicio activo. La distinción evita ofrecer controles decorativos que no hagan nada en el blog.
+:::
+
+## Leer el grafo de izquierda a derecha
+
+`public_minute_raw` es una raíz porque no depende de otro activo del repositorio. `public_minute_curated` depende de la fuente y posee el check bloqueante `minute_contract`. Si ese check falla, no queremos continuar hacia una simulación con entradas inválidas. `stockpile_replay` consume la tabla curada y publica una serie contra la cual `height_reconciliation` calcula métricas.
+
+Los grupos `ingestion`, `engineering` y `simulation` no son sólo colores. Permiten asignar propiedad, filtrar y definir responsabilidades. Los `kinds` comunican tecnologías: Python y <strong><font color='darkmagenta'>Polars</font></strong> en datos; Python y <strong><font color='darkmagenta'>NumPy</font></strong> en simulación.
+
+## Checks bloqueantes y no bloqueantes
+
+`minute_contract` es bloqueante porque una tabla desordenada o fuera de rango invalida la ejecución. `height_reconciliation` no declara que una RMSE alta sea un fallo de software. Verifica que la métrica exista y publica su valor para evaluación metodológica.
+
+Esta separación evita dos extremos: ejecutar con datos corruptos o detener producción porque un modelo científicamente válido muestra degradación que debe investigarse. La severidad del check depende de la naturaleza de la regla.
+
+## La ejecución no es el grafo
+
+El Asset Graph describe dependencias estables. Una corrida concreta agrega tiempo, versión de código, parámetros, logs, duración y resultado. Dos corridas comparten grafo, pero materializan versiones distintas.
+
+Por eso una captura del DAG no certifica que el proyecto haya funcionado. La evidencia completa combina definición, historial, checks y artefactos. En la réplica ejecutamos los tres activos y verificamos ambos checks.
+
+## Comparación pedagógica con el proyecto anterior
+
+Kedro‑Viz hace visible una red de nodos, parámetros y datasets cuyo centro es el pipeline. El Asset Graph de <strong><font color='darkmagenta'>Dagster</font></strong> pone en primer plano objetos persistentes y su estado operacional. En el proyecto bayesiano preguntábamos “¿qué nodos producen este dataset?”. Aquí también preguntamos “¿cuándo se materializó este activo y qué check lo evaluó?”.
+
+Ninguna vista vuelve superior a una herramienta. Muestran abstracciones diferentes. La comparación ex post es útil porque ambos proyectos incluyen un producto final, pruebas y datos públicos reproducibles, pero organizan el trabajo alrededor de conceptos distintos.
+
+[← Contratos con <strong><font color='darkmagenta'>Pydantic</font></strong>](07-contratos-con-pydantic.qmd) · [Siguiente: reconciliación y validación →](09-reconciliacion-y-validacion.qmd)

@@ -1,0 +1,1424 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.9.37">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="description" content="Activos, checks, recursos y una contrapropuesta deliberada a la arquitectura Kedro del proyecto bayesiano.">
+
+<title>8. Orquestación con Dagster y comparación ex post – NerdyMiner</title>
+<style>
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="../../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../../">
+<script src="../../site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="../../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../../site_libs/quarto-html/popper.min.js"></script>
+<script src="../../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../../site_libs/quarto-html/quarto-syntax-highlighting-b16add4d910ff6038463ffc00184b1c1.css" rel="stylesheet" class="quarto-color-scheme" id="quarto-text-highlighting-styles">
+<link href="../../site_libs/quarto-html/quarto-syntax-highlighting-dark-e3b8bbca183a7d6761657ecb5c5aa65f.css" rel="stylesheet" class="quarto-color-scheme quarto-color-alternate" id="quarto-text-highlighting-styles">
+<link href="../../site_libs/quarto-html/quarto-syntax-highlighting-b16add4d910ff6038463ffc00184b1c1.css" rel="stylesheet" class="quarto-color-scheme-extra" id="quarto-text-highlighting-styles">
+<script src="../../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../../site_libs/bootstrap/bootstrap-20a3660c41a27997b0067576444d6464.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
+<link href="../../site_libs/bootstrap/bootstrap-dark-82b8a8f05674b84d57516846be433586.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
+<link href="../../site_libs/bootstrap/bootstrap-20a3660c41a27997b0067576444d6464.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+<style>html{ scroll-behavior: smooth; }</style>
+<script src="../../site_libs/quarto-diagram/mermaid.min.js"></script>
+<script src="../../site_libs/quarto-diagram/mermaid-init.js"></script>
+<link href="../../site_libs/quarto-diagram/mermaid.css" rel="stylesheet">
+
+  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
+  <script defer="" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN" && texText && texText.data) {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
+
+</head>
+
+<body class="nav-fixed quarto-light"><script id="quarto-html-before-body" type="application/javascript">
+    const toggleBodyColorMode = (bsSheetEl) => {
+      const mode = bsSheetEl.getAttribute("data-mode");
+      const bodyEl = window.document.querySelector("body");
+      if (mode === "dark") {
+        bodyEl.classList.add("quarto-dark");
+        bodyEl.classList.remove("quarto-light");
+      } else {
+        bodyEl.classList.add("quarto-light");
+        bodyEl.classList.remove("quarto-dark");
+      }
+    }
+    const toggleBodyColorPrimary = () => {
+      const bsSheetEl = window.document.querySelector("link#quarto-bootstrap:not([rel=disabled-stylesheet])");
+      if (bsSheetEl) {
+        toggleBodyColorMode(bsSheetEl);
+      }
+    }
+    const setColorSchemeToggle = (alternate) => {
+      const toggles = window.document.querySelectorAll('.quarto-color-scheme-toggle');
+      for (let i=0; i < toggles.length; i++) {
+        const toggle = toggles[i];
+        if (toggle) {
+          if (alternate) {
+            toggle.classList.add("alternate");
+          } else {
+            toggle.classList.remove("alternate");
+          }
+        }
+      }
+    };
+    const toggleColorMode = (alternate) => {
+      // Switch the stylesheets
+      const primaryStylesheets = window.document.querySelectorAll('link.quarto-color-scheme:not(.quarto-color-alternate)');
+      const alternateStylesheets = window.document.querySelectorAll('link.quarto-color-scheme.quarto-color-alternate');
+      manageTransitions('#quarto-margin-sidebar .nav-link', false);
+      if (alternate) {
+        // note: dark is layered on light, we don't disable primary!
+        enableStylesheet(alternateStylesheets);
+        for (const sheetNode of alternateStylesheets) {
+          if (sheetNode.id === "quarto-bootstrap") {
+            toggleBodyColorMode(sheetNode);
+          }
+        }
+      } else {
+        disableStylesheet(alternateStylesheets);
+        enableStylesheet(primaryStylesheets)
+        toggleBodyColorPrimary();
+      }
+      manageTransitions('#quarto-margin-sidebar .nav-link', true);
+      // Switch the toggles
+      setColorSchemeToggle(alternate)
+      // Hack to workaround the fact that safari doesn't
+      // properly recolor the scrollbar when toggling (#1455)
+      if (navigator.userAgent.indexOf('Safari') > 0 && navigator.userAgent.indexOf('Chrome') == -1) {
+        manageTransitions("body", false);
+        window.scrollTo(0, 1);
+        setTimeout(() => {
+          window.scrollTo(0, 0);
+          manageTransitions("body", true);
+        }, 40);
+      }
+    }
+    const disableStylesheet = (stylesheets) => {
+      for (let i=0; i < stylesheets.length; i++) {
+        const stylesheet = stylesheets[i];
+        stylesheet.rel = 'disabled-stylesheet';
+      }
+    }
+    const enableStylesheet = (stylesheets) => {
+      for (let i=0; i < stylesheets.length; i++) {
+        const stylesheet = stylesheets[i];
+        if(stylesheet.rel !== 'stylesheet') { // for Chrome, which will still FOUC without this check
+          stylesheet.rel = 'stylesheet';
+        }
+      }
+    }
+    const manageTransitions = (selector, allowTransitions) => {
+      const els = window.document.querySelectorAll(selector);
+      for (let i=0; i < els.length; i++) {
+        const el = els[i];
+        if (allowTransitions) {
+          el.classList.remove('notransition');
+        } else {
+          el.classList.add('notransition');
+        }
+      }
+    }
+    const isFileUrl = () => {
+      return window.location.protocol === 'file:';
+    }
+    const hasAlternateSentinel = () => {
+      let styleSentinel = getColorSchemeSentinel();
+      if (styleSentinel !== null) {
+        return styleSentinel === "alternate";
+      } else {
+        return false;
+      }
+    }
+    const setStyleSentinel = (alternate) => {
+      const value = alternate ? "alternate" : "default";
+      if (!isFileUrl()) {
+        window.localStorage.setItem("quarto-color-scheme", value);
+      } else {
+        localAlternateSentinel = value;
+      }
+    }
+    const getColorSchemeSentinel = () => {
+      if (!isFileUrl()) {
+        const storageValue = window.localStorage.getItem("quarto-color-scheme");
+        return storageValue != null ? storageValue : localAlternateSentinel;
+      } else {
+        return localAlternateSentinel;
+      }
+    }
+    const toggleGiscusIfUsed = (isAlternate, darkModeDefault) => {
+      const baseTheme = document.querySelector('#giscus-base-theme')?.value ?? 'light';
+      const alternateTheme = document.querySelector('#giscus-alt-theme')?.value ?? 'dark';
+      let newTheme = '';
+      if(authorPrefersDark) {
+        newTheme = isAlternate ? baseTheme : alternateTheme;
+      } else {
+        newTheme = isAlternate ? alternateTheme : baseTheme;
+      }
+      const changeGiscusTheme = () => {
+        // From: https://github.com/giscus/giscus/issues/336
+        const sendMessage = (message) => {
+          const iframe = document.querySelector('iframe.giscus-frame');
+          if (!iframe) return;
+          iframe.contentWindow.postMessage({ giscus: message }, 'https://giscus.app');
+        }
+        sendMessage({
+          setConfig: {
+            theme: newTheme
+          }
+        });
+      }
+      const isGiscussLoaded = window.document.querySelector('iframe.giscus-frame') !== null;
+      if (isGiscussLoaded) {
+        changeGiscusTheme();
+      }
+    };
+    const authorPrefersDark = false;
+    const darkModeDefault = authorPrefersDark;
+      document.querySelector('link#quarto-text-highlighting-styles.quarto-color-scheme-extra').rel = 'disabled-stylesheet';
+      document.querySelector('link#quarto-bootstrap.quarto-color-scheme-extra').rel = 'disabled-stylesheet';
+    let localAlternateSentinel = darkModeDefault ? 'alternate' : 'default';
+    // Dark / light mode switch
+    window.quartoToggleColorScheme = () => {
+      // Read the current dark / light value
+      let toAlternate = !hasAlternateSentinel();
+      toggleColorMode(toAlternate);
+      setStyleSentinel(toAlternate);
+      toggleGiscusIfUsed(toAlternate, darkModeDefault);
+      window.dispatchEvent(new Event('resize'));
+    };
+    // Switch to dark mode if need be
+    if (hasAlternateSentinel()) {
+      toggleColorMode(true);
+    } else {
+      toggleColorMode(false);
+    }
+  </script>
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container mx-auto">
+    <a href="../../index.html" class="navbar-brand navbar-brand-logo">
+    <img src="../../images/nerdyminer-icon.svg" alt="NerdyMiner" class="navbar-logo light-content">
+    <img src="../../images/nerdyminer-icon.svg" alt="NerdyMiner" class="navbar-logo dark-content">
+    </a>
+    <a class="navbar-brand" href="../../index.html">
+    <span class="navbar-title">NerdyMiner</span>
+    </a>
+  </div>
+            <div id="quarto-search" class="" title="Search"></div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" role="menu" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll me-auto">
+  <li class="nav-item">
+    <a class="nav-link" href="../../index.html"> 
+<span class="menu-text">Inicio</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../articulos/index.html"> 
+<span class="menu-text">Artículos</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../apuntes/index.html"> 
+<span class="menu-text">Apuntes</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../clases/index.html"> 
+<span class="menu-text">Clases</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../bibliografia.html"> 
+<span class="menu-text">Bibliografía</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../proyectos/index.html"> 
+<span class="menu-text">Proyectos</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../licencia.html"> 
+<span class="menu-text">Licencia</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../sobre-mi.html"> 
+<span class="menu-text">Sobre mí</span></a>
+  </li>  
+</ul>
+          </div> <!-- /navcollapse -->
+            <div class="quarto-navbar-tools">
+  <a href="" class="quarto-color-scheme-toggle quarto-navigation-tool  px-1" onclick="window.quartoToggleColorScheme(); return false;" title="Toggle dark mode"><i class="bi"></i></a>
+</div>
+      </div> <!-- /container-fluid -->
+    </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
+<!-- sidebar -->
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul>
+  <li><a href="#la-contrapropuesta" id="toc-la-contrapropuesta" class="nav-link active" data-scroll-target="#la-contrapropuesta">La contrapropuesta</a></li>
+  <li><a href="#qué-es-un-dag-para-quien-nunca-ha-usado-un-orquestador" id="toc-qué-es-un-dag-para-quien-nunca-ha-usado-un-orquestador" class="nav-link" data-scroll-target="#qué-es-un-dag-para-quien-nunca-ha-usado-un-orquestador">Qué es un DAG para quien nunca ha usado un orquestador</a></li>
+  <li><a href="#función-op-asset-y-materialización" id="toc-función-op-asset-y-materialización" class="nav-link" data-scroll-target="#función-op-asset-y-materialización">Función, op, asset y materialización</a></li>
+  <li><a href="#de-nodo-a-activo" id="toc-de-nodo-a-activo" class="nav-link" data-scroll-target="#de-nodo-a-activo">De nodo a activo</a></li>
+  <li><a href="#dag-público" id="toc-dag-público" class="nav-link" data-scroll-target="#dag-público">DAG público</a></li>
+  <li><a href="#asset-checks" id="toc-asset-checks" class="nav-link" data-scroll-target="#asset-checks">Asset checks</a></li>
+  <li><a href="#resources-e-io-managers" id="toc-resources-e-io-managers" class="nav-link" data-scroll-target="#resources-e-io-managers">Resources e IO managers</a></li>
+  <li><a href="#particiones" id="toc-particiones" class="nav-link" data-scroll-target="#particiones">Particiones</a></li>
+  <li><a href="#comparación-con-kedro" id="toc-comparación-con-kedro" class="nav-link" data-scroll-target="#comparación-con-kedro">Comparación con <strong><font color="darkmagenta"><span class="kedro-brand">Kedro</span></font></strong></a></li>
+  <li><a href="#comparación-ex-post-con-el-proyecto-bayesiano" id="toc-comparación-ex-post-con-el-proyecto-bayesiano" class="nav-link" data-scroll-target="#comparación-ex-post-con-el-proyecto-bayesiano">Comparación ex post con el proyecto bayesiano</a></li>
+  <li><a href="#el-papel-deliberado-de-pydantic" id="toc-el-papel-deliberado-de-pydantic" class="nav-link" data-scroll-target="#el-papel-deliberado-de-pydantic">El papel deliberado de <strong><font color="darkmagenta">Pydantic</font></strong></a></li>
+  <li><a href="#selección-y-ejecución" id="toc-selección-y-ejecución" class="nav-link" data-scroll-target="#selección-y-ejecución">Selección y ejecución</a></li>
+  <li><a href="#evitar-lógica-científica-en-assets" id="toc-evitar-lógica-científica-en-assets" class="nav-link" data-scroll-target="#evitar-lógica-científica-en-assets">Evitar lógica científica en assets</a></li>
+  <li><a href="#cuándo-elegir-cada-enfoque" id="toc-cuándo-elegir-cada-enfoque" class="nav-link" data-scroll-target="#cuándo-elegir-cada-enfoque">Cuándo elegir cada enfoque</a></li>
+  <li><a href="#recorrido-web-del-asset-graph" id="toc-recorrido-web-del-asset-graph" class="nav-link" data-scroll-target="#recorrido-web-del-asset-graph">Recorrido web del Asset Graph</a></li>
+  <li><a href="#interfaz-oficial-y-publicación-estática" id="toc-interfaz-oficial-y-publicación-estática" class="nav-link" data-scroll-target="#interfaz-oficial-y-publicación-estática">Interfaz oficial y publicación estática</a></li>
+  <li><a href="#leer-el-grafo-de-izquierda-a-derecha" id="toc-leer-el-grafo-de-izquierda-a-derecha" class="nav-link" data-scroll-target="#leer-el-grafo-de-izquierda-a-derecha">Leer el grafo de izquierda a derecha</a></li>
+  <li><a href="#checks-bloqueantes-y-no-bloqueantes" id="toc-checks-bloqueantes-y-no-bloqueantes" class="nav-link" data-scroll-target="#checks-bloqueantes-y-no-bloqueantes">Checks bloqueantes y no bloqueantes</a></li>
+  <li><a href="#la-ejecución-no-es-el-grafo" id="toc-la-ejecución-no-es-el-grafo" class="nav-link" data-scroll-target="#la-ejecución-no-es-el-grafo">La ejecución no es el grafo</a></li>
+  <li><a href="#comparación-pedagógica-con-el-proyecto-anterior" id="toc-comparación-pedagógica-con-el-proyecto-anterior" class="nav-link" data-scroll-target="#comparación-pedagógica-con-el-proyecto-anterior">Comparación pedagógica con el proyecto anterior</a></li>
+  </ul>
+</nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content">
+
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title">8. Orquestación con <strong><font color="darkmagenta">Dagster</font></strong> y comparación ex post</h1>
+</div>
+
+<div>
+  <div class="description">
+    Activos, checks, recursos y una contrapropuesta deliberada a la arquitectura <span class="kedro-brand">Kedro</span> del proyecto bayesiano.
+  </div>
+</div>
+
+
+<div class="quarto-title-meta">
+
+    
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<p><a href="../../proyectos/stockpile-cellular-automata/index.html">← Volver al proyecto</a></p>
+<section id="la-contrapropuesta" class="level2">
+<h2 class="anchored" data-anchor-id="la-contrapropuesta">La contrapropuesta</h2>
+<p>El proyecto bayesiano del blog se construyó con <strong><font color="darkmagenta"><span class="kedro-brand">Kedro</span></font></strong>: pipelines compuestas por nodos puros, un catálogo que desacopla nombres lógicos de persistencia y parámetros declarados en YAML. Ese patrón sigue siendo sólido y ampliamente adoptado en industria.</p>
+<p>Aquí elegimos <strong><font color="darkmagenta">Dagster</font></strong> más <strong><font color="darkmagenta">Pydantic</font></strong> como contrapropuesta deliberada. No buscamos concluir que una combinación reemplaza universalmente a la otra. Queremos comparar dos centros de gravedad:</p>
+<ul>
+<li><strong><font color="darkmagenta"><span class="kedro-brand">Kedro</span></font></strong> organiza ejecución alrededor de <strong>pipelines y nodos</strong>;</li>
+<li><strong><font color="darkmagenta">Dagster</font></strong> organiza el sistema alrededor de <strong>activos de software</strong> y su ciclo de vida.</li>
+</ul>
+</section>
+<section id="qué-es-un-dag-para-quien-nunca-ha-usado-un-orquestador" class="level2">
+<h2 class="anchored" data-anchor-id="qué-es-un-dag-para-quien-nunca-ha-usado-un-orquestador">Qué es un DAG para quien nunca ha usado un orquestador</h2>
+<p>Un DAG es un grafo dirigido sin ciclos. Cada flecha indica que una entidad depende de otra. “Sin ciclos” significa que no podemos necesitar A para construir B y, al mismo tiempo, B para construir A. Esa restricción permite ordenar el trabajo desde las raíces hasta los productos finales.</p>
+<p>En este proyecto la cadena principal es:</p>
+<p><span class="math display">\[
+\text{public\_minute\_raw}\rightarrow
+\text{public\_minute\_curated}\rightarrow
+\text{stockpile\_replay}.
+\]</span></p>
+<p>El primer activo lee la ventana sintética pública, el segundo la vuelve simulable y el tercero reproduce el autómata. Los checks se conectan al activo que evalúan. Una flecha no significa necesariamente que un archivo se copie: significa que el activo aguas abajo necesita el valor o existencia del anterior.</p>
+</section>
+<section id="función-op-asset-y-materialización" class="level2">
+<h2 class="anchored" data-anchor-id="función-op-asset-y-materialización">Función, op, asset y materialización</h2>
+<p>Una función Python transforma argumentos en resultados. Una <code>op</code> de <strong><font color="darkmagenta">Dagster</font></strong> agrega contexto de ejecución a una unidad computacional. Un <code>asset</code> desplaza el centro desde “ejecutar esta función” hacia “producir o actualizar este objeto de datos”. Una materialización es el evento registrado que afirma que una versión del activo fue producida.</p>
+<p>Esta diferencia cambia las preguntas de operación:</p>
+<ul>
+<li>con funciones preguntamos qué llamada falló;</li>
+<li>con activos preguntamos qué producto está desactualizado, qué lo alimentó y qué checks aprobó;</li>
+<li>con particiones preguntamos para qué día o ventana falta materialización.</li>
+</ul>
+</section>
+<section id="de-nodo-a-activo" class="level2">
+<h2 class="anchored" data-anchor-id="de-nodo-a-activo">De nodo a activo</h2>
+<p>Un nodo expresa una transformación: entradas, función, salidas. Un activo expresa una entidad que interesa materializar: una tabla curada, un modelo, un reporte. La función de cómputo sigue existiendo, pero la identidad primaria es el resultado.</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="at">@dg.asset</span>(group_name<span class="op">=</span><span class="st">"engineering"</span>, kinds<span class="op">=</span>{<span class="st">"python"</span>, <span class="st">"polars"</span>})</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> public_minute_curated(public_minute_raw: pl.DataFrame) <span class="op">-&gt;</span> pl.DataFrame:</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> curate_minute_series(public_minute_raw)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>La firma declara la dependencia. <strong><font color="darkmagenta">Dagster</font></strong> deriva el grafo, registra materializaciones y permite seleccionar activos sin construir manualmente una pipeline global.</p>
+</section>
+<section id="dag-público" class="level2">
+<h2 class="anchored" data-anchor-id="dag-público">DAG público</h2>
+<div class="cell" data-layout-align="default">
+<div class="cell-output-display">
+<div>
+<p></p><figure class="figure"><p></p>
+<div>
+<pre class="mermaid mermaid-js">flowchart LR
+  R["public_minute_raw"] --&gt; C["public_minute_curated"]
+  C --&gt; S["stockpile_replay"]
+  C --&gt; QC{"minute_contract"}
+  S --&gt; QR{"height_reconciliation"}
+</pre>
+</div>
+<p></p></figure><p></p>
+</div>
+</div>
+</div>
+<p>Los checks cuelgan del activo que evalúan. <code>minute_contract</code> es bloqueante: si la tabla curada viola esquema, orden, rangos o nulidad, la reproducción no debería continuar. <code>height_reconciliation</code> publica métricas y sólo falla por resultados no finitos; un RMSE grande es evidencia científica, no necesariamente un error de ejecución.</p>
+</section>
+<section id="asset-checks" class="level2">
+<h2 class="anchored" data-anchor-id="asset-checks">Asset checks</h2>
+<p>Un <code>asset_check</code> tiene identidad, historial y metadata. Esta separación evita mezclar tres políticas:</p>
+<ul>
+<li>una excepción para estados que hacen imposible computar;</li>
+<li>un check bloqueante para contratos que invalidan consumidores;</li>
+<li>un check no bloqueante para calidad que requiere juicio.</li>
+</ul>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="at">@dg.asset_check</span>(asset<span class="op">=</span>stockpile_replay)</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> height_reconciliation(stockpile_replay: pl.DataFrame) <span class="op">-&gt;</span> dg.AssetCheckResult:</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>    metrics <span class="op">=</span> agreement(...)</span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> dg.AssetCheckResult(</span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>        passed<span class="op">=</span><span class="bu">bool</span>(np.isfinite(metrics.rmse)),</span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>        metadata<span class="op">=</span>{<span class="st">"bias_m"</span>: metrics.bias, <span class="st">"mae_m"</span>: metrics.mae, <span class="st">"rmse_m"</span>: metrics.rmse},</span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>    )</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Convertir <code>np.bool_</code> a <code>bool</code> parece trivial, pero revela una frontera real: metadata y resultados del orquestador necesitan tipos serializables y contratos propios.</p>
+</section>
+<section id="resources-e-io-managers" class="level2">
+<h2 class="anchored" data-anchor-id="resources-e-io-managers">Resources e IO managers</h2>
+<p>Los recursos encapsulan sistemas externos: cliente de historiador, almacenamiento, secretos o sesión de base de datos. Los IO managers controlan cómo persiste la salida de un activo sin contaminar su función.</p>
+<p>En producción podríamos declarar:</p>
+<pre class="text"><code>SourceResource -&gt; adaptador de señales
+ParquetIOManager -&gt; tablas columnares
+BinaryFrameIOManager -&gt; cuadros cuantizados</code></pre>
+<p>La edición pública usa el IO manager por defecto y un generador local. El dominio no importa ninguna de estas piezas.</p>
+</section>
+<section id="particiones" class="level2">
+<h2 class="anchored" data-anchor-id="particiones">Particiones</h2>
+<p>Una historia larga se particiona naturalmente por mes para ingesta y por día para cuadros del visor. Particionar ofrece:</p>
+<ul>
+<li>recomputación acotada;</li>
+<li>observabilidad por período;</li>
+<li>paralelismo;</li>
+<li>backfills explícitos;</li>
+<li>fallos que no invalidan toda la historia.</li>
+</ul>
+<p>La clave de partición debe ser semántica. Particionar cuadros por día no significa que la simulación pueda comenzar cada día desde cero: el estado debe fluir desde la partición previa o reconstruirse con calentamiento. El orquestador administra unidades de materialización; no elimina dependencias dinámicas del dominio.</p>
+</section>
+<section id="comparación-con-kedro" class="level2">
+<h2 class="anchored" data-anchor-id="comparación-con-kedro">Comparación con <strong><font color="darkmagenta"><span class="kedro-brand">Kedro</span></font></strong></h2>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 33%">
+<col style="width: 33%">
+<col style="width: 33%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Tema</th>
+<th><strong><font color="darkmagenta"><span class="kedro-brand">Kedro</span></font></strong> en forecasting</th>
+<th><strong><font color="darkmagenta">Dagster</font></strong> aquí</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Unidad primaria</td>
+<td>nodo/pipeline</td>
+<td>activo</td>
+</tr>
+<tr class="even">
+<td>Grafo</td>
+<td>composición explícita</td>
+<td>dependencias por firma/defs</td>
+</tr>
+<tr class="odd">
+<td>Persistencia</td>
+<td><code>DataCatalog</code></td>
+<td>IO managers</td>
+</tr>
+<tr class="even">
+<td>Parámetros</td>
+<td>configuración YAML</td>
+<td>config, recursos y contratos</td>
+</tr>
+<tr class="odd">
+<td>Calidad</td>
+<td>nodos/pruebas/hooks</td>
+<td>asset checks de primera clase</td>
+</tr>
+<tr class="even">
+<td>UI</td>
+<td><strong><font color="darkmagenta"><span class="kedro-brand">Kedro-Viz</span></font></strong></td>
+<td><strong><font color="darkmagenta">Dagster UI</font></strong></td>
+</tr>
+<tr class="odd">
+<td>Particiones/backfills</td>
+<td>posibles, menos centrales</td>
+<td>primitivas centrales</td>
+</tr>
+<tr class="even">
+<td>Operación</td>
+<td>pipeline runs</td>
+<td>materializaciones de activos</td>
+</tr>
+<tr class="odd">
+<td>Dominio puro</td>
+<td>natural en nodos</td>
+<td>requiere disciplina para no acoplar assets</td>
+</tr>
+</tbody>
+</table>
+<p><strong><font color="darkmagenta"><span class="kedro-brand">Kedro</span></font></strong> hace especialmente claro el flujo de funciones y datasets. <strong><font color="darkmagenta">Dagster</font></strong> hace especialmente claro qué activos existen, cuándo se materializaron, qué checks aprobaron y cómo reejecutar particiones.</p>
+</section>
+<section id="comparación-ex-post-con-el-proyecto-bayesiano" class="level2">
+<h2 class="anchored" data-anchor-id="comparación-ex-post-con-el-proyecto-bayesiano">Comparación ex post con el proyecto bayesiano</h2>
+<p>El forecasting ex post tenía cuatro pipelines y un producto final que dependía de ingeniería, ciencia de datos, inferencia y reporting. La secuencia era relativamente acíclica y por lotes; leerla como pipeline era natural.</p>
+<p>El autómata agrega condiciones operacionales diferentes:</p>
+<ul>
+<li>historia incremental y particionada;</li>
+<li>estado que persiste entre ventanas;</li>
+<li>cuadros diarios numerosos;</li>
+<li>checks geométricos por materialización;</li>
+<li>necesidad de inspeccionar activos y degradaciones de entrada;</li>
+<li>consumidores distintos para tablas, estado y visor.</li>
+</ul>
+<p>Por ello el enfoque de activos resulta atractivo. No porque el problema sea “más moderno”, sino porque sus preguntas operacionales son “qué estado está materializado y bajo qué checks” más que “qué pipeline completa ejecuté”.</p>
+</section>
+<section id="el-papel-deliberado-de-pydantic" class="level2">
+<h2 class="anchored" data-anchor-id="el-papel-deliberado-de-pydantic">El papel deliberado de <strong><font color="darkmagenta">Pydantic</font></strong></h2>
+<p><strong><font color="darkmagenta">Dagster</font></strong> incluye un sistema de configuración y tipos. Aun así mantenemos <strong><font color="darkmagenta">Pydantic</font></strong> en el dominio para que los contratos puedan:</p>
+<ul>
+<li>construirse desde una CLI, una prueba o un notebook sin runtime de orquestación;</li>
+<li>ser inmutables y reutilizables;</li>
+<li>expresar relaciones físicas;</li>
+<li>mantener independencia tecnológica.</li>
+</ul>
+<p>El activo recibe un <code>SimulationSpec</code>; no redefine el significado del ángulo o de la grilla. Esta separación evita que cambiar de orquestador obligue a reescribir el dominio.</p>
+</section>
+<section id="selección-y-ejecución" class="level2">
+<h2 class="anchored" data-anchor-id="selección-y-ejecución">Selección y ejecución</h2>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="bu">export</span> <span class="va">DAGSTER_HOME</span><span class="op">=</span><span class="st">"</span><span class="va">$PWD</span><span class="st">/.dagster_home"</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="ex">uv</span> run dagster asset materialize <span class="at">--select</span> <span class="st">'*'</span> <span class="at">-m</span> stockpile_ca.definitions</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>En la versión instalada, la CLI advierte que el comando clásico está siendo supersedido por <code>dg launch</code>. El README conserva la forma compatible con el entorno del proyecto, pero una actualización debe revisar la CLI oficial y fijar versiones. Éste es un ejemplo de por qué la reproducibilidad incluye <code>uv.lock</code>, no sólo código.</p>
+</section>
+<section id="evitar-lógica-científica-en-assets" class="level2">
+<h2 class="anchored" data-anchor-id="evitar-lógica-científica-en-assets">Evitar lógica científica en assets</h2>
+<p>Es tentador implementar todo dentro de la función decorada. Eso vuelve cómoda la UI y difícil la prueba. El patrón preferido es:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="at">@dg.asset</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> stockpile_replay(public_minute_curated: pl.DataFrame) <span class="op">-&gt;</span> pl.DataFrame:</span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>    spec <span class="op">=</span> load_spec()</span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> replay(public_minute_curated, spec)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p><code>replay</code> pertenece al dominio o a una capa de aplicación ordinaria. El asset resuelve dependencias, contexto, metadata y persistencia. Esta disciplina conserva la ventaja de nodos puros que apreciamos en <strong><font color="darkmagenta"><span class="kedro-brand">Kedro</span></font></strong>.</p>
+</section>
+<section id="cuándo-elegir-cada-enfoque" class="level2">
+<h2 class="anchored" data-anchor-id="cuándo-elegir-cada-enfoque">Cuándo elegir cada enfoque</h2>
+<p>Preferiría <strong><font color="darkmagenta"><span class="kedro-brand">Kedro</span></font></strong> cuando el equipo razona en pipelines reproducibles de ciencia de datos, el catálogo es la frontera principal y una estructura convencional reduce variación. Preferiría <strong><font color="darkmagenta">Dagster</font></strong> cuando particiones, materializaciones, checks, múltiples consumidores y operación diaria de activos son centrales.</p>
+<p>En ambos casos exigiría:</p>
+<ul>
+<li>funciones de dominio importables;</li>
+<li>configuración versionada sin secretos;</li>
+<li>pruebas fuera del orquestador;</li>
+<li>contratos de datos explícitos;</li>
+<li>trazabilidad entre insumo y producto;</li>
+<li>una UI como ayuda de inspección, no como única documentación.</li>
+</ul>
+<div class="callout callout-style-default callout-note callout-titled" title="La herramienta no sustituye al diseño">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Note</span>La herramienta no sustituye al diseño
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>Es posible construir un monolito acoplado dentro de <strong><font color="darkmagenta">Dagster</font></strong> y un sistema modular con <strong><font color="darkmagenta"><span class="kedro-brand">Kedro</span></font></strong>, o al revés. La comparación útil se hace sobre primitivas y costos operacionales, no sobre capturas de pantalla del DAG.</p>
+</div>
+</div>
+</section>
+<section id="recorrido-web-del-asset-graph" class="level2">
+<h2 class="anchored" data-anchor-id="recorrido-web-del-asset-graph">Recorrido web del Asset Graph</h2>
+<p>La siguiente vista se genera desde el grafo que <strong><font color="darkmagenta">Dagster</font></strong> resuelve en <code>Definitions</code>. Los activos, grupos, tipos, checks y dependencias no se mantienen en una segunda lista manual. El script <code>build_dagster_snapshot.py</code> llama <code>defs.resolve_asset_graph()</code>, recorre los niveles topológicos y construye un artefacto web estático.</p>
+<iframe src="dagster/" title="Dagster Asset Graph del proyecto" width="100%" height="760" style="border:1px solid #dfe7e5;border-radius:12px;">
+</iframe>
+<p><a href="dagster/" class="btn btn-outline-primary">Abrir el Asset Graph en una pestaña</a></p>
+<p>Podemos seleccionar un activo para revisar grupo, dependencias, <code>kinds</code> y checks. El filtro permite aislar activos o verificaciones. La finalidad es la misma que perseguimos con <strong><font color="darkmagenta"><span class="kedro-brand">Kedro</span>‑Viz</font></strong> en el proyecto de forecasting: leer arquitectura y linaje sin reconstruir el sistema mentalmente desde imports.</p>
+</section>
+<section id="interfaz-oficial-y-publicación-estática" class="level2">
+<h2 class="anchored" data-anchor-id="interfaz-oficial-y-publicación-estática">Interfaz oficial y publicación estática</h2>
+<p>Durante desarrollo levantamos la interfaz oficial con:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="bu">export</span> <span class="va">DAGSTER_HOME</span><span class="op">=</span><span class="st">"</span><span class="va">$PWD</span><span class="st">/.dagster_home"</span></span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a><span class="ex">uv</span> run dagster dev <span class="at">-m</span> stockpile_ca.definitions</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>La página web oficial ofrece Asset Graph, historial de materializaciones, logs, metadata, selección, ejecuciones, checks y el backend GraphQL. Esta edición incluye <code>dagster-webserver</code> en el grupo de desarrollo para que el comando sea reproducible.</p>
+<p>La interfaz oficial no puede copiarse directamente a GitHub Pages como <code>kedro viz build</code>. <strong><font color="darkmagenta">Dagster</font></strong> consulta un servidor y una instancia mediante GraphQL; GitHub Pages sólo entrega archivos. Por eso publicamos una instantánea navegable derivada de las mismas <code>Definitions</code>, y reservamos la UI oficial para operación local o un despliegue con backend.</p>
+<div class="callout callout-style-default callout-important callout-titled" title="Una instantánea no es el plano de control">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Important</span>Una instantánea no es el plano de control
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>La vista embebida muestra definición y linaje, pero no pretende simular ejecuciones, logs o estados en vivo. Esos elementos pertenecen a <strong><font color="darkmagenta">Dagster UI</font></strong> y requieren el servicio activo. La distinción evita ofrecer controles decorativos que no hagan nada en el blog.</p>
+</div>
+</div>
+</section>
+<section id="leer-el-grafo-de-izquierda-a-derecha" class="level2">
+<h2 class="anchored" data-anchor-id="leer-el-grafo-de-izquierda-a-derecha">Leer el grafo de izquierda a derecha</h2>
+<p><code>public_minute_raw</code> es una raíz porque no depende de otro activo del repositorio. <code>public_minute_curated</code> depende de la fuente y posee el check bloqueante <code>minute_contract</code>. Si ese check falla, no queremos continuar hacia una simulación con entradas inválidas. <code>stockpile_replay</code> consume la tabla curada y publica una serie contra la cual <code>height_reconciliation</code> calcula métricas.</p>
+<p>Los grupos <code>ingestion</code>, <code>engineering</code> y <code>simulation</code> no son sólo colores. Permiten asignar propiedad, filtrar y definir responsabilidades. Los <code>kinds</code> comunican tecnologías: Python y <strong><font color="darkmagenta">Polars</font></strong> en datos; Python y <strong><font color="darkmagenta">NumPy</font></strong> en simulación.</p>
+</section>
+<section id="checks-bloqueantes-y-no-bloqueantes" class="level2">
+<h2 class="anchored" data-anchor-id="checks-bloqueantes-y-no-bloqueantes">Checks bloqueantes y no bloqueantes</h2>
+<p><code>minute_contract</code> es bloqueante porque una tabla desordenada o fuera de rango invalida la ejecución. <code>height_reconciliation</code> no declara que una RMSE alta sea un fallo de software. Verifica que la métrica exista y publica su valor para evaluación metodológica.</p>
+<p>Esta separación evita dos extremos: ejecutar con datos corruptos o detener producción porque un modelo científicamente válido muestra degradación que debe investigarse. La severidad del check depende de la naturaleza de la regla.</p>
+</section>
+<section id="la-ejecución-no-es-el-grafo" class="level2">
+<h2 class="anchored" data-anchor-id="la-ejecución-no-es-el-grafo">La ejecución no es el grafo</h2>
+<p>El Asset Graph describe dependencias estables. Una corrida concreta agrega tiempo, versión de código, parámetros, logs, duración y resultado. Dos corridas comparten grafo, pero materializan versiones distintas.</p>
+<p>Por eso una captura del DAG no certifica que el proyecto haya funcionado. La evidencia completa combina definición, historial, checks y artefactos. En la réplica ejecutamos los tres activos y verificamos ambos checks.</p>
+</section>
+<section id="comparación-pedagógica-con-el-proyecto-anterior" class="level2">
+<h2 class="anchored" data-anchor-id="comparación-pedagógica-con-el-proyecto-anterior">Comparación pedagógica con el proyecto anterior</h2>
+<p><span class="kedro-brand">Kedro</span>‑Viz hace visible una red de nodos, parámetros y datasets cuyo centro es el pipeline. El Asset Graph de <strong><font color="darkmagenta">Dagster</font></strong> pone en primer plano objetos persistentes y su estado operacional. En el proyecto bayesiano preguntábamos “¿qué nodos producen este dataset?”. Aquí también preguntamos “¿cuándo se materializó este activo y qué check lo evaluó?”.</p>
+<p>Ninguna vista vuelve superior a una herramienta. Muestran abstracciones diferentes. La comparación ex post es útil porque ambos proyectos incluyen un producto final, pruebas y datos públicos reproducibles, pero organizan el trabajo alrededor de conceptos distintos.</p>
+<p><a href="../../proyectos/stockpile-cellular-automata/07-contratos-con-pydantic.html">← Contratos con <strong><font color="darkmagenta">Pydantic</font></strong></a> · <a href="../../proyectos/stockpile-cellular-automata/09-reconciliacion-y-validacion.html">Siguiente: reconciliación y validación →</a></p>
+
+
+</section>
+
+</main> <!-- /main -->
+<div id="notes-prev-next" class="page-nav-links"></div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+  // ==========================================================================
+  // El arreglo `notesOrder` se GENERA automáticamente a partir del parámetro
+  // `number-offset` del front matter de cada entrada, mediante el script
+  // scripts/build-notes-order.py (hook pre-render de Quarto). Así el orden
+  // anterior/siguiente siempre refleja la numeración real de cada sección.
+  // No editar el bloque entre los marcadores a mano: se sobrescribe en el build.
+  // ==========================================================================
+  /* NOTES_ORDER_START */
+  const notesOrder = [
+    {
+        "section": "apuntes/calculo-incertidumbre-y-optimizacion",
+        "items": [
+            {
+                "title": "Cálculo diferencial",
+                "href": "/apuntes/calculo-incertidumbre-y-optimizacion/calculo-diferencial/"
+            },
+            {
+                "title": "Aplicaciones del cálculo diferencial",
+                "href": "/apuntes/calculo-incertidumbre-y-optimizacion/aplicaciones-del-calculo-diferencial/"
+            },
+            {
+                "title": "Probabilidad elemental",
+                "href": "/apuntes/calculo-incertidumbre-y-optimizacion/probabilidad-clasica/"
+            },
+            {
+                "title": "Introducción al cálculo de probabilidades",
+                "href": "/apuntes/calculo-incertidumbre-y-optimizacion/introduccion-al-calculo-de-probabilidades/"
+            },
+            {
+                "title": "Distribuciones específicas de probabilidad",
+                "href": "/apuntes/calculo-incertidumbre-y-optimizacion/distribuciones-especificas-de-probabilidad/"
+            },
+            {
+                "title": "Introducción a la teoría de optimización",
+                "href": "/apuntes/calculo-incertidumbre-y-optimizacion/introduccion-a-la-teoria-de-optimizacion/"
+            },
+            {
+                "title": "Optimización de tipo black-box",
+                "href": "/apuntes/calculo-incertidumbre-y-optimizacion/optimizacion-de-tipo-black-box/"
+            },
+            {
+                "title": "Optimización aplicada a machine learning",
+                "href": "/apuntes/calculo-incertidumbre-y-optimizacion/optimizacion-aplicada-al-aprendizaje-automatico/"
+            }
+        ]
+    },
+    {
+        "section": "apuntes/estructuras-lineales",
+        "items": [
+            {
+                "title": "Espacios vectoriales",
+                "href": "/apuntes/estructuras-lineales/espacios-vectoriales/"
+            },
+            {
+                "title": "Bases y dimensión",
+                "href": "/apuntes/estructuras-lineales/bases-y-dimension/"
+            },
+            {
+                "title": "Transformaciones lineales",
+                "href": "/apuntes/estructuras-lineales/transformaciones-lineales/"
+            },
+            {
+                "title": "Producto interno",
+                "href": "/apuntes/estructuras-lineales/producto-interno/"
+            },
+            {
+                "title": "Determinantes y diagonalización",
+                "href": "/apuntes/estructuras-lineales/determinantes-y-diagonalizacion/"
+            },
+            {
+                "title": "Una introducción a las formas",
+                "href": "/apuntes/estructuras-lineales/introduccion-a-las-formas/"
+            },
+            {
+                "title": "Descomposiciones matriciales",
+                "href": "/apuntes/estructuras-lineales/descomposiciones-matriciales/"
+            }
+        ]
+    },
+    {
+        "section": "apuntes/grafos-e-informacion",
+        "items": [
+            {
+                "title": "Una (no tan breve) introducción a la teoría de grafos",
+                "href": "/apuntes/grafos-e-informacion/teoria-de-grafos/"
+            },
+            {
+                "title": "Optimización de redes computacionales",
+                "href": "/apuntes/grafos-e-informacion/optimizacion-de-grafos/"
+            },
+            {
+                "title": "Introducción a la teoría de la información",
+                "href": "/apuntes/grafos-e-informacion/introduccion-a-la-teoria-de-la-informacion/"
+            },
+            {
+                "title": "Cadenas de Markov",
+                "href": "/apuntes/grafos-e-informacion/cadenas-de-markov/"
+            }
+        ]
+    },
+    {
+        "section": "apuntes/tensores-y-variedades",
+        "items": [
+            {
+                "title": "Una primera aproximación a los tensores",
+                "href": "/apuntes/tensores-y-variedades/introducion-a-los-tensores/"
+            },
+            {
+                "title": "Introducción al álgebra tensorial",
+                "href": "/apuntes/tensores-y-variedades/introducion-al-algebra-tensorial/"
+            },
+            {
+                "title": "Un cuento que versa sobre topología",
+                "href": "/apuntes/tensores-y-variedades/introduccion-a-la-topologia/"
+            },
+            {
+                "title": "Variedades y fibrados vectoriales",
+                "href": "/apuntes/tensores-y-variedades/introduccion-a-las-variedades/"
+            }
+        ]
+    },
+    {
+        "section": "clases/data-analytics/introduccion-al-analisis-de-datos-en-python/computacion-vectorizada-y-arreglos-con-numpy",
+        "items": [
+            {
+                "title": "Introducción a Numpy",
+                "href": "/clases/data-analytics/introduccion-al-analisis-de-datos-en-python/computacion-vectorizada-y-arreglos-con-numpy/introduccion-a-numpy/"
+            },
+            {
+                "title": "Operatoria en Numpy",
+                "href": "/clases/data-analytics/introduccion-al-analisis-de-datos-en-python/computacion-vectorizada-y-arreglos-con-numpy/operatoria-en-numpy/"
+            },
+            {
+                "title": "Operaciones de agregación",
+                "href": "/clases/data-analytics/introduccion-al-analisis-de-datos-en-python/computacion-vectorizada-y-arreglos-con-numpy/broadcasting-y-agregacion/"
+            },
+            {
+                "title": "Comparación, ordenamiento y reemplazos en arreglos",
+                "href": "/clases/data-analytics/introduccion-al-analisis-de-datos-en-python/computacion-vectorizada-y-arreglos-con-numpy/comparacion-ordenamiento-y-reemplazo/"
+            },
+            {
+                "title": "Aplicación de Numpy en la construcción de modelos predictivos",
+                "href": "/clases/data-analytics/introduccion-al-analisis-de-datos-en-python/computacion-vectorizada-y-arreglos-con-numpy/aplicaciones-en-modelos/"
+            }
+        ]
+    },
+    {
+        "section": "clases/data-analytics/introduccion-al-analisis-de-datos-en-python/manipulacion-tabular-y-analisis-con-pandas",
+        "items": [
+            {
+                "title": "Una introducción rápida a Pandas",
+                "href": "/clases/data-analytics/introduccion-al-analisis-de-datos-en-python/manipulacion-tabular-y-analisis-con-pandas/introduccion-rapida-a-pandas/"
+            },
+            {
+                "title": "Tipos de datos en Pandas",
+                "href": "/clases/data-analytics/introduccion-al-analisis-de-datos-en-python/manipulacion-tabular-y-analisis-con-pandas/tipos-de-datos-en-pandas/"
+            },
+            {
+                "title": "Manipulación de Series - Parte I",
+                "href": "/clases/data-analytics/introduccion-al-analisis-de-datos-en-python/manipulacion-tabular-y-analisis-con-pandas/manipulacion-de-series-parte-i/"
+            },
+            {
+                "title": "Manipulación de Series - Parte II",
+                "href": "/clases/data-analytics/introduccion-al-analisis-de-datos-en-python/manipulacion-tabular-y-analisis-con-pandas/manipulacion-de-series-parte-ii/"
+            }
+        ]
+    },
+    {
+        "section": "clases/machine-learning/aprendizaje-supervisado/modelos-lineales",
+        "items": [
+            {
+                "title": "Una introducción sencilla a los algoritmos de aprendizaje",
+                "href": "/clases/machine-learning/aprendizaje-supervisado/modelos-lineales/introduccion-algoritmos-aprendizaje/"
+            },
+            {
+                "title": "Una introducción a Scikit-Learn",
+                "href": "/clases/machine-learning/aprendizaje-supervisado/modelos-lineales/introduccion-a-scikit-learn/"
+            },
+            {
+                "title": "Modelos de clasificación - Parte I",
+                "href": "/clases/machine-learning/aprendizaje-supervisado/modelos-lineales/modelos-de-clasificacion-parte-i/"
+            },
+            {
+                "title": "Modelos de clasificación - Parte II",
+                "href": "/clases/machine-learning/aprendizaje-supervisado/modelos-lineales/modelos-de-clasificacion-parte-ii/"
+            },
+            {
+                "title": "Modelo de regresión lineal",
+                "href": "/clases/machine-learning/aprendizaje-supervisado/modelos-lineales/modelo-de-regresion-lineal/"
+            },
+            {
+                "title": "Modelos lineales regularizados, Bayesianos y generalizados",
+                "href": "/clases/machine-learning/aprendizaje-supervisado/modelos-lineales/modelos-lineales-regularizados-bayesianos-y-generalizados/"
+            },
+            {
+                "title": "Máquinas de soporte vectorial",
+                "href": "/clases/machine-learning/aprendizaje-supervisado/modelos-lineales/maquinas-de-soporte-vectorial/"
+            }
+        ]
+    },
+    {
+        "section": "clases/machine-learning/aprendizaje-supervisado/modelos-no-lineales",
+        "items": [
+            {
+                "title": "Árboles de decisión",
+                "href": "/clases/machine-learning/aprendizaje-supervisado/modelos-no-lineales/arboles-de-decision/"
+            },
+            {
+                "title": "Modelos de ensamble",
+                "href": "/clases/machine-learning/aprendizaje-supervisado/modelos-no-lineales/modelos-de-ensamble/"
+            },
+            {
+                "title": "Boosting especializado",
+                "href": "/clases/machine-learning/aprendizaje-supervisado/modelos-no-lineales/modelos-de-ensamble-especializados/"
+            },
+            {
+                "title": "Estimación de importancia de variables en modelos predictivos",
+                "href": "/clases/machine-learning/aprendizaje-supervisado/modelos-no-lineales/importancia-de-variables/"
+            }
+        ]
+    },
+    {
+        "section": "clases/machine-learning/seleccion-de-variables-metricas-y-tuning",
+        "items": [
+            {
+                "title": "Selección y evaluación de modelos",
+                "href": "/clases/machine-learning/seleccion-de-variables-metricas-y-tuning/seleccion-y-evaluacion-de-modelos/"
+            }
+        ]
+    }
+];
+  /* NOTES_ORDER_END */
+
+  function normalizePath(path) {
+    if (!path.endsWith("/")) path += "/";
+    path = path.replace(/index\.html\/?$/, "");
+    return path;
+  }
+
+  const currentPath = normalizePath(window.location.pathname);
+  const container = document.getElementById("notes-prev-next");
+
+  let previous = null;
+  let next = null;
+  let found = false;
+
+  for (const section of notesOrder) {
+    const items = section.items;
+    const index = items.findIndex(item => normalizePath(item.href) === currentPath);
+
+    if (index !== -1) {
+      found = true;
+      if (index > 0) previous = items[index - 1];
+      if (index < items.length - 1) next = items[index + 1];
+      break;
+    }
+  }
+
+  if (!found) {
+    container.style.display = "none";
+    return;
+  }
+
+  container.innerHTML = `
+    <div class="page-nav-prev">
+      ${previous ? `<a href="${previous.href}">← ${previous.title}</a>` : ``}
+    </div>
+    <div class="page-nav-next">
+      ${next ? `<a href="${next.href}">${next.title} →</a>` : ``}
+    </div>
+  `;
+});
+</script>
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    // Ensure there is a toggle, if there isn't float one in the top right
+    if (window.document.querySelector('.quarto-color-scheme-toggle') === null) {
+      const a = window.document.createElement('a');
+      a.classList.add('top-right');
+      a.classList.add('quarto-color-scheme-toggle');
+      a.href = "";
+      a.onclick = function() { try { window.quartoToggleColorScheme(); } catch {} return false; };
+      const i = window.document.createElement("i");
+      i.classList.add('bi');
+      a.appendChild(i);
+      window.document.body.appendChild(a);
+    }
+    setColorSchemeToggle(hasAlternateSentinel())
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp('/' + window.location.host + '/');
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+</div> <!-- /content -->
+<footer class="footer">
+  <div class="nav-footer">
+    <div class="nav-footer-left">
+<p>© René Quezada</p>
+</div>   
+    <div class="nav-footer-center">
+      &nbsp;
+    </div>
+    <div class="nav-footer-right">
+<p>Hecho con Quarto</p>
+</div>
+  </div>
+</footer>
+
+
+
+
+<script src="../../site_libs/quarto-html/zenscroll-min.js"></script>
+</body></html>

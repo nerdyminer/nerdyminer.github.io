@@ -1,0 +1,1362 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.9.37">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="description" content="Cómo un punto de extracción en la base propaga movimiento por el volumen del stockpile.">
+
+<title>5. Descarga, migración de vacíos y carga viva – NerdyMiner</title>
+<style>
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="../../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../../">
+<script src="../../site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="../../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../../site_libs/quarto-html/popper.min.js"></script>
+<script src="../../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../../site_libs/quarto-html/quarto-syntax-highlighting-b16add4d910ff6038463ffc00184b1c1.css" rel="stylesheet" class="quarto-color-scheme" id="quarto-text-highlighting-styles">
+<link href="../../site_libs/quarto-html/quarto-syntax-highlighting-dark-e3b8bbca183a7d6761657ecb5c5aa65f.css" rel="stylesheet" class="quarto-color-scheme quarto-color-alternate" id="quarto-text-highlighting-styles">
+<link href="../../site_libs/quarto-html/quarto-syntax-highlighting-b16add4d910ff6038463ffc00184b1c1.css" rel="stylesheet" class="quarto-color-scheme-extra" id="quarto-text-highlighting-styles">
+<script src="../../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../../site_libs/bootstrap/bootstrap-20a3660c41a27997b0067576444d6464.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
+<link href="../../site_libs/bootstrap/bootstrap-dark-82b8a8f05674b84d57516846be433586.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
+<link href="../../site_libs/bootstrap/bootstrap-20a3660c41a27997b0067576444d6464.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+<style>html{ scroll-behavior: smooth; }</style>
+
+  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
+  <script defer="" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN" && texText && texText.data) {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
+
+</head>
+
+<body class="nav-fixed quarto-light"><script id="quarto-html-before-body" type="application/javascript">
+    const toggleBodyColorMode = (bsSheetEl) => {
+      const mode = bsSheetEl.getAttribute("data-mode");
+      const bodyEl = window.document.querySelector("body");
+      if (mode === "dark") {
+        bodyEl.classList.add("quarto-dark");
+        bodyEl.classList.remove("quarto-light");
+      } else {
+        bodyEl.classList.add("quarto-light");
+        bodyEl.classList.remove("quarto-dark");
+      }
+    }
+    const toggleBodyColorPrimary = () => {
+      const bsSheetEl = window.document.querySelector("link#quarto-bootstrap:not([rel=disabled-stylesheet])");
+      if (bsSheetEl) {
+        toggleBodyColorMode(bsSheetEl);
+      }
+    }
+    const setColorSchemeToggle = (alternate) => {
+      const toggles = window.document.querySelectorAll('.quarto-color-scheme-toggle');
+      for (let i=0; i < toggles.length; i++) {
+        const toggle = toggles[i];
+        if (toggle) {
+          if (alternate) {
+            toggle.classList.add("alternate");
+          } else {
+            toggle.classList.remove("alternate");
+          }
+        }
+      }
+    };
+    const toggleColorMode = (alternate) => {
+      // Switch the stylesheets
+      const primaryStylesheets = window.document.querySelectorAll('link.quarto-color-scheme:not(.quarto-color-alternate)');
+      const alternateStylesheets = window.document.querySelectorAll('link.quarto-color-scheme.quarto-color-alternate');
+      manageTransitions('#quarto-margin-sidebar .nav-link', false);
+      if (alternate) {
+        // note: dark is layered on light, we don't disable primary!
+        enableStylesheet(alternateStylesheets);
+        for (const sheetNode of alternateStylesheets) {
+          if (sheetNode.id === "quarto-bootstrap") {
+            toggleBodyColorMode(sheetNode);
+          }
+        }
+      } else {
+        disableStylesheet(alternateStylesheets);
+        enableStylesheet(primaryStylesheets)
+        toggleBodyColorPrimary();
+      }
+      manageTransitions('#quarto-margin-sidebar .nav-link', true);
+      // Switch the toggles
+      setColorSchemeToggle(alternate)
+      // Hack to workaround the fact that safari doesn't
+      // properly recolor the scrollbar when toggling (#1455)
+      if (navigator.userAgent.indexOf('Safari') > 0 && navigator.userAgent.indexOf('Chrome') == -1) {
+        manageTransitions("body", false);
+        window.scrollTo(0, 1);
+        setTimeout(() => {
+          window.scrollTo(0, 0);
+          manageTransitions("body", true);
+        }, 40);
+      }
+    }
+    const disableStylesheet = (stylesheets) => {
+      for (let i=0; i < stylesheets.length; i++) {
+        const stylesheet = stylesheets[i];
+        stylesheet.rel = 'disabled-stylesheet';
+      }
+    }
+    const enableStylesheet = (stylesheets) => {
+      for (let i=0; i < stylesheets.length; i++) {
+        const stylesheet = stylesheets[i];
+        if(stylesheet.rel !== 'stylesheet') { // for Chrome, which will still FOUC without this check
+          stylesheet.rel = 'stylesheet';
+        }
+      }
+    }
+    const manageTransitions = (selector, allowTransitions) => {
+      const els = window.document.querySelectorAll(selector);
+      for (let i=0; i < els.length; i++) {
+        const el = els[i];
+        if (allowTransitions) {
+          el.classList.remove('notransition');
+        } else {
+          el.classList.add('notransition');
+        }
+      }
+    }
+    const isFileUrl = () => {
+      return window.location.protocol === 'file:';
+    }
+    const hasAlternateSentinel = () => {
+      let styleSentinel = getColorSchemeSentinel();
+      if (styleSentinel !== null) {
+        return styleSentinel === "alternate";
+      } else {
+        return false;
+      }
+    }
+    const setStyleSentinel = (alternate) => {
+      const value = alternate ? "alternate" : "default";
+      if (!isFileUrl()) {
+        window.localStorage.setItem("quarto-color-scheme", value);
+      } else {
+        localAlternateSentinel = value;
+      }
+    }
+    const getColorSchemeSentinel = () => {
+      if (!isFileUrl()) {
+        const storageValue = window.localStorage.getItem("quarto-color-scheme");
+        return storageValue != null ? storageValue : localAlternateSentinel;
+      } else {
+        return localAlternateSentinel;
+      }
+    }
+    const toggleGiscusIfUsed = (isAlternate, darkModeDefault) => {
+      const baseTheme = document.querySelector('#giscus-base-theme')?.value ?? 'light';
+      const alternateTheme = document.querySelector('#giscus-alt-theme')?.value ?? 'dark';
+      let newTheme = '';
+      if(authorPrefersDark) {
+        newTheme = isAlternate ? baseTheme : alternateTheme;
+      } else {
+        newTheme = isAlternate ? alternateTheme : baseTheme;
+      }
+      const changeGiscusTheme = () => {
+        // From: https://github.com/giscus/giscus/issues/336
+        const sendMessage = (message) => {
+          const iframe = document.querySelector('iframe.giscus-frame');
+          if (!iframe) return;
+          iframe.contentWindow.postMessage({ giscus: message }, 'https://giscus.app');
+        }
+        sendMessage({
+          setConfig: {
+            theme: newTheme
+          }
+        });
+      }
+      const isGiscussLoaded = window.document.querySelector('iframe.giscus-frame') !== null;
+      if (isGiscussLoaded) {
+        changeGiscusTheme();
+      }
+    };
+    const authorPrefersDark = false;
+    const darkModeDefault = authorPrefersDark;
+      document.querySelector('link#quarto-text-highlighting-styles.quarto-color-scheme-extra').rel = 'disabled-stylesheet';
+      document.querySelector('link#quarto-bootstrap.quarto-color-scheme-extra').rel = 'disabled-stylesheet';
+    let localAlternateSentinel = darkModeDefault ? 'alternate' : 'default';
+    // Dark / light mode switch
+    window.quartoToggleColorScheme = () => {
+      // Read the current dark / light value
+      let toAlternate = !hasAlternateSentinel();
+      toggleColorMode(toAlternate);
+      setStyleSentinel(toAlternate);
+      toggleGiscusIfUsed(toAlternate, darkModeDefault);
+      window.dispatchEvent(new Event('resize'));
+    };
+    // Switch to dark mode if need be
+    if (hasAlternateSentinel()) {
+      toggleColorMode(true);
+    } else {
+      toggleColorMode(false);
+    }
+  </script>
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container mx-auto">
+    <a href="../../index.html" class="navbar-brand navbar-brand-logo">
+    <img src="../../images/nerdyminer-icon.svg" alt="NerdyMiner" class="navbar-logo light-content">
+    <img src="../../images/nerdyminer-icon.svg" alt="NerdyMiner" class="navbar-logo dark-content">
+    </a>
+    <a class="navbar-brand" href="../../index.html">
+    <span class="navbar-title">NerdyMiner</span>
+    </a>
+  </div>
+            <div id="quarto-search" class="" title="Search"></div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" role="menu" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll me-auto">
+  <li class="nav-item">
+    <a class="nav-link" href="../../index.html"> 
+<span class="menu-text">Inicio</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../articulos/index.html"> 
+<span class="menu-text">Artículos</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../apuntes/index.html"> 
+<span class="menu-text">Apuntes</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../clases/index.html"> 
+<span class="menu-text">Clases</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../bibliografia.html"> 
+<span class="menu-text">Bibliografía</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../proyectos/index.html"> 
+<span class="menu-text">Proyectos</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../licencia.html"> 
+<span class="menu-text">Licencia</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../sobre-mi.html"> 
+<span class="menu-text">Sobre mí</span></a>
+  </li>  
+</ul>
+          </div> <!-- /navcollapse -->
+            <div class="quarto-navbar-tools">
+  <a href="" class="quarto-color-scheme-toggle quarto-navigation-tool  px-1" onclick="window.quartoToggleColorScheme(); return false;" title="Toggle dark mode"><i class="bi"></i></a>
+</div>
+      </div> <!-- /container-fluid -->
+    </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
+<!-- sidebar -->
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul>
+  <li><a href="#movimiento-de-la-carga" id="toc-movimiento-de-la-carga" class="nav-link active" data-scroll-target="#movimiento-de-la-carga">Movimiento de la carga</a>
+  <ul class="collapse">
+  <li><a href="#regla-de-descarga" id="toc-regla-de-descarga" class="nav-link" data-scroll-target="#regla-de-descarga">Regla de descarga</a></li>
+  <li><a href="#migración-del-material" id="toc-migración-del-material" class="nav-link" data-scroll-target="#migración-del-material">Migración del material</a></li>
+  <li><a href="#carga-viva-y-zona-muerta" id="toc-carga-viva-y-zona-muerta" class="nav-link" data-scroll-target="#carga-viva-y-zona-muerta">Carga viva y zona muerta</a></li>
+  <li><a href="#representación-de-funnel-flows" id="toc-representación-de-funnel-flows" class="nav-link" data-scroll-target="#representación-de-funnel-flows">Representación de <em>funnel flows</em></a></li>
+  <li><a href="#influencia-del-número-de-feeders" id="toc-influencia-del-número-de-feeders" class="nav-link" data-scroll-target="#influencia-del-número-de-feeders">Influencia del número de feeders</a></li>
+  <li><a href="#sesgo-geométrico" id="toc-sesgo-geométrico" class="nav-link" data-scroll-target="#sesgo-geométrico">Sesgo geométrico</a></li>
+  <li><a href="#tiempo-de-residencia" id="toc-tiempo-de-residencia" class="nav-link" data-scroll-target="#tiempo-de-residencia">Tiempo de residencia</a></li>
+  <li><a href="#secuencia-operacional-y-estabilidad" id="toc-secuencia-operacional-y-estabilidad" class="nav-link" data-scroll-target="#secuencia-operacional-y-estabilidad">Secuencia operacional y estabilidad</a></li>
+  <li><a href="#bordes-y-saturación" id="toc-bordes-y-saturación" class="nav-link" data-scroll-target="#bordes-y-saturación">Bordes y saturación</a></li>
+  </ul></li>
+  <li><a href="#pruebas-de-descarga" id="toc-pruebas-de-descarga" class="nav-link" data-scroll-target="#pruebas-de-descarga">Pruebas de descarga</a></li>
+  <li><a href="#comentarios-finales" id="toc-comentarios-finales" class="nav-link" data-scroll-target="#comentarios-finales">Comentarios finales</a></li>
+  </ul>
+</nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content">
+
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title">5. Descarga, migración de vacíos y carga viva</h1>
+</div>
+
+<div>
+  <div class="description">
+    Cómo un punto de extracción en la base propaga movimiento por el volumen del stockpile.
+  </div>
+</div>
+
+
+<div class="quarto-title-meta">
+
+    
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<p><a href="../../proyectos/stockpile-cellular-automata/index.html">← Volver al proyecto</a></p>
+<section id="movimiento-de-la-carga" class="level2">
+<h2 class="anchored" data-anchor-id="movimiento-de-la-carga">Movimiento de la carga</h2>
+<p>En general, la extracción de material desde un punto de la base de un stockpile genera “vacíos” locales que se propagan hacia arriba a medida que el material circundante migra para ocuparlos. Este proceso crea un movimiento complejo dentro del stockpile, afectando tanto la distribución de la carga como la dinámica de la llamada zona viva.</p>
+<p>En un stockpile, se denomina <strong>carga viva</strong> a la porción del material que participa activamente en el movimiento hacia los puntos de extracción, en contraste con la <strong>zona muerta</strong>, que permanece relativamente inmóvil. En otras palabras, la carga viva es la que se desplaza y contribuye al flujo hacia la base, mientras que la zona muerta actúa como un reservorio estático dentro del stockpile.</p>
+<p>Esta situación se ilustra, para el caso de un stockpile cónico con tres alimentadores por línea de molienda, similar al que modelamos en este proyecto, en la <a href="#fig-stockpile-design" class="quarto-xref">Figura&nbsp;1</a>. La carga viva se representa mediante prismas cónicos invertidos (o <em>chimeneas</em>) cuya base inferior coincide con los feeders respectivos, extendiéndose hacia la superficie y generando superposiciones de material en movimiento. El mineral fino percola hacia abajo a través de los vacíos generados, mientras que las partículas más gruesas tienden a desplazarse lentamente por rodadura hacia la periferia del cono, generándose un enorme volumen de material que no se mueve (o bien, se mueve muy poco), que es precisamente la zona muerta mencionada con anterioridad.</p>
+<div id="fig-stockpile-design" class="quarto-float quarto-figure quarto-figure-center anchored" data-fig-align="center">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-stockpile-design-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="assets/stockpile-live-capacity.jpg" class="img-fluid quarto-figure quarto-figure-center figure-img" style="width:80.0%">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-stockpile-design-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figura&nbsp;1: Una imagen que ilustra la localización de la carga viva en un stockpile cónico con tres alimentadores por línea de molienda, similar al que modelamos en este proyecto. La carga viva toma la forma de prismas cónicos invertidos cuya base inferior coincide con los feeders respectivos, extendiéndose hacia la superficie y generando superposiciones de material en movimiento.
+</figcaption>
+</figure>
+</div>
+<p>La gestión de la carga viva es crucial para optimizar la eficiencia del flujo de material dentro del stockpile. Implica monitorear y controlar la distribución del material en movimiento, asegurando que los vacíos generados por la extracción se llenen de manera uniforme y que la zona muerta no se expanda innecesariamente. Una adecuada gestión de la carga viva permite mantener un flujo constante hacia los puntos de extracción, minimizando la segregación de partículas y mejorando la homogeneidad del material descargado.</p>
+<p>Los stockpiles son susceptibles de sufrir varios contratiempos debido a la dinámica de la carga viva y su interacción con las zonas muertas. El material puede quedar atrapado en la zona muerta, dificultando su extracción y provocando fluctuaciones en el flujo hacia los alimentadores. Además, la segregación de partículas por tamaño y densidad puede intensificarse, afectando la calidad del material descargado y la eficiencia del proceso de molienda. Uno de los problemas más importantes corresponde a la generación de <em>ratholes</em>, los que son túneles o canales vacíos que se forman dentro del stockpile, impidiendo el flujo uniforme del material y complicando su manejo. Los <em>ratholes</em> producen que el material literamente se hunda dentro de ellos, creando zonas de difícil acceso y aumentando el riesgo de interrupciones en la operación del stockpile, forzando la intervención de maquinaria de apoyo, como bulldozers, con el riesgo de perder el control de la altura de la pila por medio de sensores virtuales.</p>
+<section id="regla-de-descarga" class="level3">
+<h3 class="anchored" data-anchor-id="regla-de-descarga">Regla de descarga</h3>
+<p>Consideremos los sets de alimentadores <span class="math inline">\(A_{k}\)</span> y <span class="math inline">\(B_{k}\)</span>, asociados a las líneas de molienda <span class="math inline">\(A\)</span> y <span class="math inline">\(B\)</span>, donde <span class="math inline">\(k\)</span> representa el índice del alimentador dentro de cada línea (<span class="math inline">\(k=1,2,3\)</span>). Si el alimentador <span class="math inline">\(k\)</span> (independiente de la línea) recibe un flujo másico <span class="math inline">\(q_{k}\)</span>, entonces la fracción de material a retirar de la celda base correspondiente en un paso de tiempo <span class="math inline">\(\triangle t\)</span> está dada por</p>
+<p><span class="math display">\[
+\triangle F_{k}=\frac{q_{k}\triangle t}{\rho_{b} V_{c}}
+\]</span></p>
+<p>donde <span class="math inline">\(\rho_{b}\)</span> es la densidad aparente del material y <span class="math inline">\(V_{c}\)</span> es el volumen de la celda base correspondiente. De esta manera, si la celda base contiene menos material del requerido para satisfacer <span class="math inline">\(\triangle F_{k}\)</span>, se retira todo el contenido disponible y el proceso se repite después de que el material superior migre hacia la celda base. Por lo tanto, la propiedad descargada depende no solo del caudal del alimentador, sino también de la distribución espacial del material dentro del stockpile, y se “acumula” en la forma de momento:</p>
+<p><span class="math display">\[
+d_{\mathrm{out},k}=\frac{\sum_m \triangle f_m d_m}{\sum_m \triangle f_m}
+\]</span></p>
+<p>donde <span class="math inline">\(m\)</span> recorre todas las interacciones de descarga que contribuyen al material retirado de la celda base correspondiente. Así, la propiedad descargada refleja un promedio ponderado por la fracción de material retirada en cada interacción. Esto es extremadamente importante a la hora de representar la distribución de propiedades del material descargado de manera precisa: El uso de un promedio simple generaría un sesgo hacia las interacciones que retiran menos material.</p>
+</section>
+<section id="migración-del-material" class="level3">
+<h3 class="anchored" data-anchor-id="migración-del-material">Migración del material</h3>
+<p><a href="https://www.sciencedirect.com/science/article/pii/S089268752300170X">La parte II del trabajo original de Ye, Hilden &amp; Yahyaei (2023)</a> hace énfasis en la migración del material dentro del stockpile, describiendo cómo las partículas se redistribuyen desde las celdas superiores hacia las celdas inferiores, llenando los vacíos generados por la descarga y manteniendo la estabilidad del stockpile. En su desarrollo, se propone un modelo probabilístico para la migración del material, donde la probabilidad de que una partícula se desplace desde una celda superior hacia un vacío en la celda inferior depende de la posición relativa y de la geometría del stockpile: Cada salto redistribuye el material de manera estocástica, siguiendo las probabilidades definidas por el modelo.</p>
+<p>Designemos una celda vacía como <span class="math inline">\(c\)</span>. Sea <span class="math inline">\(\mathcal{U}(c)\)</span> el conjunto de celdas superiores adyacentes a <span class="math inline">\(c\)</span> desde las cuales el material puede migrar hacia el vacío. Cada celda <span class="math inline">\(u \in \mathcal{U}(c)\)</span> tiene asociada una probabilidad de contribuir al llenado del vacío <span class="math inline">\(c\)</span>, determinada por la geometría y la posición relativa dentro del stockpile. Su selección se realiza conforme la fórmula</p>
+<p><span class="math display">\[
+P(u\mid c)=\frac{w(u,c)}{\displaystyle \sum_{v\in \mathcal{U} (c)} w(v,c)}
+\]</span></p>
+<p>donde <span class="math inline">\(w(u,c)\)</span> es un peso que refleja la probabilidad de que el material migre desde la celda superior <span class="math inline">\(u\)</span> hacia el vacío <span class="math inline">\(c\)</span>, típicamente decreciente con la distancia horizontal entre <span class="math inline">\(u\)</span> y <span class="math inline">\(c\)</span>. Esta regla produce una distribución estocástica del material migrante, asegurando que los vacíos se llenen de manera coherente con la geometría y la dinámica del stockpile por medio de la introducción de un volumen de influencia alrededor del vacío.</p>
+<p>En este proyecto, se implementa una solución de compactación determinista, donde el material migra desde las celdas superiores hacia los vacíos en las celdas inferiores siguiendo un patrón predefinido, en lugar de un enfoque puramente probabilístico. Esto permite controlar de manera más precisa la redistribución del material y la estabilidad del stockpile. La implementación se realiza en la función <code>remove_from_bottom()</code>:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> remove_from_bottom(</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>    state: StockpileState,</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>    north: <span class="bu">int</span>,</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>    east: <span class="bu">int</span>,</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>    volume_cells: <span class="bu">float</span>,</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>) <span class="op">-&gt;</span> <span class="bu">tuple</span>[<span class="bu">float</span>, <span class="bu">float</span>]:</span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""Extrae desde el punto de descarga y migra el vacío hacia arriba."""</span></span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Inicializamos las variables de control para la extracción y migración del</span></span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a>    <span class="co"># material.</span></span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a>    remaining <span class="op">=</span> volume_cells</span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a>    removed <span class="op">=</span> <span class="fl">0.0</span></span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a>    size_moment <span class="op">=</span> <span class="fl">0.0</span></span>
+<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Loop que recorre los niveles de la columna desde abajo hacia arriba,</span></span>
+<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a>    <span class="co"># extrayendo material hasta completar el volumen solicitado.</span></span>
+<span id="cb1-17"><a href="#cb1-17" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> level <span class="kw">in</span> <span class="bu">range</span>(state.fill.shape[<span class="dv">0</span>]):</span>
+<span id="cb1-18"><a href="#cb1-18" aria-hidden="true" tabindex="-1"></a>        available <span class="op">=</span> state.fill[level, north, east]</span>
+<span id="cb1-19"><a href="#cb1-19" aria-hidden="true" tabindex="-1"></a>        <span class="cf">if</span> available <span class="op">&lt;=</span> <span class="dv">0</span>:</span>
+<span id="cb1-20"><a href="#cb1-20" aria-hidden="true" tabindex="-1"></a>            <span class="cf">continue</span></span>
+<span id="cb1-21"><a href="#cb1-21" aria-hidden="true" tabindex="-1"></a>        moved <span class="op">=</span> <span class="bu">min</span>(available, remaining)</span>
+<span id="cb1-22"><a href="#cb1-22" aria-hidden="true" tabindex="-1"></a>        removed <span class="op">+=</span> moved</span>
+<span id="cb1-23"><a href="#cb1-23" aria-hidden="true" tabindex="-1"></a>        size_moment <span class="op">+=</span> moved <span class="op">*</span> state.p80_in[level, north, east]</span>
+<span id="cb1-24"><a href="#cb1-24" aria-hidden="true" tabindex="-1"></a>        state.fill[level, north, east] <span class="op">-=</span> moved</span>
+<span id="cb1-25"><a href="#cb1-25" aria-hidden="true" tabindex="-1"></a>        remaining <span class="op">-=</span> moved</span>
+<span id="cb1-26"><a href="#cb1-26" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-27"><a href="#cb1-27" aria-hidden="true" tabindex="-1"></a>        <span class="co"># Introducimos un punto de ruptura si ya hemos extraído todo el</span></span>
+<span id="cb1-28"><a href="#cb1-28" aria-hidden="true" tabindex="-1"></a>        <span class="co"># material solicitado, a modo de tolerancia.</span></span>
+<span id="cb1-29"><a href="#cb1-29" aria-hidden="true" tabindex="-1"></a>        <span class="cf">if</span> remaining <span class="op">&lt;=</span> <span class="fl">1e-12</span>:</span>
+<span id="cb1-30"><a href="#cb1-30" aria-hidden="true" tabindex="-1"></a>            <span class="cf">break</span></span>
+<span id="cb1-31"><a href="#cb1-31" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-32"><a href="#cb1-32" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Compactar la columna es la versión determinista de migración vertical. El</span></span>
+<span id="cb1-33"><a href="#cb1-33" aria-hidden="true" tabindex="-1"></a>    <span class="co"># modelo completo elige vecinos superiores con una probabilidad espacial.</span></span>
+<span id="cb1-34"><a href="#cb1-34" aria-hidden="true" tabindex="-1"></a>    occupied <span class="op">=</span> state.fill[:, north, east] <span class="op">&gt;</span> <span class="dv">0</span></span>
+<span id="cb1-35"><a href="#cb1-35" aria-hidden="true" tabindex="-1"></a>    fills <span class="op">=</span> state.fill[occupied, north, east].copy()</span>
+<span id="cb1-36"><a href="#cb1-36" aria-hidden="true" tabindex="-1"></a>    sizes <span class="op">=</span> state.p80_in[occupied, north, east].copy()</span>
+<span id="cb1-37"><a href="#cb1-37" aria-hidden="true" tabindex="-1"></a>    state.fill[:, north, east] <span class="op">=</span> <span class="fl">0.0</span></span>
+<span id="cb1-38"><a href="#cb1-38" aria-hidden="true" tabindex="-1"></a>    state.p80_in[:, north, east] <span class="op">=</span> <span class="fl">0.0</span></span>
+<span id="cb1-39"><a href="#cb1-39" aria-hidden="true" tabindex="-1"></a>    state.fill[: <span class="bu">len</span>(fills), north, east] <span class="op">=</span> fills</span>
+<span id="cb1-40"><a href="#cb1-40" aria-hidden="true" tabindex="-1"></a>    state.p80_in[: <span class="bu">len</span>(sizes), north, east] <span class="op">=</span> sizes</span>
+<span id="cb1-41"><a href="#cb1-41" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-42"><a href="#cb1-42" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> removed, size_moment <span class="op">/</span> removed <span class="cf">if</span> removed <span class="op">&gt;</span> <span class="dv">0</span> <span class="cf">else</span> <span class="bu">float</span>(<span class="st">"nan"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>La ventaja de esta alternativa determinista es evidente: Garantiza que el material se compacte verticalmente sin necesidad de calcular probabilidades para cada vecino superior, simplificando la simulación y manteniendo la conservación de masa. Sin embargo, también reviste un problema de representatividad importante: No captura la dispersión lateral del material que ocurre en la realidad, lo que puede llevar a subestimar la extensión de la zona afectada por la extracción. En términos simples, no es capaz de reproducir la aparición de <em>ratholes</em> de manera precisa.</p>
+</section>
+<section id="carga-viva-y-zona-muerta" class="level3">
+<h3 class="anchored" data-anchor-id="carga-viva-y-zona-muerta">Carga viva y zona muerta</h3>
+<p>Como comentamos previamente, no todo el material acopiado en un stockpile está en movimiento. Parte de él permanece en la <strong>zona muerta</strong>, mientras que solo el material en la <strong>zona viva</strong> contribuye al flujo hacia los puntos de descarga.</p>
+<p>La zona muerta no participa pues de la recuperación de material durante la operación normal de descarga. Sin embargo, el material que permanece en esta zona no necesariamente se encontrará inmóvil para siempre; en general, cuando existen detenciones prolongadas (y programadas) en el proceso aguas arriba (chancado primario), se espera vaciar completamente el stockpile para “alargar” la continuidad operacional de la molienda todo lo que se pueda, minimizando el impacto productivo en el negocio. Esto motiva el uso de equipos de arrastre de carga, como bulldozers, para mover el material que permanece en zonas muertas hacia los feeders, asegurando su descarga.</p>
+<p>En nuestro modelo, la distinción entre zona viva y zona muerta se realiza de manera explícita. Cada celda del stockpile se clasifica según su conectividad con los puntos de descarga y su historial de movimiento. Las celdas que han contribuido al flujo hacia los puntos de descarga al menos una vez se consideran parte de la zona viva, mientras que las que no han participado permanecen en la zona muerta. Esta clasificación permite simular de manera más realista la dinámica del material y la efectividad de las operaciones de arrastre de carga.</p>
+<p>La conectividad que describe la dinámica de la carga viva se basa en la capacidad de cada celda para contribuir al flujo hacia los puntos de descarga. Esta conectividad no es estática; puede cambiar con el tiempo a medida que el material se mueve y se reorganiza dentro del stockpile. Por lo tanto, una celda que inicialmente pertenece a la zona muerta puede pasar a la zona viva si logra conectarse con un punto de descarga mediante el movimiento del material.</p>
+</section>
+<section id="representación-de-funnel-flows" class="level3">
+<h3 class="anchored" data-anchor-id="representación-de-funnel-flows">Representación de <em>funnel flows</em></h3>
+<p>Previamente describimos la dinámica de la carga viva por medio de movimientos de flujo con foco en los feeders, y con apertura variable hacia la superficie del cono. Esta geometría, similar a un embudo, recibe el nombre de <em>funnel flow</em> en la literatura especializada.</p>
+<p>En los modelos de autómatas celulares para stockpiles, los <em>funnel flows</em> se representan mediante la identificación de celdas activas que contribuyen al flujo hacia los puntos de descarga. Estas celdas forman un canal preferencial dentro del acopio, mientras que las celdas periféricas permanecen en la zona muerta. La dinámica de este canal se captura mediante reglas de migración localizadas que simulan el movimiento del material hacia los puntos de descarga, respetando la conservación de masa y la conectividad de la zona viva.</p>
+<p><a href="https://www.sciencedirect.com/science/article/pii/S089268752300170X">El paper original de Ye, Hilden &amp; Yahyaei (2023)</a> busca reproducir la dinámica de los <em>funnel flows</em> en stockpiles capturando tanto la formación del canal activo como la persistencia de la zona muerta alrededor de éste. La geometría de este canal tiene un impacto directo en varios aspectos claves del stockpile, como el tiempo de residencia del mineral dentro de él, cómo las distintas capas que lo constituyen se van mezclando, la fracción de carga viva, la distribución granulométrica resultante en cada feeder y la sensibilidad de la superficie del cono a las descargas.</p>
+<p>Si un sensor de altura está localizado sobre la superficie del stockpile, puede proporcionar información valiosa sobre la evolución del cono y la dinámica de los <em>funnel flows</em>. Al monitorear los cambios en la altura del material, es posible inferir la formación y el movimiento del canal activo, así como la estabilidad de la zona muerta circundante. Esta información puede ser utilizada para ajustar las operaciones de descarga y optimizar la recuperación del material.</p>
+</section>
+<section id="influencia-del-número-de-feeders" class="level3">
+<h3 class="anchored" data-anchor-id="influencia-del-número-de-feeders">Influencia del número de feeders</h3>
+<p>La cantidad de feeders en un stockpile influye directamente en la distribución del flujo de material y en la formación de los <em>funnel flows</em>. Con un mayor número de puntos de descarga, es más probable que se desarrollen múltiples canales activos, lo que puede mejorar la eficiencia de la descarga y reducir la acumulación de material en la zona muerta. Por el contrario, un menor número de feeders tiende a concentrar el flujo en canales más estrechos, aumentando la probabilidad de que grandes áreas del stockpile permanezcan en la zona muerta.</p>
+<p>Si disponemos de un total de <span class="math inline">\(N\)</span> puntos de descarga, la descarga total de mineral desde el stockpile se puede expresar como <span class="math inline">\(q_{\mathrm{out}} = \sum_{k=1}^{N} q_{k}\)</span>, donde <span class="math inline">\(q_{k}\)</span> representa la tasa de descarga a través del <span class="math inline">\(k\)</span>-ésimo punto de descarga. La disposición geométrica de la distribución determina cómo se forman los canales activos y la extensión de la zona muerta alrededor de ellos. Por lo tanto, si sólo conocemos el <em>throughput</em> por línea de molienda y no la velocidad relativa de cada feeder, debemos optar por una regla de reparto explícita que asigne el flujo total entre los distintos puntos de descarga. Por ejemplo:</p>
+<ul>
+<li>Repartición uniforme entre los <span class="math inline">\(N\)</span> puntos de descarga.</li>
+<li>Repartición proporcional a la velocidad relativa de cada feeder.</li>
+<li>Inferencia desde corriente o potencia de la correa de alimentación o del molino SAG, con incertidumbre.</li>
+<li>Curva de calibración de velocidad versus flujo másico.</li>
+</ul>
+<p>En este proyecto, optamos por la primera opción, es decir, la repartición uniforme entre los <span class="math inline">\(N\)</span> puntos de descarga, para cada línea de molienda. En términos declarativos, el código fuente del proyecto establece dicha opción en el mismo visor vía TypeScript:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode typescript code-with-copy"><code class="sourceCode typescript"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="co">/** Procedencia de las entradas de la corrida.</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="co"> *</span></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="co"> * El reparto del tonelaje entre alimentadores puede venir de las velocidades</span></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a><span class="co"> * medidas o, si esos tags no estan, de un reparto uniforme entre los que</span></span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a><span class="co"> * figuran en marcha. La diferencia cambia lo que el modelo puede afirmar, de</span></span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a><span class="co"> * modo que se declara aqui en lugar de darse por supuesta en el texto.</span></span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a><span class="co"> */</span></span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a><span class="im">export</span> <span class="kw">interface</span> InputProvenance {</span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a>  usedMeasuredFeederSpeeds<span class="op">:</span> <span class="dt">boolean</span><span class="op">;</span></span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a>  feedSizeReconstructedMinutes<span class="op">:</span> <span class="dt">number</span><span class="op">;</span></span>
+<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a>  minutesWithoutRunningFeeder<span class="op">:</span> <span class="dt">number</span><span class="op">;</span></span>
+<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a>  windowMinutes<span class="op">:</span> <span class="dt">number</span><span class="op">;</span></span>
+<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Notemos que, si optamos por “ocultar” la procedencia de las entradas, el consumidor del modelo no podría distinguir entre lo que se midió y lo que se supuso, lo cual puede llevar a interpretaciones incorrectas de los resultados.</p>
+</section>
+<section id="sesgo-geométrico" class="level3">
+<h3 class="anchored" data-anchor-id="sesgo-geométrico">Sesgo geométrico</h3>
+<p>El sesgo geométrico se refiere a la influencia de la posición de los alimentadores y la forma del acopio en la distribución del flujo de material. En particular, los puntos de descarga situados más cerca del borde tienden a interactuar con la periferia del stockpile con mayor frecuencia, lo que puede generar diferencias en la velocidad de descarga y en la formación de zonas muertas. Este efecto es especialmente relevante cuando se considera la segregación radial gruesa del material.</p>
+<p>Supongamos que los feeders están dispuestos en filas con radios <span class="math inline">\(r_{A}\)</span> y <span class="math inline">\(r_{B}\)</span>, respectivamente, respecto al centro del stockpile. Si <span class="math inline">\(r_{B}&gt;r_{A}\)</span>, la fila B interactúa con la periferia con mayor frecuencia que la fila A. Conforme el proceso de segregación radial gruesa avanza, esta diferencia puede amplificarse, afectando la distribución de tamaños de partícula y la dinámica de las zonas muertas. Matemáticamente, esto significa que</p>
+<p><span class="math display">\[
+\mathrm{E} [d_{\mathrm{out}}^{B}-d_{\mathrm{out}}^{A}]&gt;0
+\]</span></p>
+<p>donde <span class="math inline">\(d_{\mathrm{out}}^{A}\)</span> y <span class="math inline">\(d_{\mathrm{out}}^{B}\)</span> son las velocidades de descarga en los puntos A y B, respectivamente, y <span class="math inline">\(\mathrm{E}[\cdot]\)</span> es el operador de valor esperado.</p>
+<p>La desigualdad anterior establece una hipótesis sobre el sesgo geométrico: Los puntos de descarga más alejados del centro del stockpile tienden a tener mayores velocidades de descarga en promedio. Naturalmente, tal hipótesis puede fallar en situaciones donde otros factores, como la distribución de finos, la variación de altura del acopio o el funcionamiento irregular de los alimentadores, dominen la dinámica del flujo de material.</p>
+<p>Para garantizar que la validación del sesgo geométrico sea consistente, se define la diferencia de velocidades de descarga en un instante de tiempo <span class="math inline">\(t\)</span> como</p>
+<p><span class="math display">\[
+\triangle d_{t}=d_{t}^{B}-d_{t}^{A}
+\]</span></p>
+<p>Esta diferencia permite evaluar el sesgo geométrico en cada instante de tiempo, en lugar de depender únicamente del valor esperado a lo largo de un período prolongado.</p>
+</section>
+<section id="tiempo-de-residencia" class="level3">
+<h3 class="anchored" data-anchor-id="tiempo-de-residencia">Tiempo de residencia</h3>
+<p>Los stockpiles suelen diseñarse para subvencionar alimentación fresca a la molienda en el supuesto de que el chancado primario esté detenido. Cuando se establece que un stockpile proporciona una capacidad de <span class="math inline">\(T\)</span> horas de alimentación continua, se espera que el tiempo de residencia medio del material en el acopio sea del orden de <span class="math inline">\(T\)</span>, referido fundamentalmente a la carga viva.</p>
+<p>A nivel de modelo, el tiempo de residencia se puede rastrear mediante la edad de las celdas que almacenan el material. Cada celda mantiene un contador de tiempo que se incrementa en cada paso de simulación mientras la celda esté ocupada. Esto permite calcular el tiempo de residencia medio y analizar la dinámica interna del stockpile. Si <span class="math inline">\(a\)</span> designa la propiedad encargada de almacenar la edad, entonces <span class="math inline">\(a\)</span> se incrementa en cada paso de simulación para celdas ocupadas:</p>
+<p><span class="math display">\[
+a_{ijk}\left( t+\triangle t \right) =a_{ijk}\left( t \right) +\triangle t
+\]</span></p>
+<p>donde <span class="math inline">\(a_{ijk}(t)\)</span> es la edad de la celda en la posición <span class="math inline">\((i,j,k)\)</span> en el tiempo <span class="math inline">\(t\)</span>, y <span class="math inline">\(\triangle t\)</span> es el incremento de tiempo por paso de simulación. De esta manera, la mezcla de mineral hace uso del mismo promedio ponderado por volumen que se emplea para otras propiedades, como la fracción de vacíos o la concentración de finos. La descarga de mineral resulta pues en una distribución de edades por celda en vez de un único tiempo de residencia.</p>
+<p>Notemos que el tiempo de residencia para las celdas que se localizan en la zona viva del stockpile suele ser mucho menor que el tiempo de residencia promedio calculado sobre todo el inventario, ya que las zonas muertas contribuyen con material que prácticamente no se mueve.</p>
+</section>
+<section id="secuencia-operacional-y-estabilidad" class="level3">
+<h3 class="anchored" data-anchor-id="secuencia-operacional-y-estabilidad">Secuencia operacional y estabilidad</h3>
+<p>La secuencia que emula la operación del stockpile sigue un orden específico de pasos que asegura la estabilidad del sistema y la consistencia de las propiedades del material. Dicha secuencia puede representarse de manera esquemática como:</p>
+<pre class="text"><code>Alimentar -&gt; Descargar -&gt; Migrar vacíos -&gt; Relajar superficie -&gt; Verificar invariantes</code></pre>
+<p>En cada uno de los pasos de esta secuencia se realizan las siguientes comprobaciones:</p>
+<ul>
+<li>Verificar que, para cada celda <span class="math inline">\((i,j,k)\)</span> en la retícula, se cumpla que el factor de llenado sea consistente: <span class="math inline">\(0\leq f_{ijk}\leq 1\)</span>.</li>
+<li>Verificar que las celdas vacías no contengan material (no reportan <span class="math inline">\(P_{80}\)</span>) y que las celdas ocupadas tengan propiedades consistentes.</li>
+<li>Verificar que el balance de volumen se cumpla, es decir, que las entradas y salidas de material coincidan con los cambios en el inventario.</li>
+<li>Verificar que ninguna trayectoria de material cruce los bordes del stockpile.</li>
+<li>Verificar que el techo de la grilla conserve un margen adecuado.</li>
+<li>Verificar que las propiedades descargadas provengan de material efectivamente retirado.</li>
+</ul>
+</section>
+<section id="bordes-y-saturación" class="level3">
+<h3 class="anchored" data-anchor-id="bordes-y-saturación">Bordes y saturación</h3>
+<p>La retícula completa que describe al stockpile se encuentra acotada, a nivel topológico, por los bordes del dominio. Esto implica que cualquier movimiento de material debe respetar estas fronteras, y que la saturación de las celdas cercanas a los límites puede afectar la dinámica del sistema.</p>
+<p>Si el stockpile crece de tal forma que la retícula alcanza los bordes del deominio en el plano <span class="math inline">\((x, y)\)</span>, el flujo másico se trunca y parte del material no puede ser modelado dentro del dominio definido. Por otro lado, si la retícula alcanza los límites en los planos <span class="math inline">\((x, z)\)</span> e <span class="math inline">\((y, z)\)</span>, ya no es posible agregar más material en la dirección vertical sin exceder la capacidad de la grilla. La adición de material en estas condiciones genera un desbordamiento que debe ser manejado explícitamente. Por ejemplo, la función <code>add_to_top()</code>, que es la encargada de añadir material en la parte superior de la retícula, levantará un <code>OverflowError</code> si se intenta agregar más volumen del que la retícula puede contener:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> add_to_top(</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>    state: StockpileState,</span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>    north: <span class="bu">int</span>,</span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>    east: <span class="bu">int</span>,</span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>    volume_cells: <span class="bu">float</span>,</span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>    p80_in: <span class="bu">float</span>,</span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>) <span class="op">-&gt;</span> <span class="va">None</span>:</span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""Añade volumen y mezcla propiedades en la superficie de una columna."""</span></span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a>    remaining <span class="op">=</span> volume_cells</span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> level <span class="kw">in</span> <span class="bu">range</span>(state.fill.shape[<span class="dv">0</span>]):</span>
+<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a>        capacity <span class="op">=</span> <span class="fl">1.0</span> <span class="op">-</span> state.fill[level, north, east]</span>
+<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a>        <span class="cf">if</span> capacity <span class="op">&lt;=</span> <span class="dv">0</span>:</span>
+<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a>            <span class="cf">continue</span></span>
+<span id="cb4-14"><a href="#cb4-14" aria-hidden="true" tabindex="-1"></a>        moved <span class="op">=</span> <span class="bu">min</span>(capacity, remaining)</span>
+<span id="cb4-15"><a href="#cb4-15" aria-hidden="true" tabindex="-1"></a>        old_fill <span class="op">=</span> state.fill[level, north, east]</span>
+<span id="cb4-16"><a href="#cb4-16" aria-hidden="true" tabindex="-1"></a>        state.p80_in[level, north, east] <span class="op">=</span> _mix(</span>
+<span id="cb4-17"><a href="#cb4-17" aria-hidden="true" tabindex="-1"></a>            state.p80_in[level, north, east], old_fill, p80_in, moved</span>
+<span id="cb4-18"><a href="#cb4-18" aria-hidden="true" tabindex="-1"></a>        )</span>
+<span id="cb4-19"><a href="#cb4-19" aria-hidden="true" tabindex="-1"></a>        state.fill[level, north, east] <span class="op">+=</span> moved</span>
+<span id="cb4-20"><a href="#cb4-20" aria-hidden="true" tabindex="-1"></a>        remaining <span class="op">-=</span> moved</span>
+<span id="cb4-21"><a href="#cb4-21" aria-hidden="true" tabindex="-1"></a>        <span class="cf">if</span> remaining <span class="op">&lt;=</span> <span class="fl">1e-12</span>:</span>
+<span id="cb4-22"><a href="#cb4-22" aria-hidden="true" tabindex="-1"></a>            <span class="cf">return</span></span>
+<span id="cb4-23"><a href="#cb4-23" aria-hidden="true" tabindex="-1"></a>    <span class="cf">raise</span> <span class="pp">OverflowError</span>(<span class="st">"la alimentacion supera el techo de la grilla"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>A nivel de implementación, los desbordamientos de material son reportados en el visor como <strong>material no modelado</strong>, permitiendo al usuario identificar cuándo y dónde la grilla ha alcanzado su capacidad máxima. Se declara explícitamente que este material no es redistribuido de forma silenciosa ni se aumenta <em>mágicamente</em> la capacidad de la grilla.</p>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Note</span>Distinguiendo entre políticas de producto y reglas físicas
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>Las reglas de desbordamiento previamente establecidas están pensadas para “proteger” al navegador de situaciones donde la retícula alcanza su capacidad máxima. Sin embargo, éstas no resuelven los balances de masa que no cierran. La masa descartada de registra y acumula, a fin de mostrarse al usuario y permitir la identificación de inconsistencias. Esto asegura transparencia en la simulación y evita la ilusión de conservación de masa cuando la grilla está saturada.</p>
+</div>
+</div>
+</section>
+</section>
+<section id="pruebas-de-descarga" class="level2">
+<h2 class="anchored" data-anchor-id="pruebas-de-descarga">Pruebas de descarga</h2>
+<p>Al ejecutar las pruebas de descarga, se verifica que las funciones de retiro y migración de material se comporten según lo esperado, respetando los balances de masa y las propiedades del material. Tales pruebas están registradas, a nivel de código, en la <a href="./tests/">suite de pruebas unitarias</a> correspondiente. Como mínimo, estas pruebas incluyen los siguientes casos:</p>
+<ol type="1">
+<li>Al retirar un volumen <span class="math inline">\(v\)</span> de una columna, el llenado total de la columna disminuye en <span class="math inline">\(v\)</span>.</li>
+<li>Toda propiedad descargada se calcula como el promedio ponderado del material retirado.</li>
+<li>La descarga aplicada a una columna vacía no altera el estado y devuelve ausencia de material.</li>
+<li>La migración de material entre columnas conserva la masa total y las propiedades del material.</li>
+<li>Se fija una semilla pseudoaleatoria para garantizar reproducibilidad de las trayectorias del material.</li>
+<li>La frecuencia de celdas ocupadas converge al mapa de probabilidades esperado.</li>
+<li>La alimentación y descarga de cantidades iguales de masa no altera el inventario total de material.</li>
+</ol>
+<p>Las pruebas descritas previamente están diseñadas para separar la corrección de la implementación local de la validación a nivel de sistema o industrial. Notemos que aprobar estas pruebas no garantiza que el sistema sea completamente correcto en un entorno industrial; simplemente asegura que los componentes básicos funcionan según lo esperado. Una implementación más global debiera garantizar un proceso de calibración.</p>
+</section>
+<section id="comentarios-finales" class="level2">
+<h2 class="anchored" data-anchor-id="comentarios-finales">Comentarios finales</h2>
+<p>En esta sección se han presentado las consideraciones clave para la descarga y migración de material en un autómata celular. Se ha enfatizado la importancia de mantener los balances de masa, la reproducibilidad de las simulaciones y la transparencia en la gestión de inconsistencias. Además, se ha discutido la transición de reglas deterministas a probabilísticas, lo que permite una representación más realista del comportamiento del material en la grilla.</p>
+<p>La representación de la secuencia de descarga en un autómata celular permite visualizar cómo el material se redistribuye a lo largo de la retícula completa, facilitando la identificación de patrones de flujo y posibles cuellos de botella. Esta visualización es crucial para ajustar las reglas de migración y garantizar que la simulación refleje de manera precisa el comportamiento físico del sistema. Sin embargo, existen limitaciones inherentes a la discretización y a la simplificación de las interacciones físicas, por lo que los resultados deben interpretarse con cautela.</p>
+<p><a href="../../proyectos/stockpile-cellular-automata/04-segregacion-granulometrica.html">← Segregación granulométrica</a> · <a href="../../proyectos/stockpile-cellular-automata/06-datos-con-polars.html">Siguiente: Gestión de datos con <strong><font color="darkmagenta">Polars</font></strong> →</a></p>
+
+
+</section>
+
+</main> <!-- /main -->
+<div id="notes-prev-next" class="page-nav-links"></div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+  // ==========================================================================
+  // El arreglo `notesOrder` se GENERA automáticamente a partir del parámetro
+  // `number-offset` del front matter de cada entrada, mediante el script
+  // scripts/build-notes-order.py (hook pre-render de Quarto). Así el orden
+  // anterior/siguiente siempre refleja la numeración real de cada sección.
+  // No editar el bloque entre los marcadores a mano: se sobrescribe en el build.
+  // ==========================================================================
+  /* NOTES_ORDER_START */
+  const notesOrder = [
+    {
+        "section": "apuntes/calculo-incertidumbre-y-optimizacion",
+        "items": [
+            {
+                "title": "Cálculo diferencial",
+                "href": "/apuntes/calculo-incertidumbre-y-optimizacion/calculo-diferencial/"
+            },
+            {
+                "title": "Aplicaciones del cálculo diferencial",
+                "href": "/apuntes/calculo-incertidumbre-y-optimizacion/aplicaciones-del-calculo-diferencial/"
+            },
+            {
+                "title": "Probabilidad elemental",
+                "href": "/apuntes/calculo-incertidumbre-y-optimizacion/probabilidad-clasica/"
+            },
+            {
+                "title": "Introducción al cálculo de probabilidades",
+                "href": "/apuntes/calculo-incertidumbre-y-optimizacion/introduccion-al-calculo-de-probabilidades/"
+            },
+            {
+                "title": "Distribuciones específicas de probabilidad",
+                "href": "/apuntes/calculo-incertidumbre-y-optimizacion/distribuciones-especificas-de-probabilidad/"
+            },
+            {
+                "title": "Introducción a la teoría de optimización",
+                "href": "/apuntes/calculo-incertidumbre-y-optimizacion/introduccion-a-la-teoria-de-optimizacion/"
+            },
+            {
+                "title": "Optimización de tipo black-box",
+                "href": "/apuntes/calculo-incertidumbre-y-optimizacion/optimizacion-de-tipo-black-box/"
+            },
+            {
+                "title": "Optimización aplicada a machine learning",
+                "href": "/apuntes/calculo-incertidumbre-y-optimizacion/optimizacion-aplicada-al-aprendizaje-automatico/"
+            }
+        ]
+    },
+    {
+        "section": "apuntes/estructuras-lineales",
+        "items": [
+            {
+                "title": "Espacios vectoriales",
+                "href": "/apuntes/estructuras-lineales/espacios-vectoriales/"
+            },
+            {
+                "title": "Bases y dimensión",
+                "href": "/apuntes/estructuras-lineales/bases-y-dimension/"
+            },
+            {
+                "title": "Transformaciones lineales",
+                "href": "/apuntes/estructuras-lineales/transformaciones-lineales/"
+            },
+            {
+                "title": "Producto interno",
+                "href": "/apuntes/estructuras-lineales/producto-interno/"
+            },
+            {
+                "title": "Determinantes y diagonalización",
+                "href": "/apuntes/estructuras-lineales/determinantes-y-diagonalizacion/"
+            },
+            {
+                "title": "Una introducción a las formas",
+                "href": "/apuntes/estructuras-lineales/introduccion-a-las-formas/"
+            },
+            {
+                "title": "Descomposiciones matriciales",
+                "href": "/apuntes/estructuras-lineales/descomposiciones-matriciales/"
+            }
+        ]
+    },
+    {
+        "section": "apuntes/grafos-e-informacion",
+        "items": [
+            {
+                "title": "Una (no tan breve) introducción a la teoría de grafos",
+                "href": "/apuntes/grafos-e-informacion/teoria-de-grafos/"
+            },
+            {
+                "title": "Optimización de redes computacionales",
+                "href": "/apuntes/grafos-e-informacion/optimizacion-de-grafos/"
+            },
+            {
+                "title": "Introducción a la teoría de la información",
+                "href": "/apuntes/grafos-e-informacion/introduccion-a-la-teoria-de-la-informacion/"
+            },
+            {
+                "title": "Cadenas de Markov",
+                "href": "/apuntes/grafos-e-informacion/cadenas-de-markov/"
+            }
+        ]
+    },
+    {
+        "section": "apuntes/tensores-y-variedades",
+        "items": [
+            {
+                "title": "Una primera aproximación a los tensores",
+                "href": "/apuntes/tensores-y-variedades/introducion-a-los-tensores/"
+            },
+            {
+                "title": "Introducción al álgebra tensorial",
+                "href": "/apuntes/tensores-y-variedades/introducion-al-algebra-tensorial/"
+            },
+            {
+                "title": "Un cuento que versa sobre topología",
+                "href": "/apuntes/tensores-y-variedades/introduccion-a-la-topologia/"
+            },
+            {
+                "title": "Variedades y fibrados vectoriales",
+                "href": "/apuntes/tensores-y-variedades/introduccion-a-las-variedades/"
+            }
+        ]
+    },
+    {
+        "section": "clases/data-analytics/introduccion-al-analisis-de-datos-en-python/computacion-vectorizada-y-arreglos-con-numpy",
+        "items": [
+            {
+                "title": "Introducción a Numpy",
+                "href": "/clases/data-analytics/introduccion-al-analisis-de-datos-en-python/computacion-vectorizada-y-arreglos-con-numpy/introduccion-a-numpy/"
+            },
+            {
+                "title": "Operatoria en Numpy",
+                "href": "/clases/data-analytics/introduccion-al-analisis-de-datos-en-python/computacion-vectorizada-y-arreglos-con-numpy/operatoria-en-numpy/"
+            },
+            {
+                "title": "Operaciones de agregación",
+                "href": "/clases/data-analytics/introduccion-al-analisis-de-datos-en-python/computacion-vectorizada-y-arreglos-con-numpy/broadcasting-y-agregacion/"
+            },
+            {
+                "title": "Comparación, ordenamiento y reemplazos en arreglos",
+                "href": "/clases/data-analytics/introduccion-al-analisis-de-datos-en-python/computacion-vectorizada-y-arreglos-con-numpy/comparacion-ordenamiento-y-reemplazo/"
+            },
+            {
+                "title": "Aplicación de Numpy en la construcción de modelos predictivos",
+                "href": "/clases/data-analytics/introduccion-al-analisis-de-datos-en-python/computacion-vectorizada-y-arreglos-con-numpy/aplicaciones-en-modelos/"
+            }
+        ]
+    },
+    {
+        "section": "clases/data-analytics/introduccion-al-analisis-de-datos-en-python/manipulacion-tabular-y-analisis-con-pandas",
+        "items": [
+            {
+                "title": "Una introducción rápida a Pandas",
+                "href": "/clases/data-analytics/introduccion-al-analisis-de-datos-en-python/manipulacion-tabular-y-analisis-con-pandas/introduccion-rapida-a-pandas/"
+            },
+            {
+                "title": "Tipos de datos en Pandas",
+                "href": "/clases/data-analytics/introduccion-al-analisis-de-datos-en-python/manipulacion-tabular-y-analisis-con-pandas/tipos-de-datos-en-pandas/"
+            },
+            {
+                "title": "Manipulación de Series - Parte I",
+                "href": "/clases/data-analytics/introduccion-al-analisis-de-datos-en-python/manipulacion-tabular-y-analisis-con-pandas/manipulacion-de-series-parte-i/"
+            },
+            {
+                "title": "Manipulación de Series - Parte II",
+                "href": "/clases/data-analytics/introduccion-al-analisis-de-datos-en-python/manipulacion-tabular-y-analisis-con-pandas/manipulacion-de-series-parte-ii/"
+            }
+        ]
+    },
+    {
+        "section": "clases/machine-learning/aprendizaje-supervisado/modelos-lineales",
+        "items": [
+            {
+                "title": "Una introducción sencilla a los algoritmos de aprendizaje",
+                "href": "/clases/machine-learning/aprendizaje-supervisado/modelos-lineales/introduccion-algoritmos-aprendizaje/"
+            },
+            {
+                "title": "Una introducción a Scikit-Learn",
+                "href": "/clases/machine-learning/aprendizaje-supervisado/modelos-lineales/introduccion-a-scikit-learn/"
+            },
+            {
+                "title": "Modelos de clasificación - Parte I",
+                "href": "/clases/machine-learning/aprendizaje-supervisado/modelos-lineales/modelos-de-clasificacion-parte-i/"
+            },
+            {
+                "title": "Modelos de clasificación - Parte II",
+                "href": "/clases/machine-learning/aprendizaje-supervisado/modelos-lineales/modelos-de-clasificacion-parte-ii/"
+            },
+            {
+                "title": "Modelo de regresión lineal",
+                "href": "/clases/machine-learning/aprendizaje-supervisado/modelos-lineales/modelo-de-regresion-lineal/"
+            },
+            {
+                "title": "Modelos lineales regularizados, Bayesianos y generalizados",
+                "href": "/clases/machine-learning/aprendizaje-supervisado/modelos-lineales/modelos-lineales-regularizados-bayesianos-y-generalizados/"
+            },
+            {
+                "title": "Máquinas de soporte vectorial",
+                "href": "/clases/machine-learning/aprendizaje-supervisado/modelos-lineales/maquinas-de-soporte-vectorial/"
+            }
+        ]
+    },
+    {
+        "section": "clases/machine-learning/aprendizaje-supervisado/modelos-no-lineales",
+        "items": [
+            {
+                "title": "Árboles de decisión",
+                "href": "/clases/machine-learning/aprendizaje-supervisado/modelos-no-lineales/arboles-de-decision/"
+            },
+            {
+                "title": "Modelos de ensamble",
+                "href": "/clases/machine-learning/aprendizaje-supervisado/modelos-no-lineales/modelos-de-ensamble/"
+            },
+            {
+                "title": "Boosting especializado",
+                "href": "/clases/machine-learning/aprendizaje-supervisado/modelos-no-lineales/modelos-de-ensamble-especializados/"
+            },
+            {
+                "title": "Estimación de importancia de variables en modelos predictivos",
+                "href": "/clases/machine-learning/aprendizaje-supervisado/modelos-no-lineales/importancia-de-variables/"
+            }
+        ]
+    },
+    {
+        "section": "clases/machine-learning/seleccion-de-variables-metricas-y-tuning",
+        "items": [
+            {
+                "title": "Selección y evaluación de modelos",
+                "href": "/clases/machine-learning/seleccion-de-variables-metricas-y-tuning/seleccion-y-evaluacion-de-modelos/"
+            }
+        ]
+    }
+];
+  /* NOTES_ORDER_END */
+
+  function normalizePath(path) {
+    if (!path.endsWith("/")) path += "/";
+    path = path.replace(/index\.html\/?$/, "");
+    return path;
+  }
+
+  const currentPath = normalizePath(window.location.pathname);
+  const container = document.getElementById("notes-prev-next");
+
+  let previous = null;
+  let next = null;
+  let found = false;
+
+  for (const section of notesOrder) {
+    const items = section.items;
+    const index = items.findIndex(item => normalizePath(item.href) === currentPath);
+
+    if (index !== -1) {
+      found = true;
+      if (index > 0) previous = items[index - 1];
+      if (index < items.length - 1) next = items[index + 1];
+      break;
+    }
+  }
+
+  if (!found) {
+    container.style.display = "none";
+    return;
+  }
+
+  container.innerHTML = `
+    <div class="page-nav-prev">
+      ${previous ? `<a href="${previous.href}">← ${previous.title}</a>` : ``}
+    </div>
+    <div class="page-nav-next">
+      ${next ? `<a href="${next.href}">${next.title} →</a>` : ``}
+    </div>
+  `;
+});
+</script>
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    // Ensure there is a toggle, if there isn't float one in the top right
+    if (window.document.querySelector('.quarto-color-scheme-toggle') === null) {
+      const a = window.document.createElement('a');
+      a.classList.add('top-right');
+      a.classList.add('quarto-color-scheme-toggle');
+      a.href = "";
+      a.onclick = function() { try { window.quartoToggleColorScheme(); } catch {} return false; };
+      const i = window.document.createElement("i");
+      i.classList.add('bi');
+      a.appendChild(i);
+      window.document.body.appendChild(a);
+    }
+    setColorSchemeToggle(hasAlternateSentinel())
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp('/' + window.location.host + '/');
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+</div> <!-- /content -->
+<footer class="footer">
+  <div class="nav-footer">
+    <div class="nav-footer-left">
+<p>© René Quezada</p>
+</div>   
+    <div class="nav-footer-center">
+      &nbsp;
+    </div>
+    <div class="nav-footer-right">
+<p>Hecho con Quarto</p>
+</div>
+  </div>
+</footer>
+
+
+
+
+<script src="../../site_libs/quarto-html/zenscroll-min.js"></script>
+</body></html>

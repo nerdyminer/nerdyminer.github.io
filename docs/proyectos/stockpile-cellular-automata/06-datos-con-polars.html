@@ -1,0 +1,1519 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.9.37">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="description" content="De señales minuto a minuto a entradas regulares, tipadas y reproducibles para el autómata.">
+
+<title>6. Ingeniería de datos con Polars – NerdyMiner</title>
+<style>
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="../../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../../">
+<script src="../../site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="../../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../../site_libs/quarto-html/popper.min.js"></script>
+<script src="../../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../../site_libs/quarto-html/quarto-syntax-highlighting-b16add4d910ff6038463ffc00184b1c1.css" rel="stylesheet" class="quarto-color-scheme" id="quarto-text-highlighting-styles">
+<link href="../../site_libs/quarto-html/quarto-syntax-highlighting-dark-e3b8bbca183a7d6761657ecb5c5aa65f.css" rel="stylesheet" class="quarto-color-scheme quarto-color-alternate" id="quarto-text-highlighting-styles">
+<link href="../../site_libs/quarto-html/quarto-syntax-highlighting-b16add4d910ff6038463ffc00184b1c1.css" rel="stylesheet" class="quarto-color-scheme-extra" id="quarto-text-highlighting-styles">
+<script src="../../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../../site_libs/bootstrap/bootstrap-20a3660c41a27997b0067576444d6464.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
+<link href="../../site_libs/bootstrap/bootstrap-dark-82b8a8f05674b84d57516846be433586.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
+<link href="../../site_libs/bootstrap/bootstrap-20a3660c41a27997b0067576444d6464.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+<style>html{ scroll-behavior: smooth; }</style>
+
+  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
+  <script defer="" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN" && texText && texText.data) {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
+
+</head>
+
+<body class="nav-fixed quarto-light"><script id="quarto-html-before-body" type="application/javascript">
+    const toggleBodyColorMode = (bsSheetEl) => {
+      const mode = bsSheetEl.getAttribute("data-mode");
+      const bodyEl = window.document.querySelector("body");
+      if (mode === "dark") {
+        bodyEl.classList.add("quarto-dark");
+        bodyEl.classList.remove("quarto-light");
+      } else {
+        bodyEl.classList.add("quarto-light");
+        bodyEl.classList.remove("quarto-dark");
+      }
+    }
+    const toggleBodyColorPrimary = () => {
+      const bsSheetEl = window.document.querySelector("link#quarto-bootstrap:not([rel=disabled-stylesheet])");
+      if (bsSheetEl) {
+        toggleBodyColorMode(bsSheetEl);
+      }
+    }
+    const setColorSchemeToggle = (alternate) => {
+      const toggles = window.document.querySelectorAll('.quarto-color-scheme-toggle');
+      for (let i=0; i < toggles.length; i++) {
+        const toggle = toggles[i];
+        if (toggle) {
+          if (alternate) {
+            toggle.classList.add("alternate");
+          } else {
+            toggle.classList.remove("alternate");
+          }
+        }
+      }
+    };
+    const toggleColorMode = (alternate) => {
+      // Switch the stylesheets
+      const primaryStylesheets = window.document.querySelectorAll('link.quarto-color-scheme:not(.quarto-color-alternate)');
+      const alternateStylesheets = window.document.querySelectorAll('link.quarto-color-scheme.quarto-color-alternate');
+      manageTransitions('#quarto-margin-sidebar .nav-link', false);
+      if (alternate) {
+        // note: dark is layered on light, we don't disable primary!
+        enableStylesheet(alternateStylesheets);
+        for (const sheetNode of alternateStylesheets) {
+          if (sheetNode.id === "quarto-bootstrap") {
+            toggleBodyColorMode(sheetNode);
+          }
+        }
+      } else {
+        disableStylesheet(alternateStylesheets);
+        enableStylesheet(primaryStylesheets)
+        toggleBodyColorPrimary();
+      }
+      manageTransitions('#quarto-margin-sidebar .nav-link', true);
+      // Switch the toggles
+      setColorSchemeToggle(alternate)
+      // Hack to workaround the fact that safari doesn't
+      // properly recolor the scrollbar when toggling (#1455)
+      if (navigator.userAgent.indexOf('Safari') > 0 && navigator.userAgent.indexOf('Chrome') == -1) {
+        manageTransitions("body", false);
+        window.scrollTo(0, 1);
+        setTimeout(() => {
+          window.scrollTo(0, 0);
+          manageTransitions("body", true);
+        }, 40);
+      }
+    }
+    const disableStylesheet = (stylesheets) => {
+      for (let i=0; i < stylesheets.length; i++) {
+        const stylesheet = stylesheets[i];
+        stylesheet.rel = 'disabled-stylesheet';
+      }
+    }
+    const enableStylesheet = (stylesheets) => {
+      for (let i=0; i < stylesheets.length; i++) {
+        const stylesheet = stylesheets[i];
+        if(stylesheet.rel !== 'stylesheet') { // for Chrome, which will still FOUC without this check
+          stylesheet.rel = 'stylesheet';
+        }
+      }
+    }
+    const manageTransitions = (selector, allowTransitions) => {
+      const els = window.document.querySelectorAll(selector);
+      for (let i=0; i < els.length; i++) {
+        const el = els[i];
+        if (allowTransitions) {
+          el.classList.remove('notransition');
+        } else {
+          el.classList.add('notransition');
+        }
+      }
+    }
+    const isFileUrl = () => {
+      return window.location.protocol === 'file:';
+    }
+    const hasAlternateSentinel = () => {
+      let styleSentinel = getColorSchemeSentinel();
+      if (styleSentinel !== null) {
+        return styleSentinel === "alternate";
+      } else {
+        return false;
+      }
+    }
+    const setStyleSentinel = (alternate) => {
+      const value = alternate ? "alternate" : "default";
+      if (!isFileUrl()) {
+        window.localStorage.setItem("quarto-color-scheme", value);
+      } else {
+        localAlternateSentinel = value;
+      }
+    }
+    const getColorSchemeSentinel = () => {
+      if (!isFileUrl()) {
+        const storageValue = window.localStorage.getItem("quarto-color-scheme");
+        return storageValue != null ? storageValue : localAlternateSentinel;
+      } else {
+        return localAlternateSentinel;
+      }
+    }
+    const toggleGiscusIfUsed = (isAlternate, darkModeDefault) => {
+      const baseTheme = document.querySelector('#giscus-base-theme')?.value ?? 'light';
+      const alternateTheme = document.querySelector('#giscus-alt-theme')?.value ?? 'dark';
+      let newTheme = '';
+      if(authorPrefersDark) {
+        newTheme = isAlternate ? baseTheme : alternateTheme;
+      } else {
+        newTheme = isAlternate ? alternateTheme : baseTheme;
+      }
+      const changeGiscusTheme = () => {
+        // From: https://github.com/giscus/giscus/issues/336
+        const sendMessage = (message) => {
+          const iframe = document.querySelector('iframe.giscus-frame');
+          if (!iframe) return;
+          iframe.contentWindow.postMessage({ giscus: message }, 'https://giscus.app');
+        }
+        sendMessage({
+          setConfig: {
+            theme: newTheme
+          }
+        });
+      }
+      const isGiscussLoaded = window.document.querySelector('iframe.giscus-frame') !== null;
+      if (isGiscussLoaded) {
+        changeGiscusTheme();
+      }
+    };
+    const authorPrefersDark = false;
+    const darkModeDefault = authorPrefersDark;
+      document.querySelector('link#quarto-text-highlighting-styles.quarto-color-scheme-extra').rel = 'disabled-stylesheet';
+      document.querySelector('link#quarto-bootstrap.quarto-color-scheme-extra').rel = 'disabled-stylesheet';
+    let localAlternateSentinel = darkModeDefault ? 'alternate' : 'default';
+    // Dark / light mode switch
+    window.quartoToggleColorScheme = () => {
+      // Read the current dark / light value
+      let toAlternate = !hasAlternateSentinel();
+      toggleColorMode(toAlternate);
+      setStyleSentinel(toAlternate);
+      toggleGiscusIfUsed(toAlternate, darkModeDefault);
+      window.dispatchEvent(new Event('resize'));
+    };
+    // Switch to dark mode if need be
+    if (hasAlternateSentinel()) {
+      toggleColorMode(true);
+    } else {
+      toggleColorMode(false);
+    }
+  </script>
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container mx-auto">
+    <a href="../../index.html" class="navbar-brand navbar-brand-logo">
+    <img src="../../images/nerdyminer-icon.svg" alt="NerdyMiner" class="navbar-logo light-content">
+    <img src="../../images/nerdyminer-icon.svg" alt="NerdyMiner" class="navbar-logo dark-content">
+    </a>
+    <a class="navbar-brand" href="../../index.html">
+    <span class="navbar-title">NerdyMiner</span>
+    </a>
+  </div>
+            <div id="quarto-search" class="" title="Search"></div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" role="menu" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll me-auto">
+  <li class="nav-item">
+    <a class="nav-link" href="../../index.html"> 
+<span class="menu-text">Inicio</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../articulos/index.html"> 
+<span class="menu-text">Artículos</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../apuntes/index.html"> 
+<span class="menu-text">Apuntes</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../clases/index.html"> 
+<span class="menu-text">Clases</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../bibliografia.html"> 
+<span class="menu-text">Bibliografía</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../proyectos/index.html"> 
+<span class="menu-text">Proyectos</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../licencia.html"> 
+<span class="menu-text">Licencia</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../sobre-mi.html"> 
+<span class="menu-text">Sobre mí</span></a>
+  </li>  
+</ul>
+          </div> <!-- /navcollapse -->
+            <div class="quarto-navbar-tools">
+  <a href="" class="quarto-color-scheme-toggle quarto-navigation-tool  px-1" onclick="window.quartoToggleColorScheme(); return false;" title="Toggle dark mode"><i class="bi"></i></a>
+</div>
+      </div> <!-- /container-fluid -->
+    </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
+<!-- sidebar -->
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul>
+  <li><a href="#por-qué-elegir-polars" id="toc-por-qué-elegir-polars" class="nav-link active" data-scroll-target="#por-qué-elegir-polars">¿Por qué elegir <strong><font color="darkmagenta">Polars</font></strong>?</a></li>
+  <li><a href="#nuestro-contrato-tabular" id="toc-nuestro-contrato-tabular" class="nav-link" data-scroll-target="#nuestro-contrato-tabular">Nuestro “contrato” tabular</a></li>
+  <li><a href="#estructura-temporal-de-la-retícula" id="toc-estructura-temporal-de-la-retícula" class="nav-link" data-scroll-target="#estructura-temporal-de-la-retícula">Estructura temporal de la retícula</a></li>
+  <li><a href="#gestión-de-datos" id="toc-gestión-de-datos" class="nav-link" data-scroll-target="#gestión-de-datos">Gestión de datos</a>
+  <ul class="collapse">
+  <li><a href="#expresiones-y-contextos-de-polars" id="toc-expresiones-y-contextos-de-polars" class="nav-link" data-scroll-target="#expresiones-y-contextos-de-polars">Expresiones y contextos de <strong><font color="darkmagenta">Polars</font></strong></a></li>
+  <li><a href="#flujo-másico-y-unidades" id="toc-flujo-másico-y-unidades" class="nav-link" data-scroll-target="#flujo-másico-y-unidades">Flujo másico y unidades</a></li>
+  <li><a href="#gestión-de-datos-nulos-e-infinitos" id="toc-gestión-de-datos-nulos-e-infinitos" class="nav-link" data-scroll-target="#gestión-de-datos-nulos-e-infinitos">Gestión de datos nulos e infinitos</a></li>
+  <li><a href="#distribución-de-tamaños" id="toc-distribución-de-tamaños" class="nav-link" data-scroll-target="#distribución-de-tamaños">Distribución de tamaños</a></li>
+  </ul></li>
+  <li><a href="#frontera-entre-polars-y-pydantic" id="toc-frontera-entre-polars-y-pydantic" class="nav-link" data-scroll-target="#frontera-entre-polars-y-pydantic">Frontera entre <strong><font color="darkmagenta">Polars</font></strong> y <strong><font color="darkmagenta">Pydantic</font></strong></a></li>
+  <li><a href="#evaluación-perezosa-y-estricta-de-dataframes" id="toc-evaluación-perezosa-y-estricta-de-dataframes" class="nav-link" data-scroll-target="#evaluación-perezosa-y-estricta-de-dataframes">Evaluación <em>perezosa</em> y <em>estricta</em> de DataFrames</a></li>
+  <li><a href="#conversión-dimensional-explícita" id="toc-conversión-dimensional-explícita" class="nav-link" data-scroll-target="#conversión-dimensional-explícita">Conversión dimensional explícita</a></li>
+  <li><a href="#el-contrato-operacional-de-los-valores-tipo-null" id="toc-el-contrato-operacional-de-los-valores-tipo-null" class="nav-link" data-scroll-target="#el-contrato-operacional-de-los-valores-tipo-null">El “contrato” operacional de los valores tipo <code>null</code></a></li>
+  <li><a href="#checklist-final-previo-a-la-simulación" id="toc-checklist-final-previo-a-la-simulación" class="nav-link" data-scroll-target="#checklist-final-previo-a-la-simulación">Checklist final previo a la simulación</a></li>
+  </ul>
+</nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content">
+
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title">6. Ingeniería de datos con <strong><font color="darkmagenta">Polars</font></strong></h1>
+</div>
+
+<div>
+  <div class="description">
+    De señales minuto a minuto a entradas regulares, tipadas y reproducibles para el autómata.
+  </div>
+</div>
+
+
+<div class="quarto-title-meta">
+
+    
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<p><a href="../../proyectos/stockpile-cellular-automata/index.html">← Volver al proyecto</a></p>
+<section id="por-qué-elegir-polars" class="level2">
+<h2 class="anchored" data-anchor-id="por-qué-elegir-polars">¿Por qué elegir <strong><font color="darkmagenta">Polars</font></strong>?</h2>
+<p>En este proyecto, hemos adoptado el uso de la librería <strong><font color="darkmagenta">Polars</font></strong> a fin de explorar el uso de una alternativa moderna a <strong><font color="darkmagenta">Pandas</font></strong>. La razón de esto estriba simplemente en aprovechar las capacidades de <strong><font color="darkmagenta">Polars</font></strong> para manejar grandes volúmenes de datos de manera eficiente y con un enfoque declarativo. Su motor columnar, basado en Apache Arrow, permite operaciones rápidas y optimizadas con respecto a las columnas que constituyen un DataFrame, lo que resulta especialmente útil para la ingeniería de datos a gran escala. No queremos, bajo ninguna circunstancia, que ésto suene como si declaráramos un vencedor universal. <strong><font color="darkmagenta">Pandas</font></strong> sigue siendo una herramienta poderosa y ampliamente utilizada en la comunidad de ciencia de datos, con un abanico de opciones enorme para enfrentar cualquier problema.</p>
+<p>En particular, aprovecharemos la capacidad de <strong><font color="darkmagenta">Polars</font></strong> para la realización de evaluaciones <em>perezosas</em> por medio de la introducción de LazyFrames; esto es, las operaciones sobre los datos se definen de manera declarativa y no se ejecutan hasta que se solicita explícitamente la materialización del resultado por medio del método <code>collect()</code>. La razón es práctica: Permite optimizar el <strong>plan de ejecución</strong> de una secuencia de operaciones, materializando únicamente las columnas necesarias y evitando cálculos intermedios que pueden consumir memoria inútilmente.</p>
+<p>Un ejemplo de cómo se utiliza un <code>LazyFrame</code> en <strong><font color="darkmagenta">Polars</font></strong> es el siguiente:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> polars <span class="im">as</span> pl</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>curated <span class="op">=</span> (</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>    raw.lazy()</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>    .sort(<span class="st">"timestamp"</span>)</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>    .with_columns(</span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>        pl.col(<span class="st">"feed_tph"</span>).clip(<span class="dv">0</span>, <span class="dv">10_000</span>),</span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>        (pl.col(<span class="st">"feed_tph"</span>) <span class="op">-</span> pl.col(<span class="st">"discharge_a_tph"</span>) <span class="op">-</span> pl.col(<span class="st">"discharge_b_tph"</span>))</span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>        .truediv(<span class="fl">60.0</span>)</span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a>        .alias(<span class="st">"inventory_delta_t"</span>),</span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a>        pl.col(<span class="st">"timestamp"</span>).dt.date().alias(<span class="st">"day"</span>),</span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a>    .<span class="bu">filter</span>(pl.col(<span class="st">"feed_p80_in"</span>).is_between(<span class="fl">0.05</span>, <span class="fl">30.0</span>))</span>
+<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a>    .collect()</span>
+<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>En este bloque de código se realiza la preparación inicial de los datos crudos mediante un <code>LazyFrame</code> de <strong><font color="darkmagenta">Polars</font></strong>. Se ordenan los registros por timestamp, se aplican transformaciones a las columnas, se calculan derivadas como <code>inventory_delta_t</code>, se filtran valores fuera de rango y finalmente se materializa el resultado con <code>collect()</code>. Esto permite trabajar con grandes volúmenes de datos de manera eficiente, aprovechando la evaluación perezosa y las optimizaciones internas de <strong><font color="darkmagenta">Polars</font></strong>. Además, sacamos un enorme provecho del encadenamiento de métodos para darle un fuerte carácter declarativo al flujo de datos, visualizando explícitamente todo el plan de ejecución.</p>
+<p>… no es que en <strong><font color="darkmagenta">Pandas</font></strong> no podamos hacer lo mismo, sino que <strong><font color="darkmagenta">Polars</font></strong> ofrece ventajas en términos de rendimiento y manejo de grandes volúmenes de datos gracias a su evaluación perezosa y optimizaciones internas.</p>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Note</span>Ya que estamos hablando de <strong><font color="darkmagenta">Polars</font></strong>…
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>Uno no aprende <strong><font color="darkmagenta">Polars</font></strong> de la noche a la mañana; requiere práctica y familiaridad con su API y filosofía de evaluación perezosa. En un principio, un colega me comentó que era como “aprender <strong><font color="darkmagenta">Pandas</font></strong>, pero con una transmisión manual en vez de automática”. Esto significa que debemos ser conscientes de cuándo se materializan los datos y cómo se encadenan las operaciones para aprovechar al máximo las optimizaciones internas provistas por la librería. Materiales para esto hay muchos. Sin embargo, personalmente, recomiendo el maravilloso libro <a href="https://store.metasnake.com/effective-polars">“Effective Polars” de Matt Harrison</a>.</p>
+</div>
+</div>
+</section>
+<section id="nuestro-contrato-tabular" class="level2">
+<h2 class="anchored" data-anchor-id="nuestro-contrato-tabular">Nuestro “contrato” tabular</h2>
+<p>Respecto a la estructura de los datos, nuestro “contrato” tabular define los campos, tipos conceptuales, unidades y usos esperados de cada columna en la tabla pública. Esto asegura consistencia y claridad en el manejo de la información a lo largo de todo el flujo de procesamiento. Dicho contrato puede resumirse conforme a la siguiente tabla:</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 17%">
+<col style="width: 17%">
+<col style="width: 17%">
+<col style="width: 47%">
+</colgroup>
+<thead>
+<tr class="header">
+<th style="text-align: left;">Campo</th>
+<th style="text-align: left;">Tipo conceptual</th>
+<th style="text-align: left;">Unidad</th>
+<th style="text-align: left;">Uso</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;"><code>timestamp</code></td>
+<td style="text-align: left;">Fechas y horas en formato <code>datetime</code>, con zona horaria UTC.</td>
+<td style="text-align: left;">Minuto a minuto.</td>
+<td style="text-align: left;">Llave primaria y orden.</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"><code>feed_tph</code></td>
+<td style="text-align: left;">Variable continua no negativa.</td>
+<td style="text-align: left;">tph.</td>
+<td style="text-align: left;">Flujo másico de entrada al stockpile.</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;"><code>discharge_a_tph</code></td>
+<td style="text-align: left;">Variable continua no negativa.</td>
+<td style="text-align: left;">tph.</td>
+<td style="text-align: left;">Flujo másico de salida por la línea A.</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"><code>discharge_b_tph</code></td>
+<td style="text-align: left;">Variable continua no negativa.</td>
+<td style="text-align: left;">tph.</td>
+<td style="text-align: left;">Flujo másico de salida por la línea B.</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;"><code>feed_p80_in</code></td>
+<td style="text-align: left;">Variable continua positiva.</td>
+<td style="text-align: left;">Pulgadas.</td>
+<td style="text-align: left;">Propiedad de entrada del material, correspondiente al percentil <span class="math inline">\(P_{80}\)</span> de la distribución granulométrica.</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"><code>measured_height_m</code></td>
+<td style="text-align: left;">Variable continua.</td>
+<td style="text-align: left;">Metros.</td>
+<td style="text-align: left;">Altura medida del stockpile.</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;"><code>inventory_delta_t</code></td>
+<td style="text-align: left;">Variable derivada.</td>
+<td style="text-align: left;">t/min.</td>
+<td style="text-align: left;">Balance local del inventario del stockpile.</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"><code>day</code></td>
+<td style="text-align: left;">Fecha.</td>
+<td style="text-align: left;">Diaria.</td>
+<td style="text-align: left;">Partición y reporte de los datos.</td>
+</tr>
+</tbody>
+</table>
+<p>Notemos que este “contrato” tabular establece de manera explícita las expectativas sobre la estructura y el significado de los datos, facilitando la consistencia y claridad en todo el flujo de procesamiento. No incluye nombres de <em>tags</em> ni identificadores específicos de sistemas externos; se centra en la semántica y el uso de cada columna. Cualquier función de Python que actúe como <em>adaptador</em> puede mapear señales externas a <code>feed_tph</code>, pero el dominio de validez y las transformaciones deben respetar las expectativas definidas en este contrato, por lo que nunca necesitan conocer identificadores únicos provistos por sistemas de historización (como PI o PHD).</p>
+</section>
+<section id="estructura-temporal-de-la-retícula" class="level2">
+<h2 class="anchored" data-anchor-id="estructura-temporal-de-la-retícula">Estructura temporal de la retícula</h2>
+<p>La retícula temporal define cómo se organizan las observaciones a lo largo del tiempo. Para nuestro caso, consideramos una retícula con pasos de un minuto, lo que significa que cada celda temporal representa un intervalo de un minuto. Esto permite al autómata celular operar con una granularidad consistente y facilita la interpolación y agregación de señales.</p>
+<p>La razón de escoger este patrón de diseño temporal radica en que un minuto es lo suficientemente corto para capturar cambios relevantes en el flujo de material y en las propiedades del stockpile, pero no tan corto como para generar un volumen de datos inmanejable. Esto equilibra la resolución temporal con la eficiencia computacional y la calidad de las inferencias del autómata celular.</p>
+<p>La preparación de los datos considera la siguiente secuencia lógica:</p>
+<ol type="1">
+<li>Normalización de la zona horaria a UTC, ya que garantiza consistencia temporal y evita ambigüedades al alinear y agregar señales provenientes de diferentes fuentes. Toda traducción a zonas locales debe realizarse después de esta normalización.</li>
+<li>Remoción de duplicados y ordenamiento cronológico, para asegurar que cada celda temporal contenga una única observación y que las secuencias temporales sean coherentes. Esta política debe declararse de manera explícita.</li>
+<li>Interpolación de datos faltantes, utilizando métodos apropiados para cada tipo de señal, de manera que el autómata celular reciba una retícula completa de puntos discretos, sin discontinuidades.</li>
+<li>Agregación y remuestreo, si es necesario, para ajustar la granularidad de las señales a la retícula temporal definida.</li>
+<li>Validación de la retícula temporal, para asegurar que todas las celdas estén correctamente alineadas y que no existan inconsistencias temporales antes de alimentar los datos al autómata celular.</li>
+<li>Documentación de las transformaciones aplicadas, para mantener un registro claro de cómo se han preparado los datos y facilitar la reproducibilidad y el mantenimiento del flujo de procesamiento. Esto permite definir la calidad y la confiabilidad de los datos utilizados por el autómata celular.</li>
+<li>Cálculo de la cobertura de la retícula temporal, para evaluar qué proporción de celdas temporales contiene datos válidos y detectar posibles huecos o inconsistencias antes de alimentar los datos al autómata celular.</li>
+</ol>
+<p>Un flujo másico puede interpolarse durante un período de ausencia de datos relativamente corto, siempre que se mantenga la coherencia con las observaciones adyacentes. De la misma forma, un estado discreto de un feeder no debe <em>inventarse</em> durante largos períodos y debe seguir políticas de <em>forward fill</em> acotadas. Una granulometría provista por splits debe considerarse válida solo durante el intervalo en que se dispone de datos medidos, y no debe extrapolarse más allá de ese rango. Por lo tanto, las políticas de interpolación y extrapolación deben definirse explícitamente en el catálogo de señales y no aplicarse de manera global e indiscriminada.</p>
+</section>
+<section id="gestión-de-datos" class="level2">
+<h2 class="anchored" data-anchor-id="gestión-de-datos">Gestión de datos</h2>
+<p>El trabajo con <strong><font color="darkmagenta">Polars</font></strong> exige un enfoque cuidadoso a nivel procedimental, distinguiendo entre <strong>expresiones</strong> y <strong>contextos</strong>. Sin embargo, a nivel estructural, los DataFrames de <strong><font color="darkmagenta">Polars</font></strong> se comportan como tablas inmutables, lo que permite razonar sobre la forma y el esquema de los datos de manera consistente. A diferencia de <strong><font color="darkmagenta">Pandas</font></strong>, en <strong><font color="darkmagenta">Polars</font></strong> no existen los índices de filas como entidades separadas; todas las operaciones se realizan sobre columnas y se accede a las filas de manera posicional.</p>
+<section id="expresiones-y-contextos-de-polars" class="level3">
+<h3 class="anchored" data-anchor-id="expresiones-y-contextos-de-polars">Expresiones y contextos de <strong><font color="darkmagenta">Polars</font></strong></h3>
+<p>Las <strong>expresiones</strong> representan operaciones sobre columnas de datos y pueden combinarse para formar transformaciones complejas, mientras que los <strong>contextos</strong> determinan cómo y cuándo se evalúan estas expresiones dentro de un DataFrame. Esta distinción es crucial para optimizar el rendimiento y garantizar la coherencia de los cálculos.</p>
+<p>Los contextos determinan el ámbito en el que se evalúan las expresiones y, en la práctica, corresponden a métodos que se aplican sobre un DataFrame. Por ejemplo:</p>
+<ul>
+<li><code>select()</code>, que permite seleccionar y transformar columnas específicas de un DataFrame.</li>
+<li><code>with_columns()</code>, que permite agregar o modificar columnas existentes en un DataFrame.</li>
+<li><code>filter()</code>, que permite filtrar filas según condiciones expresadas sobre las columnas.</li>
+<li><code>group_by()</code>, que permite agrupar filas según los valores de una o más columnas y aplicar agregaciones.</li>
+<li><code>group_by_dynamic()</code>, que permite agrupar filas de manera dinámica según intervalos de tiempo, útil para series temporales.</li>
+<li><code>join()</code>, que permite combinar dos DataFrames según columnas clave, similar a las operaciones de combinación típicas de SQL.</li>
+<li><code>over()</code>, que permite calcular ventanas sobre columnas conservando las filas originales.</li>
+</ul>
+<p>Un ejemplo de conversión de datos minuto a minuto en “frames” de 15 minutos se muestra a continuación:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>sampled <span class="op">=</span> (</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>    minute</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>    .group_by_dynamic(</span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>        <span class="st">"timestamp"</span>, every<span class="op">=</span><span class="st">"15m"</span>, period<span class="op">=</span><span class="st">"15m"</span>, closed<span class="op">=</span><span class="st">"left"</span></span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>    ).agg(</span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>        pl.col(<span class="st">"feed_tph"</span>).mean(),</span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>        pl.col(<span class="st">"discharge_a_tph"</span>).mean(),</span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>        pl.col(<span class="st">"feed_p80_in"</span>).mean(),</span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>El encadenamiento de métodos permite construir transformaciones complejas de manera legible y eficiente, evitando la necesidad de crear variables intermedias. En el bloque de código anterior:</p>
+<ul>
+<li><code>group_by_dynamic("timestamp", every="15m", period="15m", closed="left")</code> agrupa los datos en intervalos de 15 minutos según la columna <code>timestamp</code>. El argumento <code>closed="left"</code> indica que el límite izquierdo del intervalo está incluido, mientras que el derecho está excluido.</li>
+<li><code>agg(pl.col("columna_j").mean(),</code> calcula la media de <code>columna_j</code> dentro de cada grupo definido por <code>group_by_dynamic()</code> (en este caso, se trata de una media móvil con granularidad de 15 minutos).</li>
+</ul>
+<p>Este patrón es constante todo este proyecto, a fin de mantener la consistencia en la agregación y transformación de datos temporales.</p>
+</section>
+<section id="flujo-másico-y-unidades" class="level3">
+<h3 class="anchored" data-anchor-id="flujo-másico-y-unidades">Flujo másico y unidades</h3>
+<p>Cuando intentamos representar el proceso de descarga de masa en una retícula completa de material, debemos considerar tanto el flujo másico como las unidades de medida para asegurar la consistencia dimensional en nuestras simulaciones. Para ello, debemos cuidar de no usar promedios de caudales directamente como masas sin tener en cuenta el intervalo de tiempo correspondiente. En definitiva, cada flujo másico debe pasar por una ponderación conforme al intervalo de tiempo en el que se mide.</p>
+<p>Para un intervalo de tiempo de <span class="math inline">\(\triangle t\)</span> minutos, es decir,</p>
+<p><span class="math display">\[
+m_{t}=q_{t}\frac{\triangle t}{60}
+\]</span></p>
+<p>el número de celdas correspondiente a esa masa es</p>
+<p><span class="math display">\[
+n_{t}^{c}=\frac{m_{t}}{\rho_{b} \triangle x\triangle y\triangle z}
+\]</span></p>
+<p>Nuestra declaración de unidades debe ser consistente con estas fórmulas, asegurando que cada columna y cada intervalo de tiempo estén correctamente etiquetados y ponderados. El uso de sufijos como <code>_tph</code>, <code>_t</code>, <code>_m</code> e <code>_in</code> ayuda a mantener claridad y consistencia en las unidades.</p>
+</section>
+<section id="gestión-de-datos-nulos-e-infinitos" class="level3">
+<h3 class="anchored" data-anchor-id="gestión-de-datos-nulos-e-infinitos">Gestión de datos nulos e infinitos</h3>
+<p>En el contexto de series temporales y simulaciones de procesos, los datos nulos e infinitos pueden introducir inconsistencias y errores en los cálculos. Es fundamental identificar y manejar estos valores antes de realizar agregaciones o transformaciones.</p>
+<p>En <strong><font color="darkmagenta">Polars</font></strong>, existe una distinción importante entre valores <code>null</code> y <code>NaN</code>: Un registro <code>null</code> indica ausencia de valor, mientras que <code>NaN</code> representa un valor numérico indefinido dentro de un tipo flotante. Esto diferencia enormemente el comportamiento de los datos en <strong><font color="darkmagenta">Polars</font></strong> respecto de lo que ocurre en <strong><font color="darkmagenta">Pandas</font></strong>.</p>
+<p>Consecuentemente, el uso adecuado de funciones como <code>fill_null()</code>, <code>drop_nulls()</code> y <code>is_finite()</code> es crucial para mantener la integridad de los datos antes de realizar cualquier agregación o transformación. En <strong><font color="darkmagenta">Polars</font></strong>, el método <code>drop_nulls()</code> permite eliminar registros con valores <code>null</code>, pero no afecta a los valores <code>NaN</code>, los cuales deben manejarse explícitamente según la lógica de negocio. El uso de funciones de agregación puede propagar <code>NaN</code> si no se manejan adecuadamente, o si asumimos incorrectamente que métodos de eliminación y/o tratamiento de valores <code>null</code> también afectan a <code>NaN</code>.</p>
+<p>Para la limpieza de datos en <strong><font color="darkmagenta">Polars</font></strong>, se recomienda seguir un enfoque sistemático, el cual se implementa en este proyecto por medio de un “contrato” de calidad de datos que define las reglas y expectativas para los valores nulos, infinitos y fuera de rango:</p>
+<ul>
+<li>No se admiten valores de tipo <code>null</code> en campos imprescindibles.</li>
+<li>Tanto granulometrías como flujos másicos tienen siempre valores finitos.</li>
+<li>Los rangos de valores deben ser plausibles según la física del proceso.</li>
+<li>Todo DataFrame equipado con alguna columna que describe momentos en el tiempo (<code>timestamp</code>) debe estar ordenada cronológicamente.</li>
+<li>Los valores <code>NaN</code> deben ser tratados explícitamente según una lógica de negocio.</li>
+</ul>
+<p>Ciertas funciones son adecuadas para el tratamiento de datos conforme intervalos admisibles, tales como <code>clip()</code>, <code>filter()</code>, y <code>with_columns()</code> con expresiones condicionales. Estas permiten restringir los valores a rangos válidos, reemplazar valores fuera de rango y asegurar que los datos cumplan con las expectativas definidas en el contrato de calidad. Sin embargo, no toda variable cuyos valores se encuentran fuera de rango puede ser simplemente corregida o <em>recortada</em>; en algunos casos, es necesario revisar la fuente de los datos o aplicar transformaciones más complejas. El corte de intervalos puede disfrazar fallas de sensores de manera sileciosa, haciéndolas pasar como valores extremos plausibles.</p>
+</section>
+<section id="distribución-de-tamaños" class="level3">
+<h3 class="anchored" data-anchor-id="distribución-de-tamaños">Distribución de tamaños</h3>
+<p>En el contexto minero y de procesamiento de minerales, es posible registrar la distribución granulométrica de un flujo de material por medio del uso de <strong>cámaras split</strong>, las cuales hacen referencia a sistemas de visión computacional y hardware de captura de imágenes que permiten analizar el tamaño de las partículas en tiempo real. Estos sistemas utilizan algoritmos avanzados de procesamiento de imágenes e inteligencia artificial para <em>estimar</em> la fragmentación de la roca en tiempo real sin detener la producción.</p>
+<p>Debido a que estas cámaras generan estimaciones basadas en imágenes, los datos obtenidos pueden contener incertidumbre y ruido. Es importante aplicar técnicas de filtrado y validación para asegurar que la distribución de tamaños refleje de manera precisa la realidad física del material. En general, los datos provistos por estas cámaras vienen expresados en términos de percentiles propios de la distribución granulométrica completa, como <span class="math inline">\(P_{10}\)</span>, <span class="math inline">\(P_{50}\)</span>, <span class="math inline">\(P_{80}\)</span>, etc. La reconstrucción de un tamaño de interés (con frecuencia, el <span class="math inline">\(P_{80}\)</span>) exige siempre interpolar entre los percentiles disponibles, respetando la forma acumulada de la distribución. En una distribución granulométrica acumulada, que permite expresar tamaños “pasantes” como fracciones de material que pasan por un tamiz de tamaño dado, la interpolación asegura que se mantenga la coherencia física de los datos: Los pares <span class="math inline">\((d_{i}, P_{i})\)</span> deben cumplir <span class="math inline">\(d_{i} &lt; d_{i+1}\)</span> y <span class="math inline">\(P_{i} &lt; P_{i+1}\)</span>, donde <span class="math inline">\(d_{i}\)</span> es el tamaño de partícula correspondiente al percentil <span class="math inline">\(P_{i}\)</span>.</p>
+<p>En general, interpolamos conforme el logaritmo del tamaño de partícula:</p>
+<p><span class="math display">\[
+\log \left( d_{80} \right) =\log \left( d_{a} \right) +\frac{80-p_{a}}{p_{b}-p_{a}} \left[ \log \left( d_{b} \right) -\log \left( d_{a} \right) \right]
+\]</span></p>
+<p>donde <span class="math inline">\(d_{k}\)</span>: Tamaño de partícula correspondiente al percentil <span class="math inline">\(P_{k}\)</span>. De esta manera, si <span class="math inline">\(d_{a}\)</span> y <span class="math inline">\(d_{b}\)</span> corresponden a los percentiles <span class="math inline">\(P_{a}\)</span> y <span class="math inline">\(P_{b}\)</span> respectivamente, podemos interpolar de manera consistente para obtener <span class="math inline">\(d_{80}\)</span> dentro del rango definido por los percentiles conocidos. Si <span class="math inline">\(d_{80}\)</span> queda fuera del rango observado de la distribución granulométrica, se debe considerar como un valor ausente o aplicar una estrategia de extrapolación justificada. En este proyecto, por simplicidad, se opta por tratar cualquier <span class="math inline">\(d_{80}\)</span> fuera del rango como un valor ausente (en el lenguajes de <strong><font color="darkmagenta">Polars</font></strong>, como un valor de tipo <code>null</code>).</p>
+</section>
+</section>
+<section id="frontera-entre-polars-y-pydantic" class="level2">
+<h2 class="anchored" data-anchor-id="frontera-entre-polars-y-pydantic">Frontera entre <strong><font color="darkmagenta">Polars</font></strong> y <strong><font color="darkmagenta">Pydantic</font></strong></h2>
+<p>A diferencia del proyecto de <a href="../bayesian-tph-forecasting/">forecasting Bayesiano</a>, en este proyecto construimos el flujo de trabajo por medio de <strong><font color="darkmagenta">Pydantic</font></strong>, que es una alternativa para la validación y estructuración de datos a nivel de objetos individuales, con fuerte enfoque en el uso de patrones de diseño orientados a objetos. Se trata de una forma de estructurar un proyecto que va más allá del uso de un empaquetador como <strong><font color="darkmagenta"><span class="kedro-brand">Kedro</span></font></strong>, el cual organiza el flujo de trabajo a nivel de pipelines y nodos. Acá, usamos <strong><font color="darkmagenta">Pydantic</font></strong> para definir y validar los modelos de datos que representan las entradas y salidas de nuestro sistema, mientras que el grafo dirigido acíclico (DAG) que representa la ejecución del flujo de trabajo se construye y gestiona principalmente con <strong><font color="darkmagenta">Dagster</font></strong>. Esto es algo de lo que hablaremos un poco más adelante.</p>
+<p><strong><font color="darkmagenta">Pydantic</font></strong> se utiliza para definir modelos de datos que representan las entradas y salidas de nuestro sistema. Cada modelo es una clase que hereda de <code>BaseModel</code> y permite validar automáticamente los tipos de datos, valores por defecto y restricciones específicas. Esto asegura que los datos cumplan con las expectativas antes de ser procesados por el flujo de trabajo. En contraste, <strong><font color="darkmagenta">Polars</font></strong> se enfoca en la manipulación eficiente de grandes volúmenes de datos tabulares, aprovechando la computación columnar y el paralelismo. La combinación de ambos permite tener un control riguroso sobre la estructura y validez de los datos a nivel de objeto, mientras se mantiene un rendimiento óptimo en el procesamiento de datos a gran escala.</p>
+<p>Las fronteras entre ambas librerías pueden parecer un tanto difusas a priori, pero en la práctica cada una tiene un rol claramente definido. Para distribuir responsabilidad de manera adecuada, acordamos una especie de “contrato” con la siguiente estructura:</p>
+<pre class="text"><code>Pydantic: Forma y semántica de objetos que cruzan una frontera.
+Polars: Esquema y relaciones de una tabla completa.
+Numpy: Estado denso y bucles científicos.</code></pre>
+<p>El propósito de este “contrato” es clarificar qué tipo de responsabilidad recae sobre cada librería, evitando solapamientos innecesarios y asegurando que cada herramienta se utilice en el contexto para el cual es más adecuada.</p>
+</section>
+<section id="evaluación-perezosa-y-estricta-de-dataframes" class="level2">
+<h2 class="anchored" data-anchor-id="evaluación-perezosa-y-estricta-de-dataframes">Evaluación <em>perezosa</em> y <em>estricta</em> de DataFrames</h2>
+<p>En <strong><font color="darkmagenta">Polars</font></strong>, podemos evaluar un <code>DataFrame</code> de manera <em>perezosa</em> (evaluación de tipo <em>lazy</em>) o <em>estricta</em> (evaluación de tipo <em>eager</em>). La evaluación <em>perezosa</em> permite construir un <strong>plan de ejecución</strong> sin procesar inmediatamente los datos, lo que puede mejorar el rendimiento al optimizar y fusionar operaciones. La evaluación <em>estricta</em>, en cambio, ejecuta las operaciones de inmediato y devuelve un DataFrame concreto. Un DataFrame que se crea con base en una evaluación perezosa se denomina, correspondientemente, como <em>LazyFrame</em>.</p>
+<p>Un <strong>plan de ejecución</strong> es una representación interna de las operaciones que se aplicarán a un LazyFrame. Este plan permite a <strong><font color="darkmagenta">Polars</font></strong> optimizar la secuencia de transformaciones antes de ejecutar realmente los cálculos, lo que puede resultar en un rendimiento significativamente mejor en comparación con la evaluación estricta. Esta técnica resulta especialmente útil cuando se trabaja con grandes volúmenes de datos, ya que permite reducir el costo computacional al minimizar operaciones intermedias innecesarias.</p>
+<p>Tomemos la función <code>curate_minute_series()</code>, la cual permite aplicar el contrato de calidad de datos definido previamente a una serie de tiempo multivariable con granularidad minuto a minuto, asegurando que las columnas requeridas estén presentes, que los valores se encuentren dentro de los rangos esperados y que se generen columnas derivadas necesarias para el análisis posterior:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> polars <span class="im">as</span> pl</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> curate_minute_series(</span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>    raw: pl.DataFrame</span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>) <span class="op">-&gt;</span> pl.DataFrame:</span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""Aplica el contrato tabular sin abandonar expresiones vectorizadas."""</span></span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Definimos las columnas requeridas para el contrato tabular.</span></span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>    required <span class="op">=</span> {</span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a>        <span class="st">"timestamp"</span>,</span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a>        <span class="st">"feed_tph"</span>,</span>
+<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a>        <span class="st">"discharge_a_tph"</span>,</span>
+<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a>        <span class="st">"discharge_b_tph"</span>,</span>
+<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a>        <span class="st">"feed_p80_in"</span>,</span>
+<span id="cb4-14"><a href="#cb4-14" aria-hidden="true" tabindex="-1"></a>        <span class="st">"measured_height_m"</span>,</span>
+<span id="cb4-15"><a href="#cb4-15" aria-hidden="true" tabindex="-1"></a>    }</span>
+<span id="cb4-16"><a href="#cb4-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-17"><a href="#cb4-17" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Verificamos si hay columnas ausentes en el DataFrame `raw`.</span></span>
+<span id="cb4-18"><a href="#cb4-18" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Levantamos un error si faltan columnas requeridas.</span></span>
+<span id="cb4-19"><a href="#cb4-19" aria-hidden="true" tabindex="-1"></a>    missing <span class="op">=</span> required.difference(raw.columns)</span>
+<span id="cb4-20"><a href="#cb4-20" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> missing:</span>
+<span id="cb4-21"><a href="#cb4-21" aria-hidden="true" tabindex="-1"></a>        <span class="cf">raise</span> <span class="pp">ValueError</span>(<span class="ss">f"columnas ausentes: </span><span class="sc">{</span><span class="bu">sorted</span>(missing)<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb4-22"><a href="#cb4-22" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-23"><a href="#cb4-23" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Retornamos un LazyFrame evaluado con las transformaciones aplicadas.</span></span>
+<span id="cb4-24"><a href="#cb4-24" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Notemos el plan de ejecución que se construye antes de llamar a `collect()`.</span></span>
+<span id="cb4-25"><a href="#cb4-25" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> (</span>
+<span id="cb4-26"><a href="#cb4-26" aria-hidden="true" tabindex="-1"></a>        raw</span>
+<span id="cb4-27"><a href="#cb4-27" aria-hidden="true" tabindex="-1"></a>        .lazy() <span class="co"># Evaluación perezosa.</span></span>
+<span id="cb4-28"><a href="#cb4-28" aria-hidden="true" tabindex="-1"></a>        .sort(<span class="st">"timestamp"</span>) <span class="co"># Ordenamos según la columna `timestamp`.</span></span>
+<span id="cb4-29"><a href="#cb4-29" aria-hidden="true" tabindex="-1"></a>        .with_columns( <span class="co"># Transformamos algunas columnas.</span></span>
+<span id="cb4-30"><a href="#cb4-30" aria-hidden="true" tabindex="-1"></a>            pl.col(<span class="st">"feed_tph"</span>).clip(<span class="dv">0</span>, <span class="dv">10_000</span>), <span class="co"># Cortamos los valores fuera del rango permitido.</span></span>
+<span id="cb4-31"><a href="#cb4-31" aria-hidden="true" tabindex="-1"></a>            pl.col(<span class="st">"discharge_a_tph"</span>).clip(<span class="dv">0</span>, <span class="dv">10_000</span>), <span class="co"># Cortamos los valores fuera del rango permitido.</span></span>
+<span id="cb4-32"><a href="#cb4-32" aria-hidden="true" tabindex="-1"></a>            pl.col(<span class="st">"discharge_b_tph"</span>).clip(<span class="dv">0</span>, <span class="dv">10_000</span>), <span class="co"># Cortamos los valores fuera del rango permitido.</span></span>
+<span id="cb4-33"><a href="#cb4-33" aria-hidden="true" tabindex="-1"></a>            (pl.col(<span class="st">"feed_tph"</span>) <span class="op">-</span> pl.col(<span class="st">"discharge_a_tph"</span>) <span class="op">-</span> pl.col(<span class="st">"discharge_b_tph"</span>))</span>
+<span id="cb4-34"><a href="#cb4-34" aria-hidden="true" tabindex="-1"></a>            .truediv(<span class="fl">60.0</span>) <span class="co"># Convertimos la diferencia de toneladas por hora a toneladas por minuto.</span></span>
+<span id="cb4-35"><a href="#cb4-35" aria-hidden="true" tabindex="-1"></a>            .alias(<span class="st">"inventory_delta_t"</span>),</span>
+<span id="cb4-36"><a href="#cb4-36" aria-hidden="true" tabindex="-1"></a>            pl.col(<span class="st">"timestamp"</span>).dt.date().alias(<span class="st">"day"</span>), <span class="co"># Extraemos el día asociado al `timestamp`.</span></span>
+<span id="cb4-37"><a href="#cb4-37" aria-hidden="true" tabindex="-1"></a>        )</span>
+<span id="cb4-38"><a href="#cb4-38" aria-hidden="true" tabindex="-1"></a>        .<span class="bu">filter</span>(pl.col(<span class="st">"feed_p80_in"</span>).is_between(<span class="fl">0.05</span>, <span class="fl">30.0</span>)) <span class="co"># Filtramos valores fuera del rango permitido.</span></span>
+<span id="cb4-39"><a href="#cb4-39" aria-hidden="true" tabindex="-1"></a>        .collect() <span class="co"># Ejecutamos el plan perezoso y obtenemos un DataFrame explícito.</span></span>
+<span id="cb4-40"><a href="#cb4-40" aria-hidden="true" tabindex="-1"></a>    )</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>En el bloque de código anterior, aplicamos un contrato tabular sobre el DataFrame <code>raw</code> utilizando <strong><font color="darkmagenta">Polars</font></strong> en modo perezoso. Esto nos permite construir un plan de ejecución optimizable antes de materializar los datos, asegurando que las transformaciones y filtros se apliquen de manera eficiente. Dicho plan consta de las siguientes operaciones:</p>
+<ul>
+<li><code>lazy()</code>: Inicia un plan de ejecución perezoso sin evaluar inmediatamente.</li>
+<li><code>sort("timestamp")</code>: Ordena los datos según la columna <code>timestamp</code>.</li>
+<li><code>with_columns(...)</code>: Aplica transformaciones vectorizadas sobre columnas completas.
+<ul>
+<li><code>pl.col(...).clip(n1, n2)</code>: Corta los valores de una columna determinada fuera del rango <code>(n1, n2)</code>.</li>
+<li><code>pl.col(...).truediv(60.0).alias("col_t")</code>: Divide los valores de una determinada columna por <code>60.0</code>, convirtiendo tasas por hora a tasas por minuto, y la renombra como <code>col_t</code>.</li>
+<li><code>pl.col("timestamp").dt.date().alias("day")</code>: Extrae el día asociado al <code>timestamp</code>.</li>
+</ul></li>
+<li><code>filter(pl.col("feed_p80_in").is_between(0.05, 30.0))</code>: Aplica un filtro sobre la columna <code>feed_p80_in</code> para mantener solo los valores dentro del rango <code>(0.05, 30.0)</code> pulgadas.</li>
+<li><code>collect()</code>: Ejecuta el plan perezoso y retorna un DataFrame explícito.</li>
+</ul>
+<p>Notemos el patrón: Ninguna operación establecida en el plan de ejecución perezoso se evalúa inmediatamente. Todas las transformaciones y filtros se registran como parte del plan, y solo se ejecutan cuando se llama a <code>collect()</code>. <strong><font color="darkmagenta">Polars</font></strong> incluso permite reordenar operaciones y optimizar el plan antes de la ejecución, lo que puede mejorar significativamente el rendimiento.</p>
+</section>
+<section id="conversión-dimensional-explícita" class="level2">
+<h2 class="anchored" data-anchor-id="conversión-dimensional-explícita">Conversión dimensional explícita</h2>
+<p>Notemos que, si una tabla tiene una granularidad de 15 minutos, y se tiene que <code>feed_tph=2400</code>, entonces el tonelaje asociado a ese intervalo de tiempo es</p>
+<p><span class="math display">\[
+m=2400\left[ \frac{t}{h} \right] \times \frac{15}{60} \left[ h \right] =600\left[ t \right]
+\]</span></p>
+<p>Para asegurar claridad, podemos expresar explícitamente el factor de conversión temporal:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> polars <span class="im">as</span> pl</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a><span class="co"># Declaramos el factor de conversión temporal de 15 minutos a horas.</span></span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>interval_hours <span class="op">=</span> <span class="fl">15.0</span> <span class="op">/</span> <span class="fl">60.0</span></span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a><span class="co"># Implementamos la conversión de tasas horarias a tonelaje por intervalo de 15 minutos.</span></span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>table <span class="op">=</span> (</span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>    table</span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a>    .with_columns(</span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a>        (pl.col(<span class="st">"feed_tph"</span>) <span class="op">*</span> interval_hours).alias(<span class="st">"feed_tonnes"</span>),</span>
+<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a>        ((pl.col(<span class="st">"discharge_a_tph"</span>) <span class="op">+</span> pl.col(<span class="st">"discharge_b_tph"</span>)) <span class="op">*</span> interval_hours)</span>
+<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a>        .alias(<span class="st">"discharge_tonnes"</span>),</span>
+<span id="cb5-13"><a href="#cb5-13" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb5-14"><a href="#cb5-14" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Al usar el método <code>alias()</code> para nombrar las columnas resultantes, estamos haciendo explícita la dimensión de los datos y evitando confusiones entre tasas y cantidades acumuladas. Mantener el nombre original puede originar una pérdida de claridad y errores en cálculos posteriores.</p>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Note</span>Los promedios pueden inducir sesgos de muestreo
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>Cuando remuestreamos una serie de tiempo con granularidad de minutos a otra de 15 minutos, el promedio calculado puede no reflejar con precisión la cantidad total si hay intervalos con datos faltantes. Para el caso de un flujo másico, esto puede resultar en una subestimación o sobreestimación del tonelaje real transportado.</p>
+<p>Si cada minuto en la serie original es válida, lo que implica una cobertura completa, entonces un promedio móvil de 15 minutos reflejará con precisión la cantidad total de masa transportada en ese intervalo. Si no hay cobertura completa, toda propiedad extensiva calculada a partir del promedio puede estar sesgada. Por ejemplo, para el caso del tamaño correspondiente al <span class="math inline">\(P_{80}\)</span>, puede ser necesario ponderar cada minuto original por la masa transportada en ese período de tiempo. Es decir,</p>
+<p><span class="math display">\[
+\overline{d} =\frac{\sum\nolimits_{t=1}^{T} d_{t}m_{t}}{\sum\nolimits_{t=1}^{T} m_{t}}
+\]</span></p>
+<p>donde <span class="math inline">\(T\)</span> es el número total de intervalos de tiempo considerados y <span class="math inline">\(d_{t}\)</span> es la propiedad (digamos tamaño) de interés en el intervalo <span class="math inline">\(t\)</span>, y <span class="math inline">\(m_{t}\)</span> es la masa transportada en ese mismo intervalo.</p>
+</div>
+</div>
+</section>
+<section id="el-contrato-operacional-de-los-valores-tipo-null" class="level2">
+<h2 class="anchored" data-anchor-id="el-contrato-operacional-de-los-valores-tipo-null">El “contrato” operacional de los valores tipo <code>null</code></h2>
+<p>En el contexto de series de tiempo de procesos industriales, un valor <code>null</code> no es simplemente un dato faltante; es una señal que indica que algo en la operación o en la adquisición de datos no ocurrió como se esperaba. Por lo tanto, debemos tratar los <code>null</code> con cuidado y definir un “contrato” operacional que especifique cómo interpretarlos y cómo imputarlos si es necesario.</p>
+<p>Contextualmente, un <code>null</code> podría indicar que un sensor se encuentra fuera de servicio durante un determinado período de tiempo, lo que implica que no se dispone de mediciones válidas para ese intervalo y que cualquier cálculo basado en esos datos debe considerar esta ausencia de información. También podría señalar intervalos de tiempo sin muestra de datos, algún dato descartado debido a un código de estado o incluso detenciones en un equipo determinado. Rellenar estos valores con otros (por ejemplo, con ceros) sin considerar el contexto puede inducir errores significativos en el análisis y la interpretación de los datos. Matemáticamente, un relleno no controlado modifica enormemente las distribuciones observadas de las variables afectadas, y no necesariamente constituye una buena estrategia de limpieza o calidad.</p>
+<p>Para este proyecto, definimos el siguiente “contrato” operacional para los valores de tipo <code>null</code>:</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 20%">
+<col style="width: 40%">
+<col style="width: 40%">
+</colgroup>
+<thead>
+<tr class="header">
+<th style="text-align: left;">Variable</th>
+<th style="text-align: left;">Política posible</th>
+<th style="text-align: left;">Riesgo principal</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">Flujo.</td>
+<td style="text-align: left;">Cero siempre que se confirme una detención.</td>
+<td style="text-align: left;">Invención de detenciones.</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Altura.</td>
+<td style="text-align: left;">Interpolación corta con límites temporales.</td>
+<td style="text-align: left;">Regularización de un cambio real.</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;"><span class="math inline">\(P_{80}\)</span>.</td>
+<td style="text-align: left;">Mantener el valor <code>null</code> hasta una nueva muestra.</td>
+<td style="text-align: left;">Falsa precisión temporal.</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Estado de equipo.</td>
+<td style="text-align: left;">Relleno de tipo <em>forward fill</em> acotado.</td>
+<td style="text-align: left;">Prolongar un estado obsoleto.</td>
+</tr>
+</tbody>
+</table>
+<p>Este contrato operacional define cómo debemos interpretar y manejar los valores <code>null</code> en nuestras series de tiempo. Su cumplimiento asegura que los análisis posteriores sean consistentes con la realidad operacional y que no se introduzcan sesgos inadvertidos debido a un manejo inapropiado de los datos faltantes. Siendo pues parte integral de nuestra metodología, debe ser documentado y seguido rigurosamente.</p>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Note</span>Uso de <em>joins</em> aproximados y riesgo de <em>data leakage</em>
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>Cuando realizamos <em>joins</em> aproximados entre series de tiempo de distinta frecuencia (los que se conocen en SQL como <em>asof joins</em>), existe el riesgo de introducir información futura en nuestros análisis. Esto puede ocurrir si asociamos una muestra de alta frecuencia con la más cercana de baja frecuencia sin considerar la dirección temporal. Tal práctica puede ser útil para reconstrucción histórica, pero es peligrosa para aplicaciones en línea donde la información futura no debería estar disponible. Es decir, caemos en un riesgo de generar <em>data leakage</em>.</p>
+<p>Una reproducción histórica de tipo <em>ex post</em> puede tolerar cierto grado de <em>data leakage</em> porque el objetivo es reconstruir eventos pasados, no tomar decisiones en tiempo real. Sin embargo, si el objetivo de un modelo de apilamiento es representar en tiempo real el estado del material en un stockpile, cualquier evento de <em>data leakage</em> puede inducir errores significativos en la predicción y debe ser evitado cuidadosamente.</p>
+<p>En <strong><font color="darkmagenta">Polars</font></strong>, los <em>joins</em> aproximados se implementan por medio del método <code>join_asof()</code>. En nuestro caso, ademàs, seteamos el argumento <code>strategy="backward"</code> para asegurarnos de no usar información futura y definimos una tolerancia temporal adecuada (por medio del parámetro <code>tolerance</code>) para limitar la propagación de muestras antiguas.</p>
+</div>
+</div>
+</section>
+<section id="checklist-final-previo-a-la-simulación" class="level2">
+<h2 class="anchored" data-anchor-id="checklist-final-previo-a-la-simulación">Checklist final previo a la simulación</h2>
+<p>Antes de ingestar al autómata celular con datos temporales, debemos comprobar una lista de verificación que asegure la calidad y consistencia de los datos. Esta lista incluye:</p>
+<ul>
+<li>Unicidad y orden temporal de los <em>timestamps</em>.</li>
+<li>Frecuencia esperada de las muestras.</li>
+<li>Cobertura temporal completa.</li>
+<li>Unidades y rangos físicos de las variables.</li>
+<li>Presencia de valores nulos o infinitos.</li>
+<li>Balance acumulado de las cantidades.</li>
+<li>Procedencia y confiabilidad de cada columna.</li>
+</ul>
+<p>Notemos que una tabla puede cumplir con todos los criterios anteriores y aun así ser inapropiada para la simulación si existen inconsistencias temporales o relaciones físicas incorrectas entre las columnas. Por ejemplo, un caudal que no coincide con la acumulación de material en el stockpile o muestras granulométricas que aparecen fuera de secuencia temporal.</p>
+<p><a href="../../proyectos/stockpile-cellular-automata/05-descarga-y-migracion.html">← Descarga y migración</a> · <a href="../../proyectos/stockpile-cellular-automata/07-contratos-con-pydantic.html">Siguiente: Contratos con <strong><font color="darkmagenta">Pydantic</font></strong> →</a></p>
+
+
+</section>
+
+</main> <!-- /main -->
+<div id="notes-prev-next" class="page-nav-links"></div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+  // ==========================================================================
+  // El arreglo `notesOrder` se GENERA automáticamente a partir del parámetro
+  // `number-offset` del front matter de cada entrada, mediante el script
+  // scripts/build-notes-order.py (hook pre-render de Quarto). Así el orden
+  // anterior/siguiente siempre refleja la numeración real de cada sección.
+  // No editar el bloque entre los marcadores a mano: se sobrescribe en el build.
+  // ==========================================================================
+  /* NOTES_ORDER_START */
+  const notesOrder = [
+    {
+        "section": "apuntes/calculo-incertidumbre-y-optimizacion",
+        "items": [
+            {
+                "title": "Cálculo diferencial",
+                "href": "/apuntes/calculo-incertidumbre-y-optimizacion/calculo-diferencial/"
+            },
+            {
+                "title": "Aplicaciones del cálculo diferencial",
+                "href": "/apuntes/calculo-incertidumbre-y-optimizacion/aplicaciones-del-calculo-diferencial/"
+            },
+            {
+                "title": "Probabilidad elemental",
+                "href": "/apuntes/calculo-incertidumbre-y-optimizacion/probabilidad-clasica/"
+            },
+            {
+                "title": "Introducción al cálculo de probabilidades",
+                "href": "/apuntes/calculo-incertidumbre-y-optimizacion/introduccion-al-calculo-de-probabilidades/"
+            },
+            {
+                "title": "Distribuciones específicas de probabilidad",
+                "href": "/apuntes/calculo-incertidumbre-y-optimizacion/distribuciones-especificas-de-probabilidad/"
+            },
+            {
+                "title": "Introducción a la teoría de optimización",
+                "href": "/apuntes/calculo-incertidumbre-y-optimizacion/introduccion-a-la-teoria-de-optimizacion/"
+            },
+            {
+                "title": "Optimización de tipo black-box",
+                "href": "/apuntes/calculo-incertidumbre-y-optimizacion/optimizacion-de-tipo-black-box/"
+            },
+            {
+                "title": "Optimización aplicada a machine learning",
+                "href": "/apuntes/calculo-incertidumbre-y-optimizacion/optimizacion-aplicada-al-aprendizaje-automatico/"
+            }
+        ]
+    },
+    {
+        "section": "apuntes/estructuras-lineales",
+        "items": [
+            {
+                "title": "Espacios vectoriales",
+                "href": "/apuntes/estructuras-lineales/espacios-vectoriales/"
+            },
+            {
+                "title": "Bases y dimensión",
+                "href": "/apuntes/estructuras-lineales/bases-y-dimension/"
+            },
+            {
+                "title": "Transformaciones lineales",
+                "href": "/apuntes/estructuras-lineales/transformaciones-lineales/"
+            },
+            {
+                "title": "Producto interno",
+                "href": "/apuntes/estructuras-lineales/producto-interno/"
+            },
+            {
+                "title": "Determinantes y diagonalización",
+                "href": "/apuntes/estructuras-lineales/determinantes-y-diagonalizacion/"
+            },
+            {
+                "title": "Una introducción a las formas",
+                "href": "/apuntes/estructuras-lineales/introduccion-a-las-formas/"
+            },
+            {
+                "title": "Descomposiciones matriciales",
+                "href": "/apuntes/estructuras-lineales/descomposiciones-matriciales/"
+            }
+        ]
+    },
+    {
+        "section": "apuntes/grafos-e-informacion",
+        "items": [
+            {
+                "title": "Una (no tan breve) introducción a la teoría de grafos",
+                "href": "/apuntes/grafos-e-informacion/teoria-de-grafos/"
+            },
+            {
+                "title": "Optimización de redes computacionales",
+                "href": "/apuntes/grafos-e-informacion/optimizacion-de-grafos/"
+            },
+            {
+                "title": "Introducción a la teoría de la información",
+                "href": "/apuntes/grafos-e-informacion/introduccion-a-la-teoria-de-la-informacion/"
+            },
+            {
+                "title": "Cadenas de Markov",
+                "href": "/apuntes/grafos-e-informacion/cadenas-de-markov/"
+            }
+        ]
+    },
+    {
+        "section": "apuntes/tensores-y-variedades",
+        "items": [
+            {
+                "title": "Una primera aproximación a los tensores",
+                "href": "/apuntes/tensores-y-variedades/introducion-a-los-tensores/"
+            },
+            {
+                "title": "Introducción al álgebra tensorial",
+                "href": "/apuntes/tensores-y-variedades/introducion-al-algebra-tensorial/"
+            },
+            {
+                "title": "Un cuento que versa sobre topología",
+                "href": "/apuntes/tensores-y-variedades/introduccion-a-la-topologia/"
+            },
+            {
+                "title": "Variedades y fibrados vectoriales",
+                "href": "/apuntes/tensores-y-variedades/introduccion-a-las-variedades/"
+            }
+        ]
+    },
+    {
+        "section": "clases/data-analytics/introduccion-al-analisis-de-datos-en-python/computacion-vectorizada-y-arreglos-con-numpy",
+        "items": [
+            {
+                "title": "Introducción a Numpy",
+                "href": "/clases/data-analytics/introduccion-al-analisis-de-datos-en-python/computacion-vectorizada-y-arreglos-con-numpy/introduccion-a-numpy/"
+            },
+            {
+                "title": "Operatoria en Numpy",
+                "href": "/clases/data-analytics/introduccion-al-analisis-de-datos-en-python/computacion-vectorizada-y-arreglos-con-numpy/operatoria-en-numpy/"
+            },
+            {
+                "title": "Operaciones de agregación",
+                "href": "/clases/data-analytics/introduccion-al-analisis-de-datos-en-python/computacion-vectorizada-y-arreglos-con-numpy/broadcasting-y-agregacion/"
+            },
+            {
+                "title": "Comparación, ordenamiento y reemplazos en arreglos",
+                "href": "/clases/data-analytics/introduccion-al-analisis-de-datos-en-python/computacion-vectorizada-y-arreglos-con-numpy/comparacion-ordenamiento-y-reemplazo/"
+            },
+            {
+                "title": "Aplicación de Numpy en la construcción de modelos predictivos",
+                "href": "/clases/data-analytics/introduccion-al-analisis-de-datos-en-python/computacion-vectorizada-y-arreglos-con-numpy/aplicaciones-en-modelos/"
+            }
+        ]
+    },
+    {
+        "section": "clases/data-analytics/introduccion-al-analisis-de-datos-en-python/manipulacion-tabular-y-analisis-con-pandas",
+        "items": [
+            {
+                "title": "Una introducción rápida a Pandas",
+                "href": "/clases/data-analytics/introduccion-al-analisis-de-datos-en-python/manipulacion-tabular-y-analisis-con-pandas/introduccion-rapida-a-pandas/"
+            },
+            {
+                "title": "Tipos de datos en Pandas",
+                "href": "/clases/data-analytics/introduccion-al-analisis-de-datos-en-python/manipulacion-tabular-y-analisis-con-pandas/tipos-de-datos-en-pandas/"
+            },
+            {
+                "title": "Manipulación de Series - Parte I",
+                "href": "/clases/data-analytics/introduccion-al-analisis-de-datos-en-python/manipulacion-tabular-y-analisis-con-pandas/manipulacion-de-series-parte-i/"
+            },
+            {
+                "title": "Manipulación de Series - Parte II",
+                "href": "/clases/data-analytics/introduccion-al-analisis-de-datos-en-python/manipulacion-tabular-y-analisis-con-pandas/manipulacion-de-series-parte-ii/"
+            }
+        ]
+    },
+    {
+        "section": "clases/machine-learning/aprendizaje-supervisado/modelos-lineales",
+        "items": [
+            {
+                "title": "Una introducción sencilla a los algoritmos de aprendizaje",
+                "href": "/clases/machine-learning/aprendizaje-supervisado/modelos-lineales/introduccion-algoritmos-aprendizaje/"
+            },
+            {
+                "title": "Una introducción a Scikit-Learn",
+                "href": "/clases/machine-learning/aprendizaje-supervisado/modelos-lineales/introduccion-a-scikit-learn/"
+            },
+            {
+                "title": "Modelos de clasificación - Parte I",
+                "href": "/clases/machine-learning/aprendizaje-supervisado/modelos-lineales/modelos-de-clasificacion-parte-i/"
+            },
+            {
+                "title": "Modelos de clasificación - Parte II",
+                "href": "/clases/machine-learning/aprendizaje-supervisado/modelos-lineales/modelos-de-clasificacion-parte-ii/"
+            },
+            {
+                "title": "Modelo de regresión lineal",
+                "href": "/clases/machine-learning/aprendizaje-supervisado/modelos-lineales/modelo-de-regresion-lineal/"
+            },
+            {
+                "title": "Modelos lineales regularizados, Bayesianos y generalizados",
+                "href": "/clases/machine-learning/aprendizaje-supervisado/modelos-lineales/modelos-lineales-regularizados-bayesianos-y-generalizados/"
+            },
+            {
+                "title": "Máquinas de soporte vectorial",
+                "href": "/clases/machine-learning/aprendizaje-supervisado/modelos-lineales/maquinas-de-soporte-vectorial/"
+            }
+        ]
+    },
+    {
+        "section": "clases/machine-learning/aprendizaje-supervisado/modelos-no-lineales",
+        "items": [
+            {
+                "title": "Árboles de decisión",
+                "href": "/clases/machine-learning/aprendizaje-supervisado/modelos-no-lineales/arboles-de-decision/"
+            },
+            {
+                "title": "Modelos de ensamble",
+                "href": "/clases/machine-learning/aprendizaje-supervisado/modelos-no-lineales/modelos-de-ensamble/"
+            },
+            {
+                "title": "Boosting especializado",
+                "href": "/clases/machine-learning/aprendizaje-supervisado/modelos-no-lineales/modelos-de-ensamble-especializados/"
+            },
+            {
+                "title": "Estimación de importancia de variables en modelos predictivos",
+                "href": "/clases/machine-learning/aprendizaje-supervisado/modelos-no-lineales/importancia-de-variables/"
+            }
+        ]
+    },
+    {
+        "section": "clases/machine-learning/seleccion-de-variables-metricas-y-tuning",
+        "items": [
+            {
+                "title": "Selección y evaluación de modelos",
+                "href": "/clases/machine-learning/seleccion-de-variables-metricas-y-tuning/seleccion-y-evaluacion-de-modelos/"
+            }
+        ]
+    }
+];
+  /* NOTES_ORDER_END */
+
+  function normalizePath(path) {
+    if (!path.endsWith("/")) path += "/";
+    path = path.replace(/index\.html\/?$/, "");
+    return path;
+  }
+
+  const currentPath = normalizePath(window.location.pathname);
+  const container = document.getElementById("notes-prev-next");
+
+  let previous = null;
+  let next = null;
+  let found = false;
+
+  for (const section of notesOrder) {
+    const items = section.items;
+    const index = items.findIndex(item => normalizePath(item.href) === currentPath);
+
+    if (index !== -1) {
+      found = true;
+      if (index > 0) previous = items[index - 1];
+      if (index < items.length - 1) next = items[index + 1];
+      break;
+    }
+  }
+
+  if (!found) {
+    container.style.display = "none";
+    return;
+  }
+
+  container.innerHTML = `
+    <div class="page-nav-prev">
+      ${previous ? `<a href="${previous.href}">← ${previous.title}</a>` : ``}
+    </div>
+    <div class="page-nav-next">
+      ${next ? `<a href="${next.href}">${next.title} →</a>` : ``}
+    </div>
+  `;
+});
+</script>
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    // Ensure there is a toggle, if there isn't float one in the top right
+    if (window.document.querySelector('.quarto-color-scheme-toggle') === null) {
+      const a = window.document.createElement('a');
+      a.classList.add('top-right');
+      a.classList.add('quarto-color-scheme-toggle');
+      a.href = "";
+      a.onclick = function() { try { window.quartoToggleColorScheme(); } catch {} return false; };
+      const i = window.document.createElement("i");
+      i.classList.add('bi');
+      a.appendChild(i);
+      window.document.body.appendChild(a);
+    }
+    setColorSchemeToggle(hasAlternateSentinel())
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp('/' + window.location.host + '/');
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+</div> <!-- /content -->
+<footer class="footer">
+  <div class="nav-footer">
+    <div class="nav-footer-left">
+<p>© René Quezada</p>
+</div>   
+    <div class="nav-footer-center">
+      &nbsp;
+    </div>
+    <div class="nav-footer-right">
+<p>Hecho con Quarto</p>
+</div>
+  </div>
+</footer>
+
+
+
+
+<script src="../../site_libs/quarto-html/zenscroll-min.js"></script>
+</body></html>

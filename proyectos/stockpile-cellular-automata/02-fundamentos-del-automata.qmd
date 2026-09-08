@@ -1,0 +1,256 @@
+---
+title: "2. Fundamentos del autómata celular continuo"
+description: "Retícula, estado, vecindad, actualización y compromisos de una aproximación local a un sistema granular."
+toc: true
+toc-depth: 3
+---
+
+[← Volver al proyecto](index.qmd)
+
+## De partículas a celdas
+
+En un contexto industrial, un stockpile contiene millones de partículas. Cada roca individual tiene su propia trayectoria, pero la mayoría de las preguntas de ingeniería no requieren conocerla. La forma del acopio, la distribución de tamaños y la segregación son propiedades emergentes que se pueden reproducir sin resolver cada contacto.
+
+La [parte I del artículo original de Ye, Hilden y Yahyaei (2021)](https://www.sciencedirect.com/science/article/abs/pii/S0892687522004265) discute la escala del problema de representación del stockpile a nivel comportamental y de la mezcla de partículas, con foco en la distribución granulométrica: Incluso si truncamos una distribución a 10 mm, el número de partículas con un tamaño medio de ese orden puede seguir siendo enorme en un metro cúbico de volumen interno en un stockpile típico. Es posible implementar métodos de alta complejidad para representar el comportamiento de las partículas con gran precisión, como es el caso de la [aproximación por medio de elementos discretos](https://en.wikipedia.org/wiki/Discrete_element_method) (*discrete element method* o *DEM*), pero el costo computacional crece con el número de partículas y se vuelve impráctico para reproducir un stockpile completo en lotes de tiempo compatibles con una reportabilidad continua a nivel operacional (por ejemplo, cada 5 minutos).
+
+El modelo de autómata celular adopta una aproximación diferente: Divide el espacio conforme una retícula de celdas cúbicas y limita la interacción a vecinas inmediatas. Cada celda representa un volumen de material granular y mantiene un estado que describe la fracción de llenado y la propiedad de la mezcla. La evolución del sistema se calcula mediante reglas locales que transfieren material entre celdas vecinas, conservando el volumen total y reproduciendo comportamientos emergentes como la formación de pendientes y la segregación de tamaños. No resuelve cuestiones físicas de naturaleza cinemática (como la trayectoria de cada roca), sino que se enfoca en cómo cambia una pequeña porción de volumen al alimentar, descargar y exceder una pendiente.
+
+### Estado de una celda.
+
+Sea $V$ el volumen total que constituye la retícula completa de celdas cúbicas que constituye a un stockpile. Designamos a cada celda por un índice $(i,j,k)$, que representa las coordenadas de la misma en la retícula completa. Esta última se representa como un conjunto del tipo
+
+$$
+\mathcal{L}=\{(i,j,k):0\le i<n_x,\;0\le j<n_y,\;0\le k<n_z\}
+$$
+
+donde $n_x$, $n_y$ y $n_z$ representan el número de celdas en cada dirección. Cada celda mantiene un vector de estado $\mathbf{s}_{ijk}(t)=\left[f_{ijk}(t),\;d_{ijk}(t)\right]$, donde $f\in[0,1]$ es su fracción de llenado y $d>0$ es el tamaño característico del material ocupado. Una celda vacía es tal que $f=0$ y su tamaño se trata como ausente. Una celda llena tiene $f=1$. La celda superior de una columna puede tener cualquier fracción intermedia.
+
+Es esta última propiedad la que da el calificativo de **continuo** al modelo. El espacio ocupado por el stockpile sigue siendo discreto, pero su ocupación no es binaria. La superficie puede cambiar en incrementos menores que una celda y el balance de volumen no necesita redondear cada interacción a un cubo completo.
+
+Con frecuencia, solemos representar algunas propiedades geométricas del stock considerando únicamente alguna proyección bidimensional del mismo en un plano perpendicular al eje $z$. Por ejemplo, si miramos únicamente las coordenadas horizontales $(i,j)$, podemos definir la altura de la columna $(i,j)$ como la suma de las fracciones de llenado de todas las celdas que componen dicha columna. Es decir,
+
+$$
+h_{ij}(t)=\triangle z\sum_{k=0}^{n_z-1}f_{ijk}(t)
+$$
+
+donde la $t$ hace explícito que la altura de la columna puede cambiar con el tiempo. En este caso, $\triangle z$ representa el tamaño vertical de cada celda. Si la densidad aparente del material que constituye el stockpile es constante, podemos definir el volumen total y la masa del mismo como
+
+$$
+V\left( t \right) =\triangle x\triangle y\triangle z\sum_{i=1}^{n_{x}} \sum_{j=1}^{n_{y}} \sum_{k=1}^{n_{z}} f_{ijk}\left( t \right) \quad ;\quad M\left( t \right) =\rho_{b} V\left( t \right)
+$$
+
+donde $\triangle x$ y $\triangle y$ representan el tamaño horizontal de cada celda y $\rho_b$ es la densidad aparente del material.
+
+### Topología de vecindad
+
+La teoría de los autómatas celulares no guarda relación con la física de partículas. Su génesis se remonta a estudios topológicos de sistemas discretos. La **vecindad** de una celda es el conjunto de celdas que la regla local de desplazamiento en el mismo consulta para decidir su transición. La vecindad puede ser arbitraria, pero la literatura clásica distingue dos tipos en dos dimensiones: Las vecindades de Von Neumann y de Moore.
+
+La **vecindad de Von Neumann** conecta, en el plano $(x,y)$, una celda con sus cuatro vecinas cardinales: Norte, sur, este y oeste. La **vecindad de Moore** agrega las cuatro diagonales. La extensión a tres dimensiones es inmediata para el caso de Von Neumann: Conecta la celda con sus seis vecinas que comparten una cara. La extensión de Moore es menos intuitiva, pero igualmente factible: Conecta la celda con sus 26 vecinas que comparten una cara, una arista o un vértice.
+
+```{mermaid}
+%%| label: fig-von-neumann-moore-neighborhoods
+%%| fig-cap: "Comparación de las vecindades bidimensionales de Von Neumann y Moore. El verde identifica la celda evaluada, el azul sus vecinas cardinales y el magenta las diagonales que Moore añade a la regla local."
+%%| fig-align: center
+flowchart LR
+  subgraph VN["Von Neumann"]
+    V0["N"] --- VC["celda"] --- V1["S"]
+    V2["O"] --- VC --- V3["E"]
+  end
+  subgraph MOORE["Moore"]
+    M1["NO"] --- M2["N"] --- M3["NE"]
+    M4["O"] --- MC["celda"] --- M5["E"]
+    M6["SO"] --- M7["S"] --- M8["SE"]
+  end
+
+  classDef focalCell fill:#e8f3f0,stroke:#256b5f,color:#123f37,stroke-width:2px;
+  classDef cardinalCell fill:#e8f2fa,stroke:#2f6b95,color:#17324d,stroke-width:1.5px;
+  classDef diagonalCell fill:#f4e8f1,stroke:#7d2b6a,color:#3d1434,stroke-width:1.5px;
+
+  class VC,MC focalCell;
+  class V0,V1,V2,V3,M2,M4,M5,M7 cardinalCell;
+  class M1,M3,M6,M8 diagonalCell;
+
+  style VN fill:#f6fafd,stroke:#5b7890,color:#17324d,stroke-width:1.5px;
+  style MOORE fill:#fbf6fa,stroke:#9a668d,color:#3d1434,stroke-width:1.5px;
+
+  linkStyle default stroke:#52606d,stroke-width:1.5px;
+```
+
+La elección de un tipo de vecindad en la representación discreta de un stockpile tiene consecuencias físicas. La vecindad de Von Neumann permite que el material fluya sólo en cuatro direcciones, mientras que la de Moore permite ocho. La primera produce una superficie con base romboidal; la segunda, una pirámide de ocho caras. La primera es más simple y rápida; la segunda es más isotrópica y precisa. Sea cual sea el caso, al unir todas las celdas que superan un umbral de altura, la superficie resultante es una aproximación discreta de un cono. La anisotropía de la retícula impide que sea un cono exacto. Aumentar el número de celdas en la retícula reduce el tamaño absoluto del escalón, pero no elimina la simetría discreta, por lo que la forma emergente del stockpile bajo esta representación sigue siendo inexacta.
+
+Para conservar el ángulo de reposo del mineral, el umbral diagonal de la retícula debe reconocer que la distancia horizontal de una celda a su vecina diagonal es $\sqrt{2}$ veces mayor que la distancia a su vecina cardinal. Si $\alpha$ es el ángulo de reposo, el salto admisible en unidades de celda es:
+
+$$
+T_{\mathrm{cardinal}}=\tan\alpha \quad; \quad T_{\mathrm{diagonal}}=\sqrt{2}\tan\alpha
+$$
+
+Lo anterior es consecuencia directa de la geometría de un cuadrado de lado $a$: Su diagonal mide $a\sqrt{2}$ y su pendiente es $\tan\alpha=\frac{a}{a\sqrt{2}}=\frac{1}{\sqrt{2}}$.
+
+## Reglas de actualización
+
+En un autómata celular, la evolución del sistema se calcula mediante reglas locales que determinan cómo cambia el estado de cada celda en función de su propio estado y el de sus vecinas. Estas reglas pueden ser determinísticas o estocásticas, y su diseño es crucial para garantizar que el modelo reproduzca comportamientos emergentes realistas.
+
+### Actualización sincrónica y asincrónica
+
+Si el autómata es **sincrónico**, la regla de actualización debe aplicarse a todas las celdas en un orden específico, y luego los estados se actualizan al mismo tiempo. Es decir, todas las transiciones se calculan a partir del estado en el tiempo $t$ y se aplican juntas para producir el estado en el tiempo $t+1$. En cambio, si el autómata es asincrónico, cada transición modifica inmediatamente el estado que consultarán las siguientes celdas, lo que puede introducir un sesgo por orden de actualización.
+
+La superficie granular de un stockpile admite una representación asincrónica, ya que cuando una columna transfiere volumen, sus nuevas alturas deben influir en el siguiente intercambio. Sin embargo, para evitar un sesgo artificial, se puede aleatorizar el orden de actualización en cada paso, asegurando que cada celda superficial se considere una vez, pero en un orden diferente. Para garantizar la reproducibilidad, se puede utilizar una semilla para el generador de números aleatorios, de modo que dos ejecuciones con la misma semilla produzcan microestados diferentes pero con distribuciones e invariantes comparables.
+
+La regla de actualización es fácilmente aleatorizable en Python. Por ejemplo:
+
+```python
+import numpy as np
+
+# Definición de la semilla aleatoria.
+rng = np.random.default_rng(42)
+
+# Definición de las dimensiones de la retícula.
+points = [(north, east) for north in range(1, n_north - 1) for east in range(1, n_east - 1)]
+
+# Mezcla aleatoria de los puntos para evitar sesgo en la actualización.
+rng.shuffle(points)
+```
+
+La aleatorización del orden de actualización es una técnica común en simulaciones de autómatas celulares para evitar patrones artificiales que puedan surgir debido a la estructura de la retícula. Al cambiar el orden en que se actualizan las celdas, se asegura que el comportamiento emergente del sistema sea más representativo de un proceso físico real, donde las interacciones no ocurren en un orden fijo. Este procedimiento no representa ruido de medición, sino que es un mecanismo numérico para evitar una orientación artificial en la simulación. Dos ejecuciones con diferentes semillas producirán microestados distintos, pero deberían conservar distribuciones e invariantes comparables, lo que permite estudiar la sensibilidad del modelo a la aleatoriedad y garantizar la reproducibilidad de los resultados.
+
+### Regla local de transferencia y comportamiento emergente
+
+El autómata celular implementa una regla local de transferencia de material entre celdas vecinas. Esta regla se basa en la diferencia de altura entre una celda y sus vecinas, así como en el ángulo de reposo del material. Si la diferencia de altura excede un umbral determinado por el ángulo de reposo, se transfiere una fracción del exceso a las celdas vecinas, respetando la conservación del volumen total.
+
+A grandes rasgos, la evolución completa del sistema puede representarse como una composición de varias reglas locales que actúan sobre el estado global del autómata. Cada regla se encarga de un aspecto específico del comportamiento del stockpile, como la alimentación, la descarga, la migración y el flujo superficial. La combinación de estas reglas locales da lugar a un comportamiento emergente que refleja la dinámica del stockpile sin necesidad de modelar cada partícula individualmente.
+
+Tal evolución puede escribirse formalmente como
+
+$$
+\mathbf{S}_{t+1}=\mathcal{R}_{\mathrm{surface}}\circ
+\mathcal{R}_{\mathrm{migration}}\circ
+\mathcal{R}_{\mathrm{discharge}}\circ
+\mathcal{R}_{\mathrm{feed}}(\mathbf{S}_t,\mathbf{u}_t),
+$$
+
+donde $\mathbf{S}_t$ representa el estado global del autómata en el tiempo $t$, y $\mathbf{u}_t$ contiene los flujos y propiedades de entrada. Cada regla $\mathcal{R}$ actúa sobre una parte específica del estado, y la forma global del stockpile emerge de la interacción de estas reglas locales. El operador $\circ$ denota la composición de funciones, indicando que las reglas se aplican secuencialmente para producir el estado actualizado del sistema.
+
+La ecuación anterior encapsula la idea central de un autómata celular: La complejidad global surge de reglas locales homogéneas. Sin embargo, también destaca un riesgo inherente: Una forma visualmente plausible puede emerger de reglas incorrectas. Por ello, cada regla debe ser cuidadosamente diseñada y probada para garantizar la conservación del volumen y la validez física, y la composición de las reglas debe ser validada mediante comparaciones con datos experimentales o simulaciones más detalladas.
+
+### Resolución y paso de tiempo
+
+Cada celda en el autómata representa un volumen discreto de material granular, y la resolución de la retícula determina el nivel de detalle con el que se modela el stockpile. Una mayor resolución permite capturar características más finas de la superficie y la distribución de tamaños, pero también aumenta significativamente los requisitos de memoria y tiempo de cómputo. De esta manera, la celda misma es un *trade-off* entre memoria, velocidad y detalle. La elección de la resolución óptima depende de las escalas espaciales relevantes para la pregunta de ingeniería que se desea responder.
+
+Una grilla de dimensiones $n_x \times n_y \times n_z$ con dos variables de tipo flotante de 64 bits (`float64`) consume aproximadamente $16 n_x n_y n_z$ bytes antes de considerar arreglos auxiliares. Duplicar la resolución en los tres ejes multiplica por ocho el número de celdas y aumenta la cantidad de interacciones por paso, lo que puede llevar a tiempos de simulación intratables. Por lo tanto, la mejor resolución no es necesariamente la más fina, sino aquella que conserva las escalas espaciales que determinan la decisión sin incurrir en costos computacionales excesivos.
+
+La simulación del comportamiento del stockpile avanza en pasos de tiempo discretos, y la elección del tamaño del paso es crucial para garantizar tanto la estabilidad como la precisión del modelo. Un paso demasiado grande puede provocar que el material se transfiera a través de varias celdas antes de que las reglas locales tengan la oportunidad de actuar, lo que puede llevar a resultados físicamente incoherentes o inestables. Por otro lado, un paso demasiado pequeño puede aumentar innecesariamente el tiempo de ejecución sin mejorar significativamente la precisión del resultado.
+
+En la tabla siguiente se compara la resolución espacial y el paso de tiempo con otras familias de modelos utilizados para simular stockpiles, destacando las ventajas y limitaciones de cada enfoque. La elección del modelo adecuado depende de los objetivos específicos del estudio y de los recursos computacionales disponibles.
+
+| Modelo | Estado espacial | Segregación | Zonas vivas | Costo | Uso natural |
+|:---|:---|:---|:---|:---|:---|
+| Balance único. | No. | No. | No. | Mínimo. | Inventario agregado. |
+| FIFO/LIFO/BIBO. | Unidimensional. | Limitada. | No. | Bajo. | Tiempo de residencia y reconciliación. |
+| Columnas 2D. | Superficie/colas. | Opcional. | Parcial. | Medio. | Altura y mezcla. |
+| Autómata celular 3D. | Volumen celular. | Sí. | Sí. | Medio. | Sensor virtual dinámico. |
+| Método de elementos discretos (DEM). | Partículas/contactos. | Emerge. | Emerge. | Muy alto. | Investigación detallada. |
+
+Podemos observar que el modelo de autómata celular 3D ofrece un equilibrio entre la complejidad computacional y la capacidad de capturar comportamientos emergentes, como la segregación y la formación de zonas vivas, que no son posibles con modelos más simples. Sin embargo, no es adecuado para todos los escenarios: Si el objetivo es simplemente mantener un inventario agregado, un modelo más simple puede ser suficiente. Por otro lado, si se requiere un análisis detallado de esfuerzos y compactación, el modelo de autómata celular puede ser demasiado simplificado. En definitiva, la representación de stockpiles no se trata de elegir un modelo que "gane" universalmente, sino de elegir la herramienta adecuada según las necesidades específicas del estudio.
+
+## Representación de la retícula en memoria
+
+En este proyecto, la retícula tridimensional se representa en memoria utilizando arreglos densos de <strong><font color='darkmagenta'>Numpy</font></strong>, con una geometría del tipo `(vertical, north, east)`. Esta disposición coloca el eje vertical primero, lo que permite que una columna `fill[:, north, east]` sea una vista natural del estado de llenado a lo largo de la altura de la celda. Matemáticamente, si la retícula es un dominio de $\mathbb{R}^{3}$, cada celda se indexa en el orden $(k,j,i)$.
+
+En lugar de crear millones de instancias de objetos Python para cada celda, lo que sería ineficiente y consumiría una gran cantidad de memoria, se utiliza la clase `StockpileState` para agrupar los arreglos de llenado y propiedad sin introducir objetos por celda. Esto permite mantener un estado numérico fino y eficiente en memoria, mientras que los objetos modelan contratos más gruesos:
+
+```python
+@dataclass(slots=True)
+class StockpileState:
+    fill: NDArray[np.float64]
+    p80_in: NDArray[np.float64]
+```
+
+El decorador `@dataclass(slots=True)`, dependiente de la librería <strong><font color='darkmagenta'>Pydantic</font></strong>, en su módulo `pydantic.dataclasses`, optimiza la memoria al evitar la creación de un diccionario de atributos para cada instancia, lo que es especialmente útil cuando se manejan grandes cantidades de datos. La separación entre objetos y arreglos permite una abstracción basada en el costo y la responsabilidad, en lugar de buscar uniformidad en la representación.
+
+La creación de millones de instancias Python destruiría la ventaja del método, ya que cada objeto tendría un costo de memoria significativo. Por lo tanto, se opta por mantener los datos numéricos en arreglos densos, mientras que los objetos como el anterior se utilizan para representar contratos más generales y operaciones de alto nivel sobre el estado del stockpile.
+
+::: {.callout-note}
+## Continuo no significa continuo en el sentido de una ecuación diferencial
+
+El término describe variables continuas dentro de una retícula discreta. La posición sigue cuantizada, la vecindad sigue siendo local y el tiempo avanza por pasos. Conviene evitar la frase “modelo continuo” sin el calificativo celular, porque podría confundirse con métodos de medios continuos.
+:::
+
+### Construyendo algo de intuición
+
+Antes de entrar en la implementación, conviene construir algo de intuición sobre cómo un conjunto de reglas locales puede producir un comportamiento emergente. La idea central es que cada celda interactúa únicamente con sus vecinas inmediatas, y que estas interacciones se basan en diferencias locales de altura y propiedad. A medida que estas interacciones se repiten a lo largo del tiempo, se pueden observar patrones globales que reflejan la dinámica del stockpile.
+
+Consideremos pues cinco columnas contiguas cuya altura, en unidades de celda, se registra en el arreglo $[1.0,\;2.0,\;4.0,\;2.0,\;1.0]$. La columna central supera en dos celdas a sus vecinas. Si el umbral admisible entre columnas fuera una celda, existe un exceso de una celda. Mover la mitad de ese exceso desde la columna alta a una vecina deja alturas $3.5$ y $2.5$; la diferencia se reduce de $2.0$ a $1.0$ sin cambiar la suma total.
+
+Esta cuantía de transferencia es arbitraria, pero la idea es que la regla local no necesita conocer la forma global del stockpile. La suma de alturas se conserva, pero la forma cambia. La superficie se relaja y el exceso se reparte entre vecinas. La operación puede repetirse hasta que todas las diferencias estén por debajo del umbral. De esta manera, el ejemplo anterior ilustra tres ideas fundamentales del modelo de autómata celular continuo:
+
+- La regla local consulta únicamente un vecindario inmediato, sin necesidad de información global.
+- La transferencia de material se calcula a partir de diferencias locales de altura, lo que permite una redistribución eficiente del material.
+- A pesar de los cambios en la forma del stockpile, el volumen total se conserva, lo que garantiza que la simulación respete las leyes de conservación de masa.
+
+En un espacio tridimensional, este razonamiento se extiende a una superficie de columnas, donde cada columna contiene celdas verticales con su propio estado de llenado y propiedad. La complejidad visual del stockpile emerge de la aplicación repetida de estas reglas locales, que pueden implementarse en unas pocas líneas de código, pero que producen un comportamiento global rico y realista.
+
+### Indexación y coordenadas físicas
+
+En la retícula, cada celda se identifica mediante un índice discreto $(i,j,k)$, que representa su posición en el arreglo tridimensional. Sin embargo, estas coordenadas de índice no corresponden directamente a coordenadas físicas en el espacio real. Para convertir los índices de celda a coordenadas físicas, se utiliza la siguiente relación:
+
+$$
+x=(i+\tfrac{1}{2} )\triangle x\quad ;\quad y=(j+\tfrac{1}{2} )\triangle y\quad ;\quad z=(k+\tfrac{1}{2} )\triangle z
+$$
+
+Es decir, la coordenada física del centro de una celda se obtiene sumando la mitad del tamaño de la celda a su índice correspondiente y multiplicando por el tamaño de la celda en cada dirección. Esta relación permite mapear los índices discretos de la retícula a posiciones continuas en el espacio físico, lo que es esencial para comparar los resultados de la simulación con mediciones experimentales o datos de sensores.
+
+Notemos la distinción entre la posición de una celda en la retícula y su ubicación física. Por ejemplo, un alimentador descrito como `east=15` no está a 15 metros de distancia, sino que se encuentra en el índice `i=15` de la retícula. Para convertir esta posición a coordenadas físicas, es necesario conocer el tamaño de las celdas y la orientación del sistema de referencia. Esta distinción es crucial para garantizar que las comparaciones con datos del mundo real sean precisas y significativas.
+
+### Ciclo de vida de una celda
+
+Una celda puede recorrer varios estados a lo largo de su ciclo de vida. Inicialmente, una celda comienza vacía, con una fracción de llenado $f=0$ y sin propiedad asignada. A medida que recibe material, la celda se vuelve parcialmente ocupada, y su propiedad se mezcla por volumen. Cuando la celda alcanza una fracción de llenado completa $f=1$, cualquier alimentación adicional se transfiere a la celda superior. Este **ciclo de vida** también incluye la pérdida de material por flujo superficial o descarga, y eventualmente, la celda vuelve a quedar vacía, eliminando su propiedad.
+
+En términos secuenciales, el ciclo de vida de una celda $(i,j,k)$ puede describirse de la siguiente manera:
+
+1. Comienza vacía, con $f=0$ y propiedad ausente.
+2. Recibe una fracción de volumen y se vuelve parcialmente ocupada.
+3. Recibe más material y mezcla su propiedad por volumen.
+4. Alcanza $f=1$ y la alimentación continúa en la celda superior.
+5. Pierde material por flujo superficial o descarga.
+6. Vuelve a quedar vacía y su propiedad se elimina.
+
+Si el $P_{80}$ de una celda vacía fuera distinto de cero, se consideraría un "material fantasma". Aunque no altera el inventario, puede contaminar futuras mezclas si el código consulta la propiedad antes del llenado. Por esta razón, vaciar una celda implica limpiar tanto la fracción de llenado `fill` como la propiedad `p80_in`, asegurando que no queden residuos que puedan afectar la simulación.
+
+### Unidades y conversión de caudal a fracción de celdas
+
+Notemos que la fracción de llenado $f$ es adimensional, mientras que la altura $h$ se mide en metros, el volumen $V$ en metros cúbicos, la densidad aparente $\rho_b$ en toneladas por metro cúbico y el caudal $Q$ en toneladas por hora. Para convertir un caudal medido en toneladas por hora a una fracción de celdas llenas durante un intervalo de tiempo $\Delta t$, se utiliza la siguiente relación:
+
+
+$$
+f = \frac{Q \, \triangle t}{\rho_b \, \triangle x \, \triangle y \, \triangle z}
+$$
+
+De esta manera, se puede determinar cuántas celdas se llenarán en un intervalo de tiempo dado, considerando la densidad aparente del material y el tamaño de las celdas en la retícula. Esta conversión es esencial para garantizar que la simulación refleje con precisión la cantidad de material que se está alimentando al stockpile en función del caudal medido.
+
+Por ejemplo, si se tiene un caudal de $Q=2400$ tph, un intervalo de tiempo de $\triangle t=0.25$ h, una densidad aparente de $\rho_b=1.72$ t/m³ y celdas de tamaño $\triangle x = \triangle y = \triangle z = 2.2$ m, el número de celdas llenas durante ese intervalo se calcula como
+
+$$
+N_{\text{celdas llenas}}=\frac{2400\times 0.25}{1.72\times 2.2^3}\approx 32.8
+$$
+
+Este resultado indica que, en promedio, se llenarán aproximadamente 32.8 celdas durante el intervalo de tiempo especificado. Es importante destacar que este valor no implica que se deban mover 33 cubos completos, sino que la alimentación continua permite distribuir 32.8 volúmenes de celda sin necesidad de redondear. Esta operación conecta la tabla temporal con la retícula espacial, asegurando que la simulación refleje con precisión la dinámica del stockpile.
+
+## Azar y reproducibilidad
+
+La aleatorización del orden de actualización es una técnica común en simulaciones de autómatas celulares para evitar patrones artificiales que puedan surgir debido a la estructura de la retícula de interés. Al cambiar el orden en que se actualizan las celdas, se asegura que el comportamiento emergente del sistema sea más representativo de un proceso físico real, donde las interacciones no ocurren en un orden fijo. Este procedimiento no representa ruido de medición, sino que es un mecanismo numérico para evitar una orientación artificial en la simulación. Dos ejecuciones con diferentes semillas producirán microestados distintos, pero deberían conservar distribuciones e invariantes comparables, lo que permite estudiar la sensibilidad del modelo a la aleatoriedad y garantizar la reproducibilidad de los resultados.
+
+En general, la aleatorización se aplica a la selección de celdas y al orden de actualización, mientras que la semilla fija la secuencia de números aleatorios para que el experimento pueda repetirse. Esto permite explorar la sensibilidad del algoritmo a la aleatoriedad sin comprometer la reproducibilidad de los resultados. Distinguimos tres fuentes de incertidumbre: Azar algorítmico, incertidumbre paramétrica y error de observación. Cambiar la semilla explora la primera fuente, pero no cuantifica automáticamente las otras dos. Un conjunto de semillas puede revelar sensibilidad del algoritmo, pero no constituye un intervalo de confianza completo.
+
+## Condición de estabilidad
+
+En un autómata celular, la condición de estabilidad se refiere a la necesidad de que los cambios en el estado de las celdas sean lo suficientemente pequeños para que el sistema pueda relajarse y alcanzar un equilibrio antes de que se produzcan cambios adicionales. Si los cambios son demasiado grandes, el sistema puede volverse inestable y producir resultados no físicos o inconsistentes.
+
+Una regla local puede perder significado si un único paso agrega o extrae un volumen tan grande como para atravesar muchas capas antes de permitir la relajación. Por lo tanto, se limita el volumen por interacción y se submuestrean los intervalos grandes. La idea es análoga a una condición de estabilidad numérica: El cambio por paso debe ser pequeño respecto de la escala espacial que resuelve la grilla.
+
+Por supuesto, no existe un único límite universal para la condición de estabilidad, ya que depende del orden de las reglas y de la geometría de la retícula. La comprobación práctica combina sensibilidad al paso temporal, conservación y convergencia de observables. Si dividir cada paso en dos altera drásticamente la altura o el $P_{80}$, la discretización temporal todavía domina el resultado.
+
+## Comentarios finales
+
+Al terminar este módulo deberíamos poder explicar, sin mirar ninguna línea de código, por qué una celda puede estar parcialmente llena, por qué la diagonal en un subconjunto de celdas de la retícula usa un umbral de magnitud mayor, por qué el orden asincrónico se aleatoriza y qué cantidad se conserva durante una transferencia. Si alguna respuesta depende de *“porque así lo hace la librería”*, todavía falta conectar implementación con fenómeno.
+
+[← Problema y arquitectura](01-problema-y-arquitectura.qmd) · [Siguiente: Formación y flujo superficial →](03-formacion-y-flujo-superficial.qmd)

@@ -1,0 +1,121 @@
+---
+title: "11. Código fuente, paso a paso"
+description: "Recorrido final por configuración, contratos, datos, dominio, activos, pruebas y aplicación."
+toc: true
+toc-depth: 2
+page-layout: full
+---
+
+[← Volver al proyecto](index.qmd)
+
+## Leer el sistema en el orden de sus decisiones
+
+El DAG muestra dependencias, pero no explica por qué una grilla debe ser impar, cómo conserva volumen una transferencia, dónde termina la responsabilidad de <strong><font color='darkmagenta'>Polars</font></strong> o por qué un `asset check` no falla ante una RMSE grande. El explorador ordena los archivos como una secuencia pedagógica y muestra el contenido real versionado.
+
+<iframe class="source-explorer-frame" src="source/" title="Explorador del código fuente del autómata celular" width="100%" height="920" loading="lazy" allow="clipboard-write"></iframe>
+
+[Abrir el explorador en una pestaña](source/){.btn .btn-outline-primary}
+[Abrir el visor 3D](app/){.btn .btn-outline-secondary}
+
+## Orden de lectura
+
+1. **Entorno:** `README.md`, `pyproject.toml` y configuración pública.
+2. **Contratos:** base estricta, grilla, pila, segregación, alimentadores y agregado.
+3. **Datos:** generador determinista y transformaciones con <strong><font color='darkmagenta'>Polars</font></strong>.
+4. **Dominio:** estado 3D, formación, descarga, superficie y segregación.
+5. **Reconciliación:** métricas puras, sin dependencia del orquestador.
+6. **Activos:** materializaciones y checks de <strong><font color='darkmagenta'>Dagster</font></strong>.
+7. **Composición:** `Definitions` como punto de entrada.
+8. **Pruebas:** contratos, datos, invariantes y anonimización.
+9. **Producto:** contrato de cuadros, coordinación con <strong><font color='darkmagenta'>React</font></strong> y dibujo 3D.
+
+## Lo que esta edición demuestra
+
+El repositorio público es intencionalmente menor que una implementación industrial. Es suficientemente completo para ejecutar, probar, materializar activos y explicar las fronteras. No incluye conectores privados, tags, fechas operacionales ni nombres de equipos; incluye una ventana sintética con la estructura temporal necesaria para representar el problema.
+
+La prueba de anonimización cubre el runtime publicable. El texto metodológico reconoce el origen industrial de manera general y agradece los artículos, pero evita huellas que permitan asociar el caso pedagógico con una faena específica.
+
+## Comandos de verificación
+
+```bash
+uv sync --group dev
+uv run ruff check .
+uv run pytest
+export DAGSTER_HOME="$PWD/.dagster_home"
+uv run dagster asset materialize --select '*' -m stockpile_ca.definitions
+cd app-src && npm install && npm run build
+```
+
+La ejecución validada materializa `public_minute_raw`, `public_minute_curated` y `stockpile_replay`; aprueba `minute_contract` y `height_reconciliation`; y compila el bundle estático del visor.
+
+## Una sesión guiada de lectura
+
+Comencemos por `conf/public.toml`. Allí vemos tamaño de grilla, densidad, ángulo y alimentadores. Antes de abrir el kernel ya sabemos las unidades y límites del mundo simulado. Después `contracts.py` convierte esas decisiones en reglas ejecutables. `config.py` es el puente que lee TOML y devuelve un objeto inmutable.
+
+Seguimos con `data.py`. La constante `PUBLIC_START` fija el calendario ficticio y `public_minute_series` lee el parquet sintético. `curate_minute_series` declara las transformaciones columnares y el contrato de rangos.
+
+Sólo entonces abrimos `domain/kernel.py`. `StockpileState.empty` fija forma del arreglo. `add_to_top`, `remove_from_top` y `remove_from_bottom` expresan operaciones distintas. `equilibrate_surface` compone vecindad, umbral y azar. `run_step` deja visible el orden de eventos.
+
+La capa `defs/assets.py` no reimplementa esas reglas. Convierte tablas y dominio en tres activos. `definitions.py` registra las piezas para que <strong><font color='darkmagenta'>Dagster</font></strong> descubra el grafo. Finalmente `app-src` consume el contrato de cuadros y dibuja el producto.
+
+## Seguir un dato de punta a punta
+
+Tomemos `feed_tph`:
+
+1. entra como columna sintética en `data.py`;
+2. se valida y ordena con <strong><font color='darkmagenta'>Polars</font></strong>;
+3. `stockpile_replay` lo agrega a quince minutos;
+4. se multiplica por duración y divide por toneladas por celda;
+5. `add_to_top` lo convierte en llenado espacial;
+6. la superficie resultante produce altura;
+7. el activo publica `simulated_height_m`;
+8. el check calcula métricas contra `measured_height_m`;
+9. el visor dibuja ambas series.
+
+Este recorrido es más útil que leer archivos alfabéticamente porque mantiene la causalidad del dato.
+
+## Seguir una propiedad granulométrica
+
+`feed_p80_in` comienza como propiedad del flujo sintético. Al depositarse se mezcla con el volumen existente. Durante una avalancha, `segregate_sizes` produce componentes fino y grueso conservativos. Durante descarga, el P80 retirado se pondera por el volumen de cada celda. Las salidas por alimentador se agregan por línea y se comparan con las referencias del mismo escenario ficticio.
+
+La ruta revela una limitación: nunca aparece una PSD simulada completa. Si una visualización pretendiera mostrarla, estaría inventando información. La lectura del código protege también contra afirmaciones excesivas del producto.
+
+## Cómo depurar una discrepancia de masa
+
+Si el inventario no cierra, no empezamos por el visor. Reducimos el problema:
+
+1. crear una grilla vacía pequeña;
+2. añadir un volumen conocido;
+3. retirar una fracción conocida;
+4. comparar suma antes y después;
+5. activar relajación superficial sin descarga;
+6. ejecutar un paso completo;
+7. recién entonces revisar agregación temporal.
+
+Esta estrategia encuentra la frontera donde aparece el error. Depurar directamente dos semanas combina demasiados mecanismos y hace que compensaciones oculten la causa.
+
+## Cómo extender el proyecto sin romper sus fronteras
+
+Para agregar edad de material crearíamos un arreglo `age_moment` dentro del estado, funciones de mezcla y transferencia, pruebas de conservación y una vista opcional. No sería necesario modificar <strong><font color='darkmagenta'>Dagster</font></strong> hasta decidir qué activo publica la nueva salida.
+
+Para agregar una fuente real, conservaríamos dominio y reemplazaríamos `public_minute_raw` por un recurso autenticado. El contrato curado seguiría siendo la frontera. Para agregar particiones, cambiaríamos la definición operacional sin introducir lógica de calendario dentro del kernel.
+
+## Ejercicios propuestos
+
+1. Implementar un trazador virtual y graficar su tiempo de residencia.
+2. Sustituir P80 por cuatro clases granulométricas conservativas.
+3. Comparar actualización fija y aleatoria mediante simetría radial.
+4. Implementar migración probabilística y estimar su mapa de frecuencias.
+5. Particionar los activos por día en <strong><font color='darkmagenta'>Dagster</font></strong>.
+6. Añadir un check no bloqueante de cobertura granulométrica.
+7. Medir el costo del visor al duplicar resolución horizontal.
+
+Cada ejercicio debería comenzar con una afirmación y una prueba. “Agregar clases” no basta; debemos declarar qué conservación y qué observación nueva habilitan.
+
+## El Asset Graph también forma parte del código
+
+El explorador incluye `build_dagster_snapshot.py`. Ese script no mantiene una lista paralela de activos: importa `defs`, resuelve el grafo y exporta su topología. Si se agrega una dependencia, el snapshot cambia al regenerarse. Esta propiedad mantiene alineadas documentación y arquitectura.
+
+[Abrir el Asset Graph](dagster/){.btn .btn-outline-primary}
+
+[← Visor 3D y operación](10-visor-3d-y-operacion.qmd) · [Volver al inicio del proyecto](index.qmd)

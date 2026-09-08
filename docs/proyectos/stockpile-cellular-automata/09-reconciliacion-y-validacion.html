@@ -1,0 +1,1381 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.9.37">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="description" content="Qué comparar, qué puede identificarse y por qué cerrar una curva no convierte al modelo en verdad.">
+
+<title>9. Reconciliación, calibración y validación – NerdyMiner</title>
+<style>
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+</style>
+
+
+<script src="../../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../../">
+<script src="../../site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="../../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../../site_libs/quarto-html/popper.min.js"></script>
+<script src="../../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../../site_libs/quarto-html/quarto-syntax-highlighting-b16add4d910ff6038463ffc00184b1c1.css" rel="stylesheet" class="quarto-color-scheme" id="quarto-text-highlighting-styles">
+<link href="../../site_libs/quarto-html/quarto-syntax-highlighting-dark-e3b8bbca183a7d6761657ecb5c5aa65f.css" rel="stylesheet" class="quarto-color-scheme quarto-color-alternate" id="quarto-text-highlighting-styles">
+<link href="../../site_libs/quarto-html/quarto-syntax-highlighting-b16add4d910ff6038463ffc00184b1c1.css" rel="stylesheet" class="quarto-color-scheme-extra" id="quarto-text-highlighting-styles">
+<script src="../../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../../site_libs/bootstrap/bootstrap-20a3660c41a27997b0067576444d6464.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
+<link href="../../site_libs/bootstrap/bootstrap-dark-82b8a8f05674b84d57516846be433586.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
+<link href="../../site_libs/bootstrap/bootstrap-20a3660c41a27997b0067576444d6464.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+<style>html{ scroll-behavior: smooth; }</style>
+
+  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
+  <script defer="" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN" && texText && texText.data) {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
+
+</head>
+
+<body class="nav-fixed quarto-light"><script id="quarto-html-before-body" type="application/javascript">
+    const toggleBodyColorMode = (bsSheetEl) => {
+      const mode = bsSheetEl.getAttribute("data-mode");
+      const bodyEl = window.document.querySelector("body");
+      if (mode === "dark") {
+        bodyEl.classList.add("quarto-dark");
+        bodyEl.classList.remove("quarto-light");
+      } else {
+        bodyEl.classList.add("quarto-light");
+        bodyEl.classList.remove("quarto-dark");
+      }
+    }
+    const toggleBodyColorPrimary = () => {
+      const bsSheetEl = window.document.querySelector("link#quarto-bootstrap:not([rel=disabled-stylesheet])");
+      if (bsSheetEl) {
+        toggleBodyColorMode(bsSheetEl);
+      }
+    }
+    const setColorSchemeToggle = (alternate) => {
+      const toggles = window.document.querySelectorAll('.quarto-color-scheme-toggle');
+      for (let i=0; i < toggles.length; i++) {
+        const toggle = toggles[i];
+        if (toggle) {
+          if (alternate) {
+            toggle.classList.add("alternate");
+          } else {
+            toggle.classList.remove("alternate");
+          }
+        }
+      }
+    };
+    const toggleColorMode = (alternate) => {
+      // Switch the stylesheets
+      const primaryStylesheets = window.document.querySelectorAll('link.quarto-color-scheme:not(.quarto-color-alternate)');
+      const alternateStylesheets = window.document.querySelectorAll('link.quarto-color-scheme.quarto-color-alternate');
+      manageTransitions('#quarto-margin-sidebar .nav-link', false);
+      if (alternate) {
+        // note: dark is layered on light, we don't disable primary!
+        enableStylesheet(alternateStylesheets);
+        for (const sheetNode of alternateStylesheets) {
+          if (sheetNode.id === "quarto-bootstrap") {
+            toggleBodyColorMode(sheetNode);
+          }
+        }
+      } else {
+        disableStylesheet(alternateStylesheets);
+        enableStylesheet(primaryStylesheets)
+        toggleBodyColorPrimary();
+      }
+      manageTransitions('#quarto-margin-sidebar .nav-link', true);
+      // Switch the toggles
+      setColorSchemeToggle(alternate)
+      // Hack to workaround the fact that safari doesn't
+      // properly recolor the scrollbar when toggling (#1455)
+      if (navigator.userAgent.indexOf('Safari') > 0 && navigator.userAgent.indexOf('Chrome') == -1) {
+        manageTransitions("body", false);
+        window.scrollTo(0, 1);
+        setTimeout(() => {
+          window.scrollTo(0, 0);
+          manageTransitions("body", true);
+        }, 40);
+      }
+    }
+    const disableStylesheet = (stylesheets) => {
+      for (let i=0; i < stylesheets.length; i++) {
+        const stylesheet = stylesheets[i];
+        stylesheet.rel = 'disabled-stylesheet';
+      }
+    }
+    const enableStylesheet = (stylesheets) => {
+      for (let i=0; i < stylesheets.length; i++) {
+        const stylesheet = stylesheets[i];
+        if(stylesheet.rel !== 'stylesheet') { // for Chrome, which will still FOUC without this check
+          stylesheet.rel = 'stylesheet';
+        }
+      }
+    }
+    const manageTransitions = (selector, allowTransitions) => {
+      const els = window.document.querySelectorAll(selector);
+      for (let i=0; i < els.length; i++) {
+        const el = els[i];
+        if (allowTransitions) {
+          el.classList.remove('notransition');
+        } else {
+          el.classList.add('notransition');
+        }
+      }
+    }
+    const isFileUrl = () => {
+      return window.location.protocol === 'file:';
+    }
+    const hasAlternateSentinel = () => {
+      let styleSentinel = getColorSchemeSentinel();
+      if (styleSentinel !== null) {
+        return styleSentinel === "alternate";
+      } else {
+        return false;
+      }
+    }
+    const setStyleSentinel = (alternate) => {
+      const value = alternate ? "alternate" : "default";
+      if (!isFileUrl()) {
+        window.localStorage.setItem("quarto-color-scheme", value);
+      } else {
+        localAlternateSentinel = value;
+      }
+    }
+    const getColorSchemeSentinel = () => {
+      if (!isFileUrl()) {
+        const storageValue = window.localStorage.getItem("quarto-color-scheme");
+        return storageValue != null ? storageValue : localAlternateSentinel;
+      } else {
+        return localAlternateSentinel;
+      }
+    }
+    const toggleGiscusIfUsed = (isAlternate, darkModeDefault) => {
+      const baseTheme = document.querySelector('#giscus-base-theme')?.value ?? 'light';
+      const alternateTheme = document.querySelector('#giscus-alt-theme')?.value ?? 'dark';
+      let newTheme = '';
+      if(authorPrefersDark) {
+        newTheme = isAlternate ? baseTheme : alternateTheme;
+      } else {
+        newTheme = isAlternate ? alternateTheme : baseTheme;
+      }
+      const changeGiscusTheme = () => {
+        // From: https://github.com/giscus/giscus/issues/336
+        const sendMessage = (message) => {
+          const iframe = document.querySelector('iframe.giscus-frame');
+          if (!iframe) return;
+          iframe.contentWindow.postMessage({ giscus: message }, 'https://giscus.app');
+        }
+        sendMessage({
+          setConfig: {
+            theme: newTheme
+          }
+        });
+      }
+      const isGiscussLoaded = window.document.querySelector('iframe.giscus-frame') !== null;
+      if (isGiscussLoaded) {
+        changeGiscusTheme();
+      }
+    };
+    const authorPrefersDark = false;
+    const darkModeDefault = authorPrefersDark;
+      document.querySelector('link#quarto-text-highlighting-styles.quarto-color-scheme-extra').rel = 'disabled-stylesheet';
+      document.querySelector('link#quarto-bootstrap.quarto-color-scheme-extra').rel = 'disabled-stylesheet';
+    let localAlternateSentinel = darkModeDefault ? 'alternate' : 'default';
+    // Dark / light mode switch
+    window.quartoToggleColorScheme = () => {
+      // Read the current dark / light value
+      let toAlternate = !hasAlternateSentinel();
+      toggleColorMode(toAlternate);
+      setStyleSentinel(toAlternate);
+      toggleGiscusIfUsed(toAlternate, darkModeDefault);
+      window.dispatchEvent(new Event('resize'));
+    };
+    // Switch to dark mode if need be
+    if (hasAlternateSentinel()) {
+      toggleColorMode(true);
+    } else {
+      toggleColorMode(false);
+    }
+  </script>
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container mx-auto">
+    <a href="../../index.html" class="navbar-brand navbar-brand-logo">
+    <img src="../../images/nerdyminer-icon.svg" alt="NerdyMiner" class="navbar-logo light-content">
+    <img src="../../images/nerdyminer-icon.svg" alt="NerdyMiner" class="navbar-logo dark-content">
+    </a>
+    <a class="navbar-brand" href="../../index.html">
+    <span class="navbar-title">NerdyMiner</span>
+    </a>
+  </div>
+            <div id="quarto-search" class="" title="Search"></div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" role="menu" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll me-auto">
+  <li class="nav-item">
+    <a class="nav-link" href="../../index.html"> 
+<span class="menu-text">Inicio</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../articulos/index.html"> 
+<span class="menu-text">Artículos</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../apuntes/index.html"> 
+<span class="menu-text">Apuntes</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../clases/index.html"> 
+<span class="menu-text">Clases</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../bibliografia.html"> 
+<span class="menu-text">Bibliografía</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../proyectos/index.html"> 
+<span class="menu-text">Proyectos</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../licencia.html"> 
+<span class="menu-text">Licencia</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../sobre-mi.html"> 
+<span class="menu-text">Sobre mí</span></a>
+  </li>  
+</ul>
+          </div> <!-- /navcollapse -->
+            <div class="quarto-navbar-tools">
+  <a href="" class="quarto-color-scheme-toggle quarto-navigation-tool  px-1" onclick="window.quartoToggleColorScheme(); return false;" title="Toggle dark mode"><i class="bi"></i></a>
+</div>
+      </div> <!-- /container-fluid -->
+    </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
+<!-- sidebar -->
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul>
+  <li><a href="#tres-preguntas-distintas" id="toc-tres-preguntas-distintas" class="nav-link active" data-scroll-target="#tres-preguntas-distintas">Tres preguntas distintas</a></li>
+  <li><a href="#balance-de-masa" id="toc-balance-de-masa" class="nav-link" data-scroll-target="#balance-de-masa">Balance de masa</a></li>
+  <li><a href="#reconciliación-de-altura" id="toc-reconciliación-de-altura" class="nav-link" data-scroll-target="#reconciliación-de-altura">Reconciliación de altura</a></li>
+  <li><a href="#altura-no-es-volumen-total" id="toc-altura-no-es-volumen-total" class="nav-link" data-scroll-target="#altura-no-es-volumen-total">Altura no es volumen total</a></li>
+  <li><a href="#reconciliación-granulométrica" id="toc-reconciliación-granulométrica" class="nav-link" data-scroll-target="#reconciliación-granulométrica">Reconciliación granulométrica</a></li>
+  <li><a href="#la-diferencia-entre-líneas" id="toc-la-diferencia-entre-líneas" class="nav-link" data-scroll-target="#la-diferencia-entre-líneas">La diferencia entre líneas</a></li>
+  <li><a href="#qué-validó-el-artículo" id="toc-qué-validó-el-artículo" class="nav-link" data-scroll-target="#qué-validó-el-artículo">Qué validó el artículo</a></li>
+  <li><a href="#función-objetivo" id="toc-función-objetivo" class="nav-link" data-scroll-target="#función-objetivo">Función objetivo</a></li>
+  <li><a href="#identificabilidad" id="toc-identificabilidad" class="nav-link" data-scroll-target="#identificabilidad">Identificabilidad</a></li>
+  <li><a href="#diseño-temporal-de-validación" id="toc-diseño-temporal-de-validación" class="nav-link" data-scroll-target="#diseño-temporal-de-validación">Diseño temporal de validación</a></li>
+  <li><a href="#incertidumbre" id="toc-incertidumbre" class="nav-link" data-scroll-target="#incertidumbre">Incertidumbre</a></li>
+  <li><a href="#escenario-sintético-del-blog" id="toc-escenario-sintético-del-blog" class="nav-link" data-scroll-target="#escenario-sintético-del-blog">Escenario sintético del blog</a></li>
+  <li><a href="#decisión-operacional-y-límites" id="toc-decisión-operacional-y-límites" class="nav-link" data-scroll-target="#decisión-operacional-y-límites">Decisión operacional y límites</a></li>
+  <li><a href="#verificación-calibración-y-validación" id="toc-verificación-calibración-y-validación" class="nav-link" data-scroll-target="#verificación-calibración-y-validación">Verificación, calibración y validación</a></li>
+  <li><a href="#entender-bias-mae-y-rmse-con-un-ejemplo" id="toc-entender-bias-mae-y-rmse-con-un-ejemplo" class="nav-link" data-scroll-target="#entender-bias-mae-y-rmse-con-un-ejemplo">Entender bias, MAE y RMSE con un ejemplo</a></li>
+  <li><a href="#reconciliar-cantidades-comparables" id="toc-reconciliar-cantidades-comparables" class="nav-link" data-scroll-target="#reconciliar-cantidades-comparables">Reconciliar cantidades comparables</a></li>
+  <li><a href="#residuales-como-diagnóstico-de-mecanismo" id="toc-residuales-como-diagnóstico-de-mecanismo" class="nav-link" data-scroll-target="#residuales-como-diagnóstico-de-mecanismo">Residuales como diagnóstico de mecanismo</a></li>
+  <li><a href="#calibrar-sin-convertir-parámetros-en-perillas-libres" id="toc-calibrar-sin-convertir-parámetros-en-perillas-libres" class="nav-link" data-scroll-target="#calibrar-sin-convertir-parámetros-en-perillas-libres">Calibrar sin convertir parámetros en perillas libres</a></li>
+  <li><a href="#separación-temporal-y-cambio-de-régimen" id="toc-separación-temporal-y-cambio-de-régimen" class="nav-link" data-scroll-target="#separación-temporal-y-cambio-de-régimen">Separación temporal y cambio de régimen</a></li>
+  <li><a href="#incertidumbre-del-estado-latente" id="toc-incertidumbre-del-estado-latente" class="nav-link" data-scroll-target="#incertidumbre-del-estado-latente">Incertidumbre del estado latente</a></li>
+  <li><a href="#validación-científica-y-aceptación-operacional" id="toc-validación-científica-y-aceptación-operacional" class="nav-link" data-scroll-target="#validación-científica-y-aceptación-operacional">Validación científica y aceptación operacional</a></li>
+  <li><a href="#una-matriz-de-evidencia" id="toc-una-matriz-de-evidencia" class="nav-link" data-scroll-target="#una-matriz-de-evidencia">Una matriz de evidencia</a></li>
+  </ul>
+</nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content">
+
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title">9. Reconciliación, calibración y validación</h1>
+</div>
+
+<div>
+  <div class="description">
+    Qué comparar, qué puede identificarse y por qué cerrar una curva no convierte al modelo en verdad.
+  </div>
+</div>
+
+
+<div class="quarto-title-meta">
+
+    
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<p><a href="../../proyectos/stockpile-cellular-automata/index.html">← Volver al proyecto</a></p>
+<section id="tres-preguntas-distintas" class="level2">
+<h2 class="anchored" data-anchor-id="tres-preguntas-distintas">Tres preguntas distintas</h2>
+<p>Un modelo dinámico puede fallar por datos, implementación o hipótesis física. Para no confundirlas separamos:</p>
+<ol type="1">
+<li><strong>Verificación:</strong> ¿el código ejecuta las reglas declaradas y conserva invariantes?</li>
+<li><strong>Calibración:</strong> ¿qué parámetros minimizan una función de pérdida en una ventana de ajuste?</li>
+<li><strong>Validación:</strong> ¿el modelo reproduce observaciones no usadas para ajustar?</li>
+</ol>
+<p>Una cuarta práctica, <strong>reconciliación</strong>, compara continuamente señales compatibles y hace visible la discrepancia. No exige que exista un parámetro capaz de cerrarla.</p>
+</section>
+<section id="balance-de-masa" class="level2">
+<h2 class="anchored" data-anchor-id="balance-de-masa">Balance de masa</h2>
+<p>El primer diagnóstico es:</p>
+<p><span class="math display">\[
+e_M(t)=M_0+\int_0^t\left(q_{\mathrm{in}}(\tau)-\sum_jq_{\mathrm{out},j}(\tau)\right)d\tau-M_{\mathrm{sim}}(t).
+\]</span></p>
+<p>En una implementación conservativa y sin recortes, <span class="math inline">\(e_M\)</span> debe ser numéricamente cercano a cero. Si no lo es, existe un error de software o de unidades. Esto no significa que el inventario simulado coincida con el real: ambas balanzas pueden tener sesgo o puede existir un flujo no medido.</p>
+<p>Podemos introducir una ganancia de alimentación <span class="math inline">\(g\)</span>:</p>
+<p><span class="math display">\[
+M_{t+1}=M_t+\Delta t\left(gq_{\mathrm{in},t}-q_{\mathrm{out},t}\right).
+\]</span></p>
+<p>Una ganancia global cierra el balance acumulado de la ventana usada para estimarla. Si el sesgo cambia de signo por mes, no cierra subventanas y desplaza el estado. La estabilidad temporal del residuo importa más que una media de largo plazo.</p>
+</section>
+<section id="reconciliación-de-altura" class="level2">
+<h2 class="anchored" data-anchor-id="reconciliación-de-altura">Reconciliación de altura</h2>
+<p>El autómata produce un campo <span class="math inline">\(H_{ij}(t)\)</span>. Un sensor mide una posición o un soporte espacial específico, no necesariamente el máximo:</p>
+<p><span class="math display">\[
+e_H(t)=H_{i_sj_s}^{\mathrm{sim}}(t)-H^{\mathrm{meas}}(t).
+\]</span></p>
+<p>Las métricas publicadas por <code>agreement</code> son:</p>
+<p><span class="math display">\[
+\operatorname{Bias}=\frac1n\sum_te_H(t),
+\qquad
+\operatorname{MAE}=\frac1n\sum_t|e_H(t)|,
+\]</span></p>
+<p><span class="math display">\[
+\operatorname{RMSE}=\sqrt{\frac1n\sum_te_H(t)^2}.
+\]</span></p>
+<p>El sesgo indica desplazamiento sistemático; MAE, error típico robusto a signo; RMSE penaliza eventos grandes. Ninguna captura desfase temporal por sí sola. También examinamos correlación de cambios, error por nivel y respuesta a eventos de llenado/vaciado.</p>
+</section>
+<section id="altura-no-es-volumen-total" class="level2">
+<h2 class="anchored" data-anchor-id="altura-no-es-volumen-total">Altura no es volumen total</h2>
+<p>Convertir una altura a volumen con una fórmula cónica supone forma completa y soporte equivalente. En un acopio con depresión sobre alimentadores, el sensor puede seguir la zona viva mientras la periferia permanece alta. Ajustar densidad para forzar:</p>
+<p><span class="math display">\[
+\Delta M\approx\rho_b\Delta V(H)
+\]</span></p>
+<p>puede producir una densidad aparente físicamente imposible. Ese resultado no “calibra” densidad; falsifica la hipótesis de que el sensor representa el volumen completo.</p>
+<div class="callout callout-style-default callout-important callout-titled" title="Un parámetro imposible es evidencia contra el modelo de medición">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Important</span>Un parámetro imposible es evidencia contra el modelo de medición
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>Antes de ampliar el rango permitido de densidad, revise posición del sensor, forma de la superficie, zona viva, alineamiento temporal y flujos omitidos. Los contratos físicos sirven para rechazar explicaciones, no para hacer converger el optimizador.</p>
+</div>
+</div>
+</section>
+<section id="reconciliación-granulométrica" class="level2">
+<h2 class="anchored" data-anchor-id="reconciliación-granulométrica">Reconciliación granulométrica</h2>
+<p>Para cada línea comparamos P80 simulado y medido:</p>
+<p><span class="math display">\[
+e_{d,j}(t)=d_{j}^{\mathrm{sim}}(t)-d_{j}^{\mathrm{meas}}(t).
+\]</span></p>
+<p>Si los sensores de entrada y salida no comparten calibración, el nivel absoluto contiene un offset instrumental. En un acopio sin conminución, el promedio ponderado de descargas debería ser compatible con la entrada a escala de residencia:</p>
+<p><span class="math display">\[
+d_{\mathrm{out,weighted}}(t)\approx\mathcal{T}\left[d_{\mathrm{in}}(t-\tau:t)\right],
+\]</span></p>
+<p>donde <span class="math inline">\(\mathcal{T}\)</span> representa mezcla y residencia. Una diferencia persistente puede venir del modelo, pero también de cámaras con calibraciones distintas.</p>
+</section>
+<section id="la-diferencia-entre-líneas" class="level2">
+<h2 class="anchored" data-anchor-id="la-diferencia-entre-líneas">La diferencia entre líneas</h2>
+<p>Cuando ambas salidas usan instrumentos comparables, la diferencia pareada es más robusta:</p>
+<p><span class="math display">\[
+\Delta d^{\mathrm{meas}}_t=d^{\mathrm{meas}}_{B,t}-d^{\mathrm{meas}}_{A,t},
+\]</span></p>
+<p><span class="math display">\[
+e_{\Delta}(t)=\Delta d^{\mathrm{sim}}_t-\Delta d^{\mathrm{meas}}_t.
+\]</span></p>
+<p>Un offset común se cancela. El visor destaca esta magnitud y mantiene las curvas absolutas como contexto. Aun así, diferencias de calibración entre sensores A y B no se cancelan; se requieren muestras de referencia o un ensayo cruzado.</p>
+</section>
+<section id="qué-validó-el-artículo" class="level2">
+<h2 class="anchored" data-anchor-id="qué-validó-el-artículo">Qué validó el artículo</h2>
+<p>La primera parte valida forma y segregación contra pilas de laboratorio a cuatro escalas. La segunda reporta una simulación industrial de 57 días con datos a intervalos de cinco minutos. Compara altura simulada y observada y P80 por dos líneas. Los autores señalan capacidad para seguir tendencias y estimar descarga, junto con limitaciones de mineral libre, ausencia de compactación/cohesión y ausencia de degradación.</p>
+<p>Es importante leer la evidencia con su soporte:</p>
+<ul>
+<li>la forma y segregación se apoyan en experimentos controlados;</li>
+<li>descarga y altura se evalúan en un caso industrial;</li>
+<li>la generalización a otra geometría requiere nueva configuración y validación;</li>
+<li>la utilidad de control depende de latencia, estabilidad y cobertura de sensores;</li>
+<li>una réplica de ideas no hereda automáticamente los resultados de validación.</li>
+</ul>
+</section>
+<section id="función-objetivo" class="level2">
+<h2 class="anchored" data-anchor-id="función-objetivo">Función objetivo</h2>
+<p>Una calibración multivariable puede minimizar:</p>
+<p><span class="math display">\[
+J(\theta)=w_H\operatorname{RMSE}_H(\theta)+w_\Delta\operatorname{RMSE}_{\Delta d}(\theta)+w_M\operatorname{Penalty}_M(\theta)+w_G\operatorname{Penalty}_{\mathrm{geometry}}(\theta).
+\]</span></p>
+<p>Los pesos no son neutros. Si <span class="math inline">\(w_H\)</span> domina, el optimizador puede sacrificar granulometría. Las penalizaciones físicas impiden soluciones que ajustan sensores a costa de tocar bordes o usar densidad imposible.</p>
+<p>Parámetros típicos incluyen ángulo de reposo, densidad, intensidad de segregación, mapa de migración, reparto por alimentador y estado inicial. Ajustarlos todos simultáneamente suele crear equifinalidad. Conviene fijar por medición lo que pueda medirse y calibrar sólo lo no observable.</p>
+</section>
+<section id="identificabilidad" class="level2">
+<h2 class="anchored" data-anchor-id="identificabilidad">Identificabilidad</h2>
+<p>Dos parámetros son débilmente identificables si cambios opuestos producen salidas similares. Por ejemplo:</p>
+<ul>
+<li>mayor densidad reduce cambio de altura por tonelada;</li>
+<li>mayor capacidad inicial también amortigua altura;</li>
+<li>mayor segregación superficial puede compensar menor segregación por trayectoria;</li>
+<li>reparto por alimentador puede imitar una diferencia geométrica entre líneas.</li>
+</ul>
+<p>Un Hessiano o perfiles de pérdida ayudan, pero la defensa más fuerte es experimental: medir geometría, registrar estados de alimentadores, obtener cortes de correa y excitar regímenes que separen mecanismos.</p>
+</section>
+<section id="diseño-temporal-de-validación" class="level2">
+<h2 class="anchored" data-anchor-id="diseño-temporal-de-validación">Diseño temporal de validación</h2>
+<p>No barajamos minutos. El estado del autómata hace que cada observación dependa del pasado. Usamos bloques:</p>
+<pre class="text"><code>calentamiento | calibración | validación 1 | validación 2</code></pre>
+<p>La validación debe incluir regímenes de altura, tonelaje y combinación de alimentadores distintos. Una ventana estable puede ocultar errores que aparecen durante vaciado profundo.</p>
+</section>
+<section id="incertidumbre" class="level2">
+<h2 class="anchored" data-anchor-id="incertidumbre">Incertidumbre</h2>
+<p>El visor muestra una trayectoria determinista, pero una evaluación madura propaga incertidumbre de:</p>
+<ul>
+<li>balanzas;</li>
+<li>densidad aparente;</li>
+<li>granulometría de cámaras;</li>
+<li>posición de alimentadores;</li>
+<li>parámetros de segregación;</li>
+<li>estado inicial;</li>
+<li>semilla asíncrona.</li>
+</ul>
+<p>Un ensamble produce intervalos para altura y P80. La cobertura observada de esos intervalos es más informativa que añadir bandas arbitrarias alrededor de una curva.</p>
+</section>
+<section id="escenario-sintético-del-blog" class="level2">
+<h2 class="anchored" data-anchor-id="escenario-sintético-del-blog">Escenario sintético del blog</h2>
+<p>Las curvas del visor no se construyen como perturbaciones suaves ni como ciclos ideales. La altura y las PSD pertenecen a un escenario sintético con detenciones, vaciado de carga viva, conos invertidos y recuperación posterior. Esta complejidad deliberada permite discutir reconciliación y fallas del modelo sin asociar el ejercicio con una operación identificable.</p>
+<p>El RMSE conserva valor pedagógico como diagnóstico de reconciliación, pero no se presenta como certificación operacional transferible. La demostración comprueba:</p>
+<ul>
+<li>sincronización entre cursor y gráficos;</li>
+<li>cálculo de sesgo;</li>
+<li>lectura de diferencias entre líneas;</li>
+<li>manejo de hasta 1.344 cuadros;</li>
+<li>separación visual entre medido y simulado.</li>
+</ul>
+</section>
+<section id="decisión-operacional-y-límites" class="level2">
+<h2 class="anchored" data-anchor-id="decisión-operacional-y-límites">Decisión operacional y límites</h2>
+<p>Un sensor virtual puede apoyar anticipación de granulometría y diagnóstico de reparto, pero no debería controlar automáticamente sin:</p>
+<ul>
+<li>monitoreo de calidad de entradas;</li>
+<li>límites de validez geométrica;</li>
+<li>incertidumbre o degradación declarada;</li>
+<li><em>fallback</em> seguro;</li>
+<li>backtesting continuo;</li>
+<li>revisión de cambios de configuración;</li>
+<li>trazabilidad de versión y parámetros.</li>
+</ul>
+<p>El producto correcto no es una curva que siempre existe. Es un sistema que sabe cuándo su curva no merece confianza.</p>
+</section>
+<section id="verificación-calibración-y-validación" class="level2">
+<h2 class="anchored" data-anchor-id="verificación-calibración-y-validación">Verificación, calibración y validación</h2>
+<p>Estos términos responden preguntas diferentes:</p>
+<ul>
+<li><strong>verificación:</strong> ¿implementamos correctamente las reglas que declaramos?;</li>
+<li><strong>calibración:</strong> ¿qué valores de parámetros hacen que el modelo se acerque a un conjunto de observaciones?;</li>
+<li><strong>validación:</strong> ¿el modelo representa suficientemente el fenómeno para el uso previsto en datos no utilizados para ajustar?;</li>
+<li><strong>reconciliación:</strong> ¿cómo se comparan en un período una salida simulada y una medición compatible?</li>
+</ul>
+<p>Una prueba de conservación verifica código. Minimizar RMSE calibra. Evaluar otra ventana valida. Dibujar observado y simulado reconcilia. Usar una sola palabra para todo oculta qué evidencia tenemos realmente.</p>
+</section>
+<section id="entender-bias-mae-y-rmse-con-un-ejemplo" class="level2">
+<h2 class="anchored" data-anchor-id="entender-bias-mae-y-rmse-con-un-ejemplo">Entender bias, MAE y RMSE con un ejemplo</h2>
+<p>Supongamos errores de altura simulada menos observada <span class="math inline">\([+1,-1,+3]\)</span> m. El bias es:</p>
+<p><span class="math display">\[
+\mathrm{bias}=\frac{1-1+3}{3}=1\text{ m}.
+\]</span></p>
+<p>El MAE ignora signo:</p>
+<p><span class="math display">\[
+\mathrm{MAE}=\frac{1+1+3}{3}=1.67\text{ m}.
+\]</span></p>
+<p>El RMSE penaliza más el error grande:</p>
+<p><span class="math display">\[
+\mathrm{RMSE}=\sqrt{\frac{1^2+(-1)^2+3^2}{3}}=1.91\text{ m}.
+\]</span></p>
+<p>Un bias cercano a cero no garantiza buen ajuste: errores positivos y negativos pueden cancelarse. MAE describe una magnitud típica robusta. RMSE destaca episodios grandes. Ninguna métrica revela por sí sola si el error ocurre durante llenado, descarga o nivel bajo.</p>
+</section>
+<section id="reconciliar-cantidades-comparables" class="level2">
+<h2 class="anchored" data-anchor-id="reconciliar-cantidades-comparables">Reconciliar cantidades comparables</h2>
+<p>Una medición superficial puntual no debe compararse sin transformación con el máximo de toda la grilla si representan ubicaciones distintas. Una muestra de P80 de una correa durante una hora no equivale a la propiedad instantánea de una celda. Antes de calcular error debemos alinear soporte espacial, soporte temporal y unidad.</p>
+<p>La pregunta correcta no es sólo “¿tienen el mismo nombre?”. Es “¿promedian el mismo fenómeno sobre el mismo intervalo y región?”. Muchos errores de validación nacen de comparar proxies incompatibles.</p>
+</section>
+<section id="residuales-como-diagnóstico-de-mecanismo" class="level2">
+<h2 class="anchored" data-anchor-id="residuales-como-diagnóstico-de-mecanismo">Residuales como diagnóstico de mecanismo</h2>
+<p>El residual <span class="math inline">\(e_t=y_t-\hat y_t\)</span> debería analizarse contra tiempo y régimen. Si aumenta con altura, la geometría o densidad puede estar mal. Si cambia de signo al alternar líneas, la zona de descarga puede ser demasiado simétrica. Si responde a P80 de alimentación, falta o sobra segregación.</p>
+<p>Gráficos útiles incluyen residual versus altura, caudal, línea, duración desde cambio de alimentador y fase de llenado/descarga. La métrica global resume; la estructura residual orienta una hipótesis física.</p>
+</section>
+<section id="calibrar-sin-convertir-parámetros-en-perillas-libres" class="level2">
+<h2 class="anchored" data-anchor-id="calibrar-sin-convertir-parámetros-en-perillas-libres">Calibrar sin convertir parámetros en perillas libres</h2>
+<p>Cada parámetro debería tener interpretación y rango previo. Ajustar ángulo, intensidad superficial, trayectoria y ancho de migración simultáneamente puede producir combinaciones que compensan errores. El optimizador encontrará un mínimo, pero no necesariamente una explicación identificable.</p>
+<p>Una estrategia pedagógica es calibrar por etapas: forma estática para ángulo, pilas controladas para segregación, transitorios de descarga para migración y sólo después una validación integrada. Esta secuencia usa experimentos donde cada mecanismo domina.</p>
+</section>
+<section id="separación-temporal-y-cambio-de-régimen" class="level2">
+<h2 class="anchored" data-anchor-id="separación-temporal-y-cambio-de-régimen">Separación temporal y cambio de régimen</h2>
+<p>Dividir registros al azar mezcla estados cercanos entre entrenamiento y validación. En series industriales, las observaciones vecinas comparten inventario y condiciones. Una división temporal protege mejor contra fuga y prueba extrapolación a un período posterior.</p>
+<p>También debemos reservar regímenes: altura baja, alta, alimentación dominante, descarga dominante y combinaciones de alimentadores. Un modelo que sólo vio operación estable puede fallar precisamente durante transitorios donde más valor tendría.</p>
+</section>
+<section id="incertidumbre-del-estado-latente" class="level2">
+<h2 class="anchored" data-anchor-id="incertidumbre-del-estado-latente">Incertidumbre del estado latente</h2>
+<p>Aunque el visor dibuja una superficie nítida, el interior no es conocido exactamente. Semilla, parámetros, densidad, estado inicial y mediciones inducen incertidumbre. Una extensión podría ejecutar un conjunto de réplicas y mostrar bandas de altura o distribución de P80 por línea.</p>
+<p>No conviene colorear cada celda con una “certeza” arbitraria. La incertidumbre debe corresponder a una fuente definida y propagarse hasta una cantidad de decisión. Para un operador puede ser más útil saber que la diferencia de P80 entre líneas es <span class="math inline">\(0.4\pm0.2\)</span> pulgadas que observar una nube de estados completos.</p>
+</section>
+<section id="validación-científica-y-aceptación-operacional" class="level2">
+<h2 class="anchored" data-anchor-id="validación-científica-y-aceptación-operacional">Validación científica y aceptación operacional</h2>
+<p>Un modelo puede superar métricas y aun ser difícil de operar. La aceptación también requiere latencia, disponibilidad, explicabilidad, trazabilidad, reacción ante fallos y un responsable. Del mismo modo, una herramienta fácil de usar puede ser científicamente insuficiente.</p>
+<p>La puerta de producción debería exigir ambas dimensiones. Los checks de <strong><font color="darkmagenta">Dagster</font></strong> automatizan una parte, pero los umbrales, revisiones y decisiones siguen perteneciendo a una política de gobierno.</p>
+</section>
+<section id="una-matriz-de-evidencia" class="level2">
+<h2 class="anchored" data-anchor-id="una-matriz-de-evidencia">Una matriz de evidencia</h2>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 33%">
+<col style="width: 33%">
+<col style="width: 33%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Afirmación</th>
+<th>Evidencia adecuada</th>
+<th>Evidencia insuficiente</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>conserva masa</td>
+<td>prueba por regla y balance acumulado</td>
+<td>curva de altura parecida</td>
+</tr>
+<tr class="even">
+<td>forma una pila estable</td>
+<td>perfil y sensibilidad de grilla</td>
+<td>una captura favorable</td>
+</tr>
+<tr class="odd">
+<td>segrega tamaños</td>
+<td>patrón radial y PSD por región</td>
+<td>P80 global</td>
+</tr>
+<tr class="even">
+<td>reproduce descarga</td>
+<td>transitorios por alimentador</td>
+<td>promedio mensual</td>
+</tr>
+<tr class="odd">
+<td>generaliza</td>
+<td>ventana temporal no calibrada</td>
+<td>ajuste sobre entrenamiento</td>
+</tr>
+<tr class="even">
+<td>es operable</td>
+<td>checks, logs y modo degradado</td>
+<td>notebook ejecutado una vez</td>
+</tr>
+</tbody>
+</table>
+<p>La matriz impide usar una clase de evidencia para sostener una afirmación distinta.</p>
+<p><a href="../../proyectos/stockpile-cellular-automata/08-orquestacion-con-dagster.html">← Orquestación con <strong><font color="darkmagenta">Dagster</font></strong></a> · <a href="../../proyectos/stockpile-cellular-automata/10-visor-3d-y-operacion.html">Siguiente: visor 3D y operación →</a></p>
+
+
+</section>
+
+</main> <!-- /main -->
+<div id="notes-prev-next" class="page-nav-links"></div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+  // ==========================================================================
+  // El arreglo `notesOrder` se GENERA automáticamente a partir del parámetro
+  // `number-offset` del front matter de cada entrada, mediante el script
+  // scripts/build-notes-order.py (hook pre-render de Quarto). Así el orden
+  // anterior/siguiente siempre refleja la numeración real de cada sección.
+  // No editar el bloque entre los marcadores a mano: se sobrescribe en el build.
+  // ==========================================================================
+  /* NOTES_ORDER_START */
+  const notesOrder = [
+    {
+        "section": "apuntes/calculo-incertidumbre-y-optimizacion",
+        "items": [
+            {
+                "title": "Cálculo diferencial",
+                "href": "/apuntes/calculo-incertidumbre-y-optimizacion/calculo-diferencial/"
+            },
+            {
+                "title": "Aplicaciones del cálculo diferencial",
+                "href": "/apuntes/calculo-incertidumbre-y-optimizacion/aplicaciones-del-calculo-diferencial/"
+            },
+            {
+                "title": "Probabilidad elemental",
+                "href": "/apuntes/calculo-incertidumbre-y-optimizacion/probabilidad-clasica/"
+            },
+            {
+                "title": "Introducción al cálculo de probabilidades",
+                "href": "/apuntes/calculo-incertidumbre-y-optimizacion/introduccion-al-calculo-de-probabilidades/"
+            },
+            {
+                "title": "Distribuciones específicas de probabilidad",
+                "href": "/apuntes/calculo-incertidumbre-y-optimizacion/distribuciones-especificas-de-probabilidad/"
+            },
+            {
+                "title": "Introducción a la teoría de optimización",
+                "href": "/apuntes/calculo-incertidumbre-y-optimizacion/introduccion-a-la-teoria-de-optimizacion/"
+            },
+            {
+                "title": "Optimización de tipo black-box",
+                "href": "/apuntes/calculo-incertidumbre-y-optimizacion/optimizacion-de-tipo-black-box/"
+            },
+            {
+                "title": "Optimización aplicada a machine learning",
+                "href": "/apuntes/calculo-incertidumbre-y-optimizacion/optimizacion-aplicada-al-aprendizaje-automatico/"
+            }
+        ]
+    },
+    {
+        "section": "apuntes/estructuras-lineales",
+        "items": [
+            {
+                "title": "Espacios vectoriales",
+                "href": "/apuntes/estructuras-lineales/espacios-vectoriales/"
+            },
+            {
+                "title": "Bases y dimensión",
+                "href": "/apuntes/estructuras-lineales/bases-y-dimension/"
+            },
+            {
+                "title": "Transformaciones lineales",
+                "href": "/apuntes/estructuras-lineales/transformaciones-lineales/"
+            },
+            {
+                "title": "Producto interno",
+                "href": "/apuntes/estructuras-lineales/producto-interno/"
+            },
+            {
+                "title": "Determinantes y diagonalización",
+                "href": "/apuntes/estructuras-lineales/determinantes-y-diagonalizacion/"
+            },
+            {
+                "title": "Una introducción a las formas",
+                "href": "/apuntes/estructuras-lineales/introduccion-a-las-formas/"
+            },
+            {
+                "title": "Descomposiciones matriciales",
+                "href": "/apuntes/estructuras-lineales/descomposiciones-matriciales/"
+            }
+        ]
+    },
+    {
+        "section": "apuntes/grafos-e-informacion",
+        "items": [
+            {
+                "title": "Una (no tan breve) introducción a la teoría de grafos",
+                "href": "/apuntes/grafos-e-informacion/teoria-de-grafos/"
+            },
+            {
+                "title": "Optimización de redes computacionales",
+                "href": "/apuntes/grafos-e-informacion/optimizacion-de-grafos/"
+            },
+            {
+                "title": "Introducción a la teoría de la información",
+                "href": "/apuntes/grafos-e-informacion/introduccion-a-la-teoria-de-la-informacion/"
+            },
+            {
+                "title": "Cadenas de Markov",
+                "href": "/apuntes/grafos-e-informacion/cadenas-de-markov/"
+            }
+        ]
+    },
+    {
+        "section": "apuntes/tensores-y-variedades",
+        "items": [
+            {
+                "title": "Una primera aproximación a los tensores",
+                "href": "/apuntes/tensores-y-variedades/introducion-a-los-tensores/"
+            },
+            {
+                "title": "Introducción al álgebra tensorial",
+                "href": "/apuntes/tensores-y-variedades/introducion-al-algebra-tensorial/"
+            },
+            {
+                "title": "Un cuento que versa sobre topología",
+                "href": "/apuntes/tensores-y-variedades/introduccion-a-la-topologia/"
+            },
+            {
+                "title": "Variedades y fibrados vectoriales",
+                "href": "/apuntes/tensores-y-variedades/introduccion-a-las-variedades/"
+            }
+        ]
+    },
+    {
+        "section": "clases/data-analytics/introduccion-al-analisis-de-datos-en-python/computacion-vectorizada-y-arreglos-con-numpy",
+        "items": [
+            {
+                "title": "Introducción a Numpy",
+                "href": "/clases/data-analytics/introduccion-al-analisis-de-datos-en-python/computacion-vectorizada-y-arreglos-con-numpy/introduccion-a-numpy/"
+            },
+            {
+                "title": "Operatoria en Numpy",
+                "href": "/clases/data-analytics/introduccion-al-analisis-de-datos-en-python/computacion-vectorizada-y-arreglos-con-numpy/operatoria-en-numpy/"
+            },
+            {
+                "title": "Operaciones de agregación",
+                "href": "/clases/data-analytics/introduccion-al-analisis-de-datos-en-python/computacion-vectorizada-y-arreglos-con-numpy/broadcasting-y-agregacion/"
+            },
+            {
+                "title": "Comparación, ordenamiento y reemplazos en arreglos",
+                "href": "/clases/data-analytics/introduccion-al-analisis-de-datos-en-python/computacion-vectorizada-y-arreglos-con-numpy/comparacion-ordenamiento-y-reemplazo/"
+            },
+            {
+                "title": "Aplicación de Numpy en la construcción de modelos predictivos",
+                "href": "/clases/data-analytics/introduccion-al-analisis-de-datos-en-python/computacion-vectorizada-y-arreglos-con-numpy/aplicaciones-en-modelos/"
+            }
+        ]
+    },
+    {
+        "section": "clases/data-analytics/introduccion-al-analisis-de-datos-en-python/manipulacion-tabular-y-analisis-con-pandas",
+        "items": [
+            {
+                "title": "Una introducción rápida a Pandas",
+                "href": "/clases/data-analytics/introduccion-al-analisis-de-datos-en-python/manipulacion-tabular-y-analisis-con-pandas/introduccion-rapida-a-pandas/"
+            },
+            {
+                "title": "Tipos de datos en Pandas",
+                "href": "/clases/data-analytics/introduccion-al-analisis-de-datos-en-python/manipulacion-tabular-y-analisis-con-pandas/tipos-de-datos-en-pandas/"
+            },
+            {
+                "title": "Manipulación de Series - Parte I",
+                "href": "/clases/data-analytics/introduccion-al-analisis-de-datos-en-python/manipulacion-tabular-y-analisis-con-pandas/manipulacion-de-series-parte-i/"
+            },
+            {
+                "title": "Manipulación de Series - Parte II",
+                "href": "/clases/data-analytics/introduccion-al-analisis-de-datos-en-python/manipulacion-tabular-y-analisis-con-pandas/manipulacion-de-series-parte-ii/"
+            }
+        ]
+    },
+    {
+        "section": "clases/machine-learning/aprendizaje-supervisado/modelos-lineales",
+        "items": [
+            {
+                "title": "Una introducción sencilla a los algoritmos de aprendizaje",
+                "href": "/clases/machine-learning/aprendizaje-supervisado/modelos-lineales/introduccion-algoritmos-aprendizaje/"
+            },
+            {
+                "title": "Una introducción a Scikit-Learn",
+                "href": "/clases/machine-learning/aprendizaje-supervisado/modelos-lineales/introduccion-a-scikit-learn/"
+            },
+            {
+                "title": "Modelos de clasificación - Parte I",
+                "href": "/clases/machine-learning/aprendizaje-supervisado/modelos-lineales/modelos-de-clasificacion-parte-i/"
+            },
+            {
+                "title": "Modelos de clasificación - Parte II",
+                "href": "/clases/machine-learning/aprendizaje-supervisado/modelos-lineales/modelos-de-clasificacion-parte-ii/"
+            },
+            {
+                "title": "Modelo de regresión lineal",
+                "href": "/clases/machine-learning/aprendizaje-supervisado/modelos-lineales/modelo-de-regresion-lineal/"
+            },
+            {
+                "title": "Modelos lineales regularizados, Bayesianos y generalizados",
+                "href": "/clases/machine-learning/aprendizaje-supervisado/modelos-lineales/modelos-lineales-regularizados-bayesianos-y-generalizados/"
+            },
+            {
+                "title": "Máquinas de soporte vectorial",
+                "href": "/clases/machine-learning/aprendizaje-supervisado/modelos-lineales/maquinas-de-soporte-vectorial/"
+            }
+        ]
+    },
+    {
+        "section": "clases/machine-learning/aprendizaje-supervisado/modelos-no-lineales",
+        "items": [
+            {
+                "title": "Árboles de decisión",
+                "href": "/clases/machine-learning/aprendizaje-supervisado/modelos-no-lineales/arboles-de-decision/"
+            },
+            {
+                "title": "Modelos de ensamble",
+                "href": "/clases/machine-learning/aprendizaje-supervisado/modelos-no-lineales/modelos-de-ensamble/"
+            },
+            {
+                "title": "Boosting especializado",
+                "href": "/clases/machine-learning/aprendizaje-supervisado/modelos-no-lineales/modelos-de-ensamble-especializados/"
+            },
+            {
+                "title": "Estimación de importancia de variables en modelos predictivos",
+                "href": "/clases/machine-learning/aprendizaje-supervisado/modelos-no-lineales/importancia-de-variables/"
+            }
+        ]
+    },
+    {
+        "section": "clases/machine-learning/seleccion-de-variables-metricas-y-tuning",
+        "items": [
+            {
+                "title": "Selección y evaluación de modelos",
+                "href": "/clases/machine-learning/seleccion-de-variables-metricas-y-tuning/seleccion-y-evaluacion-de-modelos/"
+            }
+        ]
+    }
+];
+  /* NOTES_ORDER_END */
+
+  function normalizePath(path) {
+    if (!path.endsWith("/")) path += "/";
+    path = path.replace(/index\.html\/?$/, "");
+    return path;
+  }
+
+  const currentPath = normalizePath(window.location.pathname);
+  const container = document.getElementById("notes-prev-next");
+
+  let previous = null;
+  let next = null;
+  let found = false;
+
+  for (const section of notesOrder) {
+    const items = section.items;
+    const index = items.findIndex(item => normalizePath(item.href) === currentPath);
+
+    if (index !== -1) {
+      found = true;
+      if (index > 0) previous = items[index - 1];
+      if (index < items.length - 1) next = items[index + 1];
+      break;
+    }
+  }
+
+  if (!found) {
+    container.style.display = "none";
+    return;
+  }
+
+  container.innerHTML = `
+    <div class="page-nav-prev">
+      ${previous ? `<a href="${previous.href}">← ${previous.title}</a>` : ``}
+    </div>
+    <div class="page-nav-next">
+      ${next ? `<a href="${next.href}">${next.title} →</a>` : ``}
+    </div>
+  `;
+});
+</script>
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    // Ensure there is a toggle, if there isn't float one in the top right
+    if (window.document.querySelector('.quarto-color-scheme-toggle') === null) {
+      const a = window.document.createElement('a');
+      a.classList.add('top-right');
+      a.classList.add('quarto-color-scheme-toggle');
+      a.href = "";
+      a.onclick = function() { try { window.quartoToggleColorScheme(); } catch {} return false; };
+      const i = window.document.createElement("i");
+      i.classList.add('bi');
+      a.appendChild(i);
+      window.document.body.appendChild(a);
+    }
+    setColorSchemeToggle(hasAlternateSentinel())
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp('/' + window.location.host + '/');
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+</div> <!-- /content -->
+<footer class="footer">
+  <div class="nav-footer">
+    <div class="nav-footer-left">
+<p>© René Quezada</p>
+</div>   
+    <div class="nav-footer-center">
+      &nbsp;
+    </div>
+    <div class="nav-footer-right">
+<p>Hecho con Quarto</p>
+</div>
+  </div>
+</footer>
+
+
+
+
+<script src="../../site_libs/quarto-html/zenscroll-min.js"></script>
+</body></html>

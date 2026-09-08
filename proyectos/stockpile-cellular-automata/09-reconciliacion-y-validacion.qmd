@@ -1,0 +1,271 @@
+---
+title: "9. Reconciliación, calibración y validación"
+description: "Qué comparar, qué puede identificarse y por qué cerrar una curva no convierte al modelo en verdad."
+toc: true
+toc-depth: 3
+---
+
+[← Volver al proyecto](index.qmd)
+
+## Tres preguntas distintas
+
+Un modelo dinámico puede fallar por datos, implementación o hipótesis física. Para no confundirlas separamos:
+
+1. **Verificación:** ¿el código ejecuta las reglas declaradas y conserva invariantes?
+2. **Calibración:** ¿qué parámetros minimizan una función de pérdida en una ventana de ajuste?
+3. **Validación:** ¿el modelo reproduce observaciones no usadas para ajustar?
+
+Una cuarta práctica, **reconciliación**, compara continuamente señales compatibles y hace visible la discrepancia. No exige que exista un parámetro capaz de cerrarla.
+
+## Balance de masa
+
+El primer diagnóstico es:
+
+$$
+e_M(t)=M_0+\int_0^t\left(q_{\mathrm{in}}(\tau)-\sum_jq_{\mathrm{out},j}(\tau)\right)d\tau-M_{\mathrm{sim}}(t).
+$$
+
+En una implementación conservativa y sin recortes, $e_M$ debe ser numéricamente cercano a cero. Si no lo es, existe un error de software o de unidades. Esto no significa que el inventario simulado coincida con el real: ambas balanzas pueden tener sesgo o puede existir un flujo no medido.
+
+Podemos introducir una ganancia de alimentación $g$:
+
+$$
+M_{t+1}=M_t+\Delta t\left(gq_{\mathrm{in},t}-q_{\mathrm{out},t}\right).
+$$
+
+Una ganancia global cierra el balance acumulado de la ventana usada para estimarla. Si el sesgo cambia de signo por mes, no cierra subventanas y desplaza el estado. La estabilidad temporal del residuo importa más que una media de largo plazo.
+
+## Reconciliación de altura
+
+El autómata produce un campo $H_{ij}(t)$. Un sensor mide una posición o un soporte espacial específico, no necesariamente el máximo:
+
+$$
+e_H(t)=H_{i_sj_s}^{\mathrm{sim}}(t)-H^{\mathrm{meas}}(t).
+$$
+
+Las métricas publicadas por `agreement` son:
+
+$$
+\operatorname{Bias}=\frac1n\sum_te_H(t),
+\qquad
+\operatorname{MAE}=\frac1n\sum_t|e_H(t)|,
+$$
+
+$$
+\operatorname{RMSE}=\sqrt{\frac1n\sum_te_H(t)^2}.
+$$
+
+El sesgo indica desplazamiento sistemático; MAE, error típico robusto a signo; RMSE penaliza eventos grandes. Ninguna captura desfase temporal por sí sola. También examinamos correlación de cambios, error por nivel y respuesta a eventos de llenado/vaciado.
+
+## Altura no es volumen total
+
+Convertir una altura a volumen con una fórmula cónica supone forma completa y soporte equivalente. En un acopio con depresión sobre alimentadores, el sensor puede seguir la zona viva mientras la periferia permanece alta. Ajustar densidad para forzar:
+
+$$
+\Delta M\approx\rho_b\Delta V(H)
+$$
+
+puede producir una densidad aparente físicamente imposible. Ese resultado no “calibra” densidad; falsifica la hipótesis de que el sensor representa el volumen completo.
+
+::: {.callout-important title="Un parámetro imposible es evidencia contra el modelo de medición"}
+Antes de ampliar el rango permitido de densidad, revise posición del sensor, forma de la superficie, zona viva, alineamiento temporal y flujos omitidos. Los contratos físicos sirven para rechazar explicaciones, no para hacer converger el optimizador.
+:::
+
+## Reconciliación granulométrica
+
+Para cada línea comparamos P80 simulado y medido:
+
+$$
+e_{d,j}(t)=d_{j}^{\mathrm{sim}}(t)-d_{j}^{\mathrm{meas}}(t).
+$$
+
+Si los sensores de entrada y salida no comparten calibración, el nivel absoluto contiene un offset instrumental. En un acopio sin conminución, el promedio ponderado de descargas debería ser compatible con la entrada a escala de residencia:
+
+$$
+d_{\mathrm{out,weighted}}(t)\approx\mathcal{T}\left[d_{\mathrm{in}}(t-\tau:t)\right],
+$$
+
+donde $\mathcal{T}$ representa mezcla y residencia. Una diferencia persistente puede venir del modelo, pero también de cámaras con calibraciones distintas.
+
+## La diferencia entre líneas
+
+Cuando ambas salidas usan instrumentos comparables, la diferencia pareada es más robusta:
+
+$$
+\Delta d^{\mathrm{meas}}_t=d^{\mathrm{meas}}_{B,t}-d^{\mathrm{meas}}_{A,t},
+$$
+
+$$
+e_{\Delta}(t)=\Delta d^{\mathrm{sim}}_t-\Delta d^{\mathrm{meas}}_t.
+$$
+
+Un offset común se cancela. El visor destaca esta magnitud y mantiene las curvas absolutas como contexto. Aun así, diferencias de calibración entre sensores A y B no se cancelan; se requieren muestras de referencia o un ensayo cruzado.
+
+## Qué validó el artículo
+
+La primera parte valida forma y segregación contra pilas de laboratorio a cuatro escalas. La segunda reporta una simulación industrial de 57 días con datos a intervalos de cinco minutos. Compara altura simulada y observada y P80 por dos líneas. Los autores señalan capacidad para seguir tendencias y estimar descarga, junto con limitaciones de mineral libre, ausencia de compactación/cohesión y ausencia de degradación.
+
+Es importante leer la evidencia con su soporte:
+
+- la forma y segregación se apoyan en experimentos controlados;
+- descarga y altura se evalúan en un caso industrial;
+- la generalización a otra geometría requiere nueva configuración y validación;
+- la utilidad de control depende de latencia, estabilidad y cobertura de sensores;
+- una réplica de ideas no hereda automáticamente los resultados de validación.
+
+## Función objetivo
+
+Una calibración multivariable puede minimizar:
+
+$$
+J(\theta)=w_H\operatorname{RMSE}_H(\theta)+w_\Delta\operatorname{RMSE}_{\Delta d}(\theta)+w_M\operatorname{Penalty}_M(\theta)+w_G\operatorname{Penalty}_{\mathrm{geometry}}(\theta).
+$$
+
+Los pesos no son neutros. Si $w_H$ domina, el optimizador puede sacrificar granulometría. Las penalizaciones físicas impiden soluciones que ajustan sensores a costa de tocar bordes o usar densidad imposible.
+
+Parámetros típicos incluyen ángulo de reposo, densidad, intensidad de segregación, mapa de migración, reparto por alimentador y estado inicial. Ajustarlos todos simultáneamente suele crear equifinalidad. Conviene fijar por medición lo que pueda medirse y calibrar sólo lo no observable.
+
+## Identificabilidad
+
+Dos parámetros son débilmente identificables si cambios opuestos producen salidas similares. Por ejemplo:
+
+- mayor densidad reduce cambio de altura por tonelada;
+- mayor capacidad inicial también amortigua altura;
+- mayor segregación superficial puede compensar menor segregación por trayectoria;
+- reparto por alimentador puede imitar una diferencia geométrica entre líneas.
+
+Un Hessiano o perfiles de pérdida ayudan, pero la defensa más fuerte es experimental: medir geometría, registrar estados de alimentadores, obtener cortes de correa y excitar regímenes que separen mecanismos.
+
+## Diseño temporal de validación
+
+No barajamos minutos. El estado del autómata hace que cada observación dependa del pasado. Usamos bloques:
+
+```text
+calentamiento | calibración | validación 1 | validación 2
+```
+
+La validación debe incluir regímenes de altura, tonelaje y combinación de alimentadores distintos. Una ventana estable puede ocultar errores que aparecen durante vaciado profundo.
+
+## Incertidumbre
+
+El visor muestra una trayectoria determinista, pero una evaluación madura propaga incertidumbre de:
+
+- balanzas;
+- densidad aparente;
+- granulometría de cámaras;
+- posición de alimentadores;
+- parámetros de segregación;
+- estado inicial;
+- semilla asíncrona.
+
+Un ensamble produce intervalos para altura y P80. La cobertura observada de esos intervalos es más informativa que añadir bandas arbitrarias alrededor de una curva.
+
+## Escenario sintético del blog
+
+Las curvas del visor no se construyen como perturbaciones suaves ni como ciclos ideales. La altura y las PSD pertenecen a un escenario sintético con detenciones, vaciado de carga viva, conos invertidos y recuperación posterior. Esta complejidad deliberada permite discutir reconciliación y fallas del modelo sin asociar el ejercicio con una operación identificable.
+
+El RMSE conserva valor pedagógico como diagnóstico de reconciliación, pero no se presenta como certificación operacional transferible. La demostración comprueba:
+
+- sincronización entre cursor y gráficos;
+- cálculo de sesgo;
+- lectura de diferencias entre líneas;
+- manejo de hasta 1.344 cuadros;
+- separación visual entre medido y simulado.
+
+## Decisión operacional y límites
+
+Un sensor virtual puede apoyar anticipación de granulometría y diagnóstico de reparto, pero no debería controlar automáticamente sin:
+
+- monitoreo de calidad de entradas;
+- límites de validez geométrica;
+- incertidumbre o degradación declarada;
+- *fallback* seguro;
+- backtesting continuo;
+- revisión de cambios de configuración;
+- trazabilidad de versión y parámetros.
+
+El producto correcto no es una curva que siempre existe. Es un sistema que sabe cuándo su curva no merece confianza.
+
+## Verificación, calibración y validación
+
+Estos términos responden preguntas diferentes:
+
+- **verificación:** ¿implementamos correctamente las reglas que declaramos?;
+- **calibración:** ¿qué valores de parámetros hacen que el modelo se acerque a un conjunto de observaciones?;
+- **validación:** ¿el modelo representa suficientemente el fenómeno para el uso previsto en datos no utilizados para ajustar?;
+- **reconciliación:** ¿cómo se comparan en un período una salida simulada y una medición compatible?
+
+Una prueba de conservación verifica código. Minimizar RMSE calibra. Evaluar otra ventana valida. Dibujar observado y simulado reconcilia. Usar una sola palabra para todo oculta qué evidencia tenemos realmente.
+
+## Entender bias, MAE y RMSE con un ejemplo
+
+Supongamos errores de altura simulada menos observada $[+1,-1,+3]$ m. El bias es:
+
+$$
+\mathrm{bias}=\frac{1-1+3}{3}=1\text{ m}.
+$$
+
+El MAE ignora signo:
+
+$$
+\mathrm{MAE}=\frac{1+1+3}{3}=1.67\text{ m}.
+$$
+
+El RMSE penaliza más el error grande:
+
+$$
+\mathrm{RMSE}=\sqrt{\frac{1^2+(-1)^2+3^2}{3}}=1.91\text{ m}.
+$$
+
+Un bias cercano a cero no garantiza buen ajuste: errores positivos y negativos pueden cancelarse. MAE describe una magnitud típica robusta. RMSE destaca episodios grandes. Ninguna métrica revela por sí sola si el error ocurre durante llenado, descarga o nivel bajo.
+
+## Reconciliar cantidades comparables
+
+Una medición superficial puntual no debe compararse sin transformación con el máximo de toda la grilla si representan ubicaciones distintas. Una muestra de P80 de una correa durante una hora no equivale a la propiedad instantánea de una celda. Antes de calcular error debemos alinear soporte espacial, soporte temporal y unidad.
+
+La pregunta correcta no es sólo “¿tienen el mismo nombre?”. Es “¿promedian el mismo fenómeno sobre el mismo intervalo y región?”. Muchos errores de validación nacen de comparar proxies incompatibles.
+
+## Residuales como diagnóstico de mecanismo
+
+El residual $e_t=y_t-\hat y_t$ debería analizarse contra tiempo y régimen. Si aumenta con altura, la geometría o densidad puede estar mal. Si cambia de signo al alternar líneas, la zona de descarga puede ser demasiado simétrica. Si responde a P80 de alimentación, falta o sobra segregación.
+
+Gráficos útiles incluyen residual versus altura, caudal, línea, duración desde cambio de alimentador y fase de llenado/descarga. La métrica global resume; la estructura residual orienta una hipótesis física.
+
+## Calibrar sin convertir parámetros en perillas libres
+
+Cada parámetro debería tener interpretación y rango previo. Ajustar ángulo, intensidad superficial, trayectoria y ancho de migración simultáneamente puede producir combinaciones que compensan errores. El optimizador encontrará un mínimo, pero no necesariamente una explicación identificable.
+
+Una estrategia pedagógica es calibrar por etapas: forma estática para ángulo, pilas controladas para segregación, transitorios de descarga para migración y sólo después una validación integrada. Esta secuencia usa experimentos donde cada mecanismo domina.
+
+## Separación temporal y cambio de régimen
+
+Dividir registros al azar mezcla estados cercanos entre entrenamiento y validación. En series industriales, las observaciones vecinas comparten inventario y condiciones. Una división temporal protege mejor contra fuga y prueba extrapolación a un período posterior.
+
+También debemos reservar regímenes: altura baja, alta, alimentación dominante, descarga dominante y combinaciones de alimentadores. Un modelo que sólo vio operación estable puede fallar precisamente durante transitorios donde más valor tendría.
+
+## Incertidumbre del estado latente
+
+Aunque el visor dibuja una superficie nítida, el interior no es conocido exactamente. Semilla, parámetros, densidad, estado inicial y mediciones inducen incertidumbre. Una extensión podría ejecutar un conjunto de réplicas y mostrar bandas de altura o distribución de P80 por línea.
+
+No conviene colorear cada celda con una “certeza” arbitraria. La incertidumbre debe corresponder a una fuente definida y propagarse hasta una cantidad de decisión. Para un operador puede ser más útil saber que la diferencia de P80 entre líneas es $0.4\pm0.2$ pulgadas que observar una nube de estados completos.
+
+## Validación científica y aceptación operacional
+
+Un modelo puede superar métricas y aun ser difícil de operar. La aceptación también requiere latencia, disponibilidad, explicabilidad, trazabilidad, reacción ante fallos y un responsable. Del mismo modo, una herramienta fácil de usar puede ser científicamente insuficiente.
+
+La puerta de producción debería exigir ambas dimensiones. Los checks de <strong><font color='darkmagenta'>Dagster</font></strong> automatizan una parte, pero los umbrales, revisiones y decisiones siguen perteneciendo a una política de gobierno.
+
+## Una matriz de evidencia
+
+| Afirmación | Evidencia adecuada | Evidencia insuficiente |
+|---|---|---|
+| conserva masa | prueba por regla y balance acumulado | curva de altura parecida |
+| forma una pila estable | perfil y sensibilidad de grilla | una captura favorable |
+| segrega tamaños | patrón radial y PSD por región | P80 global |
+| reproduce descarga | transitorios por alimentador | promedio mensual |
+| generaliza | ventana temporal no calibrada | ajuste sobre entrenamiento |
+| es operable | checks, logs y modo degradado | notebook ejecutado una vez |
+
+La matriz impide usar una clase de evidencia para sostener una afirmación distinta.
+
+[← Orquestación con <strong><font color='darkmagenta'>Dagster</font></strong>](08-orquestacion-con-dagster.qmd) · [Siguiente: visor 3D y operación →](10-visor-3d-y-operacion.qmd)

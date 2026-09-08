@@ -1,0 +1,1415 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.9.37">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="description" content="Retícula, estado, vecindad, actualización y compromisos de una aproximación local a un sistema granular.">
+
+<title>2. Fundamentos del autómata celular continuo – NerdyMiner</title>
+<style>
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="../../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../../">
+<script src="../../site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="../../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../../site_libs/quarto-html/popper.min.js"></script>
+<script src="../../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../../site_libs/quarto-html/quarto-syntax-highlighting-b16add4d910ff6038463ffc00184b1c1.css" rel="stylesheet" class="quarto-color-scheme" id="quarto-text-highlighting-styles">
+<link href="../../site_libs/quarto-html/quarto-syntax-highlighting-dark-e3b8bbca183a7d6761657ecb5c5aa65f.css" rel="stylesheet" class="quarto-color-scheme quarto-color-alternate" id="quarto-text-highlighting-styles">
+<link href="../../site_libs/quarto-html/quarto-syntax-highlighting-b16add4d910ff6038463ffc00184b1c1.css" rel="stylesheet" class="quarto-color-scheme-extra" id="quarto-text-highlighting-styles">
+<script src="../../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../../site_libs/bootstrap/bootstrap-20a3660c41a27997b0067576444d6464.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
+<link href="../../site_libs/bootstrap/bootstrap-dark-82b8a8f05674b84d57516846be433586.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
+<link href="../../site_libs/bootstrap/bootstrap-20a3660c41a27997b0067576444d6464.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+<style>html{ scroll-behavior: smooth; }</style>
+<script src="../../site_libs/quarto-diagram/mermaid.min.js"></script>
+<script src="../../site_libs/quarto-diagram/mermaid-init.js"></script>
+<link href="../../site_libs/quarto-diagram/mermaid.css" rel="stylesheet">
+
+  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
+  <script defer="" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN" && texText && texText.data) {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
+
+</head>
+
+<body class="nav-fixed quarto-light"><script id="quarto-html-before-body" type="application/javascript">
+    const toggleBodyColorMode = (bsSheetEl) => {
+      const mode = bsSheetEl.getAttribute("data-mode");
+      const bodyEl = window.document.querySelector("body");
+      if (mode === "dark") {
+        bodyEl.classList.add("quarto-dark");
+        bodyEl.classList.remove("quarto-light");
+      } else {
+        bodyEl.classList.add("quarto-light");
+        bodyEl.classList.remove("quarto-dark");
+      }
+    }
+    const toggleBodyColorPrimary = () => {
+      const bsSheetEl = window.document.querySelector("link#quarto-bootstrap:not([rel=disabled-stylesheet])");
+      if (bsSheetEl) {
+        toggleBodyColorMode(bsSheetEl);
+      }
+    }
+    const setColorSchemeToggle = (alternate) => {
+      const toggles = window.document.querySelectorAll('.quarto-color-scheme-toggle');
+      for (let i=0; i < toggles.length; i++) {
+        const toggle = toggles[i];
+        if (toggle) {
+          if (alternate) {
+            toggle.classList.add("alternate");
+          } else {
+            toggle.classList.remove("alternate");
+          }
+        }
+      }
+    };
+    const toggleColorMode = (alternate) => {
+      // Switch the stylesheets
+      const primaryStylesheets = window.document.querySelectorAll('link.quarto-color-scheme:not(.quarto-color-alternate)');
+      const alternateStylesheets = window.document.querySelectorAll('link.quarto-color-scheme.quarto-color-alternate');
+      manageTransitions('#quarto-margin-sidebar .nav-link', false);
+      if (alternate) {
+        // note: dark is layered on light, we don't disable primary!
+        enableStylesheet(alternateStylesheets);
+        for (const sheetNode of alternateStylesheets) {
+          if (sheetNode.id === "quarto-bootstrap") {
+            toggleBodyColorMode(sheetNode);
+          }
+        }
+      } else {
+        disableStylesheet(alternateStylesheets);
+        enableStylesheet(primaryStylesheets)
+        toggleBodyColorPrimary();
+      }
+      manageTransitions('#quarto-margin-sidebar .nav-link', true);
+      // Switch the toggles
+      setColorSchemeToggle(alternate)
+      // Hack to workaround the fact that safari doesn't
+      // properly recolor the scrollbar when toggling (#1455)
+      if (navigator.userAgent.indexOf('Safari') > 0 && navigator.userAgent.indexOf('Chrome') == -1) {
+        manageTransitions("body", false);
+        window.scrollTo(0, 1);
+        setTimeout(() => {
+          window.scrollTo(0, 0);
+          manageTransitions("body", true);
+        }, 40);
+      }
+    }
+    const disableStylesheet = (stylesheets) => {
+      for (let i=0; i < stylesheets.length; i++) {
+        const stylesheet = stylesheets[i];
+        stylesheet.rel = 'disabled-stylesheet';
+      }
+    }
+    const enableStylesheet = (stylesheets) => {
+      for (let i=0; i < stylesheets.length; i++) {
+        const stylesheet = stylesheets[i];
+        if(stylesheet.rel !== 'stylesheet') { // for Chrome, which will still FOUC without this check
+          stylesheet.rel = 'stylesheet';
+        }
+      }
+    }
+    const manageTransitions = (selector, allowTransitions) => {
+      const els = window.document.querySelectorAll(selector);
+      for (let i=0; i < els.length; i++) {
+        const el = els[i];
+        if (allowTransitions) {
+          el.classList.remove('notransition');
+        } else {
+          el.classList.add('notransition');
+        }
+      }
+    }
+    const isFileUrl = () => {
+      return window.location.protocol === 'file:';
+    }
+    const hasAlternateSentinel = () => {
+      let styleSentinel = getColorSchemeSentinel();
+      if (styleSentinel !== null) {
+        return styleSentinel === "alternate";
+      } else {
+        return false;
+      }
+    }
+    const setStyleSentinel = (alternate) => {
+      const value = alternate ? "alternate" : "default";
+      if (!isFileUrl()) {
+        window.localStorage.setItem("quarto-color-scheme", value);
+      } else {
+        localAlternateSentinel = value;
+      }
+    }
+    const getColorSchemeSentinel = () => {
+      if (!isFileUrl()) {
+        const storageValue = window.localStorage.getItem("quarto-color-scheme");
+        return storageValue != null ? storageValue : localAlternateSentinel;
+      } else {
+        return localAlternateSentinel;
+      }
+    }
+    const toggleGiscusIfUsed = (isAlternate, darkModeDefault) => {
+      const baseTheme = document.querySelector('#giscus-base-theme')?.value ?? 'light';
+      const alternateTheme = document.querySelector('#giscus-alt-theme')?.value ?? 'dark';
+      let newTheme = '';
+      if(authorPrefersDark) {
+        newTheme = isAlternate ? baseTheme : alternateTheme;
+      } else {
+        newTheme = isAlternate ? alternateTheme : baseTheme;
+      }
+      const changeGiscusTheme = () => {
+        // From: https://github.com/giscus/giscus/issues/336
+        const sendMessage = (message) => {
+          const iframe = document.querySelector('iframe.giscus-frame');
+          if (!iframe) return;
+          iframe.contentWindow.postMessage({ giscus: message }, 'https://giscus.app');
+        }
+        sendMessage({
+          setConfig: {
+            theme: newTheme
+          }
+        });
+      }
+      const isGiscussLoaded = window.document.querySelector('iframe.giscus-frame') !== null;
+      if (isGiscussLoaded) {
+        changeGiscusTheme();
+      }
+    };
+    const authorPrefersDark = false;
+    const darkModeDefault = authorPrefersDark;
+      document.querySelector('link#quarto-text-highlighting-styles.quarto-color-scheme-extra').rel = 'disabled-stylesheet';
+      document.querySelector('link#quarto-bootstrap.quarto-color-scheme-extra').rel = 'disabled-stylesheet';
+    let localAlternateSentinel = darkModeDefault ? 'alternate' : 'default';
+    // Dark / light mode switch
+    window.quartoToggleColorScheme = () => {
+      // Read the current dark / light value
+      let toAlternate = !hasAlternateSentinel();
+      toggleColorMode(toAlternate);
+      setStyleSentinel(toAlternate);
+      toggleGiscusIfUsed(toAlternate, darkModeDefault);
+      window.dispatchEvent(new Event('resize'));
+    };
+    // Switch to dark mode if need be
+    if (hasAlternateSentinel()) {
+      toggleColorMode(true);
+    } else {
+      toggleColorMode(false);
+    }
+  </script>
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container mx-auto">
+    <a href="../../index.html" class="navbar-brand navbar-brand-logo">
+    <img src="../../images/nerdyminer-icon.svg" alt="NerdyMiner" class="navbar-logo light-content">
+    <img src="../../images/nerdyminer-icon.svg" alt="NerdyMiner" class="navbar-logo dark-content">
+    </a>
+    <a class="navbar-brand" href="../../index.html">
+    <span class="navbar-title">NerdyMiner</span>
+    </a>
+  </div>
+            <div id="quarto-search" class="" title="Search"></div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" role="menu" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll me-auto">
+  <li class="nav-item">
+    <a class="nav-link" href="../../index.html"> 
+<span class="menu-text">Inicio</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../articulos/index.html"> 
+<span class="menu-text">Artículos</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../apuntes/index.html"> 
+<span class="menu-text">Apuntes</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../clases/index.html"> 
+<span class="menu-text">Clases</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../bibliografia.html"> 
+<span class="menu-text">Bibliografía</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../proyectos/index.html"> 
+<span class="menu-text">Proyectos</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../licencia.html"> 
+<span class="menu-text">Licencia</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../sobre-mi.html"> 
+<span class="menu-text">Sobre mí</span></a>
+  </li>  
+</ul>
+          </div> <!-- /navcollapse -->
+            <div class="quarto-navbar-tools">
+  <a href="" class="quarto-color-scheme-toggle quarto-navigation-tool  px-1" onclick="window.quartoToggleColorScheme(); return false;" title="Toggle dark mode"><i class="bi"></i></a>
+</div>
+      </div> <!-- /container-fluid -->
+    </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
+<!-- sidebar -->
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul>
+  <li><a href="#de-partículas-a-celdas" id="toc-de-partículas-a-celdas" class="nav-link active" data-scroll-target="#de-partículas-a-celdas">De partículas a celdas</a>
+  <ul class="collapse">
+  <li><a href="#estado-de-una-celda." id="toc-estado-de-una-celda." class="nav-link" data-scroll-target="#estado-de-una-celda.">Estado de una celda.</a></li>
+  <li><a href="#topología-de-vecindad" id="toc-topología-de-vecindad" class="nav-link" data-scroll-target="#topología-de-vecindad">Topología de vecindad</a></li>
+  </ul></li>
+  <li><a href="#reglas-de-actualización" id="toc-reglas-de-actualización" class="nav-link" data-scroll-target="#reglas-de-actualización">Reglas de actualización</a>
+  <ul class="collapse">
+  <li><a href="#actualización-sincrónica-y-asincrónica" id="toc-actualización-sincrónica-y-asincrónica" class="nav-link" data-scroll-target="#actualización-sincrónica-y-asincrónica">Actualización sincrónica y asincrónica</a></li>
+  <li><a href="#regla-local-de-transferencia-y-comportamiento-emergente" id="toc-regla-local-de-transferencia-y-comportamiento-emergente" class="nav-link" data-scroll-target="#regla-local-de-transferencia-y-comportamiento-emergente">Regla local de transferencia y comportamiento emergente</a></li>
+  <li><a href="#resolución-y-paso-de-tiempo" id="toc-resolución-y-paso-de-tiempo" class="nav-link" data-scroll-target="#resolución-y-paso-de-tiempo">Resolución y paso de tiempo</a></li>
+  </ul></li>
+  <li><a href="#representación-de-la-retícula-en-memoria" id="toc-representación-de-la-retícula-en-memoria" class="nav-link" data-scroll-target="#representación-de-la-retícula-en-memoria">Representación de la retícula en memoria</a>
+  <ul class="collapse">
+  <li><a href="#construyendo-algo-de-intuición" id="toc-construyendo-algo-de-intuición" class="nav-link" data-scroll-target="#construyendo-algo-de-intuición">Construyendo algo de intuición</a></li>
+  <li><a href="#indexación-y-coordenadas-físicas" id="toc-indexación-y-coordenadas-físicas" class="nav-link" data-scroll-target="#indexación-y-coordenadas-físicas">Indexación y coordenadas físicas</a></li>
+  <li><a href="#ciclo-de-vida-de-una-celda" id="toc-ciclo-de-vida-de-una-celda" class="nav-link" data-scroll-target="#ciclo-de-vida-de-una-celda">Ciclo de vida de una celda</a></li>
+  <li><a href="#unidades-y-conversión-de-caudal-a-fracción-de-celdas" id="toc-unidades-y-conversión-de-caudal-a-fracción-de-celdas" class="nav-link" data-scroll-target="#unidades-y-conversión-de-caudal-a-fracción-de-celdas">Unidades y conversión de caudal a fracción de celdas</a></li>
+  </ul></li>
+  <li><a href="#azar-y-reproducibilidad" id="toc-azar-y-reproducibilidad" class="nav-link" data-scroll-target="#azar-y-reproducibilidad">Azar y reproducibilidad</a></li>
+  <li><a href="#condición-de-estabilidad" id="toc-condición-de-estabilidad" class="nav-link" data-scroll-target="#condición-de-estabilidad">Condición de estabilidad</a></li>
+  <li><a href="#comentarios-finales" id="toc-comentarios-finales" class="nav-link" data-scroll-target="#comentarios-finales">Comentarios finales</a></li>
+  </ul>
+</nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content">
+
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title">2. Fundamentos del autómata celular continuo</h1>
+</div>
+
+<div>
+  <div class="description">
+    Retícula, estado, vecindad, actualización y compromisos de una aproximación local a un sistema granular.
+  </div>
+</div>
+
+
+<div class="quarto-title-meta">
+
+    
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<p><a href="../../proyectos/stockpile-cellular-automata/index.html">← Volver al proyecto</a></p>
+<section id="de-partículas-a-celdas" class="level2">
+<h2 class="anchored" data-anchor-id="de-partículas-a-celdas">De partículas a celdas</h2>
+<p>En un contexto industrial, un stockpile contiene millones de partículas. Cada roca individual tiene su propia trayectoria, pero la mayoría de las preguntas de ingeniería no requieren conocerla. La forma del acopio, la distribución de tamaños y la segregación son propiedades emergentes que se pueden reproducir sin resolver cada contacto.</p>
+<p>La <a href="https://www.sciencedirect.com/science/article/abs/pii/S0892687522004265">parte I del artículo original de Ye, Hilden y Yahyaei (2021)</a> discute la escala del problema de representación del stockpile a nivel comportamental y de la mezcla de partículas, con foco en la distribución granulométrica: Incluso si truncamos una distribución a 10 mm, el número de partículas con un tamaño medio de ese orden puede seguir siendo enorme en un metro cúbico de volumen interno en un stockpile típico. Es posible implementar métodos de alta complejidad para representar el comportamiento de las partículas con gran precisión, como es el caso de la <a href="https://en.wikipedia.org/wiki/Discrete_element_method">aproximación por medio de elementos discretos</a> (<em>discrete element method</em> o <em>DEM</em>), pero el costo computacional crece con el número de partículas y se vuelve impráctico para reproducir un stockpile completo en lotes de tiempo compatibles con una reportabilidad continua a nivel operacional (por ejemplo, cada 5 minutos).</p>
+<p>El modelo de autómata celular adopta una aproximación diferente: Divide el espacio conforme una retícula de celdas cúbicas y limita la interacción a vecinas inmediatas. Cada celda representa un volumen de material granular y mantiene un estado que describe la fracción de llenado y la propiedad de la mezcla. La evolución del sistema se calcula mediante reglas locales que transfieren material entre celdas vecinas, conservando el volumen total y reproduciendo comportamientos emergentes como la formación de pendientes y la segregación de tamaños. No resuelve cuestiones físicas de naturaleza cinemática (como la trayectoria de cada roca), sino que se enfoca en cómo cambia una pequeña porción de volumen al alimentar, descargar y exceder una pendiente.</p>
+<section id="estado-de-una-celda." class="level3">
+<h3 class="anchored" data-anchor-id="estado-de-una-celda.">Estado de una celda.</h3>
+<p>Sea <span class="math inline">\(V\)</span> el volumen total que constituye la retícula completa de celdas cúbicas que constituye a un stockpile. Designamos a cada celda por un índice <span class="math inline">\((i,j,k)\)</span>, que representa las coordenadas de la misma en la retícula completa. Esta última se representa como un conjunto del tipo</p>
+<p><span class="math display">\[
+\mathcal{L}=\{(i,j,k):0\le i&lt;n_x,\;0\le j&lt;n_y,\;0\le k&lt;n_z\}
+\]</span></p>
+<p>donde <span class="math inline">\(n_x\)</span>, <span class="math inline">\(n_y\)</span> y <span class="math inline">\(n_z\)</span> representan el número de celdas en cada dirección. Cada celda mantiene un vector de estado <span class="math inline">\(\mathbf{s}_{ijk}(t)=\left[f_{ijk}(t),\;d_{ijk}(t)\right]\)</span>, donde <span class="math inline">\(f\in[0,1]\)</span> es su fracción de llenado y <span class="math inline">\(d&gt;0\)</span> es el tamaño característico del material ocupado. Una celda vacía es tal que <span class="math inline">\(f=0\)</span> y su tamaño se trata como ausente. Una celda llena tiene <span class="math inline">\(f=1\)</span>. La celda superior de una columna puede tener cualquier fracción intermedia.</p>
+<p>Es esta última propiedad la que da el calificativo de <strong>continuo</strong> al modelo. El espacio ocupado por el stockpile sigue siendo discreto, pero su ocupación no es binaria. La superficie puede cambiar en incrementos menores que una celda y el balance de volumen no necesita redondear cada interacción a un cubo completo.</p>
+<p>Con frecuencia, solemos representar algunas propiedades geométricas del stock considerando únicamente alguna proyección bidimensional del mismo en un plano perpendicular al eje <span class="math inline">\(z\)</span>. Por ejemplo, si miramos únicamente las coordenadas horizontales <span class="math inline">\((i,j)\)</span>, podemos definir la altura de la columna <span class="math inline">\((i,j)\)</span> como la suma de las fracciones de llenado de todas las celdas que componen dicha columna. Es decir,</p>
+<p><span class="math display">\[
+h_{ij}(t)=\triangle z\sum_{k=0}^{n_z-1}f_{ijk}(t)
+\]</span></p>
+<p>donde la <span class="math inline">\(t\)</span> hace explícito que la altura de la columna puede cambiar con el tiempo. En este caso, <span class="math inline">\(\triangle z\)</span> representa el tamaño vertical de cada celda. Si la densidad aparente del material que constituye el stockpile es constante, podemos definir el volumen total y la masa del mismo como</p>
+<p><span class="math display">\[
+V\left( t \right) =\triangle x\triangle y\triangle z\sum_{i=1}^{n_{x}} \sum_{j=1}^{n_{y}} \sum_{k=1}^{n_{z}} f_{ijk}\left( t \right) \quad ;\quad M\left( t \right) =\rho_{b} V\left( t \right)
+\]</span></p>
+<p>donde <span class="math inline">\(\triangle x\)</span> y <span class="math inline">\(\triangle y\)</span> representan el tamaño horizontal de cada celda y <span class="math inline">\(\rho_b\)</span> es la densidad aparente del material.</p>
+</section>
+<section id="topología-de-vecindad" class="level3">
+<h3 class="anchored" data-anchor-id="topología-de-vecindad">Topología de vecindad</h3>
+<p>La teoría de los autómatas celulares no guarda relación con la física de partículas. Su génesis se remonta a estudios topológicos de sistemas discretos. La <strong>vecindad</strong> de una celda es el conjunto de celdas que la regla local de desplazamiento en el mismo consulta para decidir su transición. La vecindad puede ser arbitraria, pero la literatura clásica distingue dos tipos en dos dimensiones: Las vecindades de Von Neumann y de Moore.</p>
+<p>La <strong>vecindad de Von Neumann</strong> conecta, en el plano <span class="math inline">\((x,y)\)</span>, una celda con sus cuatro vecinas cardinales: Norte, sur, este y oeste. La <strong>vecindad de Moore</strong> agrega las cuatro diagonales. La extensión a tres dimensiones es inmediata para el caso de Von Neumann: Conecta la celda con sus seis vecinas que comparten una cara. La extensión de Moore es menos intuitiva, pero igualmente factible: Conecta la celda con sus 26 vecinas que comparten una cara, una arista o un vértice.</p>
+<div class="cell" data-layout-align="center">
+<div class="cell-output-display">
+<div id="fig-von-neumann-moore-neighborhoods" class="quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-von-neumann-moore-neighborhoods-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<div>
+<pre class="mermaid mermaid-js" data-label="fig-von-neumann-moore-neighborhoods">flowchart LR
+  subgraph VN["Von Neumann"]
+    V0["N"] --- VC["celda"] --- V1["S"]
+    V2["O"] --- VC --- V3["E"]
+  end
+  subgraph MOORE["Moore"]
+    M1["NO"] --- M2["N"] --- M3["NE"]
+    M4["O"] --- MC["celda"] --- M5["E"]
+    M6["SO"] --- M7["S"] --- M8["SE"]
+  end
+
+  classDef focalCell fill:#e8f3f0,stroke:#256b5f,color:#123f37,stroke-width:2px;
+  classDef cardinalCell fill:#e8f2fa,stroke:#2f6b95,color:#17324d,stroke-width:1.5px;
+  classDef diagonalCell fill:#f4e8f1,stroke:#7d2b6a,color:#3d1434,stroke-width:1.5px;
+
+  class VC,MC focalCell;
+  class V0,V1,V2,V3,M2,M4,M5,M7 cardinalCell;
+  class M1,M3,M6,M8 diagonalCell;
+
+  style VN fill:#f6fafd,stroke:#5b7890,color:#17324d,stroke-width:1.5px;
+  style MOORE fill:#fbf6fa,stroke:#9a668d,color:#3d1434,stroke-width:1.5px;
+
+  linkStyle default stroke:#52606d,stroke-width:1.5px;
+</pre>
+</div>
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-von-neumann-moore-neighborhoods-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figura&nbsp;1: Comparación de las vecindades bidimensionales de Von Neumann y Moore. El verde identifica la celda evaluada, el azul sus vecinas cardinales y el magenta las diagonales que Moore añade a la regla local.
+</figcaption>
+</figure>
+</div>
+</div>
+</div>
+<p>La elección de un tipo de vecindad en la representación discreta de un stockpile tiene consecuencias físicas. La vecindad de Von Neumann permite que el material fluya sólo en cuatro direcciones, mientras que la de Moore permite ocho. La primera produce una superficie con base romboidal; la segunda, una pirámide de ocho caras. La primera es más simple y rápida; la segunda es más isotrópica y precisa. Sea cual sea el caso, al unir todas las celdas que superan un umbral de altura, la superficie resultante es una aproximación discreta de un cono. La anisotropía de la retícula impide que sea un cono exacto. Aumentar el número de celdas en la retícula reduce el tamaño absoluto del escalón, pero no elimina la simetría discreta, por lo que la forma emergente del stockpile bajo esta representación sigue siendo inexacta.</p>
+<p>Para conservar el ángulo de reposo del mineral, el umbral diagonal de la retícula debe reconocer que la distancia horizontal de una celda a su vecina diagonal es <span class="math inline">\(\sqrt{2}\)</span> veces mayor que la distancia a su vecina cardinal. Si <span class="math inline">\(\alpha\)</span> es el ángulo de reposo, el salto admisible en unidades de celda es:</p>
+<p><span class="math display">\[
+T_{\mathrm{cardinal}}=\tan\alpha \quad; \quad T_{\mathrm{diagonal}}=\sqrt{2}\tan\alpha
+\]</span></p>
+<p>Lo anterior es consecuencia directa de la geometría de un cuadrado de lado <span class="math inline">\(a\)</span>: Su diagonal mide <span class="math inline">\(a\sqrt{2}\)</span> y su pendiente es <span class="math inline">\(\tan\alpha=\frac{a}{a\sqrt{2}}=\frac{1}{\sqrt{2}}\)</span>.</p>
+</section>
+</section>
+<section id="reglas-de-actualización" class="level2">
+<h2 class="anchored" data-anchor-id="reglas-de-actualización">Reglas de actualización</h2>
+<p>En un autómata celular, la evolución del sistema se calcula mediante reglas locales que determinan cómo cambia el estado de cada celda en función de su propio estado y el de sus vecinas. Estas reglas pueden ser determinísticas o estocásticas, y su diseño es crucial para garantizar que el modelo reproduzca comportamientos emergentes realistas.</p>
+<section id="actualización-sincrónica-y-asincrónica" class="level3">
+<h3 class="anchored" data-anchor-id="actualización-sincrónica-y-asincrónica">Actualización sincrónica y asincrónica</h3>
+<p>Si el autómata es <strong>sincrónico</strong>, la regla de actualización debe aplicarse a todas las celdas en un orden específico, y luego los estados se actualizan al mismo tiempo. Es decir, todas las transiciones se calculan a partir del estado en el tiempo <span class="math inline">\(t\)</span> y se aplican juntas para producir el estado en el tiempo <span class="math inline">\(t+1\)</span>. En cambio, si el autómata es asincrónico, cada transición modifica inmediatamente el estado que consultarán las siguientes celdas, lo que puede introducir un sesgo por orden de actualización.</p>
+<p>La superficie granular de un stockpile admite una representación asincrónica, ya que cuando una columna transfiere volumen, sus nuevas alturas deben influir en el siguiente intercambio. Sin embargo, para evitar un sesgo artificial, se puede aleatorizar el orden de actualización en cada paso, asegurando que cada celda superficial se considere una vez, pero en un orden diferente. Para garantizar la reproducibilidad, se puede utilizar una semilla para el generador de números aleatorios, de modo que dos ejecuciones con la misma semilla produzcan microestados diferentes pero con distribuciones e invariantes comparables.</p>
+<p>La regla de actualización es fácilmente aleatorizable en Python. Por ejemplo:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="co"># Definición de la semilla aleatoria.</span></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">42</span>)</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="co"># Definición de las dimensiones de la retícula.</span></span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>points <span class="op">=</span> [(north, east) <span class="cf">for</span> north <span class="kw">in</span> <span class="bu">range</span>(<span class="dv">1</span>, n_north <span class="op">-</span> <span class="dv">1</span>) <span class="cf">for</span> east <span class="kw">in</span> <span class="bu">range</span>(<span class="dv">1</span>, n_east <span class="op">-</span> <span class="dv">1</span>)]</span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a><span class="co"># Mezcla aleatoria de los puntos para evitar sesgo en la actualización.</span></span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a>rng.shuffle(points)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>La aleatorización del orden de actualización es una técnica común en simulaciones de autómatas celulares para evitar patrones artificiales que puedan surgir debido a la estructura de la retícula. Al cambiar el orden en que se actualizan las celdas, se asegura que el comportamiento emergente del sistema sea más representativo de un proceso físico real, donde las interacciones no ocurren en un orden fijo. Este procedimiento no representa ruido de medición, sino que es un mecanismo numérico para evitar una orientación artificial en la simulación. Dos ejecuciones con diferentes semillas producirán microestados distintos, pero deberían conservar distribuciones e invariantes comparables, lo que permite estudiar la sensibilidad del modelo a la aleatoriedad y garantizar la reproducibilidad de los resultados.</p>
+</section>
+<section id="regla-local-de-transferencia-y-comportamiento-emergente" class="level3">
+<h3 class="anchored" data-anchor-id="regla-local-de-transferencia-y-comportamiento-emergente">Regla local de transferencia y comportamiento emergente</h3>
+<p>El autómata celular implementa una regla local de transferencia de material entre celdas vecinas. Esta regla se basa en la diferencia de altura entre una celda y sus vecinas, así como en el ángulo de reposo del material. Si la diferencia de altura excede un umbral determinado por el ángulo de reposo, se transfiere una fracción del exceso a las celdas vecinas, respetando la conservación del volumen total.</p>
+<p>A grandes rasgos, la evolución completa del sistema puede representarse como una composición de varias reglas locales que actúan sobre el estado global del autómata. Cada regla se encarga de un aspecto específico del comportamiento del stockpile, como la alimentación, la descarga, la migración y el flujo superficial. La combinación de estas reglas locales da lugar a un comportamiento emergente que refleja la dinámica del stockpile sin necesidad de modelar cada partícula individualmente.</p>
+<p>Tal evolución puede escribirse formalmente como</p>
+<p><span class="math display">\[
+\mathbf{S}_{t+1}=\mathcal{R}_{\mathrm{surface}}\circ
+\mathcal{R}_{\mathrm{migration}}\circ
+\mathcal{R}_{\mathrm{discharge}}\circ
+\mathcal{R}_{\mathrm{feed}}(\mathbf{S}_t,\mathbf{u}_t),
+\]</span></p>
+<p>donde <span class="math inline">\(\mathbf{S}_t\)</span> representa el estado global del autómata en el tiempo <span class="math inline">\(t\)</span>, y <span class="math inline">\(\mathbf{u}_t\)</span> contiene los flujos y propiedades de entrada. Cada regla <span class="math inline">\(\mathcal{R}\)</span> actúa sobre una parte específica del estado, y la forma global del stockpile emerge de la interacción de estas reglas locales. El operador <span class="math inline">\(\circ\)</span> denota la composición de funciones, indicando que las reglas se aplican secuencialmente para producir el estado actualizado del sistema.</p>
+<p>La ecuación anterior encapsula la idea central de un autómata celular: La complejidad global surge de reglas locales homogéneas. Sin embargo, también destaca un riesgo inherente: Una forma visualmente plausible puede emerger de reglas incorrectas. Por ello, cada regla debe ser cuidadosamente diseñada y probada para garantizar la conservación del volumen y la validez física, y la composición de las reglas debe ser validada mediante comparaciones con datos experimentales o simulaciones más detalladas.</p>
+</section>
+<section id="resolución-y-paso-de-tiempo" class="level3">
+<h3 class="anchored" data-anchor-id="resolución-y-paso-de-tiempo">Resolución y paso de tiempo</h3>
+<p>Cada celda en el autómata representa un volumen discreto de material granular, y la resolución de la retícula determina el nivel de detalle con el que se modela el stockpile. Una mayor resolución permite capturar características más finas de la superficie y la distribución de tamaños, pero también aumenta significativamente los requisitos de memoria y tiempo de cómputo. De esta manera, la celda misma es un <em>trade-off</em> entre memoria, velocidad y detalle. La elección de la resolución óptima depende de las escalas espaciales relevantes para la pregunta de ingeniería que se desea responder.</p>
+<p>Una grilla de dimensiones <span class="math inline">\(n_x \times n_y \times n_z\)</span> con dos variables de tipo flotante de 64 bits (<code>float64</code>) consume aproximadamente <span class="math inline">\(16 n_x n_y n_z\)</span> bytes antes de considerar arreglos auxiliares. Duplicar la resolución en los tres ejes multiplica por ocho el número de celdas y aumenta la cantidad de interacciones por paso, lo que puede llevar a tiempos de simulación intratables. Por lo tanto, la mejor resolución no es necesariamente la más fina, sino aquella que conserva las escalas espaciales que determinan la decisión sin incurrir en costos computacionales excesivos.</p>
+<p>La simulación del comportamiento del stockpile avanza en pasos de tiempo discretos, y la elección del tamaño del paso es crucial para garantizar tanto la estabilidad como la precisión del modelo. Un paso demasiado grande puede provocar que el material se transfiera a través de varias celdas antes de que las reglas locales tengan la oportunidad de actuar, lo que puede llevar a resultados físicamente incoherentes o inestables. Por otro lado, un paso demasiado pequeño puede aumentar innecesariamente el tiempo de ejecución sin mejorar significativamente la precisión del resultado.</p>
+<p>En la tabla siguiente se compara la resolución espacial y el paso de tiempo con otras familias de modelos utilizados para simular stockpiles, destacando las ventajas y limitaciones de cada enfoque. La elección del modelo adecuado depende de los objetivos específicos del estudio y de los recursos computacionales disponibles.</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 16%">
+<col style="width: 16%">
+<col style="width: 16%">
+<col style="width: 16%">
+<col style="width: 16%">
+<col style="width: 16%">
+</colgroup>
+<thead>
+<tr class="header">
+<th style="text-align: left;">Modelo</th>
+<th style="text-align: left;">Estado espacial</th>
+<th style="text-align: left;">Segregación</th>
+<th style="text-align: left;">Zonas vivas</th>
+<th style="text-align: left;">Costo</th>
+<th style="text-align: left;">Uso natural</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">Balance único.</td>
+<td style="text-align: left;">No.</td>
+<td style="text-align: left;">No.</td>
+<td style="text-align: left;">No.</td>
+<td style="text-align: left;">Mínimo.</td>
+<td style="text-align: left;">Inventario agregado.</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">FIFO/LIFO/BIBO.</td>
+<td style="text-align: left;">Unidimensional.</td>
+<td style="text-align: left;">Limitada.</td>
+<td style="text-align: left;">No.</td>
+<td style="text-align: left;">Bajo.</td>
+<td style="text-align: left;">Tiempo de residencia y reconciliación.</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Columnas 2D.</td>
+<td style="text-align: left;">Superficie/colas.</td>
+<td style="text-align: left;">Opcional.</td>
+<td style="text-align: left;">Parcial.</td>
+<td style="text-align: left;">Medio.</td>
+<td style="text-align: left;">Altura y mezcla.</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Autómata celular 3D.</td>
+<td style="text-align: left;">Volumen celular.</td>
+<td style="text-align: left;">Sí.</td>
+<td style="text-align: left;">Sí.</td>
+<td style="text-align: left;">Medio.</td>
+<td style="text-align: left;">Sensor virtual dinámico.</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Método de elementos discretos (DEM).</td>
+<td style="text-align: left;">Partículas/contactos.</td>
+<td style="text-align: left;">Emerge.</td>
+<td style="text-align: left;">Emerge.</td>
+<td style="text-align: left;">Muy alto.</td>
+<td style="text-align: left;">Investigación detallada.</td>
+</tr>
+</tbody>
+</table>
+<p>Podemos observar que el modelo de autómata celular 3D ofrece un equilibrio entre la complejidad computacional y la capacidad de capturar comportamientos emergentes, como la segregación y la formación de zonas vivas, que no son posibles con modelos más simples. Sin embargo, no es adecuado para todos los escenarios: Si el objetivo es simplemente mantener un inventario agregado, un modelo más simple puede ser suficiente. Por otro lado, si se requiere un análisis detallado de esfuerzos y compactación, el modelo de autómata celular puede ser demasiado simplificado. En definitiva, la representación de stockpiles no se trata de elegir un modelo que “gane” universalmente, sino de elegir la herramienta adecuada según las necesidades específicas del estudio.</p>
+</section>
+</section>
+<section id="representación-de-la-retícula-en-memoria" class="level2">
+<h2 class="anchored" data-anchor-id="representación-de-la-retícula-en-memoria">Representación de la retícula en memoria</h2>
+<p>En este proyecto, la retícula tridimensional se representa en memoria utilizando arreglos densos de <strong><font color="darkmagenta">Numpy</font></strong>, con una geometría del tipo <code>(vertical, north, east)</code>. Esta disposición coloca el eje vertical primero, lo que permite que una columna <code>fill[:, north, east]</code> sea una vista natural del estado de llenado a lo largo de la altura de la celda. Matemáticamente, si la retícula es un dominio de <span class="math inline">\(\mathbb{R}^{3}\)</span>, cada celda se indexa en el orden <span class="math inline">\((k,j,i)\)</span>.</p>
+<p>En lugar de crear millones de instancias de objetos Python para cada celda, lo que sería ineficiente y consumiría una gran cantidad de memoria, se utiliza la clase <code>StockpileState</code> para agrupar los arreglos de llenado y propiedad sin introducir objetos por celda. Esto permite mantener un estado numérico fino y eficiente en memoria, mientras que los objetos modelan contratos más gruesos:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="at">@dataclass</span>(slots<span class="op">=</span><span class="va">True</span>)</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> StockpileState:</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>    fill: NDArray[np.float64]</span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>    p80_in: NDArray[np.float64]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>El decorador <code>@dataclass(slots=True)</code>, dependiente de la librería <strong><font color="darkmagenta">Pydantic</font></strong>, en su módulo <code>pydantic.dataclasses</code>, optimiza la memoria al evitar la creación de un diccionario de atributos para cada instancia, lo que es especialmente útil cuando se manejan grandes cantidades de datos. La separación entre objetos y arreglos permite una abstracción basada en el costo y la responsabilidad, en lugar de buscar uniformidad en la representación.</p>
+<p>La creación de millones de instancias Python destruiría la ventaja del método, ya que cada objeto tendría un costo de memoria significativo. Por lo tanto, se opta por mantener los datos numéricos en arreglos densos, mientras que los objetos como el anterior se utilizan para representar contratos más generales y operaciones de alto nivel sobre el estado del stockpile.</p>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Note</span>Continuo no significa continuo en el sentido de una ecuación diferencial
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>El término describe variables continuas dentro de una retícula discreta. La posición sigue cuantizada, la vecindad sigue siendo local y el tiempo avanza por pasos. Conviene evitar la frase “modelo continuo” sin el calificativo celular, porque podría confundirse con métodos de medios continuos.</p>
+</div>
+</div>
+<section id="construyendo-algo-de-intuición" class="level3">
+<h3 class="anchored" data-anchor-id="construyendo-algo-de-intuición">Construyendo algo de intuición</h3>
+<p>Antes de entrar en la implementación, conviene construir algo de intuición sobre cómo un conjunto de reglas locales puede producir un comportamiento emergente. La idea central es que cada celda interactúa únicamente con sus vecinas inmediatas, y que estas interacciones se basan en diferencias locales de altura y propiedad. A medida que estas interacciones se repiten a lo largo del tiempo, se pueden observar patrones globales que reflejan la dinámica del stockpile.</p>
+<p>Consideremos pues cinco columnas contiguas cuya altura, en unidades de celda, se registra en el arreglo <span class="math inline">\([1.0,\;2.0,\;4.0,\;2.0,\;1.0]\)</span>. La columna central supera en dos celdas a sus vecinas. Si el umbral admisible entre columnas fuera una celda, existe un exceso de una celda. Mover la mitad de ese exceso desde la columna alta a una vecina deja alturas <span class="math inline">\(3.5\)</span> y <span class="math inline">\(2.5\)</span>; la diferencia se reduce de <span class="math inline">\(2.0\)</span> a <span class="math inline">\(1.0\)</span> sin cambiar la suma total.</p>
+<p>Esta cuantía de transferencia es arbitraria, pero la idea es que la regla local no necesita conocer la forma global del stockpile. La suma de alturas se conserva, pero la forma cambia. La superficie se relaja y el exceso se reparte entre vecinas. La operación puede repetirse hasta que todas las diferencias estén por debajo del umbral. De esta manera, el ejemplo anterior ilustra tres ideas fundamentales del modelo de autómata celular continuo:</p>
+<ul>
+<li>La regla local consulta únicamente un vecindario inmediato, sin necesidad de información global.</li>
+<li>La transferencia de material se calcula a partir de diferencias locales de altura, lo que permite una redistribución eficiente del material.</li>
+<li>A pesar de los cambios en la forma del stockpile, el volumen total se conserva, lo que garantiza que la simulación respete las leyes de conservación de masa.</li>
+</ul>
+<p>En un espacio tridimensional, este razonamiento se extiende a una superficie de columnas, donde cada columna contiene celdas verticales con su propio estado de llenado y propiedad. La complejidad visual del stockpile emerge de la aplicación repetida de estas reglas locales, que pueden implementarse en unas pocas líneas de código, pero que producen un comportamiento global rico y realista.</p>
+</section>
+<section id="indexación-y-coordenadas-físicas" class="level3">
+<h3 class="anchored" data-anchor-id="indexación-y-coordenadas-físicas">Indexación y coordenadas físicas</h3>
+<p>En la retícula, cada celda se identifica mediante un índice discreto <span class="math inline">\((i,j,k)\)</span>, que representa su posición en el arreglo tridimensional. Sin embargo, estas coordenadas de índice no corresponden directamente a coordenadas físicas en el espacio real. Para convertir los índices de celda a coordenadas físicas, se utiliza la siguiente relación:</p>
+<p><span class="math display">\[
+x=(i+\tfrac{1}{2} )\triangle x\quad ;\quad y=(j+\tfrac{1}{2} )\triangle y\quad ;\quad z=(k+\tfrac{1}{2} )\triangle z
+\]</span></p>
+<p>Es decir, la coordenada física del centro de una celda se obtiene sumando la mitad del tamaño de la celda a su índice correspondiente y multiplicando por el tamaño de la celda en cada dirección. Esta relación permite mapear los índices discretos de la retícula a posiciones continuas en el espacio físico, lo que es esencial para comparar los resultados de la simulación con mediciones experimentales o datos de sensores.</p>
+<p>Notemos la distinción entre la posición de una celda en la retícula y su ubicación física. Por ejemplo, un alimentador descrito como <code>east=15</code> no está a 15 metros de distancia, sino que se encuentra en el índice <code>i=15</code> de la retícula. Para convertir esta posición a coordenadas físicas, es necesario conocer el tamaño de las celdas y la orientación del sistema de referencia. Esta distinción es crucial para garantizar que las comparaciones con datos del mundo real sean precisas y significativas.</p>
+</section>
+<section id="ciclo-de-vida-de-una-celda" class="level3">
+<h3 class="anchored" data-anchor-id="ciclo-de-vida-de-una-celda">Ciclo de vida de una celda</h3>
+<p>Una celda puede recorrer varios estados a lo largo de su ciclo de vida. Inicialmente, una celda comienza vacía, con una fracción de llenado <span class="math inline">\(f=0\)</span> y sin propiedad asignada. A medida que recibe material, la celda se vuelve parcialmente ocupada, y su propiedad se mezcla por volumen. Cuando la celda alcanza una fracción de llenado completa <span class="math inline">\(f=1\)</span>, cualquier alimentación adicional se transfiere a la celda superior. Este <strong>ciclo de vida</strong> también incluye la pérdida de material por flujo superficial o descarga, y eventualmente, la celda vuelve a quedar vacía, eliminando su propiedad.</p>
+<p>En términos secuenciales, el ciclo de vida de una celda <span class="math inline">\((i,j,k)\)</span> puede describirse de la siguiente manera:</p>
+<ol type="1">
+<li>Comienza vacía, con <span class="math inline">\(f=0\)</span> y propiedad ausente.</li>
+<li>Recibe una fracción de volumen y se vuelve parcialmente ocupada.</li>
+<li>Recibe más material y mezcla su propiedad por volumen.</li>
+<li>Alcanza <span class="math inline">\(f=1\)</span> y la alimentación continúa en la celda superior.</li>
+<li>Pierde material por flujo superficial o descarga.</li>
+<li>Vuelve a quedar vacía y su propiedad se elimina.</li>
+</ol>
+<p>Si el <span class="math inline">\(P_{80}\)</span> de una celda vacía fuera distinto de cero, se consideraría un “material fantasma”. Aunque no altera el inventario, puede contaminar futuras mezclas si el código consulta la propiedad antes del llenado. Por esta razón, vaciar una celda implica limpiar tanto la fracción de llenado <code>fill</code> como la propiedad <code>p80_in</code>, asegurando que no queden residuos que puedan afectar la simulación.</p>
+</section>
+<section id="unidades-y-conversión-de-caudal-a-fracción-de-celdas" class="level3">
+<h3 class="anchored" data-anchor-id="unidades-y-conversión-de-caudal-a-fracción-de-celdas">Unidades y conversión de caudal a fracción de celdas</h3>
+<p>Notemos que la fracción de llenado <span class="math inline">\(f\)</span> es adimensional, mientras que la altura <span class="math inline">\(h\)</span> se mide en metros, el volumen <span class="math inline">\(V\)</span> en metros cúbicos, la densidad aparente <span class="math inline">\(\rho_b\)</span> en toneladas por metro cúbico y el caudal <span class="math inline">\(Q\)</span> en toneladas por hora. Para convertir un caudal medido en toneladas por hora a una fracción de celdas llenas durante un intervalo de tiempo <span class="math inline">\(\Delta t\)</span>, se utiliza la siguiente relación:</p>
+<p><span class="math display">\[
+f = \frac{Q \, \triangle t}{\rho_b \, \triangle x \, \triangle y \, \triangle z}
+\]</span></p>
+<p>De esta manera, se puede determinar cuántas celdas se llenarán en un intervalo de tiempo dado, considerando la densidad aparente del material y el tamaño de las celdas en la retícula. Esta conversión es esencial para garantizar que la simulación refleje con precisión la cantidad de material que se está alimentando al stockpile en función del caudal medido.</p>
+<p>Por ejemplo, si se tiene un caudal de <span class="math inline">\(Q=2400\)</span> tph, un intervalo de tiempo de <span class="math inline">\(\triangle t=0.25\)</span> h, una densidad aparente de <span class="math inline">\(\rho_b=1.72\)</span> t/m³ y celdas de tamaño <span class="math inline">\(\triangle x = \triangle y = \triangle z = 2.2\)</span> m, el número de celdas llenas durante ese intervalo se calcula como</p>
+<p><span class="math display">\[
+N_{\text{celdas llenas}}=\frac{2400\times 0.25}{1.72\times 2.2^3}\approx 32.8
+\]</span></p>
+<p>Este resultado indica que, en promedio, se llenarán aproximadamente 32.8 celdas durante el intervalo de tiempo especificado. Es importante destacar que este valor no implica que se deban mover 33 cubos completos, sino que la alimentación continua permite distribuir 32.8 volúmenes de celda sin necesidad de redondear. Esta operación conecta la tabla temporal con la retícula espacial, asegurando que la simulación refleje con precisión la dinámica del stockpile.</p>
+</section>
+</section>
+<section id="azar-y-reproducibilidad" class="level2">
+<h2 class="anchored" data-anchor-id="azar-y-reproducibilidad">Azar y reproducibilidad</h2>
+<p>La aleatorización del orden de actualización es una técnica común en simulaciones de autómatas celulares para evitar patrones artificiales que puedan surgir debido a la estructura de la retícula de interés. Al cambiar el orden en que se actualizan las celdas, se asegura que el comportamiento emergente del sistema sea más representativo de un proceso físico real, donde las interacciones no ocurren en un orden fijo. Este procedimiento no representa ruido de medición, sino que es un mecanismo numérico para evitar una orientación artificial en la simulación. Dos ejecuciones con diferentes semillas producirán microestados distintos, pero deberían conservar distribuciones e invariantes comparables, lo que permite estudiar la sensibilidad del modelo a la aleatoriedad y garantizar la reproducibilidad de los resultados.</p>
+<p>En general, la aleatorización se aplica a la selección de celdas y al orden de actualización, mientras que la semilla fija la secuencia de números aleatorios para que el experimento pueda repetirse. Esto permite explorar la sensibilidad del algoritmo a la aleatoriedad sin comprometer la reproducibilidad de los resultados. Distinguimos tres fuentes de incertidumbre: Azar algorítmico, incertidumbre paramétrica y error de observación. Cambiar la semilla explora la primera fuente, pero no cuantifica automáticamente las otras dos. Un conjunto de semillas puede revelar sensibilidad del algoritmo, pero no constituye un intervalo de confianza completo.</p>
+</section>
+<section id="condición-de-estabilidad" class="level2">
+<h2 class="anchored" data-anchor-id="condición-de-estabilidad">Condición de estabilidad</h2>
+<p>En un autómata celular, la condición de estabilidad se refiere a la necesidad de que los cambios en el estado de las celdas sean lo suficientemente pequeños para que el sistema pueda relajarse y alcanzar un equilibrio antes de que se produzcan cambios adicionales. Si los cambios son demasiado grandes, el sistema puede volverse inestable y producir resultados no físicos o inconsistentes.</p>
+<p>Una regla local puede perder significado si un único paso agrega o extrae un volumen tan grande como para atravesar muchas capas antes de permitir la relajación. Por lo tanto, se limita el volumen por interacción y se submuestrean los intervalos grandes. La idea es análoga a una condición de estabilidad numérica: El cambio por paso debe ser pequeño respecto de la escala espacial que resuelve la grilla.</p>
+<p>Por supuesto, no existe un único límite universal para la condición de estabilidad, ya que depende del orden de las reglas y de la geometría de la retícula. La comprobación práctica combina sensibilidad al paso temporal, conservación y convergencia de observables. Si dividir cada paso en dos altera drásticamente la altura o el <span class="math inline">\(P_{80}\)</span>, la discretización temporal todavía domina el resultado.</p>
+</section>
+<section id="comentarios-finales" class="level2">
+<h2 class="anchored" data-anchor-id="comentarios-finales">Comentarios finales</h2>
+<p>Al terminar este módulo deberíamos poder explicar, sin mirar ninguna línea de código, por qué una celda puede estar parcialmente llena, por qué la diagonal en un subconjunto de celdas de la retícula usa un umbral de magnitud mayor, por qué el orden asincrónico se aleatoriza y qué cantidad se conserva durante una transferencia. Si alguna respuesta depende de <em>“porque así lo hace la librería”</em>, todavía falta conectar implementación con fenómeno.</p>
+<p><a href="../../proyectos/stockpile-cellular-automata/01-problema-y-arquitectura.html">← Problema y arquitectura</a> · <a href="../../proyectos/stockpile-cellular-automata/03-formacion-y-flujo-superficial.html">Siguiente: Formación y flujo superficial →</a></p>
+
+
+</section>
+
+</main> <!-- /main -->
+<div id="notes-prev-next" class="page-nav-links"></div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+  // ==========================================================================
+  // El arreglo `notesOrder` se GENERA automáticamente a partir del parámetro
+  // `number-offset` del front matter de cada entrada, mediante el script
+  // scripts/build-notes-order.py (hook pre-render de Quarto). Así el orden
+  // anterior/siguiente siempre refleja la numeración real de cada sección.
+  // No editar el bloque entre los marcadores a mano: se sobrescribe en el build.
+  // ==========================================================================
+  /* NOTES_ORDER_START */
+  const notesOrder = [
+    {
+        "section": "apuntes/calculo-incertidumbre-y-optimizacion",
+        "items": [
+            {
+                "title": "Cálculo diferencial",
+                "href": "/apuntes/calculo-incertidumbre-y-optimizacion/calculo-diferencial/"
+            },
+            {
+                "title": "Aplicaciones del cálculo diferencial",
+                "href": "/apuntes/calculo-incertidumbre-y-optimizacion/aplicaciones-del-calculo-diferencial/"
+            },
+            {
+                "title": "Probabilidad elemental",
+                "href": "/apuntes/calculo-incertidumbre-y-optimizacion/probabilidad-clasica/"
+            },
+            {
+                "title": "Introducción al cálculo de probabilidades",
+                "href": "/apuntes/calculo-incertidumbre-y-optimizacion/introduccion-al-calculo-de-probabilidades/"
+            },
+            {
+                "title": "Distribuciones específicas de probabilidad",
+                "href": "/apuntes/calculo-incertidumbre-y-optimizacion/distribuciones-especificas-de-probabilidad/"
+            },
+            {
+                "title": "Introducción a la teoría de optimización",
+                "href": "/apuntes/calculo-incertidumbre-y-optimizacion/introduccion-a-la-teoria-de-optimizacion/"
+            },
+            {
+                "title": "Optimización de tipo black-box",
+                "href": "/apuntes/calculo-incertidumbre-y-optimizacion/optimizacion-de-tipo-black-box/"
+            },
+            {
+                "title": "Optimización aplicada a machine learning",
+                "href": "/apuntes/calculo-incertidumbre-y-optimizacion/optimizacion-aplicada-al-aprendizaje-automatico/"
+            }
+        ]
+    },
+    {
+        "section": "apuntes/estructuras-lineales",
+        "items": [
+            {
+                "title": "Espacios vectoriales",
+                "href": "/apuntes/estructuras-lineales/espacios-vectoriales/"
+            },
+            {
+                "title": "Bases y dimensión",
+                "href": "/apuntes/estructuras-lineales/bases-y-dimension/"
+            },
+            {
+                "title": "Transformaciones lineales",
+                "href": "/apuntes/estructuras-lineales/transformaciones-lineales/"
+            },
+            {
+                "title": "Producto interno",
+                "href": "/apuntes/estructuras-lineales/producto-interno/"
+            },
+            {
+                "title": "Determinantes y diagonalización",
+                "href": "/apuntes/estructuras-lineales/determinantes-y-diagonalizacion/"
+            },
+            {
+                "title": "Una introducción a las formas",
+                "href": "/apuntes/estructuras-lineales/introduccion-a-las-formas/"
+            },
+            {
+                "title": "Descomposiciones matriciales",
+                "href": "/apuntes/estructuras-lineales/descomposiciones-matriciales/"
+            }
+        ]
+    },
+    {
+        "section": "apuntes/grafos-e-informacion",
+        "items": [
+            {
+                "title": "Una (no tan breve) introducción a la teoría de grafos",
+                "href": "/apuntes/grafos-e-informacion/teoria-de-grafos/"
+            },
+            {
+                "title": "Optimización de redes computacionales",
+                "href": "/apuntes/grafos-e-informacion/optimizacion-de-grafos/"
+            },
+            {
+                "title": "Introducción a la teoría de la información",
+                "href": "/apuntes/grafos-e-informacion/introduccion-a-la-teoria-de-la-informacion/"
+            },
+            {
+                "title": "Cadenas de Markov",
+                "href": "/apuntes/grafos-e-informacion/cadenas-de-markov/"
+            }
+        ]
+    },
+    {
+        "section": "apuntes/tensores-y-variedades",
+        "items": [
+            {
+                "title": "Una primera aproximación a los tensores",
+                "href": "/apuntes/tensores-y-variedades/introducion-a-los-tensores/"
+            },
+            {
+                "title": "Introducción al álgebra tensorial",
+                "href": "/apuntes/tensores-y-variedades/introducion-al-algebra-tensorial/"
+            },
+            {
+                "title": "Un cuento que versa sobre topología",
+                "href": "/apuntes/tensores-y-variedades/introduccion-a-la-topologia/"
+            },
+            {
+                "title": "Variedades y fibrados vectoriales",
+                "href": "/apuntes/tensores-y-variedades/introduccion-a-las-variedades/"
+            }
+        ]
+    },
+    {
+        "section": "clases/data-analytics/introduccion-al-analisis-de-datos-en-python/computacion-vectorizada-y-arreglos-con-numpy",
+        "items": [
+            {
+                "title": "Introducción a Numpy",
+                "href": "/clases/data-analytics/introduccion-al-analisis-de-datos-en-python/computacion-vectorizada-y-arreglos-con-numpy/introduccion-a-numpy/"
+            },
+            {
+                "title": "Operatoria en Numpy",
+                "href": "/clases/data-analytics/introduccion-al-analisis-de-datos-en-python/computacion-vectorizada-y-arreglos-con-numpy/operatoria-en-numpy/"
+            },
+            {
+                "title": "Operaciones de agregación",
+                "href": "/clases/data-analytics/introduccion-al-analisis-de-datos-en-python/computacion-vectorizada-y-arreglos-con-numpy/broadcasting-y-agregacion/"
+            },
+            {
+                "title": "Comparación, ordenamiento y reemplazos en arreglos",
+                "href": "/clases/data-analytics/introduccion-al-analisis-de-datos-en-python/computacion-vectorizada-y-arreglos-con-numpy/comparacion-ordenamiento-y-reemplazo/"
+            },
+            {
+                "title": "Aplicación de Numpy en la construcción de modelos predictivos",
+                "href": "/clases/data-analytics/introduccion-al-analisis-de-datos-en-python/computacion-vectorizada-y-arreglos-con-numpy/aplicaciones-en-modelos/"
+            }
+        ]
+    },
+    {
+        "section": "clases/data-analytics/introduccion-al-analisis-de-datos-en-python/manipulacion-tabular-y-analisis-con-pandas",
+        "items": [
+            {
+                "title": "Una introducción rápida a Pandas",
+                "href": "/clases/data-analytics/introduccion-al-analisis-de-datos-en-python/manipulacion-tabular-y-analisis-con-pandas/introduccion-rapida-a-pandas/"
+            },
+            {
+                "title": "Tipos de datos en Pandas",
+                "href": "/clases/data-analytics/introduccion-al-analisis-de-datos-en-python/manipulacion-tabular-y-analisis-con-pandas/tipos-de-datos-en-pandas/"
+            },
+            {
+                "title": "Manipulación de Series - Parte I",
+                "href": "/clases/data-analytics/introduccion-al-analisis-de-datos-en-python/manipulacion-tabular-y-analisis-con-pandas/manipulacion-de-series-parte-i/"
+            },
+            {
+                "title": "Manipulación de Series - Parte II",
+                "href": "/clases/data-analytics/introduccion-al-analisis-de-datos-en-python/manipulacion-tabular-y-analisis-con-pandas/manipulacion-de-series-parte-ii/"
+            }
+        ]
+    },
+    {
+        "section": "clases/machine-learning/aprendizaje-supervisado/modelos-lineales",
+        "items": [
+            {
+                "title": "Una introducción sencilla a los algoritmos de aprendizaje",
+                "href": "/clases/machine-learning/aprendizaje-supervisado/modelos-lineales/introduccion-algoritmos-aprendizaje/"
+            },
+            {
+                "title": "Una introducción a Scikit-Learn",
+                "href": "/clases/machine-learning/aprendizaje-supervisado/modelos-lineales/introduccion-a-scikit-learn/"
+            },
+            {
+                "title": "Modelos de clasificación - Parte I",
+                "href": "/clases/machine-learning/aprendizaje-supervisado/modelos-lineales/modelos-de-clasificacion-parte-i/"
+            },
+            {
+                "title": "Modelos de clasificación - Parte II",
+                "href": "/clases/machine-learning/aprendizaje-supervisado/modelos-lineales/modelos-de-clasificacion-parte-ii/"
+            },
+            {
+                "title": "Modelo de regresión lineal",
+                "href": "/clases/machine-learning/aprendizaje-supervisado/modelos-lineales/modelo-de-regresion-lineal/"
+            },
+            {
+                "title": "Modelos lineales regularizados, Bayesianos y generalizados",
+                "href": "/clases/machine-learning/aprendizaje-supervisado/modelos-lineales/modelos-lineales-regularizados-bayesianos-y-generalizados/"
+            },
+            {
+                "title": "Máquinas de soporte vectorial",
+                "href": "/clases/machine-learning/aprendizaje-supervisado/modelos-lineales/maquinas-de-soporte-vectorial/"
+            }
+        ]
+    },
+    {
+        "section": "clases/machine-learning/aprendizaje-supervisado/modelos-no-lineales",
+        "items": [
+            {
+                "title": "Árboles de decisión",
+                "href": "/clases/machine-learning/aprendizaje-supervisado/modelos-no-lineales/arboles-de-decision/"
+            },
+            {
+                "title": "Modelos de ensamble",
+                "href": "/clases/machine-learning/aprendizaje-supervisado/modelos-no-lineales/modelos-de-ensamble/"
+            },
+            {
+                "title": "Boosting especializado",
+                "href": "/clases/machine-learning/aprendizaje-supervisado/modelos-no-lineales/modelos-de-ensamble-especializados/"
+            },
+            {
+                "title": "Estimación de importancia de variables en modelos predictivos",
+                "href": "/clases/machine-learning/aprendizaje-supervisado/modelos-no-lineales/importancia-de-variables/"
+            }
+        ]
+    },
+    {
+        "section": "clases/machine-learning/seleccion-de-variables-metricas-y-tuning",
+        "items": [
+            {
+                "title": "Selección y evaluación de modelos",
+                "href": "/clases/machine-learning/seleccion-de-variables-metricas-y-tuning/seleccion-y-evaluacion-de-modelos/"
+            }
+        ]
+    }
+];
+  /* NOTES_ORDER_END */
+
+  function normalizePath(path) {
+    if (!path.endsWith("/")) path += "/";
+    path = path.replace(/index\.html\/?$/, "");
+    return path;
+  }
+
+  const currentPath = normalizePath(window.location.pathname);
+  const container = document.getElementById("notes-prev-next");
+
+  let previous = null;
+  let next = null;
+  let found = false;
+
+  for (const section of notesOrder) {
+    const items = section.items;
+    const index = items.findIndex(item => normalizePath(item.href) === currentPath);
+
+    if (index !== -1) {
+      found = true;
+      if (index > 0) previous = items[index - 1];
+      if (index < items.length - 1) next = items[index + 1];
+      break;
+    }
+  }
+
+  if (!found) {
+    container.style.display = "none";
+    return;
+  }
+
+  container.innerHTML = `
+    <div class="page-nav-prev">
+      ${previous ? `<a href="${previous.href}">← ${previous.title}</a>` : ``}
+    </div>
+    <div class="page-nav-next">
+      ${next ? `<a href="${next.href}">${next.title} →</a>` : ``}
+    </div>
+  `;
+});
+</script>
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    // Ensure there is a toggle, if there isn't float one in the top right
+    if (window.document.querySelector('.quarto-color-scheme-toggle') === null) {
+      const a = window.document.createElement('a');
+      a.classList.add('top-right');
+      a.classList.add('quarto-color-scheme-toggle');
+      a.href = "";
+      a.onclick = function() { try { window.quartoToggleColorScheme(); } catch {} return false; };
+      const i = window.document.createElement("i");
+      i.classList.add('bi');
+      a.appendChild(i);
+      window.document.body.appendChild(a);
+    }
+    setColorSchemeToggle(hasAlternateSentinel())
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp('/' + window.location.host + '/');
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+</div> <!-- /content -->
+<footer class="footer">
+  <div class="nav-footer">
+    <div class="nav-footer-left">
+<p>© René Quezada</p>
+</div>   
+    <div class="nav-footer-center">
+      &nbsp;
+    </div>
+    <div class="nav-footer-right">
+<p>Hecho con Quarto</p>
+</div>
+  </div>
+</footer>
+
+
+
+
+<script src="../../site_libs/quarto-html/zenscroll-min.js"></script>
+</body></html>

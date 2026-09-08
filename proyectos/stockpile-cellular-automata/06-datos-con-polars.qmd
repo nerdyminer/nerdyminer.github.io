@@ -1,0 +1,335 @@
+---
+title: "6. Ingeniería de datos con <strong><font color='darkmagenta'>Polars</font></strong>"
+description: "De señales minuto a minuto a entradas regulares, tipadas y reproducibles para el autómata."
+toc: true
+toc-depth: 3
+---
+
+[← Volver al proyecto](index.qmd)
+
+## ¿Por qué elegir <strong><font color='darkmagenta'>Polars</font></strong>?
+
+En este proyecto, hemos adoptado el uso de la librería <strong><font color='darkmagenta'>Polars</font></strong> a fin de explorar el uso de una alternativa moderna a <strong><font color='darkmagenta'>Pandas</font></strong>. La razón de esto estriba simplemente en aprovechar las capacidades de <strong><font color='darkmagenta'>Polars</font></strong> para manejar grandes volúmenes de datos de manera eficiente y con un enfoque declarativo. Su motor columnar, basado en Apache Arrow, permite operaciones rápidas y optimizadas con respecto a las columnas que constituyen un DataFrame, lo que resulta especialmente útil para la ingeniería de datos a gran escala. No queremos, bajo ninguna circunstancia, que ésto suene como si declaráramos un vencedor universal. <strong><font color='darkmagenta'>Pandas</font></strong> sigue siendo una herramienta poderosa y ampliamente utilizada en la comunidad de ciencia de datos, con un abanico de opciones enorme para enfrentar cualquier problema.
+
+En particular, aprovecharemos la capacidad de <strong><font color='darkmagenta'>Polars</font></strong> para la realización de evaluaciones *perezosas* por medio de la introducción de LazyFrames; esto es, las operaciones sobre los datos se definen de manera declarativa y no se ejecutan hasta que se solicita explícitamente la materialización del resultado por medio del método `collect()`. La razón es práctica: Permite optimizar el **plan de ejecución** de una secuencia de operaciones, materializando únicamente las columnas necesarias y evitando cálculos intermedios que pueden consumir memoria inútilmente.
+
+Un ejemplo de cómo se utiliza un `LazyFrame` en <strong><font color='darkmagenta'>Polars</font></strong> es el siguiente:
+
+```python
+import polars as pl
+
+curated = (
+    raw.lazy()
+    .sort("timestamp")
+    .with_columns(
+        pl.col("feed_tph").clip(0, 10_000),
+        (pl.col("feed_tph") - pl.col("discharge_a_tph") - pl.col("discharge_b_tph"))
+        .truediv(60.0)
+        .alias("inventory_delta_t"),
+        pl.col("timestamp").dt.date().alias("day"),
+    )
+    .filter(pl.col("feed_p80_in").is_between(0.05, 30.0))
+    .collect()
+)
+```
+
+En este bloque de código se realiza la preparación inicial de los datos crudos mediante un `LazyFrame` de <strong><font color='darkmagenta'>Polars</font></strong>. Se ordenan los registros por timestamp, se aplican transformaciones a las columnas, se calculan derivadas como `inventory_delta_t`, se filtran valores fuera de rango y finalmente se materializa el resultado con `collect()`. Esto permite trabajar con grandes volúmenes de datos de manera eficiente, aprovechando la evaluación perezosa y las optimizaciones internas de <strong><font color='darkmagenta'>Polars</font></strong>. Además, sacamos un enorme provecho del encadenamiento de métodos para darle un fuerte carácter declarativo al flujo de datos, visualizando explícitamente todo el plan de ejecución.
+
+... no es que en <strong><font color='darkmagenta'>Pandas</font></strong> no podamos hacer lo mismo, sino que <strong><font color='darkmagenta'>Polars</font></strong> ofrece ventajas en términos de rendimiento y manejo de grandes volúmenes de datos gracias a su evaluación perezosa y optimizaciones internas.
+
+::: {.callout-note}
+## Ya que estamos hablando de <strong><font color='darkmagenta'>Polars</font></strong>...
+
+Uno no aprende <strong><font color='darkmagenta'>Polars</font></strong> de la noche a la mañana; requiere práctica y familiaridad con su API y filosofía de evaluación perezosa. En un principio, un colega me comentó que era como "aprender <strong><font color='darkmagenta'>Pandas</font></strong>, pero con una transmisión manual en vez de automática". Esto significa que debemos ser conscientes de cuándo se materializan los datos y cómo se encadenan las operaciones para aprovechar al máximo las optimizaciones internas provistas por la librería. Materiales para esto hay muchos. Sin embargo, personalmente, recomiendo el maravilloso libro ["Effective Polars" de Matt Harrison](https://store.metasnake.com/effective-polars).
+:::
+
+## Nuestro "contrato" tabular
+
+Respecto a la estructura de los datos, nuestro "contrato" tabular define los campos, tipos conceptuales, unidades y usos esperados de cada columna en la tabla pública. Esto asegura consistencia y claridad en el manejo de la información a lo largo de todo el flujo de procesamiento. Dicho contrato puede resumirse conforme a la siguiente tabla:
+
+| Campo | Tipo conceptual | Unidad | Uso |
+|:---|:---|:---|:----------|
+| `timestamp` | Fechas y horas en formato `datetime`, con zona horaria UTC. | Minuto a minuto. | Llave primaria y orden. |
+| `feed_tph` | Variable continua no negativa. | tph. | Flujo másico de entrada al stockpile. |
+| `discharge_a_tph` | Variable continua no negativa. | tph. | Flujo másico de salida por la línea A. |
+| `discharge_b_tph` | Variable continua no negativa. | tph. | Flujo másico de salida por la línea B. |
+| `feed_p80_in` | Variable continua positiva. | Pulgadas. | Propiedad de entrada del material, correspondiente al percentil $P_{80}$ de la distribución granulométrica. |
+| `measured_height_m` | Variable continua. | Metros. | Altura medida del stockpile. |
+| `inventory_delta_t` | Variable derivada. | t/min. | Balance local del inventario del stockpile. |
+| `day` | Fecha. | Diaria. | Partición y reporte de los datos. |
+
+Notemos que este "contrato" tabular establece de manera explícita las expectativas sobre la estructura y el significado de los datos, facilitando la consistencia y claridad en todo el flujo de procesamiento. No incluye nombres de *tags* ni identificadores específicos de sistemas externos; se centra en la semántica y el uso de cada columna. Cualquier función de Python que actúe como *adaptador* puede mapear señales externas a `feed_tph`, pero el dominio de validez y las transformaciones deben respetar las expectativas definidas en este contrato, por lo que nunca necesitan conocer identificadores únicos provistos por sistemas de historización (como PI o PHD).
+
+## Estructura temporal de la retícula
+
+La retícula temporal define cómo se organizan las observaciones a lo largo del tiempo. Para nuestro caso, consideramos una retícula con pasos de un minuto, lo que significa que cada celda temporal representa un intervalo de un minuto. Esto permite al autómata celular operar con una granularidad consistente y facilita la interpolación y agregación de señales.
+
+La razón de escoger este patrón de diseño temporal radica en que un minuto es lo suficientemente corto para capturar cambios relevantes en el flujo de material y en las propiedades del stockpile, pero no tan corto como para generar un volumen de datos inmanejable. Esto equilibra la resolución temporal con la eficiencia computacional y la calidad de las inferencias del autómata celular.
+
+La preparación de los datos considera la siguiente secuencia lógica:
+
+1. Normalización de la zona horaria a UTC, ya que garantiza consistencia temporal y evita ambigüedades al alinear y agregar señales provenientes de diferentes fuentes. Toda traducción a zonas locales debe realizarse después de esta normalización.
+2. Remoción de duplicados y ordenamiento cronológico, para asegurar que cada celda temporal contenga una única observación y que las secuencias temporales sean coherentes. Esta política debe declararse de manera explícita.
+3. Interpolación de datos faltantes, utilizando métodos apropiados para cada tipo de señal, de manera que el autómata celular reciba una retícula completa de puntos discretos, sin discontinuidades.
+4. Agregación y remuestreo, si es necesario, para ajustar la granularidad de las señales a la retícula temporal definida.
+5. Validación de la retícula temporal, para asegurar que todas las celdas estén correctamente alineadas y que no existan inconsistencias temporales antes de alimentar los datos al autómata celular.
+6. Documentación de las transformaciones aplicadas, para mantener un registro claro de cómo se han preparado los datos y facilitar la reproducibilidad y el mantenimiento del flujo de procesamiento. Esto permite definir la calidad y la confiabilidad de los datos utilizados por el autómata celular.
+7. Cálculo de la cobertura de la retícula temporal, para evaluar qué proporción de celdas temporales contiene datos válidos y detectar posibles huecos o inconsistencias antes de alimentar los datos al autómata celular.
+
+Un flujo másico puede interpolarse durante un período de ausencia de datos relativamente corto, siempre que se mantenga la coherencia con las observaciones adyacentes. De la misma forma, un estado discreto de un feeder no debe *inventarse* durante largos períodos y debe seguir políticas de *forward fill* acotadas. Una granulometría provista por splits debe considerarse válida solo durante el intervalo en que se dispone de datos medidos, y no debe extrapolarse más allá de ese rango. Por lo tanto, las políticas de interpolación y extrapolación deben definirse explícitamente en el catálogo de señales y no aplicarse de manera global e indiscriminada.
+
+## Gestión de datos
+
+El trabajo con <strong><font color='darkmagenta'>Polars</font></strong> exige un enfoque cuidadoso a nivel procedimental, distinguiendo entre **expresiones** y **contextos**. Sin embargo, a nivel estructural, los DataFrames de <strong><font color='darkmagenta'>Polars</font></strong> se comportan como tablas inmutables, lo que permite razonar sobre la forma y el esquema de los datos de manera consistente. A diferencia de <strong><font color='darkmagenta'>Pandas</font></strong>, en <strong><font color='darkmagenta'>Polars</font></strong> no existen los índices de filas como entidades separadas; todas las operaciones se realizan sobre columnas y se accede a las filas de manera posicional.
+
+### Expresiones y contextos de <strong><font color='darkmagenta'>Polars</font></strong>
+
+Las **expresiones** representan operaciones sobre columnas de datos y pueden combinarse para formar transformaciones complejas, mientras que los **contextos** determinan cómo y cuándo se evalúan estas expresiones dentro de un DataFrame. Esta distinción es crucial para optimizar el rendimiento y garantizar la coherencia de los cálculos.
+
+Los contextos determinan el ámbito en el que se evalúan las expresiones y, en la práctica, corresponden a métodos que se aplican sobre un DataFrame. Por ejemplo:
+
+- `select()`, que permite seleccionar y transformar columnas específicas de un DataFrame.
+- `with_columns()`, que permite agregar o modificar columnas existentes en un DataFrame.
+- `filter()`, que permite filtrar filas según condiciones expresadas sobre las columnas.
+- `group_by()`, que permite agrupar filas según los valores de una o más columnas y aplicar agregaciones.
+- `group_by_dynamic()`, que permite agrupar filas de manera dinámica según intervalos de tiempo, útil para series temporales.
+- `join()`, que permite combinar dos DataFrames según columnas clave, similar a las operaciones de combinación típicas de SQL.
+- `over()`, que permite calcular ventanas sobre columnas conservando las filas originales.
+
+Un ejemplo de conversión de datos minuto a minuto en "frames" de 15 minutos se muestra a continuación:
+
+```python
+sampled = (
+    minute
+    .group_by_dynamic(
+        "timestamp", every="15m", period="15m", closed="left"
+    ).agg(
+        pl.col("feed_tph").mean(),
+        pl.col("discharge_a_tph").mean(),
+        pl.col("feed_p80_in").mean(),
+    )
+)
+```
+
+El encadenamiento de métodos permite construir transformaciones complejas de manera legible y eficiente, evitando la necesidad de crear variables intermedias. En el bloque de código anterior:
+
+- `group_by_dynamic("timestamp", every="15m", period="15m", closed="left")` agrupa los datos en intervalos de 15 minutos según la columna `timestamp`. El argumento `closed="left"` indica que el límite izquierdo del intervalo está incluido, mientras que el derecho está excluido.
+- `agg(pl.col("columna_j").mean(),` calcula la media de `columna_j` dentro de cada grupo definido por `group_by_dynamic()` (en este caso, se trata de una media móvil con granularidad de 15 minutos).
+
+Este patrón es constante todo este proyecto, a fin de mantener la consistencia en la agregación y transformación de datos temporales.
+
+### Flujo másico y unidades
+
+Cuando intentamos representar el proceso de descarga de masa en una retícula completa de material, debemos considerar tanto el flujo másico como las unidades de medida para asegurar la consistencia dimensional en nuestras simulaciones. Para ello, debemos cuidar de no usar promedios de caudales directamente como masas sin tener en cuenta el intervalo de tiempo correspondiente. En definitiva, cada flujo másico debe pasar por una ponderación conforme al intervalo de tiempo en el que se mide.
+
+Para un intervalo de tiempo de $\triangle t$ minutos, es decir,
+
+$$
+m_{t}=q_{t}\frac{\triangle t}{60}
+$$
+
+el número de celdas correspondiente a esa masa es
+
+$$
+n_{t}^{c}=\frac{m_{t}}{\rho_{b} \triangle x\triangle y\triangle z}
+$$
+
+Nuestra declaración de unidades debe ser consistente con estas fórmulas, asegurando que cada columna y cada intervalo de tiempo estén correctamente etiquetados y ponderados. El uso de sufijos como `_tph`, `_t`, `_m` e `_in` ayuda a mantener claridad y consistencia en las unidades.
+
+### Gestión de datos nulos e infinitos
+
+En el contexto de series temporales y simulaciones de procesos, los datos nulos e infinitos pueden introducir inconsistencias y errores en los cálculos. Es fundamental identificar y manejar estos valores antes de realizar agregaciones o transformaciones.
+
+En <strong><font color='darkmagenta'>Polars</font></strong>, existe una distinción importante entre valores `null` y `NaN`: Un registro `null` indica ausencia de valor, mientras que `NaN` representa un valor numérico indefinido dentro de un tipo flotante. Esto diferencia enormemente el comportamiento de los datos en <strong><font color='darkmagenta'>Polars</font></strong> respecto de lo que ocurre en <strong><font color='darkmagenta'>Pandas</font></strong>.
+
+Consecuentemente, el uso adecuado de funciones como `fill_null()`, `drop_nulls()` y `is_finite()` es crucial para mantener la integridad de los datos antes de realizar cualquier agregación o transformación. En <strong><font color='darkmagenta'>Polars</font></strong>, el método `drop_nulls()` permite eliminar registros con valores `null`, pero no afecta a los valores `NaN`, los cuales deben manejarse explícitamente según la lógica de negocio. El uso de funciones de agregación puede propagar `NaN` si no se manejan adecuadamente, o si asumimos incorrectamente que métodos de eliminación y/o tratamiento de valores `null` también afectan a `NaN`.
+
+Para la limpieza de datos en <strong><font color='darkmagenta'>Polars</font></strong>, se recomienda seguir un enfoque sistemático, el cual se implementa en este proyecto por medio de un "contrato" de calidad de datos que define las reglas y expectativas para los valores nulos, infinitos y fuera de rango:
+
+- No se admiten valores de tipo `null` en campos imprescindibles.
+- Tanto granulometrías como flujos másicos tienen siempre valores finitos.
+- Los rangos de valores deben ser plausibles según la física del proceso.
+- Todo DataFrame equipado con alguna columna que describe momentos en el tiempo (`timestamp`) debe estar ordenada cronológicamente.
+- Los valores `NaN` deben ser tratados explícitamente según una lógica de negocio.
+
+Ciertas funciones son adecuadas para el tratamiento de datos conforme intervalos admisibles, tales como `clip()`, `filter()`, y `with_columns()` con expresiones condicionales. Estas permiten restringir los valores a rangos válidos, reemplazar valores fuera de rango y asegurar que los datos cumplan con las expectativas definidas en el contrato de calidad. Sin embargo, no toda variable cuyos valores se encuentran fuera de rango puede ser simplemente corregida o *recortada*; en algunos casos, es necesario revisar la fuente de los datos o aplicar transformaciones más complejas. El corte de intervalos puede disfrazar fallas de sensores de manera sileciosa, haciéndolas pasar como valores extremos plausibles.
+
+### Distribución de tamaños
+
+En el contexto minero y de procesamiento de minerales, es posible registrar la distribución granulométrica de un flujo de material por medio del uso de **cámaras split**, las cuales hacen referencia a sistemas de visión computacional y hardware de captura de imágenes que permiten analizar el tamaño de las partículas en tiempo real. Estos sistemas utilizan algoritmos avanzados de procesamiento de imágenes e inteligencia artificial para *estimar* la fragmentación de la roca en tiempo real sin detener la producción.
+
+Debido a que estas cámaras generan estimaciones basadas en imágenes, los datos obtenidos pueden contener incertidumbre y ruido. Es importante aplicar técnicas de filtrado y validación para asegurar que la distribución de tamaños refleje de manera precisa la realidad física del material. En general, los datos provistos por estas cámaras vienen expresados en términos de percentiles propios de la distribución granulométrica completa, como $P_{10}$, $P_{50}$, $P_{80}$, etc. La reconstrucción de un tamaño de interés (con frecuencia, el $P_{80}$) exige siempre interpolar entre los percentiles disponibles, respetando la forma acumulada de la distribución. En una distribución granulométrica acumulada, que permite expresar tamaños "pasantes" como fracciones de material que pasan por un tamiz de tamaño dado, la interpolación asegura que se mantenga la coherencia física de los datos: Los pares $(d_{i}, P_{i})$ deben cumplir $d_{i} < d_{i+1}$ y $P_{i} < P_{i+1}$, donde $d_{i}$ es el tamaño de partícula correspondiente al percentil $P_{i}$.
+
+En general, interpolamos conforme el logaritmo del tamaño de partícula:
+
+$$
+\log \left( d_{80} \right) =\log \left( d_{a} \right) +\frac{80-p_{a}}{p_{b}-p_{a}} \left[ \log \left( d_{b} \right) -\log \left( d_{a} \right) \right]
+$$
+
+donde $d_{k}$: Tamaño de partícula correspondiente al percentil $P_{k}$. De esta manera, si $d_{a}$ y $d_{b}$ corresponden a los percentiles $P_{a}$ y $P_{b}$ respectivamente, podemos interpolar de manera consistente para obtener $d_{80}$ dentro del rango definido por los percentiles conocidos. Si $d_{80}$ queda fuera del rango observado de la distribución granulométrica, se debe considerar como un valor ausente o aplicar una estrategia de extrapolación justificada. En este proyecto, por simplicidad, se opta por tratar cualquier $d_{80}$ fuera del rango como un valor ausente (en el lenguajes de <strong><font color="darkmagenta">Polars</font></strong>, como un valor de tipo `null`).
+
+## Frontera entre <strong><font color='darkmagenta'>Polars</font></strong> y <strong><font color='darkmagenta'>Pydantic</font></strong>
+
+A diferencia del proyecto de [forecasting Bayesiano](../bayesian-tph-forecasting/), en este proyecto construimos el flujo de trabajo por medio de <strong><font color='darkmagenta'>Pydantic</font></strong>, que es una alternativa para la validación y estructuración de datos a nivel de objetos individuales, con fuerte enfoque en el uso de patrones de diseño orientados a objetos. Se trata de una forma de estructurar un proyecto que va más allá del uso de un empaquetador como <strong><font color='darkmagenta'>Kedro</font></strong>, el cual organiza el flujo de trabajo a nivel de pipelines y nodos. Acá, usamos <strong><font color='darkmagenta'>Pydantic</font></strong> para definir y validar los modelos de datos que representan las entradas y salidas de nuestro sistema, mientras que el grafo dirigido acíclico (DAG) que representa la ejecución del flujo de trabajo se construye y gestiona principalmente con <strong><font color='darkmagenta'>Dagster</font></strong>. Esto es algo de lo que hablaremos un poco más adelante.
+
+<strong><font color='darkmagenta'>Pydantic</font></strong> se utiliza para definir modelos de datos que representan las entradas y salidas de nuestro sistema. Cada modelo es una clase que hereda de `BaseModel` y permite validar automáticamente los tipos de datos, valores por defecto y restricciones específicas. Esto asegura que los datos cumplan con las expectativas antes de ser procesados por el flujo de trabajo. En contraste, <strong><font color='darkmagenta'>Polars</font></strong> se enfoca en la manipulación eficiente de grandes volúmenes de datos tabulares, aprovechando la computación columnar y el paralelismo. La combinación de ambos permite tener un control riguroso sobre la estructura y validez de los datos a nivel de objeto, mientras se mantiene un rendimiento óptimo en el procesamiento de datos a gran escala.
+
+Las fronteras entre ambas librerías pueden parecer un tanto difusas a priori, pero en la práctica cada una tiene un rol claramente definido. Para distribuir responsabilidad de manera adecuada, acordamos una especie de "contrato" con la siguiente estructura:
+
+```text
+Pydantic: Forma y semántica de objetos que cruzan una frontera.
+Polars: Esquema y relaciones de una tabla completa.
+Numpy: Estado denso y bucles científicos.
+```
+
+El propósito de este "contrato" es clarificar qué tipo de responsabilidad recae sobre cada librería, evitando solapamientos innecesarios y asegurando que cada herramienta se utilice en el contexto para el cual es más adecuada.
+
+## Evaluación *perezosa* y *estricta* de DataFrames
+
+En <strong><font color='darkmagenta'>Polars</font></strong>, podemos evaluar un `DataFrame` de manera *perezosa* (evaluación de tipo *lazy*) o *estricta* (evaluación de tipo *eager*). La evaluación *perezosa* permite construir un **plan de ejecución** sin procesar inmediatamente los datos, lo que puede mejorar el rendimiento al optimizar y fusionar operaciones. La evaluación *estricta*, en cambio, ejecuta las operaciones de inmediato y devuelve un DataFrame concreto. Un DataFrame que se crea con base en una evaluación perezosa se denomina, correspondientemente, como *LazyFrame*.
+
+Un **plan de ejecución** es una representación interna de las operaciones que se aplicarán a un LazyFrame. Este plan permite a <strong><font color='darkmagenta'>Polars</font></strong> optimizar la secuencia de transformaciones antes de ejecutar realmente los cálculos, lo que puede resultar en un rendimiento significativamente mejor en comparación con la evaluación estricta. Esta técnica resulta especialmente útil cuando se trabaja con grandes volúmenes de datos, ya que permite reducir el costo computacional al minimizar operaciones intermedias innecesarias.
+
+Tomemos la función `curate_minute_series()`, la cual permite aplicar el contrato de calidad de datos definido previamente a una serie de tiempo multivariable con granularidad minuto a minuto, asegurando que las columnas requeridas estén presentes, que los valores se encuentren dentro de los rangos esperados y que se generen columnas derivadas necesarias para el análisis posterior:
+
+```python
+import polars as pl
+
+def curate_minute_series(
+    raw: pl.DataFrame
+) -> pl.DataFrame:
+    """Aplica el contrato tabular sin abandonar expresiones vectorizadas."""
+    # Definimos las columnas requeridas para el contrato tabular.
+    required = {
+        "timestamp",
+        "feed_tph",
+        "discharge_a_tph",
+        "discharge_b_tph",
+        "feed_p80_in",
+        "measured_height_m",
+    }
+
+    # Verificamos si hay columnas ausentes en el DataFrame `raw`.
+    # Levantamos un error si faltan columnas requeridas.
+    missing = required.difference(raw.columns)
+    if missing:
+        raise ValueError(f"columnas ausentes: {sorted(missing)}")
+
+    # Retornamos un LazyFrame evaluado con las transformaciones aplicadas.
+    # Notemos el plan de ejecución que se construye antes de llamar a `collect()`.
+    return (
+        raw
+        .lazy() # Evaluación perezosa.
+        .sort("timestamp") # Ordenamos según la columna `timestamp`.
+        .with_columns( # Transformamos algunas columnas.
+            pl.col("feed_tph").clip(0, 10_000), # Cortamos los valores fuera del rango permitido.
+            pl.col("discharge_a_tph").clip(0, 10_000), # Cortamos los valores fuera del rango permitido.
+            pl.col("discharge_b_tph").clip(0, 10_000), # Cortamos los valores fuera del rango permitido.
+            (pl.col("feed_tph") - pl.col("discharge_a_tph") - pl.col("discharge_b_tph"))
+            .truediv(60.0) # Convertimos la diferencia de toneladas por hora a toneladas por minuto.
+            .alias("inventory_delta_t"),
+            pl.col("timestamp").dt.date().alias("day"), # Extraemos el día asociado al `timestamp`.
+        )
+        .filter(pl.col("feed_p80_in").is_between(0.05, 30.0)) # Filtramos valores fuera del rango permitido.
+        .collect() # Ejecutamos el plan perezoso y obtenemos un DataFrame explícito.
+    )
+```
+
+En el bloque de código anterior, aplicamos un contrato tabular sobre el DataFrame `raw` utilizando <strong><font color='darkmagenta'>Polars</font></strong> en modo perezoso. Esto nos permite construir un plan de ejecución optimizable antes de materializar los datos, asegurando que las transformaciones y filtros se apliquen de manera eficiente. Dicho plan consta de las siguientes operaciones:
+
+- `lazy()`: Inicia un plan de ejecución perezoso sin evaluar inmediatamente.
+- `sort("timestamp")`: Ordena los datos según la columna `timestamp`.
+- `with_columns(...)`: Aplica transformaciones vectorizadas sobre columnas completas.
+  - `pl.col(...).clip(n1, n2)`: Corta los valores de una columna determinada fuera del rango `(n1, n2)`.
+  - `pl.col(...).truediv(60.0).alias("col_t")`: Divide los valores de una determinada columna por `60.0`, convirtiendo tasas por hora a tasas por minuto, y la renombra como `col_t`.
+  - `pl.col("timestamp").dt.date().alias("day")`: Extrae el día asociado al `timestamp`.
+- `filter(pl.col("feed_p80_in").is_between(0.05, 30.0))`: Aplica un filtro sobre la columna `feed_p80_in` para mantener solo los valores dentro del rango `(0.05, 30.0)` pulgadas.
+- `collect()`: Ejecuta el plan perezoso y retorna un DataFrame explícito.
+
+Notemos el patrón: Ninguna operación establecida en el plan de ejecución perezoso se evalúa inmediatamente. Todas las transformaciones y filtros se registran como parte del plan, y solo se ejecutan cuando se llama a `collect()`. <strong><font color='darkmagenta'>Polars</font></strong> incluso permite reordenar operaciones y optimizar el plan antes de la ejecución, lo que puede mejorar significativamente el rendimiento.
+
+## Conversión dimensional explícita
+
+Notemos que, si una tabla tiene una granularidad de 15 minutos, y se tiene que `feed_tph=2400`, entonces el tonelaje asociado a ese intervalo de tiempo es
+
+$$
+m=2400\left[ \frac{t}{h} \right] \times \frac{15}{60} \left[ h \right] =600\left[ t \right]
+$$
+
+Para asegurar claridad, podemos expresar explícitamente el factor de conversión temporal:
+
+```python
+import polars as pl
+
+# Declaramos el factor de conversión temporal de 15 minutos a horas.
+interval_hours = 15.0 / 60.0
+
+# Implementamos la conversión de tasas horarias a tonelaje por intervalo de 15 minutos.
+table = (
+    table
+    .with_columns(
+        (pl.col("feed_tph") * interval_hours).alias("feed_tonnes"),
+        ((pl.col("discharge_a_tph") + pl.col("discharge_b_tph")) * interval_hours)
+        .alias("discharge_tonnes"),
+    )
+)
+```
+
+Al usar el método `alias()` para nombrar las columnas resultantes, estamos haciendo explícita la dimensión de los datos y evitando confusiones entre tasas y cantidades acumuladas. Mantener el nombre original puede originar una pérdida de claridad y errores en cálculos posteriores.
+
+::: {.callout-note}
+## Los promedios pueden inducir sesgos de muestreo
+
+Cuando remuestreamos una serie de tiempo con granularidad de minutos a otra de 15 minutos, el promedio calculado puede no reflejar con precisión la cantidad total si hay intervalos con datos faltantes. Para el caso de un flujo másico, esto puede resultar en una subestimación o sobreestimación del tonelaje real transportado.
+
+Si cada minuto en la serie original es válida, lo que implica una cobertura completa, entonces un promedio móvil de 15 minutos reflejará con precisión la cantidad total de masa transportada en ese intervalo. Si no hay cobertura completa, toda propiedad extensiva calculada a partir del promedio puede estar sesgada. Por ejemplo, para el caso del tamaño correspondiente al $P_{80}$, puede ser necesario ponderar cada minuto original por la masa transportada en ese período de tiempo. Es decir,
+
+$$
+\overline{d} =\frac{\sum\nolimits_{t=1}^{T} d_{t}m_{t}}{\sum\nolimits_{t=1}^{T} m_{t}}
+$$
+
+donde $T$ es el número total de intervalos de tiempo considerados y $d_{t}$ es la propiedad (digamos tamaño) de interés en el intervalo $t$, y $m_{t}$ es la masa transportada en ese mismo intervalo.
+:::
+
+## El "contrato" operacional de los valores tipo `null`
+
+En el contexto de series de tiempo de procesos industriales, un valor `null` no es simplemente un dato faltante; es una señal que indica que algo en la operación o en la adquisición de datos no ocurrió como se esperaba. Por lo tanto, debemos tratar los `null` con cuidado y definir un "contrato" operacional que especifique cómo interpretarlos y cómo imputarlos si es necesario.
+
+Contextualmente, un `null` podría indicar que un sensor se encuentra fuera de servicio durante un determinado período de tiempo, lo que implica que no se dispone de mediciones válidas para ese intervalo y que cualquier cálculo basado en esos datos debe considerar esta ausencia de información. También podría señalar intervalos de tiempo sin muestra de datos, algún dato descartado debido a un código de estado o incluso detenciones en un equipo determinado. Rellenar estos valores con otros (por ejemplo, con ceros) sin considerar el contexto puede inducir errores significativos en el análisis y la interpretación de los datos. Matemáticamente, un relleno no controlado modifica enormemente las distribuciones observadas de las variables afectadas, y no necesariamente constituye una buena estrategia de limpieza o calidad.
+
+Para este proyecto, definimos el siguiente "contrato" operacional para los valores de tipo `null`:
+
+| Variable | Política posible | Riesgo principal |
+|:---|:-------|:-------|
+| Flujo. | Cero siempre que se confirme una detención. | Invención de detenciones. |
+| Altura. | Interpolación corta con límites temporales. | Regularización de un cambio real. |
+| $P_{80}$. | Mantener el valor `null` hasta una nueva muestra. | Falsa precisión temporal. |
+| Estado de equipo. | Relleno de tipo *forward fill* acotado. | Prolongar un estado obsoleto. |
+
+Este contrato operacional define cómo debemos interpretar y manejar los valores `null` en nuestras series de tiempo. Su cumplimiento asegura que los análisis posteriores sean consistentes con la realidad operacional y que no se introduzcan sesgos inadvertidos debido a un manejo inapropiado de los datos faltantes. Siendo pues parte integral de nuestra metodología, debe ser documentado y seguido rigurosamente.
+
+::: {.callout-note}
+## Uso de *joins* aproximados y riesgo de *data leakage*
+
+Cuando realizamos *joins* aproximados entre series de tiempo de distinta frecuencia (los que se conocen en SQL como *asof joins*), existe el riesgo de introducir información futura en nuestros análisis. Esto puede ocurrir si asociamos una muestra de alta frecuencia con la más cercana de baja frecuencia sin considerar la dirección temporal. Tal práctica puede ser útil para reconstrucción histórica, pero es peligrosa para aplicaciones en línea donde la información futura no debería estar disponible. Es decir, caemos en un riesgo de generar *data leakage*.
+
+Una reproducción histórica de tipo *ex post* puede tolerar cierto grado de *data leakage* porque el objetivo es reconstruir eventos pasados, no tomar decisiones en tiempo real. Sin embargo, si el objetivo de un modelo de apilamiento es representar en tiempo real el estado del material en un stockpile, cualquier evento de *data leakage* puede inducir errores significativos en la predicción y debe ser evitado cuidadosamente.
+
+En <strong><font color='darkmagenta'>Polars</font></strong>, los *joins* aproximados se implementan por medio del método `join_asof()`. En nuestro caso, ademàs, seteamos el argumento `strategy="backward"` para asegurarnos de no usar información futura y definimos una tolerancia temporal adecuada (por medio del parámetro `tolerance`) para limitar la propagación de muestras antiguas.
+:::
+
+## Checklist final previo a la simulación
+
+Antes de ingestar al autómata celular con datos temporales, debemos comprobar una lista de verificación que asegure la calidad y consistencia de los datos. Esta lista incluye:
+
+- Unicidad y orden temporal de los *timestamps*.
+- Frecuencia esperada de las muestras.
+- Cobertura temporal completa.
+- Unidades y rangos físicos de las variables.
+- Presencia de valores nulos o infinitos.
+- Balance acumulado de las cantidades.
+- Procedencia y confiabilidad de cada columna.
+
+Notemos que una tabla puede cumplir con todos los criterios anteriores y aun así ser inapropiada para la simulación si existen inconsistencias temporales o relaciones físicas incorrectas entre las columnas. Por ejemplo, un caudal que no coincide con la acumulación de material en el stockpile o muestras granulométricas que aparecen fuera de secuencia temporal.
+
+[← Descarga y migración](05-descarga-y-migracion.qmd) · [Siguiente: Contratos con <strong><font color='darkmagenta'>Pydantic</font></strong> →](07-contratos-con-pydantic.qmd)

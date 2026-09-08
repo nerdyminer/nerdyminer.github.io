@@ -1,0 +1,116 @@
+"""Construye un Asset Graph web estático a partir de Definitions de Dagster."""
+
+from __future__ import annotations
+
+import json
+import sys
+from pathlib import Path
+
+ROOT = Path(__file__).parents[1]
+sys.path.insert(0, str(ROOT / "src"))
+
+from stockpile_ca.definitions import defs  # noqa: E402
+
+OUTPUT = ROOT / "dagster" / "index.html"
+
+
+def build_payload() -> dict[str, object]:
+    """Extrae activos, checks y dependencias desde el grafo resuelto por Dagster."""
+    graph = defs.resolve_asset_graph()
+    assets: list[dict[str, object]] = []
+    checks: list[dict[str, object]] = []
+    edges: list[dict[str, str]] = []
+
+    for level, keys in enumerate(graph.toposorted_asset_keys_by_level):
+        for key in sorted(keys, key=lambda item: item.to_user_string()):
+            node = graph.get(key)
+            name = key.to_user_string()
+            assets.append(
+                {
+                    "id": name,
+                    "kind": "asset",
+                    "level": level,
+                    "group": node.group_name,
+                    "kinds": sorted(node.kinds),
+                    "description": node.description or "Activo de software materializable.",
+                    "parents": sorted(parent.to_user_string() for parent in node.parent_keys),
+                    "checks": sorted(check.name for check in node.check_keys),
+                }
+            )
+            edges.extend(
+                {"from": parent.to_user_string(), "to": name}
+                for parent in sorted(node.parent_keys, key=lambda item: item.to_user_string())
+            )
+
+            for check_key in sorted(node.check_keys, key=lambda item: item.name):
+                check_id = f"check::{name}::{check_key.name}"
+                spec = graph.get_check_spec(check_key)
+                checks.append(
+                    {
+                        "id": check_id,
+                        "kind": "check",
+                        "asset": name,
+                        "name": check_key.name,
+                        "level": level,
+                        "group": node.group_name,
+                        "description": spec.description or "Verificación declarada sobre el activo.",
+                        "blocking": bool(spec.blocking),
+                    }
+                )
+                edges.append({"from": name, "to": check_id})
+
+    return {
+        "assets": assets,
+        "checks": checks,
+        "edges": edges,
+        "groups": sorted(graph.all_group_names),
+    }
+
+
+def build() -> None:
+    payload = json.dumps(build_payload(), ensure_ascii=False).replace("</", "<\\/")
+    document = f"""<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Dagster Asset Graph · Stockpile CA</title>
+<style>
+:root{{--bg:#f7f7fb;--panel:#fff;--ink:#20212b;--muted:#6d6e7b;--line:#dedee8;--purple:#5b3fd3;--purple2:#7357e8;--asset:#f0edff;--check:#e8faf1;--green:#198754;--shadow:0 12px 35px rgba(40,32,80,.09)}}
+*{{box-sizing:border-box}}html,body{{margin:0;min-height:100%;background:var(--bg);color:var(--ink);font:14px/1.45 Inter,ui-sans-serif,system-ui,-apple-system,sans-serif}}
+button,input{{font:inherit}}.shell{{min-height:100vh;display:grid;grid-template-rows:58px 1fr}}
+.topbar{{display:flex;align-items:center;gap:14px;padding:0 18px;background:#251b45;color:#fff;border-bottom:1px solid #403365}}
+.mark{{width:30px;height:30px;border-radius:8px;display:grid;place-items:center;background:linear-gradient(135deg,#8d73ff,#5b3fd3);font-weight:900}}
+.topbar strong{{font-size:15px}}.crumb{{color:#bdb4df}}.stats{{margin-left:auto;display:flex;gap:8px}}.stat{{background:#3b2d62;border:1px solid #574679;border-radius:20px;padding:5px 10px;font-size:12px}}
+.workspace{{display:grid;grid-template-columns:240px minmax(620px,1fr) 310px;min-height:0}}
+.rail,.detail{{background:var(--panel);padding:18px;overflow:auto}}.rail{{border-right:1px solid var(--line)}}.detail{{border-left:1px solid var(--line)}}
+.eyebrow{{font-size:10px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin:0 0 8px}}h1{{font-size:17px;margin:0 0 4px}}.rail p{{color:var(--muted);font-size:12px;margin:0 0 18px}}
+.search{{width:100%;border:1px solid var(--line);border-radius:8px;padding:9px 10px;margin-bottom:18px}}.filter{{display:flex;align-items:center;gap:8px;width:100%;border:0;background:none;padding:8px 6px;border-radius:7px;cursor:pointer;color:var(--ink);text-align:left}}.filter:hover,.filter.active{{background:#f0edff;color:#4930bb}}.dot{{width:9px;height:9px;border-radius:50%;background:var(--purple)}}.dot.check{{background:var(--green)}}
+.canvas-wrap{{position:relative;overflow:auto;background-image:radial-gradient(#d7d7e2 1px,transparent 1px);background-size:20px 20px}}.canvas{{position:relative;min-width:930px;min-height:610px;padding:76px 60px}}
+.group{{position:absolute;border:1px dashed #bdb6df;background:rgba(240,237,255,.42);border-radius:14px}}.group-label{{position:absolute;top:-25px;left:3px;color:#665a91;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.08em}}
+.node{{position:absolute;width:215px;min-height:92px;border:1px solid #bbb3e5;border-radius:10px;background:var(--panel);box-shadow:var(--shadow);padding:13px 14px;cursor:pointer;z-index:2;transition:.15s transform,.15s border-color}}.node:hover,.node.selected{{transform:translateY(-2px);border-color:var(--purple)}}.node.dim{{opacity:.2}}.node-kind{{display:flex;align-items:center;gap:6px;color:var(--purple);font-size:10px;font-weight:800;letter-spacing:.08em;text-transform:uppercase}}.node h2{{font:700 14px/1.25 ui-monospace,SFMono-Regular,Menlo,monospace;margin:7px 0 6px;overflow-wrap:anywhere}}.chips{{display:flex;flex-wrap:wrap;gap:4px}}.chip{{font-size:10px;background:var(--asset);color:#4c3b99;border-radius:10px;padding:2px 7px}}
+.check-node{{position:absolute;width:190px;border:1px solid #9ed4b9;background:#f4fff9;border-radius:9px;padding:10px 12px;cursor:pointer;z-index:2;box-shadow:var(--shadow)}}.check-node.selected{{outline:2px solid #49a878}}.check-node.dim{{opacity:.2}}.check-node h2{{font:700 12px/1.25 ui-monospace,SFMono-Regular,Menlo,monospace;margin:4px 0}}.check-symbol{{color:var(--green);font-weight:900}}
+svg.edges{{position:absolute;inset:0;width:100%;height:100%;z-index:1;pointer-events:none}}.edge{{fill:none;stroke:#8c83b4;stroke-width:2}}.edge.check{{stroke:#78b798;stroke-dasharray:5 4}}
+.empty{{display:grid;place-items:center;height:100%;color:var(--muted);text-align:center}}.detail h2{{font-size:17px;overflow-wrap:anywhere}}.detail dl{{display:grid;grid-template-columns:85px 1fr;gap:8px;margin-top:18px}}.detail dt{{color:var(--muted)}}.detail dd{{margin:0}}.detail code{{font-size:11px;background:#f1f1f6;padding:2px 5px;border-radius:4px}}.callout{{margin-top:18px;border-left:3px solid var(--purple);background:#f4f1ff;padding:10px 12px;font-size:12px}}
+.legend{{position:absolute;bottom:18px;left:22px;background:#fff;border:1px solid var(--line);border-radius:9px;padding:9px 12px;display:flex;gap:14px;font-size:11px;z-index:5;box-shadow:var(--shadow)}}
+@media(max-width:920px){{.workspace{{grid-template-columns:1fr}}.rail,.detail{{border:0;border-bottom:1px solid var(--line)}}.canvas-wrap{{min-height:560px}}.stats{{display:none}}}}
+</style></head><body><div class="shell"><header class="topbar"><span class="mark">D</span><strong>Dagster</strong><span class="crumb">/ Asset Graph / stockpile_ca</span><div class="stats"><span class="stat" id="asset-count"></span><span class="stat" id="check-count"></span></div></header>
+<div class="workspace"><aside class="rail"><div class="eyebrow">Definición publicada</div><h1>Asset Graph</h1><p>Instantánea generada desde <code>Definitions</code>, sin dibujar dependencias a mano.</p><input class="search" id="search" type="search" placeholder="Buscar activo o check…"><div class="eyebrow">Mostrar</div><button class="filter active" data-filter="all"><span class="dot"></span>Todo el grafo</button><button class="filter" data-filter="asset"><span class="dot"></span>Activos</button><button class="filter" data-filter="check"><span class="dot check"></span>Asset checks</button><div class="eyebrow" style="margin-top:20px">Grupos</div><div id="groups"></div></aside>
+<main class="canvas-wrap"><div class="canvas" id="canvas"><svg class="edges" id="edges"><defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#8c83b4"/></marker></defs></svg><div class="legend"><span>▭ activo materializable</span><span style="color:#198754">◆ check</span><span>→ dependencia</span></div></div></main>
+<aside class="detail" id="detail"><div class="empty"><div><strong>Selecciona una entidad</strong><p>Revisa dependencias, grupo, tipos y verificaciones.</p></div></div></aside></div></div>
+<script>const DATA={payload};const canvas=document.getElementById('canvas'),svg=document.getElementById('edges'),detail=document.getElementById('detail'),search=document.getElementById('search');const all=[...DATA.assets,...DATA.checks];let filter='all',group='all',selected=null;
+document.getElementById('asset-count').textContent=`${{DATA.assets.length}} assets`;document.getElementById('check-count').textContent=`${{DATA.checks.length}} checks`;
+const positions={{}};DATA.assets.forEach((n,i)=>{{positions[n.id]={{x:70+n.level*300,y:95+(i%3)*145}}}});DATA.checks.forEach((n,i)=>{{const p=positions[n.asset];positions[n.id]={{x:p.x+20,y:p.y+102+(n.name.length%2)*2}}}});
+function esc(s){{return String(s).replace(/[&<>]/g,c=>({{'&':'&amp;','<':'&lt;','>':'&gt;'}}[c]))}}
+function drawGroups(){{const gs=document.getElementById('groups');gs.innerHTML='<button class="filter active" data-group="all">Todos los grupos</button>'+DATA.groups.map(g=>`<button class="filter" data-group="${{esc(g)}}">${{esc(g)}}</button>`).join('');gs.querySelectorAll('[data-group]').forEach(b=>b.onclick=()=>{{group=b.dataset.group;gs.querySelectorAll('button').forEach(x=>x.classList.toggle('active',x===b));applyFilter()}})}}
+function render(){{DATA.groups.forEach((g,gi)=>{{const nodes=DATA.assets.filter(n=>n.group===g),xs=nodes.map(n=>positions[n.id].x),ys=nodes.map(n=>positions[n.id].y);const box=document.createElement('div');box.className='group';box.style.left=`${{Math.min(...xs)-24}}px`;box.style.top=`${{Math.min(...ys)-34}}px`;box.style.width=`${{Math.max(...xs)-Math.min(...xs)+263}}px`;box.style.height=`${{Math.max(...ys)-Math.min(...ys)+166}}px`;box.innerHTML=`<span class="group-label">${{esc(g)}}</span>`;canvas.appendChild(box)}});
+DATA.assets.forEach(n=>{{const p=positions[n.id],el=document.createElement('article');el.className='node';el.dataset.id=n.id;el.dataset.kind='asset';el.dataset.group=n.group;el.style.left=`${{p.x}}px`;el.style.top=`${{p.y}}px`;el.innerHTML=`<div class="node-kind">▭ Software-defined asset</div><h2>${{esc(n.id)}}</h2><div class="chips">${{n.kinds.map(k=>`<span class="chip">${{esc(k)}}</span>`).join('')}}</div>`;el.onclick=()=>select(n);canvas.appendChild(el)}});
+DATA.checks.forEach(n=>{{const p=positions[n.id],el=document.createElement('article');el.className='check-node';el.dataset.id=n.id;el.dataset.kind='check';el.dataset.group=n.group;el.style.left=`${{p.x}}px`;el.style.top=`${{p.y}}px`;el.innerHTML=`<span class="check-symbol">◆ Asset check</span><h2>${{esc(n.name)}}</h2>`;el.onclick=()=>select(n);canvas.appendChild(el)}});drawEdges();applyFilter()}}
+function drawEdges(){{svg.querySelectorAll('.edge').forEach(e=>e.remove());DATA.edges.forEach(e=>{{const a=positions[e.from],b=positions[e.to],isCheck=e.to.startsWith('check::'),path=document.createElementNS('http://www.w3.org/2000/svg','path');const x1=a.x+215,y1=a.y+46,x2=b.x,y2=b.y+(isCheck?24:46),mx=(x1+x2)/2;path.setAttribute('d',`M${{x1}} ${{y1}} C${{mx}} ${{y1}},${{mx}} ${{y2}},${{x2}} ${{y2}}`);path.setAttribute('class','edge'+(isCheck?' check':''));path.setAttribute('marker-end','url(#arrow)');path.dataset.from=e.from;path.dataset.to=e.to;svg.appendChild(path)}})}}
+function select(n){{selected=n.id;document.querySelectorAll('.node,.check-node').forEach(el=>el.classList.toggle('selected',el.dataset.id===n.id));if(n.kind==='asset'){{detail.innerHTML=`<div class="eyebrow">Software-defined asset</div><h2>${{esc(n.id)}}</h2><p>${{esc(n.description)}}</p><dl><dt>Grupo</dt><dd>${{esc(n.group)}}</dd><dt>Kinds</dt><dd>${{n.kinds.map(k=>`<code>${{esc(k)}}</code>`).join(' ')}}</dd><dt>Upstream</dt><dd>${{n.parents.length?n.parents.map(esc).join(', '):'raíz del grafo'}}</dd><dt>Checks</dt><dd>${{n.checks.length?n.checks.map(esc).join(', '):'sin checks'}}</dd></dl><div class="callout">Dagster considera este objeto un activo persistible y observable, no sólo una función que se ejecuta.</div>`}}else{{detail.innerHTML=`<div class="eyebrow">Asset check</div><h2>${{esc(n.name)}}</h2><p>${{esc(n.description)}}</p><dl><dt>Activo</dt><dd><code>${{esc(n.asset)}}</code></dd><dt>Bloqueante</dt><dd>${{n.blocking?'sí':'no'}}</dd><dt>Grupo</dt><dd>${{esc(n.group)}}</dd></dl><div class="callout">El check evalúa calidad después de materializar o cargar el activo y deja evidencia operacional.</div>`}}}}
+function applyFilter(){{const q=search.value.trim().toLowerCase();document.querySelectorAll('.node,.check-node').forEach(el=>{{const entity=all.find(n=>n.id===el.dataset.id),matches=(filter==='all'||el.dataset.kind===filter)&&(group==='all'||el.dataset.group===group)&&(!q||JSON.stringify(entity).toLowerCase().includes(q));el.classList.toggle('dim',!matches)}});svg.querySelectorAll('.edge').forEach(e=>{{const a=document.querySelector(`[data-id="${{CSS.escape(e.dataset.from)}}"]`),b=document.querySelector(`[data-id="${{CSS.escape(e.dataset.to)}}"]`);e.style.opacity=a?.classList.contains('dim')||b?.classList.contains('dim')?'.12':'1'}})}}
+document.querySelectorAll('[data-filter]').forEach(b=>b.onclick=()=>{{filter=b.dataset.filter;document.querySelectorAll('[data-filter]').forEach(x=>x.classList.toggle('active',x===b));applyFilter()}});search.oninput=applyFilter;drawGroups();render();select(DATA.assets[0]);</script></body></html>"""
+    OUTPUT.parent.mkdir(parents=True, exist_ok=True)
+    OUTPUT.write_text(document, encoding="utf-8")
+    print(f"wrote {OUTPUT.relative_to(ROOT)} from Dagster Definitions")
+
+
+if __name__ == "__main__":
+    build()
