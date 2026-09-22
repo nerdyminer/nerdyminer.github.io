@@ -1,271 +1,209 @@
 ---
 title: "9. Reconciliación, calibración y validación"
-description: "Qué comparar, qué puede identificarse y por qué cerrar una curva no convierte al modelo en verdad."
+description: "¿Qué comparar, qué puede identificarse y por qué cerrar una curva no convierte al modelo en verdad?"
 toc: true
 toc-depth: 3
 ---
 
 [← Volver al proyecto](index.qmd)
 
-## Tres preguntas distintas
+## Reconciliación
 
-Un modelo dinámico puede fallar por datos, implementación o hipótesis física. Para no confundirlas separamos:
+Y bueno... ya hemos llegado al cierre del ciclo de desarrollo y análisis del modelo. Aquí abordaremos cómo reconciliar, calibrar y validar nuestras simulaciones frente a las observaciones experimentales. Hemos aprendido un poco de teoría de autómatas celulares, de procesos de apilamiento de materiales a escala industrial, de validación de modelos de datos con <strong><font color='darkmagenta'>Pydantic</font></strong> y de orquestación vía activos de datos con <strong><font color='darkmagenta'>Dagster</font></strong>. Ha sido, sin duda, un recorrido intenso y enormemente enriquecedor.
 
-1. **Verificación:** ¿el código ejecuta las reglas declaradas y conserva invariantes?
-2. **Calibración:** ¿qué parámetros minimizan una función de pérdida en una ventana de ajuste?
-3. **Validación:** ¿el modelo reproduce observaciones no usadas para ajustar?
+Sin embargo, resta lo más importante a nivel de validación frente a datos experimentales. Queremos reconciliar los resultados retornados por el autómata con las observaciones experimentales, identificando discrepancias y ajustando nuestro entendimiento del sistema sin asumir que el modelo es una representación perfecta de la realidad. Este enfoque nos permite mejorar la fidelidad del modelo y aumentar la confianza en sus predicciones, sin caer en la trampa de sobreajustar los datos experimentales. Es, sin duda, lo más humano que podemos hacer en la modelización de sistemas complejos.
 
-Una cuarta práctica, **reconciliación**, compara continuamente señales compatibles y hace visible la discrepancia. No exige que exista un parámetro capaz de cerrarla.
+### Preguntas iniciales
 
-## Balance de masa
+Cuando construimos un modelo dinámico, independientemente del fenómeno o sistema físico que deseamos representar, nos enfrentamos a la necesidad de responder tres preguntas fundamentales, con el objetivo de garantizar que nuestro modelo sea confiable y útil:
 
-El primer diagnóstico es:
+- ¿Estamos implementando correctamente las reglas del modelo? $\longrightarrow$ Verificación.
+- ¿Estamos eligiendo los parámetros adecuados para que el modelo se ajuste a los datos disponibles? $\longrightarrow$ Calibración.
+- ¿El modelo es capaz de reproducir observaciones independientes de las usadas para su ajuste? $\longrightarrow$ Validación.
 
-$$
-e_M(t)=M_0+\int_0^t\left(q_{\mathrm{in}}(\tau)-\sum_jq_{\mathrm{out},j}(\tau)\right)d\tau-M_{\mathrm{sim}}(t).
-$$
+Existe igualmente un cuarto nivel de análisis, conocido como **reconciliación**, que consiste en comparar continuamente señales compatibles y hacer visible cualquier discrepancia, sin asumir que pueda resolverse únicamente ajustando parámetros.
 
-En una implementación conservativa y sin recortes, $e_M$ debe ser numéricamente cercano a cero. Si no lo es, existe un error de software o de unidades. Esto no significa que el inventario simulado coincida con el real: ambas balanzas pueden tener sesgo o puede existir un flujo no medido.
+Naturalmente, si somos capaces de responder afirmativamente las tres preguntas anteriores, podemos tener un alto grado de confianza en la implementación y el ajuste del modelo. Sin embargo, la reconciliación sigue siendo crucial para identificar discrepancias persistentes entre el modelo y las observaciones experimentales, lo que nos permite refinar continuamente nuestra comprensión del sistema.
 
-Podemos introducir una ganancia de alimentación $g$:
+### Balance de masa
 
-$$
-M_{t+1}=M_t+\Delta t\left(gq_{\mathrm{in},t}-q_{\mathrm{out},t}\right).
-$$
-
-Una ganancia global cierra el balance acumulado de la ventana usada para estimarla. Si el sesgo cambia de signo por mes, no cierra subventanas y desplaza el estado. La estabilidad temporal del residuo importa más que una media de largo plazo.
-
-## Reconciliación de altura
-
-El autómata produce un campo $H_{ij}(t)$. Un sensor mide una posición o un soporte espacial específico, no necesariamente el máximo:
+El primer diagnóstico que realizamos en un proyecto de este tipo guarda relación con la reconciliación de la masa, es decir, verificar que la cantidad de material dentro del sistema concuerde con las entradas y salidas registradas. Matemáticamente, esto se expresa mediante el **error de balance de masa**, definido como
 
 $$
-e_H(t)=H_{i_sj_s}^{\mathrm{sim}}(t)-H^{\mathrm{meas}}(t).
+e_{M}\left( t \right) =M_{0}+\int_{0}^{t} \left( q^{\mathrm{in}}\left( \tau \right) -\sum_{j} q_{j}^{\mathrm{out}}\left( \tau \right) \right) d\tau -M_{\mathrm{sim}}\left( t \right)
 $$
 
-Las métricas publicadas por `agreement` son:
+donde:
+
+- $M_0$ es la masa inicial dentro del sistema.
+- $q^{\mathrm{in}}(\tau)$ es el flujo de entrada al sistema en el tiempo $\tau$.
+- $q_{j}^{\mathrm{out}}(\tau)$ es el flujo de salida del sistema por la j-ésima vía en el tiempo $\tau$.
+- $M_{\mathrm{sim}}(t)$ es la masa simulada dentro del sistema en el tiempo $t$.
+
+Notemos que si la implementación del autómata celular es de tipo conservativa (no se pierde masa dentro del sistema) y sin recortes, el error de balance de masa $e_M(t)$ debería ser cercano a cero en todo momento. Si este no es el caso, indica que hay una discrepancia que debe ser investigada, ya sea por errores en la implementación, mediciones incorrectas o flujos no contabilizados. Sea cual sea el caso, ambas "balanzas" podrían, por construcción, no coincidir, ya que el modelo y las observaciones pueden tener sesgos independientes o existir flujos no medidos que afectan la consistencia del balance.
+
+Es posible introducir una especie de "ganancia" de alimentación $g$ para ajustar el balance de masa en cada paso de tiempo, conforme la ecuación
 
 $$
-\operatorname{Bias}=\frac1n\sum_te_H(t),
-\qquad
-\operatorname{MAE}=\frac1n\sum_t|e_H(t)|,
+M\left( t+1 \right) =M\left( t \right) +\triangle t\left( gq^{\mathrm{in}}\left( t \right) -q^{\mathrm{out}}\left( t \right) \right)
 $$
 
-$$
-\operatorname{RMSE}=\sqrt{\frac1n\sum_te_H(t)^2}.
-$$
+Esta "ganancia" permite ajustar el flujo de entrada efectivo para que el balance de masa se mantenga más consistente con las observaciones, compensando posibles discrepancias entre el modelo y los datos medidos. Notemos que una "ganancia" global afecta a todo el sistema de manera uniforme y no corrige errores locales específicos. Es decir, no puede resolver desequilibrios que ocurren en regiones particulares del sistema.
 
-El sesgo indica desplazamiento sistemático; MAE, error típico robusto a signo; RMSE penaliza eventos grandes. Ninguna captura desfase temporal por sí sola. También examinamos correlación de cambios, error por nivel y respuesta a eventos de llenado/vaciado.
+### Reconciliación de altura
 
-## Altura no es volumen total
+En términos generales, la reconciliación de altura busca ajustar las simulaciones del autómata celular para que coincidan mejor con las mediciones de altura observadas, minimizando el error entre ambos. Esto se puede expresar mediante un error de altura $e_H(t)$ definido como la diferencia entre la altura simulada y la medida en un punto específico del sistema.
 
-Convertir una altura a volumen con una fórmula cónica supone forma completa y soporte equivalente. En un acopio con depresión sobre alimentadores, el sensor puede seguir la zona viva mientras la periferia permanece alta. Ajustar densidad para forzar:
+Para ser más precisos, y sin pérdida de generalidad, todo autómata celular produce un campo de alturas $H_{ij}(t)$ que representa la altura en cada proyección $(i,j)$ de la celda $(i,j,k)$ del sistema en el tiempo $t$. La reconciliación de altura busca ajustar estas simulaciones para que coincidan mejor con las mediciones observadas en puntos específicos del sistema. En el stockpile *real*, un sensor mide la altura en una posición específica $(i_s,j_s)$, proporcionando una medición puntual que se puede comparar con la simulación correspondiente. El error de altura en ese punto se define como
 
 $$
-\Delta M\approx\rho_b\Delta V(H)
+e_H(t)=H_{i_sj_s}^{\mathrm{sim}}(t)-H^{\mathrm{medida}}(t)
 $$
 
-puede producir una densidad aparente físicamente imposible. Ese resultado no “calibra” densidad; falsifica la hipótesis de que el sensor representa el volumen completo.
+donde:
 
-::: {.callout-important title="Un parámetro imposible es evidencia contra el modelo de medición"}
-Antes de ampliar el rango permitido de densidad, revise posición del sensor, forma de la superficie, zona viva, alineamiento temporal y flujos omitidos. Los contratos físicos sirven para rechazar explicaciones, no para hacer converger el optimizador.
+- $H_{i_sj_s}^{\mathrm{sim}}(t)$ es la altura simulada en la posición del sensor $(i_s,j_s)$ en el tiempo $t$.
+- $H^{\mathrm{medida}}(t)$ es la altura medida por el sensor en el tiempo $t$.
+
+La reconciliación de altura constiuye un chequeo de activos no bloqueante del modelo frente a las observaciones, permitiendo identificar discrepancias y ajustar parámetros para mejorar la precisión de las simulaciones. Las métricas publicadas en dicho chequeo incluyen:
+
+$$
+B=\frac{1}{T} \sum_{t=1}^{T} e_{H}\left( t \right) \quad ;\quad \mathrm{MAE} =\frac{1}{T} \sum_{t=1}^{T} \left| e_{H}\left( t \right) \right| \quad ;\quad \mathrm{MSE} =\frac{1}{T} \sum_{t=1}^{T} \left( e_{H}\left( t \right) \right)^{2}
+$$
+
+donde:
+
+- $B$ es el sesgo promedio del error de altura, e indica desplazamiento sistemático.
+- $\mathrm{MAE}$ es el error absoluto medio, que indica el error típico sin considerar el signo.
+- $\mathrm{MSE}$ es el error cuadrático medio, que penaliza errores grandes de manera más significativa.
+
+::: {.callout-note}
+### La altura es un *proxy* del volumen, no una medida directa
+
+En un modelo de este tipo, es importante no usar la altura como una medida de volumen total únicamente con base en la geometría cónica del stockpile. La altura debe interpretarse como un indicador local que puede no reflejar la distribución completa del material. La razón es práctica: El stockpile se idealiza como un cono, pero su realización física es mucho más irregular, debido a la presencia de *ratholes* y el movimiento del material en la periferia.
+
+Si ajustamos la densidad para forzar una relación del tipo $\triangle M\approx \rho_{b} \triangle V\left( H \right)$, podemos obtener valores de densidad aparente que no son físicamente realistas, lo que indica que la altura medida por el sensor no representa adecuadamente el volumen total del stockpile.
 :::
 
-## Reconciliación granulométrica
+### Reconciliación granulométrica
 
-Para cada línea comparamos P80 simulado y medido:
-
-$$
-e_{d,j}(t)=d_{j}^{\mathrm{sim}}(t)-d_{j}^{\mathrm{meas}}(t).
-$$
-
-Si los sensores de entrada y salida no comparten calibración, el nivel absoluto contiene un offset instrumental. En un acopio sin conminución, el promedio ponderado de descargas debería ser compatible con la entrada a escala de residencia:
+Para cada línea de molienda, se comparan las fracciones granulométricas simuladas y medidas para evaluar la precisión del modelo en la predicción de la distribución de tamaños de partículas. Definimos el error asociado a la fracción granulométrica $j$ en el tiempo $t$ como:
 
 $$
-d_{\mathrm{out,weighted}}(t)\approx\mathcal{T}\left[d_{\mathrm{in}}(t-\tau:t)\right],
+e_{j}^{d}\left( t \right) =d_{j}^{\mathrm{sim}}\left( t \right) -d_{j}^{\mathrm{med}}\left( t \right)
 $$
 
-donde $\mathcal{T}$ representa mezcla y residencia. Una diferencia persistente puede venir del modelo, pero también de cámaras con calibraciones distintas.
+donde:
 
-## La diferencia entre líneas
+- $d_{j}^{\mathrm{sim}}\left( t \right)$ es la fracción granulométrica simulada $j$ en el tiempo $t$.
+- $d_{j}^{\mathrm{med}}\left( t \right)$ es la fracción granulométrica medida $j$ en el tiempo $t$.
 
-Cuando ambas salidas usan instrumentos comparables, la diferencia pareada es más robusta:
-
-$$
-\Delta d^{\mathrm{meas}}_t=d^{\mathrm{meas}}_{B,t}-d^{\mathrm{meas}}_{A,t},
-$$
+Si las cámaras split no están correctamente calibradas, los errores pueden reflejar diferencias instrumentales más que discrepancias reales en la distribución granulométrica. Es importante considerar la calibración y la consistencia de los sensores al interpretar los errores $e_{j}^{d}\left( t \right)$. En un stockpile donde no existe conminución adicional, el promedio ponderado de las descargas debería coincidir con la entrada al considerar el tiempo de residencia del material:
 
 $$
-e_{\Delta}(t)=\Delta d^{\mathrm{sim}}_t-\Delta d^{\mathrm{meas}}_t.
+d_{w}^{\mathrm{out}}\left( t \right) \approx \mathcal{T} \left[ d^{\mathrm{in}}\left( t-\tau :t \right) \right]
 $$
 
-Un offset común se cancela. El visor destaca esta magnitud y mantiene las curvas absolutas como contexto. Aun así, diferencias de calibración entre sensores A y B no se cancelan; se requieren muestras de referencia o un ensayo cruzado.
+donde:
 
-## Qué validó el artículo
+- $d_{w}^{\mathrm{out}}\left( t \right)$ es la fracción granulométrica ponderada de salida en el tiempo $t$.
+- $d^{\mathrm{in}}\left( t-\tau :t \right)$ es la fracción granulométrica de entrada considerada en el intervalo de tiempo $t-\tau$ a $t$.
+- $\mathcal{T}$ representa la operación de mezcla y residencia del material en el stockpile.
 
-La primera parte valida forma y segregación contra pilas de laboratorio a cuatro escalas. La segunda reporta una simulación industrial de 57 días con datos a intervalos de cinco minutos. Compara altura simulada y observada y P80 por dos líneas. Los autores señalan capacidad para seguir tendencias y estimar descarga, junto con limitaciones de mineral libre, ausencia de compactación/cohesión y ausencia de degradación.
 
-Es importante leer la evidencia con su soporte:
+Notemos que una diferencia persistente puede ser producto del modelo incorrecto, de errores de medición o de una combinación de ambos factores.
 
-- la forma y segregación se apoyan en experimentos controlados;
-- descarga y altura se evalúan en un caso industrial;
-- la generalización a otra geometría requiere nueva configuración y validación;
-- la utilidad de control depende de latencia, estabilidad y cobertura de sensores;
-- una réplica de ideas no hereda automáticamente los resultados de validación.
+### Diferencia entre líneas de molienda
 
-## Función objetivo
-
-Una calibración multivariable puede minimizar:
+Cuando la descarga en ambas líneas de molienda se monitorea por medio de instrumentos similares y, por tanto, comparables (por ejemplo, cámaras split del mismo tipo y con el mismo procedimiento de calibración), las diferencias observadas entre las líneas pueden atribuirse más confiablemente a variaciones reales en la distribución granulométrica que a errores instrumentales. Es razonable suponer que la diferencia pareada entre las líneas refleja principalmente las variaciones reales del material:
 
 $$
-J(\theta)=w_H\operatorname{RMSE}_H(\theta)+w_\Delta\operatorname{RMSE}_{\Delta d}(\theta)+w_M\operatorname{Penalty}_M(\theta)+w_G\operatorname{Penalty}_{\mathrm{geometry}}(\theta).
+\triangle d^{\mathrm{med}}\left( t \right) =d_{B}^{\mathrm{med}}\left( t \right) -d_{A}^{\mathrm{med}}\left( t \right)
 $$
 
-Los pesos no son neutros. Si $w_H$ domina, el optimizador puede sacrificar granulometría. Las penalizaciones físicas impiden soluciones que ajustan sensores a costa de tocar bordes o usar densidad imposible.
+donde:
 
-Parámetros típicos incluyen ángulo de reposo, densidad, intensidad de segregación, mapa de migración, reparto por alimentador y estado inicial. Ajustarlos todos simultáneamente suele crear equifinalidad. Conviene fijar por medición lo que pueda medirse y calibrar sólo lo no observable.
+- $\triangle d^{\mathrm{med}}\left( t \right)$ es la diferencia pareada de las fracciones granulométricas medidas entre las líneas B y A en el tiempo $t$.
+- $d_{B}^{\mathrm{med}}\left( t \right)$ es la fracción granulométrica medida en la línea B en el tiempo $t$.
+- $d_{A}^{\mathrm{med}}\left( t \right)$ es la fracción granulométrica medida en la línea A en el tiempo $t$.
 
-## Identificabilidad
-
-Dos parámetros son débilmente identificables si cambios opuestos producen salidas similares. Por ejemplo:
-
-- mayor densidad reduce cambio de altura por tonelada;
-- mayor capacidad inicial también amortigua altura;
-- mayor segregación superficial puede compensar menor segregación por trayectoria;
-- reparto por alimentador puede imitar una diferencia geométrica entre líneas.
-
-Un Hessiano o perfiles de pérdida ayudan, pero la defensa más fuerte es experimental: medir geometría, registrar estados de alimentadores, obtener cortes de correa y excitar regímenes que separen mecanismos.
-
-## Diseño temporal de validación
-
-No barajamos minutos. El estado del autómata hace que cada observación dependa del pasado. Usamos bloques:
-
-```text
-calentamiento | calibración | validación 1 | validación 2
-```
-
-La validación debe incluir regímenes de altura, tonelaje y combinación de alimentadores distintos. Una ventana estable puede ocultar errores que aparecen durante vaciado profundo.
-
-## Incertidumbre
-
-El visor muestra una trayectoria determinista, pero una evaluación madura propaga incertidumbre de:
-
-- balanzas;
-- densidad aparente;
-- granulometría de cámaras;
-- posición de alimentadores;
-- parámetros de segregación;
-- estado inicial;
-- semilla asíncrona.
-
-Un ensamble produce intervalos para altura y P80. La cobertura observada de esos intervalos es más informativa que añadir bandas arbitrarias alrededor de una curva.
-
-## Escenario sintético del blog
-
-Las curvas del visor no se construyen como perturbaciones suaves ni como ciclos ideales. La altura y las PSD pertenecen a un escenario sintético con detenciones, vaciado de carga viva, conos invertidos y recuperación posterior. Esta complejidad deliberada permite discutir reconciliación y fallas del modelo sin asociar el ejercicio con una operación identificable.
-
-El RMSE conserva valor pedagógico como diagnóstico de reconciliación, pero no se presenta como certificación operacional transferible. La demostración comprueba:
-
-- sincronización entre cursor y gráficos;
-- cálculo de sesgo;
-- lectura de diferencias entre líneas;
-- manejo de hasta 1.344 cuadros;
-- separación visual entre medido y simulado.
-
-## Decisión operacional y límites
-
-Un sensor virtual puede apoyar anticipación de granulometría y diagnóstico de reparto, pero no debería controlar automáticamente sin:
-
-- monitoreo de calidad de entradas;
-- límites de validez geométrica;
-- incertidumbre o degradación declarada;
-- *fallback* seguro;
-- backtesting continuo;
-- revisión de cambios de configuración;
-- trazabilidad de versión y parámetros.
-
-El producto correcto no es una curva que siempre existe. Es un sistema que sabe cuándo su curva no merece confianza.
-
-## Verificación, calibración y validación
-
-Estos términos responden preguntas diferentes:
-
-- **verificación:** ¿implementamos correctamente las reglas que declaramos?;
-- **calibración:** ¿qué valores de parámetros hacen que el modelo se acerque a un conjunto de observaciones?;
-- **validación:** ¿el modelo representa suficientemente el fenómeno para el uso previsto en datos no utilizados para ajustar?;
-- **reconciliación:** ¿cómo se comparan en un período una salida simulada y una medición compatible?
-
-Una prueba de conservación verifica código. Minimizar RMSE calibra. Evaluar otra ventana valida. Dibujar observado y simulado reconcilia. Usar una sola palabra para todo oculta qué evidencia tenemos realmente.
-
-## Entender bias, MAE y RMSE con un ejemplo
-
-Supongamos errores de altura simulada menos observada $[+1,-1,+3]$ m. El bias es:
+Definimos además el error de la diferencia pareada entre las fracciones granulométricas simuladas y medidas:
 
 $$
-\mathrm{bias}=\frac{1-1+3}{3}=1\text{ m}.
+e_{\triangle}\left( t \right) =\triangle d^{\mathrm{sim}}\left( t \right) -\triangle d^{\mathrm{med}}\left( t \right)
 $$
 
-El MAE ignora signo:
+donde $\triangle d^{\mathrm{sim}}\left( t \right)$ es la diferencia pareada de las fracciones granulométricas simuladas entre las líneas B y A en el tiempo $t$, y $\triangle d^{\mathrm{med}}\left( t \right)$ es la diferencia pareada de las fracciones granulométricas medidas entre las líneas B y A en el tiempo $t$.
+
+Notemos que un error pequeño en la diferencia pareada indica que el modelo simula correctamente las variaciones relativas entre las líneas, incluso si existen errores sistemáticos en las mediciones absolutas. Un *offset* (desplazamiento constante) entre las líneas no afectará la diferencia pareada. El visor que hemos construido para mostrar los resultados del modelo destaca precisamente estas diferencias pareadas, permitiendo evaluar la fidelidad relativa del modelo sin que los errores absolutos en las mediciones distorsionen la interpretación.
+
+::: {.callout-note}
+## Validaciones presentadas en los papers de referencia
+
+Recordemos los trabajos de Ye, Hilden y Yahyaei en la construcción de autómatas celulares para la representación de stockpiles. El [primero de estos estudios](https://www.sciencedirect.com/science/article/abs/pii/S0892687522004265) identifica un procedimiento de validación de forma y segregación mediante comparaciones con acopios a escala de laboratorio, mientras que [el segundo](https://www.sciencedirect.com/science/article/pii/S089268752300170X) se centra en la validación a escala industrial, evaluando la capacidad del modelo para reproducir la dinámica de descarga y la distribución granulométrica en condiciones operativas reales, en un período de 57 días conforme una granularidad de 5 minutos por observación. En rigor, compara ls alturas simulada y observada, además del $P_{80}$ en cada línea de molienda.
+
+Los autores destacan la importancia de validar tanto la forma como la segregación a diferentes escalas y subrayan las limitaciones de los modelos cuando se extrapolan a condiciones industriales sin una adecuada calibración y verificación. Además, hacen mención a determinadas limitaciones relacionadas con la heterogeneidad del mineral, ausencia de mecanismos de compactación y cohesión del mineral en la representación del autómata celular y la ausencia de degradación del material durante la simulación.
+:::
+
+## Calibración
+
+A diferencia de la reconciliación, que busca ajustar el modelo para que coincida con las mediciones observadas, la calibración se centra en determinar los valores de los parámetros del modelo que mejor representan el comportamiento físico del sistema. Esto implica ajustar parámetros como el ángulo de reposo, la densidad, la intensidad de segregación y otros, de manera que el modelo reproduzca de manera consistente las características observadas del stockpile.
+
+Para calibrar un modelo, necesitamos una función objetivo que cuantifique el error entre las predicciones del modelo y las observaciones experimentales. Esta función objetivo se puede definir como una combinación ponderada de errores en diferentes aspectos del sistema, como la altura del stockpile, la distribución granulométrica y otras propiedades relevantes. Un ejemplo es el siguiente:
 
 $$
-\mathrm{MAE}=\frac{1+1+3}{3}=1.67\text{ m}.
+J\left( \theta \right) =w_{H}\mathrm{RMSE}_{H} \left( \theta \right) +w_{\triangle}\mathrm{RMSE}_{\triangle d} \left( \theta \right) +w_{M}\mathcal{P}_{M} \left( \theta \right) +w_{G}\mathcal{P}_{G} \left( \theta \right)
 $$
 
-El RMSE penaliza más el error grande:
+donde:
 
-$$
-\mathrm{RMSE}=\sqrt{\frac{1^2+(-1)^2+3^2}{3}}=1.91\text{ m}.
-$$
+- $w_H$: Peso asociado al error en la altura del stockpile.
+- $w_\triangle$: Peso asociado al error en la distribución granulométrica.
+- $w_M$: Peso asociado a la penalización por restricciones físicas del modelo.
+- $w_G$: Peso asociado a la penalización por la geometría del stockpile.
+- $\mathrm{RMSE}_H(\theta)$: Error cuadrático medio en la altura del stockpile.
+- $\mathrm{RMSE}_{\Delta d}(\theta)$: Error cuadrático medio en la distribución granulométrica.
+- $\mathcal{P}_M(\theta)$: Penalización por restricciones físicas del modelo.
+- $\mathcal{P}_G(\theta)$: Penalización por la geometría del stockpile.
 
-Un bias cercano a cero no garantiza buen ajuste: errores positivos y negativos pueden cancelarse. MAE describe una magnitud típica robusta. RMSE destaca episodios grandes. Ninguna métrica revela por sí sola si el error ocurre durante llenado, descarga o nivel bajo.
+Los ponderadores de cada término de calibración no son neutrales y reflejan la importancia relativa de cada aspecto del modelo en la función objetivo. Por ejemplo, si $w_H$ es mucho mayor que los demás pesos, la calibración priorizará ajustar la altura del stockpile sobre la granulometría o las penalizaciones físicas y geométricas. Estas penalizaciones aseguran que el modelo no encuentre soluciones que sean físicamente inviables o geométricamente inconsistentes, incluso si se ajustan bien a los datos observados.
 
-## Reconciliar cantidades comparables
+Algunos parámetros típicos de calibración incluyen el ángulo de reposo del mineral, la densidad aparente del mismo, la intensidad de segregación, el mapa de migración, el reparto por alimentador y el estado inicial del stockpile. En general, no todos estos parámetros son directamente medibles, por lo que la calibración se centra en ajustar aquellos que no se pueden observar directamente.
 
-Una medición superficial puntual no debe compararse sin transformación con el máximo de toda la grilla si representan ubicaciones distintas. Una muestra de P80 de una correa durante una hora no equivale a la propiedad instantánea de una celda. Antes de calcular error debemos alinear soporte espacial, soporte temporal y unidad.
+### Identificabilidad de los parámetros
 
-La pregunta correcta no es sólo “¿tienen el mismo nombre?”. Es “¿promedian el mismo fenómeno sobre el mismo intervalo y región?”. Muchos errores de validación nacen de comparar proxies incompatibles.
+La **identificabilidad** se refiere a la capacidad de determinar de manera única los valores de los parámetros del modelo a partir de los datos observables. Un parámetro es identificable si cambios en su valor producen cambios observables en las salidas del modelo. En la práctica, algunos parámetros pueden ser no identificables debido a la equifinalidad, donde diferentes combinaciones de parámetros producen resultados similares. Esto implica que la calibración debe centrarse en los parámetros que realmente afectan las observaciones y que pueden ser ajustados de manera confiable.
 
-## Residuales como diagnóstico de mecanismo
+Dos parámetros son **débilmente identificables** si cambios opuestos en sus valores producen salidas similares, lo que dificulta determinar de manera única cada parámetro a partir de los datos observables. Algunos ejemplos son la densidad aparente y la capacidad inicial del stockpile, o el ángulo de reposo y la intensidad de segregación. Se trata de situaciones donde la información disponible no es suficiente para distinguir entre los efectos de cada parámetro de manera independiente.
 
-El residual $e_t=y_t-\hat y_t$ debería analizarse contra tiempo y régimen. Si aumenta con altura, la geometría o densidad puede estar mal. Si cambia de signo al alternar líneas, la zona de descarga puede ser demasiado simétrica. Si responde a P80 de alimentación, falta o sobra segregación.
+Naturalmente, el tratamiento matemático clásico de la función de calibración, por medio de criterios de primer y segundo orden, asume que los parámetros son identificables. Cuando existen parámetros débilmente identificables, estos criterios pueden no ser suficientes para garantizar una estimación única y confiable, lo que requiere enfoques adicionales como la regularización o la incorporación de información a priori. La defensa más fuerte siempre será de tipo experimental en estos casos.
 
-Gráficos útiles incluyen residual versus altura, caudal, línea, duración desde cambio de alimentador y fase de llenado/descarga. La métrica global resume; la estructura residual orienta una hipótesis física.
+### Diseño temporal de calibración
 
-## Calibrar sin convertir parámetros en perillas libres
+La calibración debe considerar la dependencia temporal de las observaciones. Dado que el estado del stockpile y del autómata celular evoluciona con el tiempo, es importante seleccionar ventanas de tiempo que capturen la dinámica relevante. Un diseño típico incluye un período de calentamiento para que el sistema alcance un estado representativo, seguido de la ventana de calibración donde se ajustan los parámetros del modelo. Esto asegura que los parámetros se ajusten a un comportamiento estable y no a estados transitorios iniciales. Esto descarta "mezclar" instancias de diferentes fases del proceso dentro de la misma ventana de calibración, lo que podría inducir sesgos en la estimación de los parámetros.
 
-Cada parámetro debería tener interpretación y rango previo. Ajustar ángulo, intensidad superficial, trayectoria y ancho de migración simultáneamente puede producir combinaciones que compensan errores. El optimizador encontrará un mínimo, pero no necesariamente una explicación identificable.
+### Incertidumbre
 
-Una estrategia pedagógica es calibrar por etapas: forma estática para ángulo, pilas controladas para segregación, transitorios de descarga para migración y sólo después una validación integrada. Esta secuencia usa experimentos donde cada mecanismo domina.
+Nuestro reporte final muestra la evolución temporal de las variables clave del stockpile, incluyendo altura, P80 y distribución granulométrica, junto con los intervalos de incertidumbre derivados del ensamble de simulaciones. Esto permite evaluar la confiabilidad de las predicciones del modelo y la sensibilidad de los resultados a las distintas fuentes de incertidumbre. Esta consideración es más bien práctica, debido a que el autómata que hemos construido es de naturaleza determinista y no incorpora incertidumbre intrínseca en su dinámica.
 
-## Separación temporal y cambio de régimen
+Una evaluación completa de la incertidumbre requiere considerar todas las fuentes posibles de variabilidad en el sistema, incluyendo errores de medición, variaciones en las propiedades del material y condiciones operativas cambiantes. Esto permite generar intervalos de confianza más realistas para las predicciones del modelo y proporciona una base sólida para la toma de decisiones informadas. En iteraciones de naturaleza industrial, debiéramos propagar incertidumbre conforme las siguientes fuentes:
 
-Dividir registros al azar mezcla estados cercanos entre entrenamiento y validación. En series industriales, las observaciones vecinas comparten inventario y condiciones. Una división temporal protege mejor contra fuga y prueba extrapolación a un período posterior.
+- Los pesómetros instalados en la entrada y las salidas del stockpile.
+- La densidad aparente del material.
+- Las cámaras *split* que permiten estimar la distribución granulométrica del material.
+- La posición y el estado de los alimentadores.
+- Los parámetros de segregación del modelo.
+- El estado inicial del stockpile.
+- La semilla asíncrona utilizada en el modelo.
 
-También debemos reservar regímenes: altura baja, alta, alimentación dominante, descarga dominante y combinaciones de alimentadores. Un modelo que sólo vio operación estable puede fallar precisamente durante transitorios donde más valor tendría.
+El ensamble de simulaciones permite cuantificar la incertidumbre en las predicciones del modelo al generar distribuciones de resultados para cada variable de interés. A partir de estas distribuciones, se pueden calcular intervalos de confianza y evaluar la sensibilidad de las predicciones a las distintas fuentes de incertidumbre identificadas previamente. Esto, además, permite no reducir la incertidumbre a una banda de "credibilidad" alrededor de una trayectoria determinista, sino representarla de manera más completa y realista.
 
-## Incertidumbre del estado latente
+## Comentarios finales
 
-Aunque el visor dibuja una superficie nítida, el interior no es conocido exactamente. Semilla, parámetros, densidad, estado inicial y mediciones inducen incertidumbre. Una extensión podría ejecutar un conjunto de réplicas y mostrar bandas de altura o distribución de P80 por línea.
+En esta sección se resumen las observaciones y conclusiones derivadas del proceso de reconciliación y validación del modelo de autómata celular aplicado al stockpile. Se destacan los puntos fuertes del modelo, las limitaciones identificadas y las recomendaciones para futuras iteraciones y mejoras. Además, se enfatiza la importancia de considerar la incertidumbre y la dependencia temporal en la calibración y validación del modelo, asegurando que las predicciones sean confiables y útiles para la toma de decisiones operativas.
 
-No conviene colorear cada celda con una “certeza” arbitraria. La incertidumbre debe corresponder a una fuente definida y propagarse hasta una cantidad de decisión. Para un operador puede ser más útil saber que la diferencia de P80 entre líneas es $0.4\pm0.2$ pulgadas que observar una nube de estados completos.
+La construcción de modelos de tipo autómata celular permite capturar la dinámica espacial y temporal de sistemas complejos como los stockpiles. Estos modelos son especialmente útiles para estudiar fenómenos de segregación, distribución granulométrica y evolución de la altura del material, proporcionando una herramienta poderosa para la planificación y optimización de operaciones en entornos industriales. Sin embargo, es crucial complementar estos modelos con procesos de reconciliación y validación rigurosos para asegurar que las predicciones sean confiables y reflejen adecuadamente el comportamiento del sistema real.
 
-## Validación científica y aceptación operacional
+Calibrar un modelo no es sólo sensibilizarlo a los datos disponibles, sino también comprender y cuantificar la incertidumbre asociada a sus predicciones. Esto implica evaluar cómo las variaciones en los parámetros del modelo y en las condiciones iniciales afectan los resultados, y asegurarse de que el modelo sea robusto frente a estas incertidumbres. De esta manera, se puede confiar en que las decisiones basadas en el modelo reflejan de manera adecuada la realidad del sistema estudiado.
 
-Un modelo puede superar métricas y aun ser difícil de operar. La aceptación también requiere latencia, disponibilidad, explicabilidad, trazabilidad, reacción ante fallos y un responsable. Del mismo modo, una herramienta fácil de usar puede ser científicamente insuficiente.
-
-La puerta de producción debería exigir ambas dimensiones. Los checks de <strong><font color='darkmagenta'>Dagster</font></strong> automatizan una parte, pero los umbrales, revisiones y decisiones siguen perteneciendo a una política de gobierno.
-
-## Una matriz de evidencia
-
-| Afirmación | Evidencia adecuada | Evidencia insuficiente |
-|---|---|---|
-| conserva masa | prueba por regla y balance acumulado | curva de altura parecida |
-| forma una pila estable | perfil y sensibilidad de grilla | una captura favorable |
-| segrega tamaños | patrón radial y PSD por región | P80 global |
-| reproduce descarga | transitorios por alimentador | promedio mensual |
-| generaliza | ventana temporal no calibrada | ajuste sobre entrenamiento |
-| es operable | checks, logs y modo degradado | notebook ejecutado una vez |
-
-La matriz impide usar una clase de evidencia para sostener una afirmación distinta.
-
-[← Orquestación con <strong><font color='darkmagenta'>Dagster</font></strong>](08-orquestacion-con-dagster.qmd) · [Siguiente: visor 3D y operación →](10-visor-3d-y-operacion.qmd)
+[← Orquestación con <strong><font color='darkmagenta'>Dagster</font></strong>](08-orquestacion-con-dagster.qmd) · [Siguiente: Visor 3D y operación →](10-visor-3d-y-operacion.qmd)

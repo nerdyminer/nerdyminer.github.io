@@ -2,21 +2,24 @@
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
 
 <meta charset="utf-8">
-<meta name="generator" content="quarto-1.9.37">
+<meta name="generator" content="quarto-1.10.18">
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
-<meta name="description" content="Activos, checks, recursos y una contrapropuesta deliberada a la arquitectura Kedro del proyecto bayesiano.">
+<meta name="description" content="Activos, checks, recursos y una contrapropuesta deliberada a otras arquitecturas frecuentes.">
 
 <title>8. Orquestación con Dagster y comparación ex post – NerdyMiner</title>
 <style>
 /* Default styles provided by pandoc.
 ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
 */
-code{white-space: pre-wrap;}
 span.smallcaps{font-variant: small-caps;}
-div.columns{display: flex; gap: min(4vw, 1.5em);}
-div.column{flex: auto; overflow-x: auto;}
+div.columns{display: flex; gap: 1.5em;}
+div.column{flex: auto;}
+@media screen {
+div.columns{gap: min(4vw, 1.5em);}
+div.column{overflow-x: auto;}
+}
 div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
 ul.task-list{list-style: none;}
 ul.task-list li input[type="checkbox"] {
@@ -75,14 +78,14 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <script src="../../site_libs/quarto-html/tippy.umd.min.js"></script>
 <script src="../../site_libs/quarto-html/anchor.min.js"></script>
 <link href="../../site_libs/quarto-html/tippy.css" rel="stylesheet">
-<link href="../../site_libs/quarto-html/quarto-syntax-highlighting-b16add4d910ff6038463ffc00184b1c1.css" rel="stylesheet" class="quarto-color-scheme" id="quarto-text-highlighting-styles">
-<link href="../../site_libs/quarto-html/quarto-syntax-highlighting-dark-e3b8bbca183a7d6761657ecb5c5aa65f.css" rel="stylesheet" class="quarto-color-scheme quarto-color-alternate" id="quarto-text-highlighting-styles">
-<link href="../../site_libs/quarto-html/quarto-syntax-highlighting-b16add4d910ff6038463ffc00184b1c1.css" rel="stylesheet" class="quarto-color-scheme-extra" id="quarto-text-highlighting-styles">
+<link href="../../site_libs/quarto-html/quarto-syntax-highlighting-3a2afb74665eb1f4bf935d8d5fcdd0e1.css" rel="stylesheet" class="quarto-color-scheme" id="quarto-text-highlighting-styles">
+<link href="../../site_libs/quarto-html/quarto-syntax-highlighting-dark-98c1fac56b76bfbc9d72aa42df6d22cc.css" rel="stylesheet" class="quarto-color-scheme quarto-color-alternate" id="quarto-text-highlighting-styles">
+<link href="../../site_libs/quarto-html/quarto-syntax-highlighting-3a2afb74665eb1f4bf935d8d5fcdd0e1.css" rel="stylesheet" class="quarto-color-scheme-extra" id="quarto-text-highlighting-styles">
 <script src="../../site_libs/bootstrap/bootstrap.min.js"></script>
 <link href="../../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="../../site_libs/bootstrap/bootstrap-20a3660c41a27997b0067576444d6464.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
-<link href="../../site_libs/bootstrap/bootstrap-dark-82b8a8f05674b84d57516846be433586.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
-<link href="../../site_libs/bootstrap/bootstrap-20a3660c41a27997b0067576444d6464.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
+<link href="../../site_libs/bootstrap/bootstrap-1c6d1870e0fa47bc53bca18fb558ccd8.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
+<link href="../../site_libs/bootstrap/bootstrap-dark-7820c51d3c74e094bd232fdc3a7f6329.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
+<link href="../../site_libs/bootstrap/bootstrap-1c6d1870e0fa47bc53bca18fb558ccd8.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
 <script id="quarto-search-options" type="application/json">{
   "location": "navbar",
   "copy-button": false,
@@ -116,7 +119,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <link href="../../site_libs/quarto-diagram/mermaid.css" rel="stylesheet">
 
   <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
-  <script defer="" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+  <script defer="" src="https://cdn.jsdelivr.net/npm/mathjax@4/tex-chtml.js" type="text/javascript"></script>
 
 <script type="text/javascript">
 const typesetMath = (el) => {
@@ -379,26 +382,27 @@ window.Quarto = {
     <h2 id="toc-title">On this page</h2>
    
   <ul>
-  <li><a href="#la-contrapropuesta" id="toc-la-contrapropuesta" class="nav-link active" data-scroll-target="#la-contrapropuesta">La contrapropuesta</a></li>
-  <li><a href="#qué-es-un-dag-para-quien-nunca-ha-usado-un-orquestador" id="toc-qué-es-un-dag-para-quien-nunca-ha-usado-un-orquestador" class="nav-link" data-scroll-target="#qué-es-un-dag-para-quien-nunca-ha-usado-un-orquestador">Qué es un DAG para quien nunca ha usado un orquestador</a></li>
-  <li><a href="#función-op-asset-y-materialización" id="toc-función-op-asset-y-materialización" class="nav-link" data-scroll-target="#función-op-asset-y-materialización">Función, op, asset y materialización</a></li>
-  <li><a href="#de-nodo-a-activo" id="toc-de-nodo-a-activo" class="nav-link" data-scroll-target="#de-nodo-a-activo">De nodo a activo</a></li>
-  <li><a href="#dag-público" id="toc-dag-público" class="nav-link" data-scroll-target="#dag-público">DAG público</a></li>
-  <li><a href="#asset-checks" id="toc-asset-checks" class="nav-link" data-scroll-target="#asset-checks">Asset checks</a></li>
-  <li><a href="#resources-e-io-managers" id="toc-resources-e-io-managers" class="nav-link" data-scroll-target="#resources-e-io-managers">Resources e IO managers</a></li>
-  <li><a href="#particiones" id="toc-particiones" class="nav-link" data-scroll-target="#particiones">Particiones</a></li>
-  <li><a href="#comparación-con-kedro" id="toc-comparación-con-kedro" class="nav-link" data-scroll-target="#comparación-con-kedro">Comparación con <strong><font color="darkmagenta"><span class="kedro-brand">Kedro</span></font></strong></a></li>
-  <li><a href="#comparación-ex-post-con-el-proyecto-bayesiano" id="toc-comparación-ex-post-con-el-proyecto-bayesiano" class="nav-link" data-scroll-target="#comparación-ex-post-con-el-proyecto-bayesiano">Comparación ex post con el proyecto bayesiano</a></li>
-  <li><a href="#el-papel-deliberado-de-pydantic" id="toc-el-papel-deliberado-de-pydantic" class="nav-link" data-scroll-target="#el-papel-deliberado-de-pydantic">El papel deliberado de <strong><font color="darkmagenta">Pydantic</font></strong></a></li>
-  <li><a href="#selección-y-ejecución" id="toc-selección-y-ejecución" class="nav-link" data-scroll-target="#selección-y-ejecución">Selección y ejecución</a></li>
-  <li><a href="#evitar-lógica-científica-en-assets" id="toc-evitar-lógica-científica-en-assets" class="nav-link" data-scroll-target="#evitar-lógica-científica-en-assets">Evitar lógica científica en assets</a></li>
-  <li><a href="#cuándo-elegir-cada-enfoque" id="toc-cuándo-elegir-cada-enfoque" class="nav-link" data-scroll-target="#cuándo-elegir-cada-enfoque">Cuándo elegir cada enfoque</a></li>
-  <li><a href="#recorrido-web-del-asset-graph" id="toc-recorrido-web-del-asset-graph" class="nav-link" data-scroll-target="#recorrido-web-del-asset-graph">Recorrido web del Asset Graph</a></li>
-  <li><a href="#interfaz-oficial-y-publicación-estática" id="toc-interfaz-oficial-y-publicación-estática" class="nav-link" data-scroll-target="#interfaz-oficial-y-publicación-estática">Interfaz oficial y publicación estática</a></li>
-  <li><a href="#leer-el-grafo-de-izquierda-a-derecha" id="toc-leer-el-grafo-de-izquierda-a-derecha" class="nav-link" data-scroll-target="#leer-el-grafo-de-izquierda-a-derecha">Leer el grafo de izquierda a derecha</a></li>
-  <li><a href="#checks-bloqueantes-y-no-bloqueantes" id="toc-checks-bloqueantes-y-no-bloqueantes" class="nav-link" data-scroll-target="#checks-bloqueantes-y-no-bloqueantes">Checks bloqueantes y no bloqueantes</a></li>
-  <li><a href="#la-ejecución-no-es-el-grafo" id="toc-la-ejecución-no-es-el-grafo" class="nav-link" data-scroll-target="#la-ejecución-no-es-el-grafo">La ejecución no es el grafo</a></li>
-  <li><a href="#comparación-pedagógica-con-el-proyecto-anterior" id="toc-comparación-pedagógica-con-el-proyecto-anterior" class="nav-link" data-scroll-target="#comparación-pedagógica-con-el-proyecto-anterior">Comparación pedagógica con el proyecto anterior</a></li>
+  <li><a href="#una-contrapropuesta-deliberada-a-nuestro-primer-proyecto" id="toc-una-contrapropuesta-deliberada-a-nuestro-primer-proyecto" class="nav-link active" data-scroll-target="#una-contrapropuesta-deliberada-a-nuestro-primer-proyecto">Una contrapropuesta deliberada a nuestro primer proyecto</a></li>
+  <li><a href="#qué-es-dagster" id="toc-qué-es-dagster" class="nav-link" data-scroll-target="#qué-es-dagster">¿Qué es <strong><font color="darkmagenta">Dagster</font></strong>?</a>
+  <ul class="collapse">
+  <li><a href="#activos-de-software-o-assets" id="toc-activos-de-software-o-assets" class="nav-link" data-scroll-target="#activos-de-software-o-assets">Activos de software (o <em>assets</em>)</a></li>
+  <li><a href="#operaciones-y-materialización" id="toc-operaciones-y-materialización" class="nav-link" data-scroll-target="#operaciones-y-materialización">Operaciones y materialización</a></li>
+  <li><a href="#la-diferencia-entre-nodo-y-activo-de-datos" id="toc-la-diferencia-entre-nodo-y-activo-de-datos" class="nav-link" data-scroll-target="#la-diferencia-entre-nodo-y-activo-de-datos">La diferencia entre nodo y activo de datos</a></li>
+  <li><a href="#dag-del-proyecto" id="toc-dag-del-proyecto" class="nav-link" data-scroll-target="#dag-del-proyecto">DAG del proyecto</a></li>
+  <li><a href="#chequeos-de-activos" id="toc-chequeos-de-activos" class="nav-link" data-scroll-target="#chequeos-de-activos">Chequeos de activos</a></li>
+  <li><a href="#administradores-de-entradasalida-o-io" id="toc-administradores-de-entradasalida-o-io" class="nav-link" data-scroll-target="#administradores-de-entradasalida-o-io">Administradores de entrada/salida (o I/O)</a></li>
+  </ul></li>
+  <li><a href="#comparativa-rápida-con-kedro" id="toc-comparativa-rápida-con-kedro" class="nav-link" data-scroll-target="#comparativa-rápida-con-kedro">Comparativa rápida con <strong><font color="darkmagenta"><span class="kedro-brand">Kedro</span></font></strong></a></li>
+  <li><a href="#por-qué-usamos-dagster-en-este-proyecto" id="toc-por-qué-usamos-dagster-en-este-proyecto" class="nav-link" data-scroll-target="#por-qué-usamos-dagster-en-este-proyecto">¿Por qué usamos <strong><font color="darkmagenta">Dagster</font></strong> en este proyecto?</a></li>
+  <li><a href="#asociación-con-pydantic" id="toc-asociación-con-pydantic" class="nav-link" data-scroll-target="#asociación-con-pydantic">Asociación con <strong><font color="darkmagenta">Pydantic</font></strong></a></li>
+  <li><a href="#cómo-seleccionamos-activos-y-los-ejecutamos-en-dagster" id="toc-cómo-seleccionamos-activos-y-los-ejecutamos-en-dagster" class="nav-link" data-scroll-target="#cómo-seleccionamos-activos-y-los-ejecutamos-en-dagster">¿Cómo seleccionamos activos y los ejecutamos en <strong><font color="darkmagenta">Dagster</font></strong>?</a></li>
+  <li><a href="#visualización-del-dag-en-dagster-webserver" id="toc-visualización-del-dag-en-dagster-webserver" class="nav-link" data-scroll-target="#visualización-del-dag-en-dagster-webserver">Visualización del DAG en <strong><font color="darkmagenta">Dagster</font></strong> Webserver</a>
+  <ul class="collapse">
+  <li><a href="#integración-del-webserver-en-este-humilde-blog" id="toc-integración-del-webserver-en-este-humilde-blog" class="nav-link" data-scroll-target="#integración-del-webserver-en-este-humilde-blog">Integración del Webserver en este humilde blog</a></li>
+  <li><a href="#la-interfaz-oficial" id="toc-la-interfaz-oficial" class="nav-link" data-scroll-target="#la-interfaz-oficial">La interfaz “oficial”</a></li>
+  <li><a href="#lectura-del-dag" id="toc-lectura-del-dag" class="nav-link" data-scroll-target="#lectura-del-dag">Lectura del DAG</a></li>
+  </ul></li>
+  <li><a href="#comentarios-finales" id="toc-comentarios-finales" class="nav-link" data-scroll-target="#comentarios-finales">Comentarios finales</a></li>
   </ul>
 </nav>
     </div>
@@ -413,7 +417,7 @@ window.Quarto = {
 
 <div>
   <div class="description">
-    Activos, checks, recursos y una contrapropuesta deliberada a la arquitectura <span class="kedro-brand">Kedro</span> del proyecto bayesiano.
+    Activos, checks, recursos y una contrapropuesta deliberada a otras arquitecturas frecuentes.
   </div>
 </div>
 
@@ -431,46 +435,127 @@ window.Quarto = {
 
 
 <p><a href="../../proyectos/stockpile-cellular-automata/index.html">← Volver al proyecto</a></p>
-<section id="la-contrapropuesta" class="level2">
-<h2 class="anchored" data-anchor-id="la-contrapropuesta">La contrapropuesta</h2>
-<p>El proyecto bayesiano del blog se construyó con <strong><font color="darkmagenta"><span class="kedro-brand">Kedro</span></font></strong>: pipelines compuestas por nodos puros, un catálogo que desacopla nombres lógicos de persistencia y parámetros declarados en YAML. Ese patrón sigue siendo sólido y ampliamente adoptado en industria.</p>
-<p>Aquí elegimos <strong><font color="darkmagenta">Dagster</font></strong> más <strong><font color="darkmagenta">Pydantic</font></strong> como contrapropuesta deliberada. No buscamos concluir que una combinación reemplaza universalmente a la otra. Queremos comparar dos centros de gravedad:</p>
+<section id="una-contrapropuesta-deliberada-a-nuestro-primer-proyecto" class="level2">
+<h2 class="anchored" data-anchor-id="una-contrapropuesta-deliberada-a-nuestro-primer-proyecto">Una contrapropuesta deliberada a nuestro primer proyecto</h2>
+<p>El primero proyecto publicado en este blog corresponde a un <a href="../bayesian-tph-forecasting/">modelo de reconciliación de tratamiento basado en inferencia Bayesiana</a>, el cual tiene como objetivo la reconstrucción y explicación (no causal) del tratamiento de molienda de una planta concentradora en función de familias de variables puramente contextuales, a fin de aislar efectos operacionales de interés. En dicho proyecto, adoptamos a <strong><font color="darkmagenta"><span class="kedro-brand">Kedro</span></font></strong> como arquitectura de orquestación, manteniendo las librerías típicas de <em>data science</em> como herramientas esenciales para el análisis y procesamiento de datos (<strong><font color="darkmagenta">Numpy</font></strong> y <strong><font color="darkmagenta">Pandas</font></strong> para manipulación de arreglos y tablas, respectivamente; <strong><font color="darkmagenta">PyMC</font></strong> para la construcción de nuestro modelo Bayesiano).</p>
+<p>En este proyecto, en vez de <strong><font color="darkmagenta"><span class="kedro-brand">Kedro</span></font></strong>, hemos adoptado <strong><font color="darkmagenta">Dagster</font></strong> como arquitectura de orquestación, aprovechando sus capacidades para gestionar activos de software y su ciclo de vida de manera explícita. No buscamos hacer competir a estas librerías (de hecho, ni siquiera <em>compiten</em>, sino que ofrecen enfoques complementarios). Queremos simplemente comparar dos enfoques distintos para la orquestación de proyectos de ciencia de datos:</p>
 <ul>
-<li><strong><font color="darkmagenta"><span class="kedro-brand">Kedro</span></font></strong> organiza ejecución alrededor de <strong>pipelines y nodos</strong>;</li>
-<li><strong><font color="darkmagenta">Dagster</font></strong> organiza el sistema alrededor de <strong>activos de software</strong> y su ciclo de vida.</li>
+<li><strong><font color="darkmagenta"><span class="kedro-brand">Kedro</span></font></strong> para la organización de la ejecución de un proyecto conforme a <strong>pipelines y nodos</strong>.</li>
+<li><strong><font color="darkmagenta">Dagster</font></strong> para la organización de la ejecución de un proyecto conforme a <strong>activos de software</strong> y su ciclo de vida.</li>
 </ul>
-</section>
-<section id="qué-es-un-dag-para-quien-nunca-ha-usado-un-orquestador" class="level2">
-<h2 class="anchored" data-anchor-id="qué-es-un-dag-para-quien-nunca-ha-usado-un-orquestador">Qué es un DAG para quien nunca ha usado un orquestador</h2>
-<p>Un DAG es un grafo dirigido sin ciclos. Cada flecha indica que una entidad depende de otra. “Sin ciclos” significa que no podemos necesitar A para construir B y, al mismo tiempo, B para construir A. Esa restricción permite ordenar el trabajo desde las raíces hasta los productos finales.</p>
-<p>En este proyecto la cadena principal es:</p>
+<p>Al igual que <strong><font color="darkmagenta"><span class="kedro-brand">Kedro</span></font></strong>, la librería <strong><font color="darkmagenta">Dagster</font></strong> permite estructurar la ejecución de un proyecto de ciencia de datos sobre la base de un <strong>grafo dirigido acíclico</strong> o <strong>DAG</strong>. En <strong><font color="darkmagenta"><span class="kedro-brand">Kedro</span></font></strong>, el DAG del proyecto se construye a partir de las dependencias entre nodos, los que representan funciones a las que hemos asignado determinadas responsabilidades dentro de un contexto o capa determinada. En <strong><font color="darkmagenta">Dagster</font></strong>, el DAG se construye a partir de las dependencias entre <strong>activos de software</strong>, los que representan resultados intermedios o finales de nuestro proyecto, con foco en <strong>chequeos de validación y consistencia</strong>.</p>
+<p>El DAG de este proyecto es muy simple y puede expresarse como</p>
 <p><span class="math display">\[
 \text{public\_minute\_raw}\rightarrow
 \text{public\_minute\_curated}\rightarrow
-\text{stockpile\_replay}.
+\text{stockpile\_replay}
 \]</span></p>
-<p>El primer activo lee la ventana sintética pública, el segundo la vuelve simulable y el tercero reproduce el autómata. Los checks se conectan al activo que evalúan. Una flecha no significa necesariamente que un archivo se copie: significa que el activo aguas abajo necesita el valor o existencia del anterior.</p>
+<p>Es decir, el activo <code>public_minute_raw</code> debe materializarse antes de que <code>public_minute_curated</code> pueda hacerlo, y este último debe materializarse antes de que <code>stockpile_replay</code> pueda hacerlo. Estos activos de software representan diferentes etapas del procesamiento de datos dentro del proyecto: <code>public_minute_raw</code> corresponde a los datos crudos, <code>public_minute_curated</code> a los datos procesados y preparados para análisis, y <code>stockpile_replay</code> al resultado final de la simulación del autómata celular.</p>
 </section>
-<section id="función-op-asset-y-materialización" class="level2">
-<h2 class="anchored" data-anchor-id="función-op-asset-y-materialización">Función, op, asset y materialización</h2>
-<p>Una función Python transforma argumentos en resultados. Una <code>op</code> de <strong><font color="darkmagenta">Dagster</font></strong> agrega contexto de ejecución a una unidad computacional. Un <code>asset</code> desplaza el centro desde “ejecutar esta función” hacia “producir o actualizar este objeto de datos”. Una materialización es el evento registrado que afirma que una versión del activo fue producida.</p>
-<p>Esta diferencia cambia las preguntas de operación:</p>
+<section id="qué-es-dagster" class="level2">
+<h2 class="anchored" data-anchor-id="qué-es-dagster">¿Qué es <strong><font color="darkmagenta">Dagster</font></strong>?</h2>
+<p><strong><font color="darkmagenta">Dagster</font></strong> es un orquestador de flujos de trabajo para proyectos de ciencia de datos. Permite definir, ejecutar y monitorear pipelines de datos de manera estructurada, asegurando que los activos de software se materialicen correctamente y que las dependencias entre ellos se respeten. A diferencia de otros orquestadores que se centran en la ejecución de funciones, <strong><font color="darkmagenta">Dagster</font></strong> pone el foco en los activos de software y su ciclo de vida, facilitando la gestión de la calidad y consistencia de los datos a lo largo del proyecto.</p>
+<section id="activos-de-software-o-assets" class="level3">
+<h3 class="anchored" data-anchor-id="activos-de-software-o-assets">Activos de software (o <em>assets</em>)</h3>
+<p>Los <strong>activos de software</strong> son los elementos centrales en <strong><font color="darkmagenta">Dagster</font></strong>. Representan resultados intermedios o finales de un proyecto de ciencia de datos y su ciclo de vida es gestionado explícitamente por el orquestador. Cada activo puede tener dependencias con otros activos, y su materialización asegura que los datos estén disponibles y sean consistentes para las etapas posteriores del proyecto. No se trata de funciones, ni tampoco de conjuntos de datos en bruto, sino de entidades que encapsulan resultados significativos dentro del DAG.</p>
+<p><strong><font color="darkmagenta">Dagster</font></strong> hace uso de decoradores para definir activos, operaciones y pipelines. Por ejemplo, se puede usar <code>@asset</code> para marcar una función como un activo de software, <code>@op</code> para definir una operación dentro de un pipeline, y <code>@job</code> para agrupar operaciones en un flujo de trabajo ejecutable. Estos decoradores permiten a <strong><font color="darkmagenta">Dagster</font></strong> gestionar automáticamente las dependencias y la materialización de los activos.</p>
+<p>La librería se instala a partir del índice de paquetes de Python (PyPI) utilizando el siguiente comando:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="ex">pip</span> install dagster</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Solemos importarla de manera directa por medio del alias <code>dg</code>. Por ejemplo, si quisiéramos construir un proyecto constituido por dos activos de datos, denominados <code>hello</code> y <code>world</code>, cada uno de ellos debe ser definido en un módulo dedicado, típicamente ubicado en <code>defs/assets.py</code>, en la forma de funciones y con el decorador <code>@dg.asset</code> aplicado a cada una:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> dagster <span class="im">as</span> dg</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="at">@dg.asset</span></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> hello(context: dg.AssetExecutionContext):</span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>    context.log.info(<span class="st">"Hello!"</span>)</span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a><span class="at">@dg.asset</span>(deps<span class="op">=</span>[hello])</span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> world(context: dg.AssetExecutionContext):</span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a>    context.log.info(<span class="st">"World!"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>En el bloque de código anterior:</p>
 <ul>
-<li>con funciones preguntamos qué llamada falló;</li>
-<li>con activos preguntamos qué producto está desactualizado, qué lo alimentó y qué checks aprobó;</li>
-<li>con particiones preguntamos para qué día o ventana falta materialización.</li>
+<li>El activo <code>hello</code> se define sin dependencias y simplemente registra un mensaje. Por definición, todo activo se define conforme un parámetro <code>context</code>, que proporciona acceso a la ejecución, incluyendo el registro de mensajes. En este caso, <code>context: dg.AssetExecutionContext</code> simplemente indica que <code>context</code> es del tipo esperado por <strong><font color="darkmagenta">Dagster</font></strong> para la ejecución de activos.</li>
+<li>El activo <code>world</code> depende de <code>hello</code>, lo que se indica mediante el argumento <code>deps=[hello]</code> en el decorador. Esto asegura que <code>hello</code> se materialice antes de <code>world</code>.</li>
 </ul>
 </section>
-<section id="de-nodo-a-activo" class="level2">
-<h2 class="anchored" data-anchor-id="de-nodo-a-activo">De nodo a activo</h2>
-<p>Un nodo expresa una transformación: entradas, función, salidas. Un activo expresa una entidad que interesa materializar: una tabla curada, un modelo, un reporte. La función de cómputo sigue existiendo, pero la identidad primaria es el resultado.</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="at">@dg.asset</span>(group_name<span class="op">=</span><span class="st">"engineering"</span>, kinds<span class="op">=</span>{<span class="st">"python"</span>, <span class="st">"polars"</span>})</span>
-<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> public_minute_curated(public_minute_raw: pl.DataFrame) <span class="op">-&gt;</span> pl.DataFrame:</span>
-<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> curate_minute_series(public_minute_raw)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>La firma declara la dependencia. <strong><font color="darkmagenta">Dagster</font></strong> deriva el grafo, registra materializaciones y permite seleccionar activos sin construir manualmente una pipeline global.</p>
+<section id="operaciones-y-materialización" class="level3">
+<h3 class="anchored" data-anchor-id="operaciones-y-materialización">Operaciones y materialización</h3>
+<p>En Python, cuando definimos una función, nos centramos en la transformación de argumentos en resultados. La función se ejecuta y produce un valor de retorno inmediato. Sin embargo, en el contexto de <strong><font color="darkmagenta">Dagster</font></strong>, nos interesa más la materialización de activos de datos, que puede ocurrir en un momento posterior y ser registrada como un evento separado. En términos simples, definimos la <strong>materialización</strong> como el acto de producir y registrar un activo de datos en un punto específico en el tiempo.</p>
+<p>Así como los activos de datos se materializan en momentos específicos, las denominadas <strong>operaciones</strong> (<code>ops</code>) en <strong><font color="darkmagenta">Dagster</font></strong> representan unidades computacionales que pueden ser ejecutadas y registradas de manera controlada. Esto permite un seguimiento detallado de la ejecución y facilita la depuración y el monitoreo de los flujos de trabajo.</p>
+<p>Las operaciones suelen construirse por medio del uso del decorador <code>@dg.op</code>, que marca una función como una unidad computacional ejecutable dentro del contexto de <strong><font color="darkmagenta">Dagster</font></strong>. Para introducir una operación, es necesario además definir explícitamente el <strong>grafo</strong> que organiza y conecta estas operaciones, proporcionando un flujo de ejecución claro y controlado, por medio del decorador <code>@dg.graph</code>.</p>
+<p>Por ejemplo, en el bloque de código anterior, podemos expandir el flujo de trabajo introduciendo una operación adicional y un grafo que conecte las operaciones <code>hello</code> y <code>world</code>:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> dagster <span class="im">as</span> dg</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="co"># Definimos los activos base independientes.</span></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a><span class="at">@dg.asset</span></span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> hello(context: dg.AssetExecutionContext):</span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>    context.log.info(<span class="st">"Hello!"</span>)</span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> <span class="st">"Hello"</span></span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a><span class="co"># Definimos una `op` para realizar una tarea de cómputo específica.</span></span>
+<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a><span class="at">@dg.op</span></span>
+<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> exclamation_op(context: dg.OpExecutionContext, text: <span class="bu">str</span>) <span class="op">-&gt;</span> <span class="bu">str</span>:</span>
+<span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a>    context.log.info(<span class="ss">f"Procesando el texto en la OP: </span><span class="sc">{</span>text<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb3-13"><a href="#cb3-13" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> <span class="ss">f"</span><span class="sc">{</span>text<span class="sc">}</span><span class="ss">!"</span></span>
+<span id="cb3-14"><a href="#cb3-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-15"><a href="#cb3-15" aria-hidden="true" tabindex="-1"></a><span class="co"># Definimos un grafo intermedio que conecta la `op`.</span></span>
+<span id="cb3-16"><a href="#cb3-16" aria-hidden="true" tabindex="-1"></a><span class="at">@dg.graph</span></span>
+<span id="cb3-17"><a href="#cb3-17" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> world_graph(hello):</span>
+<span id="cb3-18"><a href="#cb3-18" aria-hidden="true" tabindex="-1"></a>    <span class="co"># La op recibe la salida del asset 'hello'</span></span>
+<span id="cb3-19"><a href="#cb3-19" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> exclamation_op(hello)</span>
+<span id="cb3-20"><a href="#cb3-20" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-21"><a href="#cb3-21" aria-hidden="true" tabindex="-1"></a><span class="co"># Transformamos el grafo en el activo final 'world'.</span></span>
+<span id="cb3-22"><a href="#cb3-22" aria-hidden="true" tabindex="-1"></a><span class="co"># Esto reemplaza el uso directo de deps=[hello] manteniendo el linaje</span></span>
+<span id="cb3-23"><a href="#cb3-23" aria-hidden="true" tabindex="-1"></a><span class="co"># de datos.</span></span>
+<span id="cb3-24"><a href="#cb3-24" aria-hidden="true" tabindex="-1"></a>world <span class="op">=</span> dg.AssetDefinition.from_graph(world_graph)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>A diferencia de lo que hicimos la primera vez, ahora estamos encapsulando la lógica de la operación dentro de un grafo y transformando ese grafo en un activo, lo que permite mantener el linaje de datos y la trazabilidad de manera más estructurada:</p>
+<ul>
+<li>La función <code>hello</code> es un activo base que produce un valor.</li>
+<li>La operación <code>exclamation_op</code> transforma ese valor dentro de un grafo.</li>
+<li>El grafo <code>world_graph</code> encapsula la lógica de la operación.</li>
+<li>El activo <code>world</code> materializa el resultado del grafo.</li>
+</ul>
 </section>
-<section id="dag-público" class="level2">
-<h2 class="anchored" data-anchor-id="dag-público">DAG público</h2>
+<section id="la-diferencia-entre-nodo-y-activo-de-datos" class="level3">
+<h3 class="anchored" data-anchor-id="la-diferencia-entre-nodo-y-activo-de-datos">La diferencia entre nodo y activo de datos</h3>
+<p>Al construir proyectos de <strong><font color="darkmagenta"><span class="kedro-brand">Kedro</span></font></strong>, los nodos representan funciones de transformación que se conectan mediante un grafo de dependencias. Cada nodo tiene entradas y salidas claramente definidas, pero no mantiene un <strong>linaje</strong> explícito de los datos. En contraste, al trabajar con <strong><font color="darkmagenta">Dagster</font></strong>, los activos de datos permiten rastrear la identidad y el linaje de los datos a lo largo del tiempo, proporcionando una visión más estructurada y controlada del flujo de trabajo.</p>
+<p>Por ejemplo, consideremos el siguiente activo de datos:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> dagster <span class="im">as</span> dg</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> polars <span class="im">as</span> pl</span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a><span class="at">@dg.asset</span>(group_name<span class="op">=</span><span class="st">"engineering"</span>, kinds<span class="op">=</span>{<span class="st">"python"</span>, <span class="st">"polars"</span>})</span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> public_minute_curated(</span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>    public_minute_raw: pl.DataFrame</span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>) <span class="op">-&gt;</span> pl.DataFrame:</span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> curate_minute_series(public_minute_raw)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>El activo <code>public_minute_curated</code> representa una tabla <em>curada</em> derivada del DataFrame <code>public_minute_raw</code> (construido en <strong><font color="darkmagenta">Polars</font></strong>). Al declararlo como un activo de <strong><font color="darkmagenta">Dagster</font></strong>, se puede rastrear su linaje, registrar materializaciones y aplicar checks de calidad de manera estructurada.</p>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Note</span>¿Qué es el linaje de datos?
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>En el contexto de la orquestación de datos, el <strong>linaje de datos</strong> se refiere a la capacidad de rastrear el origen, las transformaciones y el destino de los datos a lo largo de su ciclo de vida. Esto permite entender cómo se generan los resultados, identificar posibles errores y garantizar la reproducibilidad de los procesos.</p>
+<p>El linaje resulta clave en productos de datos que han sido desplegados en algún servicio dedicado, como Azure o Databricks, ya que permite auditar y reproducir los resultados de manera confiable. De hecho, en Databricks, existe una plataforma de <strong>gobierno de datos</strong>, denominada <strong>Unity Catalog</strong>, que facilita la gestión del linaje y la gobernanza de los datos.</p>
+<div id="fig-lineage" class="quarto-float quarto-figure quarto-figure-center anchored" data-fig-align="center">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-lineage-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="assets/data-lineage-img.jpeg" class="img-fluid quarto-figure quarto-figure-center figure-img" style="width:100.0%">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-lineage-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figura&nbsp;1: Flujograma que ilustra un linaje típico de datos en un proyecto desplegado en Databricks. Imagen tomada directamente desde la documentación de Databricks (link: https://www.databricks.com/blog/what-is-data-lineage)
+</figcaption>
+</figure>
+</div>
+</div>
+</div>
+</section>
+<section id="dag-del-proyecto" class="level3">
+<h3 class="anchored" data-anchor-id="dag-del-proyecto">DAG del proyecto</h3>
+<p>Este proyecto se organiza como un grafo acíclico dirigido (DAG) donde los nodos representan activos de datos y las aristas indican dependencias entre ellos. A continuación se muestra un esquema sencillo del <strong>DAG público</strong> que ilustra cómo se conectan los activos principales del proyecto.</p>
 <div class="cell" data-layout-align="default">
 <div class="cell-output-display">
 <div>
@@ -487,48 +572,101 @@ window.Quarto = {
 </div>
 </div>
 </div>
-<p>Los checks cuelgan del activo que evalúan. <code>minute_contract</code> es bloqueante: si la tabla curada viola esquema, orden, rangos o nulidad, la reproducción no debería continuar. <code>height_reconciliation</code> publica métricas y sólo falla por resultados no finitos; un RMSE grande es evidencia científica, no necesariamente un error de ejecución.</p>
+<p>Los activos de datos se representan por medio de bloques rectangulares, mientras que los chequeos de activos se representan con bloques en forma de riombo. Las flechas indican dependencias entre los activos y los correspondientes chequeos. El primer activo del DAG es <code>public_minute_raw</code>, que representa una tabla cruda que se imputa y posteriormente se transforma en <code>public_minute_curated</code> mediante el proceso de curación definido en el activo correspondiente. Este último activo sirve como base para la generación de <code>stockpile_replay</code> y para la verificación de contratos a través de <code>minute_contract</code>. Finalmente, <code>height_reconciliation</code> evalúa la calidad de los datos derivados de <code>stockpile_replay</code>, renconciliando la altura simulada por el autómata contra la altura real provista por los datos operacionales y la altura de diseño establecida en el TOML del proyecto.</p>
 </section>
-<section id="asset-checks" class="level2">
-<h2 class="anchored" data-anchor-id="asset-checks">Asset checks</h2>
-<p>Un <code>asset_check</code> tiene identidad, historial y metadata. Esta separación evita mezclar tres políticas:</p>
+<section id="chequeos-de-activos" class="level3">
+<h3 class="anchored" data-anchor-id="chequeos-de-activos">Chequeos de activos</h3>
+<p>Los <strong>chequeos de activos</strong> se definen formalmente como funciones que verifican la validez de un activo de datos y devuelven un resultado que indica si el chequeo pasó o falló, junto con metadata adicional. Se trata de elementos estructurales que permiten garantizar la calidad y consistencia de los datos a lo largo del DAG.</p>
+<p>Los chequeos de activos se pueden clasificar en tres tipos principales:</p>
 <ul>
-<li>una excepción para estados que hacen imposible computar;</li>
-<li>un check bloqueante para contratos que invalidan consumidores;</li>
-<li>un check no bloqueante para calidad que requiere juicio.</li>
+<li><strong>Excepciones</strong>: Chequeos que determinan si un activo no puede ser computado debido a estados imposibles.</li>
+<li><strong>Chequeos bloqueantes</strong>: Verificaciones que invalidan a los consumidores si fallan.</li>
+<li><strong>Chequeos no bloqueantes</strong>: Evaluaciones de calidad que requieren juicio y no bloquean el flujo de datos.</li>
 </ul>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="at">@dg.asset_check</span>(asset<span class="op">=</span>stockpile_replay)</span>
-<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> height_reconciliation(stockpile_replay: pl.DataFrame) <span class="op">-&gt;</span> dg.AssetCheckResult:</span>
-<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>    metrics <span class="op">=</span> agreement(...)</span>
-<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> dg.AssetCheckResult(</span>
-<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>        passed<span class="op">=</span><span class="bu">bool</span>(np.isfinite(metrics.rmse)),</span>
-<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>        metadata<span class="op">=</span>{<span class="st">"bias_m"</span>: metrics.bias, <span class="st">"mae_m"</span>: metrics.mae, <span class="st">"rmse_m"</span>: metrics.rmse},</span>
-<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>    )</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>Convertir <code>np.bool_</code> a <code>bool</code> parece trivial, pero revela una frontera real: metadata y resultados del orquestador necesitan tipos serializables y contratos propios.</p>
-</section>
-<section id="resources-e-io-managers" class="level2">
-<h2 class="anchored" data-anchor-id="resources-e-io-managers">Resources e IO managers</h2>
-<p>Los recursos encapsulan sistemas externos: cliente de historiador, almacenamiento, secretos o sesión de base de datos. Los IO managers controlan cómo persiste la salida de un activo sin contaminar su función.</p>
-<p>En producción podríamos declarar:</p>
-<pre class="text"><code>SourceResource -&gt; adaptador de señales
-ParquetIOManager -&gt; tablas columnares
-BinaryFrameIOManager -&gt; cuadros cuantizados</code></pre>
-<p>La edición pública usa el IO manager por defecto y un generador local. El dominio no importa ninguna de estas piezas.</p>
-</section>
-<section id="particiones" class="level2">
-<h2 class="anchored" data-anchor-id="particiones">Particiones</h2>
-<p>Una historia larga se particiona naturalmente por mes para ingesta y por día para cuadros del visor. Particionar ofrece:</p>
+<p>Los chequeos de activos se implementan como funciones decoradas con <code>@dg.asset_check</code>, donde se especifica el activo al que pertenecen y si son bloqueantes o no. Estas funciones reciben el DataFrame correspondiente al activo y devuelven un objeto <code>dg.AssetCheckResult</code> que indica si el chequeo pasó o falló, junto con metadatos adicionales que pueden incluir métricas de calidad, conteos de filas, entre otros.</p>
+<p>Un ejemplo de chequeo se muestra en el siguiente bloque de código:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> dagster <span class="im">as</span> dg</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> polars <span class="im">as</span> pl</span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a><span class="at">@dg.asset_check</span>(asset<span class="op">=</span>public_minute_curated, blocking<span class="op">=</span><span class="va">True</span>)</span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> minute_contract(</span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>    public_minute_curated: pl.DataFrame</span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>) <span class="op">-&gt;</span> dg.AssetCheckResult:</span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""Detiene el DAG si rangos, orden o nulidad dejan de ser publicables."""</span></span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a>    checks <span class="op">=</span> [</span>
+<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a>        public_minute_curated[<span class="st">"timestamp"</span>].is_sorted(),</span>
+<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a>        public_minute_curated.null_count().row(<span class="dv">0</span>) <span class="op">==</span> (<span class="dv">0</span>,) <span class="op">*</span> public_minute_curated.width,</span>
+<span id="cb5-13"><a href="#cb5-13" aria-hidden="true" tabindex="-1"></a>        public_minute_curated[<span class="st">"feed_p80_in"</span>].is_between(<span class="fl">0.05</span>, <span class="fl">30.0</span>).<span class="bu">all</span>(),</span>
+<span id="cb5-14"><a href="#cb5-14" aria-hidden="true" tabindex="-1"></a>    ]</span>
+<span id="cb5-15"><a href="#cb5-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-16"><a href="#cb5-16" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> dg.AssetCheckResult(</span>
+<span id="cb5-17"><a href="#cb5-17" aria-hidden="true" tabindex="-1"></a>        passed<span class="op">=</span><span class="bu">all</span>(checks),</span>
+<span id="cb5-18"><a href="#cb5-18" aria-hidden="true" tabindex="-1"></a>        metadata<span class="op">=</span>{<span class="st">"rows"</span>: public_minute_curated.height},</span>
+<span id="cb5-19"><a href="#cb5-19" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb5-20"><a href="#cb5-20" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-21"><a href="#cb5-21" aria-hidden="true" tabindex="-1"></a><span class="at">@dg.asset_check</span>(asset<span class="op">=</span>stockpile_replay)</span>
+<span id="cb5-22"><a href="#cb5-22" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> height_reconciliation(</span>
+<span id="cb5-23"><a href="#cb5-23" aria-hidden="true" tabindex="-1"></a>    stockpile_replay: pl.DataFrame</span>
+<span id="cb5-24"><a href="#cb5-24" aria-hidden="true" tabindex="-1"></a>) <span class="op">-&gt;</span> dg.AssetCheckResult:</span>
+<span id="cb5-25"><a href="#cb5-25" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""Publica métricas sin convertir un mal ajuste en un fallo de software."""</span></span>
+<span id="cb5-26"><a href="#cb5-26" aria-hidden="true" tabindex="-1"></a>    metrics <span class="op">=</span> agreement(</span>
+<span id="cb5-27"><a href="#cb5-27" aria-hidden="true" tabindex="-1"></a>        stockpile_replay[<span class="st">"simulated_height_m"</span>].to_numpy(),</span>
+<span id="cb5-28"><a href="#cb5-28" aria-hidden="true" tabindex="-1"></a>        stockpile_replay[<span class="st">"measured_height_m"</span>].to_numpy(),</span>
+<span id="cb5-29"><a href="#cb5-29" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb5-30"><a href="#cb5-30" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-31"><a href="#cb5-31" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> dg.AssetCheckResult(</span>
+<span id="cb5-32"><a href="#cb5-32" aria-hidden="true" tabindex="-1"></a>        passed<span class="op">=</span><span class="bu">bool</span>(np.isfinite(metrics.rmse)),</span>
+<span id="cb5-33"><a href="#cb5-33" aria-hidden="true" tabindex="-1"></a>        metadata<span class="op">=</span>{</span>
+<span id="cb5-34"><a href="#cb5-34" aria-hidden="true" tabindex="-1"></a>            <span class="st">"bias_m"</span>: metrics.bias,</span>
+<span id="cb5-35"><a href="#cb5-35" aria-hidden="true" tabindex="-1"></a>            <span class="st">"mae_m"</span>: metrics.mae,</span>
+<span id="cb5-36"><a href="#cb5-36" aria-hidden="true" tabindex="-1"></a>            <span class="st">"rmse_m"</span>: metrics.rmse,</span>
+<span id="cb5-37"><a href="#cb5-37" aria-hidden="true" tabindex="-1"></a>        },</span>
+<span id="cb5-38"><a href="#cb5-38" aria-hidden="true" tabindex="-1"></a>    )</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Los chequeos anteriores, formalmente, corresponden a los que se han publicado en este proyecto en <strong><font color="darkmagenta">Dagster</font></strong>. En particular, se distinguen entre bloqueantes y no bloqueantes según su impacto en el flujo de datos. Tenemos pues:</p>
 <ul>
-<li>recomputación acotada;</li>
-<li>observabilidad por período;</li>
-<li>paralelismo;</li>
-<li>backfills explícitos;</li>
-<li>fallos que no invalidan toda la historia.</li>
+<li>El primer chequeo corresponde a <code>minute_contract</code>, que es de tipo bloqueante. Permite detener el DAG si los datos no cumplen con los criterios de orden, nulidad y rango establecidos en el cuerpo de esta función.</li>
+<li>El segundo chequeo corresponde a <code>height_reconciliation</code>, que es de tipo no bloqueante. Publica métricas de ajuste sin detener el flujo de datos, permitiendo evaluar la calidad de los datos sin interrumpir la ejecución del DAG.</li>
 </ul>
-<p>La clave de partición debe ser semántica. Particionar cuadros por día no significa que la simulación pueda comenzar cada día desde cero: el estado debe fluir desde la partición previa o reconstruirse con calentamiento. El orquestador administra unidades de materialización; no elimina dependencias dinámicas del dominio.</p>
+<p>Notemos que, en el último chequeo, realizamos una conversión silenciosa entre un booleano de <strong><font color="darkmagenta">Numpy</font></strong> (<code>np.bool_</code>) a un booleano nativo de Python (<code>bool</code>). Esto es necesario, porque los metadatos y los resultados del orquestador requieren tipos serializables y contratos propios. Es decir, aunque <code>np.bool_</code> y <code>bool</code> representen lo mismo conceptualmente, el orquestador no puede manejar directamente tipos de <strong><font color="darkmagenta">Numpy</font></strong> en sus resultados y metadatos.</p>
 </section>
-<section id="comparación-con-kedro" class="level2">
-<h2 class="anchored" data-anchor-id="comparación-con-kedro">Comparación con <strong><font color="darkmagenta"><span class="kedro-brand">Kedro</span></font></strong></h2>
+<section id="administradores-de-entradasalida-o-io" class="level3">
+<h3 class="anchored" data-anchor-id="administradores-de-entradasalida-o-io">Administradores de entrada/salida (o I/O)</h3>
+<p>En <strong><font color="darkmagenta">Dagster</font></strong>, los administradores de entrada/salida (en inglés, <em>I/O managers</em>) constituyen la capa de abstracción encargada de definir cómo se cargan y almacenan los datos que fluyen entre los diferentes activos de datos que conforman nuestro DAG.</p>
+<p>Su propósito central es separar el código de cómputo del código de almacenamiento (denominado genéricamente como <strong>lógica de persistencia</strong>). En lugar de escribir instrucciones manualmente para guardar un archivo determinado en un disco local, en un servicio de data lake o en cualquier otro sistema o servicio de almacenamiento, dentro de una función, simplemente retornamos un objeto de Python (como un DataFrame) y delegamos la persistencia física al administrador de I/O correspondiente.</p>
+<p>Un administrador de I/O implementa, en general, dos operaciones fundamentales:</p>
+<ul>
+<li><code>load_input</code>: Se encarga de cargar los datos desde el almacenamiento físico hacia el entorno de ejecución del DAG.</li>
+<li><code>handle_output</code>: Se encarga de persistir los datos generados por un activo de datos en el almacenamiento físico correspondiente.</li>
+</ul>
+<p>Esto permite cambiar el entorno de almacenamiento (por ejemplo, usar un sistema de archivos local en un entorno de desarrollo o <code>dev</code> y moverlo a la nube en un entorno de testing o <code>uat</code>, o a producción o <code>prod</code>) modificando únicamente la configuración en las definiciones del proyecto, sin tocar una sola línea del código de nuestras transformaciones.</p>
+<p>A modo de ejemplo, consideremos el siguiente bloque de código:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> pandas <span class="im">as</span> pd</span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> dagster <span class="im">as</span> dg</span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> CsvIOManager(dg.ConfigurableIOManager):</span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>    path_prefix: <span class="bu">str</span>  <span class="co"># Propiedad configurable (por ejemplo, '/tmp/data').</span></span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> _get_path(<span class="va">self</span>, context) <span class="op">-&gt;</span> <span class="bu">str</span>:</span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a>        <span class="co"># Se genera una ruta utilizando el nombre identificador del activo.</span></span>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> <span class="ss">f"</span><span class="sc">{</span><span class="va">self</span><span class="sc">.</span>path_prefix<span class="sc">}</span><span class="ss">/</span><span class="sc">{</span>context<span class="sc">.</span>asset_key<span class="sc">.</span>path[<span class="op">-</span><span class="dv">1</span>]<span class="sc">}</span><span class="ss">.csv"</span></span>
+<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> handle_output(<span class="va">self</span>, context: dg.OutputContext, obj: pd.DataFrame):</span>
+<span id="cb6-12"><a href="#cb6-12" aria-hidden="true" tabindex="-1"></a>        <span class="co"># Lógica para escribir el archivo.</span></span>
+<span id="cb6-13"><a href="#cb6-13" aria-hidden="true" tabindex="-1"></a>        path <span class="op">=</span> <span class="va">self</span>._get_path(context)</span>
+<span id="cb6-14"><a href="#cb6-14" aria-hidden="true" tabindex="-1"></a>        obj.to_csv(path, index<span class="op">=</span><span class="va">False</span>)</span>
+<span id="cb6-15"><a href="#cb6-15" aria-hidden="true" tabindex="-1"></a>        context.log.info(<span class="ss">f"Datos guardados exitosamente en: </span><span class="sc">{</span>path<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb6-16"><a href="#cb6-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-17"><a href="#cb6-17" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> load_input(<span class="va">self</span>, context: dg.InputContext) <span class="op">-&gt;</span> pd.DataFrame:</span>
+<span id="cb6-18"><a href="#cb6-18" aria-hidden="true" tabindex="-1"></a>        <span class="co"># Lógica para leer el archivo desde el activo aguas arriba.</span></span>
+<span id="cb6-19"><a href="#cb6-19" aria-hidden="true" tabindex="-1"></a>        path <span class="op">=</span> <span class="va">self</span>._get_path(context)</span>
+<span id="cb6-20"><a href="#cb6-20" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> pd.read_csv(path)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Hemos creado un administrador de I/O personalizado para manejar la persistencia de activos de datos en archivos CSV, denominado explícitamente <code>CsvIOManager</code>. Este objeto hereda las propiedades y métodos de la clase base <code>ConfigurableIOManager</code> de <strong><font color="darkmagenta">Dagster</font></strong>, permitiendo definir rutas de almacenamiento y gestionar la lectura y escritura de datos de manera consistente. Hemos equipado a este objeto de tres métodos, uno de uso interno, deniminado <code>_get_path()</code>, y dos de uso externo, <code>handle_output()</code> y <code>load_input()</code>, conforme la <em>receta</em> típica de <strong><font color="darkmagenta">Dagster</font></strong>.</p>
+</section>
+</section>
+<section id="comparativa-rápida-con-kedro" class="level2">
+<h2 class="anchored" data-anchor-id="comparativa-rápida-con-kedro">Comparativa rápida con <strong><font color="darkmagenta"><span class="kedro-brand">Kedro</span></font></strong></h2>
+<p>A modo de resumen, mostraremos en la siguiente tabla una comparativa rápida entre <strong><font color="darkmagenta"><span class="kedro-brand">Kedro</span></font></strong> y <strong><font color="darkmagenta">Dagster</font></strong> en el contexto de los proyectos publicados en el blog.</p>
 <table class="caption-top table">
 <colgroup>
 <col style="width: 33%">
@@ -537,176 +675,294 @@ BinaryFrameIOManager -&gt; cuadros cuantizados</code></pre>
 </colgroup>
 <thead>
 <tr class="header">
-<th>Tema</th>
-<th><strong><font color="darkmagenta"><span class="kedro-brand">Kedro</span></font></strong> en forecasting</th>
-<th><strong><font color="darkmagenta">Dagster</font></strong> aquí</th>
+<th style="text-align: left;">Tema</th>
+<th style="text-align: left;"><strong><font color="darkmagenta"><span class="kedro-brand">Kedro</span></font></strong> en el proyecto Bayesiano</th>
+<th style="text-align: left;"><strong><font color="darkmagenta">Dagster</font></strong> en modelo de stockpile</th>
 </tr>
 </thead>
 <tbody>
 <tr class="odd">
-<td>Unidad primaria</td>
-<td>nodo/pipeline</td>
-<td>activo</td>
+<td style="text-align: left;">Unidad primaria.</td>
+<td style="text-align: left;">Nodos y pipelines.</td>
+<td style="text-align: left;">Activos de datos.</td>
 </tr>
 <tr class="even">
-<td>Grafo</td>
-<td>composición explícita</td>
-<td>dependencias por firma/defs</td>
+<td style="text-align: left;">DAG.</td>
+<td style="text-align: left;">Composición explícita de entradas y salidas.</td>
+<td style="text-align: left;">Dependencias por firma/definición de activos.</td>
 </tr>
 <tr class="odd">
-<td>Persistencia</td>
-<td><code>DataCatalog</code></td>
-<td>IO managers</td>
+<td style="text-align: left;">Persistencia.</td>
+<td style="text-align: left;">Catálogo de datos de <strong><font color="darkmagenta"><span class="kedro-brand">Kedro</span></font></strong>.</td>
+<td style="text-align: left;">Administradores de I/O de <strong><font color="darkmagenta">Dagster</font></strong>.</td>
 </tr>
 <tr class="even">
-<td>Parámetros</td>
-<td>configuración YAML</td>
-<td>config, recursos y contratos</td>
+<td style="text-align: left;">Parámetros.</td>
+<td style="text-align: left;">Configuración en diccionario <code>yaml</code>.</td>
+<td style="text-align: left;">Configuración <code>toml</code> + contratos específicos.</td>
 </tr>
 <tr class="odd">
-<td>Calidad</td>
-<td>nodos/pruebas/hooks</td>
-<td>asset checks de primera clase</td>
+<td style="text-align: left;">Calidad.</td>
+<td style="text-align: left;">Nodos + pruebas + <em>hooks</em>.</td>
+<td style="text-align: left;">Chequeos de activos de primera clase.</td>
 </tr>
 <tr class="even">
-<td>UI</td>
-<td><strong><font color="darkmagenta"><span class="kedro-brand">Kedro-Viz</span></font></strong></td>
-<td><strong><font color="darkmagenta">Dagster UI</font></strong></td>
+<td style="text-align: left;">Interfaz de usuario.</td>
+<td style="text-align: left;">DAG interactivo en <code>kedro-viz</code>.</td>
+<td style="text-align: left;">DAG interactivo en <strong><font color="darkmagenta">Dagster</font></strong> webserver y UI.</td>
 </tr>
 <tr class="odd">
-<td>Particiones/backfills</td>
-<td>posibles, menos centrales</td>
-<td>primitivas centrales</td>
+<td style="text-align: left;">Particiones y <em>backfills</em>.</td>
+<td style="text-align: left;">Posibles, aunque menos centrales.</td>
+<td style="text-align: left;">Primitivas centrales.</td>
 </tr>
 <tr class="even">
-<td>Operación</td>
-<td>pipeline runs</td>
-<td>materializaciones de activos</td>
+<td style="text-align: left;">Operación.</td>
+<td style="text-align: left;">Ejecución de pipelines.</td>
+<td style="text-align: left;">Materializaciones de activos.</td>
 </tr>
 <tr class="odd">
-<td>Dominio puro</td>
-<td>natural en nodos</td>
-<td>requiere disciplina para no acoplar assets</td>
+<td style="text-align: left;">Dominio puro.</td>
+<td style="text-align: left;">Natural en nodos.</td>
+<td style="text-align: left;">Requiere disciplina para no acoplar activos de datos.</td>
 </tr>
 </tbody>
 </table>
-<p><strong><font color="darkmagenta"><span class="kedro-brand">Kedro</span></font></strong> hace especialmente claro el flujo de funciones y datasets. <strong><font color="darkmagenta">Dagster</font></strong> hace especialmente claro qué activos existen, cuándo se materializaron, qué checks aprobaron y cómo reejecutar particiones.</p>
-</section>
-<section id="comparación-ex-post-con-el-proyecto-bayesiano" class="level2">
-<h2 class="anchored" data-anchor-id="comparación-ex-post-con-el-proyecto-bayesiano">Comparación ex post con el proyecto bayesiano</h2>
-<p>El forecasting ex post tenía cuatro pipelines y un producto final que dependía de ingeniería, ciencia de datos, inferencia y reporting. La secuencia era relativamente acíclica y por lotes; leerla como pipeline era natural.</p>
-<p>El autómata agrega condiciones operacionales diferentes:</p>
-<ul>
-<li>historia incremental y particionada;</li>
-<li>estado que persiste entre ventanas;</li>
-<li>cuadros diarios numerosos;</li>
-<li>checks geométricos por materialización;</li>
-<li>necesidad de inspeccionar activos y degradaciones de entrada;</li>
-<li>consumidores distintos para tablas, estado y visor.</li>
-</ul>
-<p>Por ello el enfoque de activos resulta atractivo. No porque el problema sea “más moderno”, sino porque sus preguntas operacionales son “qué estado está materializado y bajo qué checks” más que “qué pipeline completa ejecuté”.</p>
-</section>
-<section id="el-papel-deliberado-de-pydantic" class="level2">
-<h2 class="anchored" data-anchor-id="el-papel-deliberado-de-pydantic">El papel deliberado de <strong><font color="darkmagenta">Pydantic</font></strong></h2>
-<p><strong><font color="darkmagenta">Dagster</font></strong> incluye un sistema de configuración y tipos. Aun así mantenemos <strong><font color="darkmagenta">Pydantic</font></strong> en el dominio para que los contratos puedan:</p>
-<ul>
-<li>construirse desde una CLI, una prueba o un notebook sin runtime de orquestación;</li>
-<li>ser inmutables y reutilizables;</li>
-<li>expresar relaciones físicas;</li>
-<li>mantener independencia tecnológica.</li>
-</ul>
-<p>El activo recibe un <code>SimulationSpec</code>; no redefine el significado del ángulo o de la grilla. Esta separación evita que cambiar de orquestador obligue a reescribir el dominio.</p>
-</section>
-<section id="selección-y-ejecución" class="level2">
-<h2 class="anchored" data-anchor-id="selección-y-ejecución">Selección y ejecución</h2>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="bu">export</span> <span class="va">DAGSTER_HOME</span><span class="op">=</span><span class="st">"</span><span class="va">$PWD</span><span class="st">/.dagster_home"</span></span>
-<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="ex">uv</span> run dagster asset materialize <span class="at">--select</span> <span class="st">'*'</span> <span class="at">-m</span> stockpile_ca.definitions</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>En la versión instalada, la CLI advierte que el comando clásico está siendo supersedido por <code>dg launch</code>. El README conserva la forma compatible con el entorno del proyecto, pero una actualización debe revisar la CLI oficial y fijar versiones. Éste es un ejemplo de por qué la reproducibilidad incluye <code>uv.lock</code>, no sólo código.</p>
-</section>
-<section id="evitar-lógica-científica-en-assets" class="level2">
-<h2 class="anchored" data-anchor-id="evitar-lógica-científica-en-assets">Evitar lógica científica en assets</h2>
-<p>Es tentador implementar todo dentro de la función decorada. Eso vuelve cómoda la UI y difícil la prueba. El patrón preferido es:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="at">@dg.asset</span></span>
-<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> stockpile_replay(public_minute_curated: pl.DataFrame) <span class="op">-&gt;</span> pl.DataFrame:</span>
-<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>    spec <span class="op">=</span> load_spec()</span>
-<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> replay(public_minute_curated, spec)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p><code>replay</code> pertenece al dominio o a una capa de aplicación ordinaria. El asset resuelve dependencias, contexto, metadata y persistencia. Esta disciplina conserva la ventaja de nodos puros que apreciamos en <strong><font color="darkmagenta"><span class="kedro-brand">Kedro</span></font></strong>.</p>
-</section>
-<section id="cuándo-elegir-cada-enfoque" class="level2">
-<h2 class="anchored" data-anchor-id="cuándo-elegir-cada-enfoque">Cuándo elegir cada enfoque</h2>
-<p>Preferiría <strong><font color="darkmagenta"><span class="kedro-brand">Kedro</span></font></strong> cuando el equipo razona en pipelines reproducibles de ciencia de datos, el catálogo es la frontera principal y una estructura convencional reduce variación. Preferiría <strong><font color="darkmagenta">Dagster</font></strong> cuando particiones, materializaciones, checks, múltiples consumidores y operación diaria de activos son centrales.</p>
-<p>En ambos casos exigiría:</p>
-<ul>
-<li>funciones de dominio importables;</li>
-<li>configuración versionada sin secretos;</li>
-<li>pruebas fuera del orquestador;</li>
-<li>contratos de datos explícitos;</li>
-<li>trazabilidad entre insumo y producto;</li>
-<li>una UI como ayuda de inspección, no como única documentación.</li>
-</ul>
-<div class="callout callout-style-default callout-note callout-titled" title="La herramienta no sustituye al diseño">
+<p>La librería <strong><font color="darkmagenta"><span class="kedro-brand">Kedro</span></font></strong> se centra en la claridad del flujo de funciones y <em>datasets</em>, facilitando la comprensión de cómo los datos se transforman a lo largo del pipeline. Por otro lado, <strong><font color="darkmagenta">Dagster</font></strong> se enfoca en la gestión de activos de datos, proporcionando visibilidad sobre cuándo se materializan, qué chequeos han pasado y cómo se pueden re-ejecutar particiones.</p>
+<div class="callout callout-style-default callout-note callout-titled">
 <div class="callout-header d-flex align-content-center">
 <div class="callout-icon-container">
 <i class="callout-icon"></i>
 </div>
 <div class="callout-title-container flex-fill">
-<span class="screen-reader-only">Note</span>La herramienta no sustituye al diseño
+<span class="screen-reader-only">Note</span>¿Qué son lops <em>hooks</em> en <strong><font color="darkmagenta"><span class="kedro-brand">Kedro</span></font></strong>?
 </div>
 </div>
 <div class="callout-body-container callout-body">
-<p>Es posible construir un monolito acoplado dentro de <strong><font color="darkmagenta">Dagster</font></strong> y un sistema modular con <strong><font color="darkmagenta"><span class="kedro-brand">Kedro</span></font></strong>, o al revés. La comparación útil se hace sobre primitivas y costos operacionales, no sobre capturas de pantalla del DAG.</p>
+<p>Algo que no revisamos en el proyecto de modelamiento Bayesiano de tratamiento de molienda fue el uso de <em>hooks</em> en <strong><font color="darkmagenta"><span class="kedro-brand">Kedro</span></font></strong>. Los <em>hooks</em> son funciones que se ejecutan en momentos específicos del ciclo de vida de una pipeline, permitiendo realizar acciones adicionales como validaciones, logging o modificaciones de datos sin alterar la lógica principal de los nodos.</p>
+<p>Consideremos el siguiente bloque de código a modo de ejemplo:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> kedro.framework.hooks <span class="im">import</span> hook_impl</span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> MyHook:</span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>    <span class="at">@hook_impl</span></span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> before_node_run(<span class="va">self</span>, node, inputs):</span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a>        <span class="bu">print</span>(<span class="ss">f"Running node </span><span class="sc">{</span>node<span class="sc">.</span>name<span class="sc">}</span><span class="ss"> with inputs </span><span class="sc">{</span>inputs<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a>    <span class="at">@hook_impl</span></span>
+<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> after_node_run(<span class="va">self</span>, node, outputs):</span>
+<span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a>        <span class="bu">print</span>(<span class="ss">f"Finished node </span><span class="sc">{</span>node<span class="sc">.</span>name<span class="sc">}</span><span class="ss"> with outputs </span><span class="sc">{</span>outputs<span class="sc">}</span><span class="ss">"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Hemos defininido un <em>hook</em> personalizado llamado <code>MyHook</code> que imprime mensajes antes y después de la ejecución de cada nodo. Para que este <em>hook</em> tenga efecto, debemos registrarlo en el proyecto de <strong><font color="darkmagenta"><span class="kedro-brand">Kedro</span></font></strong>, generalmente en el archivo <code>settings.py</code>:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> .hooks <span class="im">import</span> MyHook</span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>HOOKS <span class="op">=</span> (MyHook(),)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>El <em>hook</em> se compone de dos métodos: <code>before_node_run</code>, que se ejecuta antes de que un nodo comience a ejecutarse, y <code>after_node_run</code>, que se ejecuta después de que un nodo ha terminado su ejecución. <strong><font color="darkmagenta"><span class="kedro-brand">Kedro</span></font></strong> hace uso del decorador <code>@hook_impl</code> para marcar los métodos que deben ser tratados como <em>hooks</em>, a fin de darle claridad y estructura al ciclo de vida de cualquier pipeline.</p>
 </div>
 </div>
 </section>
-<section id="recorrido-web-del-asset-graph" class="level2">
-<h2 class="anchored" data-anchor-id="recorrido-web-del-asset-graph">Recorrido web del Asset Graph</h2>
-<p>La siguiente vista se genera desde el grafo que <strong><font color="darkmagenta">Dagster</font></strong> resuelve en <code>Definitions</code>. Los activos, grupos, tipos, checks y dependencias no se mantienen en una segunda lista manual. El script <code>build_dagster_snapshot.py</code> llama <code>defs.resolve_asset_graph()</code>, recorre los niveles topológicos y construye un artefacto web estático.</p>
+<section id="por-qué-usamos-dagster-en-este-proyecto" class="level2">
+<h2 class="anchored" data-anchor-id="por-qué-usamos-dagster-en-este-proyecto">¿Por qué usamos <strong><font color="darkmagenta">Dagster</font></strong> en este proyecto?</h2>
+<p>El <a href="../bayesian-tph-forecasting/">proyecto de inferencia Bayesiana <em>ex post</em></a> publicado previamente en el blog está constituido por cuatro pipelines principales y un producto principal en la forma de un reporte interactivo con base en <strong><font color="darkmagenta">Plotly</font></strong>. Tales pipelines constituyen flujos de ingeniería, ciencia de datos, inferencia Bayesiana y reportabilidad. Su secuenciamiento es relativamente acíclico y por lotes (es decir, se ejecutan en bloques discretos de tiempo y no dependen de la ejecución continua de otros pipelines). Por lo tanto, su lectura como pipeline en <strong><font color="darkmagenta"><span class="kedro-brand">Kedro</span></font></strong> resulta natural.</p>
+<p>Nuestro autómata celular para modelar un stockpile de mineral intermedio en este proyecto presenta un flujo de datos más dinámico y dependiente del estado, lo que hace que la orquestación basada en activos de <strong><font color="darkmagenta">Dagster</font></strong> sea particularmente adecuada. Las condiciones operacionales del autómata son muy diferentes del modelo Bayesiano:</p>
+<ul>
+<li>La historia de los datos se construye de manera incremental y particionada.</li>
+<li>El estado del sistema persiste entre ventanas de tiempo.</li>
+<li>Se generan cuadros diarios numerosos que deben ser procesados y almacenados.</li>
+<li>La reejecución de partes del pipeline debe ser eficiente y selectiva.</li>
+<li>La trazabilidad de los activos es crucial para entender el impacto de cada ejecución.</li>
+</ul>
+<p>La razón por la cual el estructuramiento de los pipelines en términos de activos resulta ventajoso en este proyecto es que permite un seguimiento más granular del estado del sistema, facilita la reejecución selectiva de partes del pipeline y asegura la trazabilidad de los datos a lo largo del tiempo. Esto es especialmente importante dado que nuestro autómata celular genera grandes volúmenes de datos diarios y mantiene un estado persistente entre ventanas de tiempo.</p>
+</section>
+<section id="asociación-con-pydantic" class="level2">
+<h2 class="anchored" data-anchor-id="asociación-con-pydantic">Asociación con <strong><font color="darkmagenta">Pydantic</font></strong></h2>
+<p>Si bien <strong><font color="darkmagenta">Dagster</font></strong> incluye la posibilidad de definir un sistema de configuración y tipos de manera nativa, optamos por mantener <strong><font color="darkmagenta">Pydantic</font></strong> en el dominio para aprovechar sus capacidades de validación, inmutabilidad y expresividad de relaciones físicas. El uso de esta última librería permite que los contratos de validación puedan:</p>
+<ul>
+<li>Construirse desde una interfaz de línea de comandos (o CLI), una prueba sencilla o un notebook de Jupyter, sin la necesidad de un <em>runtime</em> de orquestación (donde, con <em>runtime</em>, nos referimos al entorno de ejecución de <strong><font color="darkmagenta">Dagster</font></strong>).</li>
+<li>Ser inmutables y reutilizables.</li>
+<li>Expresar relaciones físicas.</li>
+<li>Mantener independencia tecnológica.</li>
+</ul>
+<p>En el contrato de validación principal de <strong><font color="darkmagenta">Pydantic</font></strong>, definimos el objeto <code>SimulationSpec</code>:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb9"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> pydantic</span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> pydantic <span class="im">import</span> BaseModel, model_validator</span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a><span class="co">"""</span></span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a><span class="co">Este bloque es un extracto de un contrato mucho más amplio, en el cual se han</span></span>
+<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a><span class="co">definido otros objetos estructurales que alimentan a `SimulationSpec`, tales</span></span>
+<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a><span class="co">como `GridSpec`, `StockpileSpec`, `SegregationSpec`, `ConveyorSpec` y `FeederSpec`.</span></span>
+<span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a><span class="co">El "sufijo" `Spec` indica que se trata de un contrato de especificación detallada</span></span>
+<span id="cb9-9"><a href="#cb9-9" aria-hidden="true" tabindex="-1"></a><span class="co">para cada componente del sistema.</span></span>
+<span id="cb9-10"><a href="#cb9-10" aria-hidden="true" tabindex="-1"></a><span class="co">"""</span></span>
+<span id="cb9-11"><a href="#cb9-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-12"><a href="#cb9-12" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> SimulationSpec(ImmutableContract):</span>
+<span id="cb9-13"><a href="#cb9-13" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""Contrato agregado consumido por el núcleo y por los activos."""</span></span>
+<span id="cb9-14"><a href="#cb9-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-15"><a href="#cb9-15" aria-hidden="true" tabindex="-1"></a>    grid: GridSpec <span class="co"># Especificación de la retícula.</span></span>
+<span id="cb9-16"><a href="#cb9-16" aria-hidden="true" tabindex="-1"></a>    stockpile: StockpileSpec <span class="co"># Especificación del stockpile.</span></span>
+<span id="cb9-17"><a href="#cb9-17" aria-hidden="true" tabindex="-1"></a>    segregation: SegregationSpec <span class="co"># Especificación de la segregación.</span></span>
+<span id="cb9-18"><a href="#cb9-18" aria-hidden="true" tabindex="-1"></a>    conveyor: ConveyorSpec <span class="op">|</span> <span class="va">None</span> <span class="op">=</span> <span class="va">None</span> <span class="co"># Especificación de la correa transportadora.</span></span>
+<span id="cb9-19"><a href="#cb9-19" aria-hidden="true" tabindex="-1"></a>    feeders: <span class="bu">tuple</span>[FeederSpec, ...] <span class="co"># Especificación de los feeders.</span></span>
+<span id="cb9-20"><a href="#cb9-20" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-21"><a href="#cb9-21" aria-hidden="true" tabindex="-1"></a>    <span class="at">@model_validator</span>(mode<span class="op">=</span><span class="st">"after"</span>)</span>
+<span id="cb9-22"><a href="#cb9-22" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> geometry_is_self_consistent(<span class="va">self</span>) <span class="op">-&gt;</span> Self:</span>
+<span id="cb9-23"><a href="#cb9-23" aria-hidden="true" tabindex="-1"></a>        <span class="cf">if</span> <span class="bu">len</span>(<span class="va">self</span>.feeders) <span class="op">!=</span> <span class="dv">6</span>:</span>
+<span id="cb9-24"><a href="#cb9-24" aria-hidden="true" tabindex="-1"></a>            <span class="cf">raise</span> <span class="pp">ValueError</span>(</span>
+<span id="cb9-25"><a href="#cb9-25" aria-hidden="true" tabindex="-1"></a>                <span class="st">"La demostracion publica requiere seis alimentadores"</span></span>
+<span id="cb9-26"><a href="#cb9-26" aria-hidden="true" tabindex="-1"></a>            )</span>
+<span id="cb9-27"><a href="#cb9-27" aria-hidden="true" tabindex="-1"></a>        <span class="cf">for</span> feeder <span class="kw">in</span> <span class="va">self</span>.feeders:</span>
+<span id="cb9-28"><a href="#cb9-28" aria-hidden="true" tabindex="-1"></a>            <span class="cf">if</span> feeder.east <span class="op">&gt;=</span> <span class="va">self</span>.grid.n_east <span class="kw">or</span> feeder.north <span class="op">&gt;=</span> <span class="va">self</span>.grid.n_north:</span>
+<span id="cb9-29"><a href="#cb9-29" aria-hidden="true" tabindex="-1"></a>                <span class="cf">raise</span> <span class="pp">ValueError</span>(</span>
+<span id="cb9-30"><a href="#cb9-30" aria-hidden="true" tabindex="-1"></a>                    <span class="ss">f"</span><span class="sc">{</span>feeder<span class="sc">.</span>name<span class="sc">}</span><span class="ss"> queda fuera de la grilla"</span></span>
+<span id="cb9-31"><a href="#cb9-31" aria-hidden="true" tabindex="-1"></a>                )</span>
+<span id="cb9-32"><a href="#cb9-32" aria-hidden="true" tabindex="-1"></a>        available_height <span class="op">=</span> <span class="va">self</span>.grid.n_vertical <span class="op">*</span> <span class="va">self</span>.grid.cell_size_m</span>
+<span id="cb9-33"><a href="#cb9-33" aria-hidden="true" tabindex="-1"></a>        <span class="cf">if</span> <span class="va">self</span>.stockpile.design_height_m <span class="op">&gt;=</span> available_height:</span>
+<span id="cb9-34"><a href="#cb9-34" aria-hidden="true" tabindex="-1"></a>            <span class="cf">raise</span> <span class="pp">ValueError</span>(</span>
+<span id="cb9-35"><a href="#cb9-35" aria-hidden="true" tabindex="-1"></a>                <span class="st">"La altura de diseno debe dejar al menos una celda vertical libre"</span></span>
+<span id="cb9-36"><a href="#cb9-36" aria-hidden="true" tabindex="-1"></a>            )</span>
+<span id="cb9-37"><a href="#cb9-37" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> <span class="va">self</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Este objeto permite validar la consistencia geométrica y las restricciones de diseño de la simulación antes de su ejecución. El decorador <code>@model_validator(mode="after")</code> asegura que la validación se realice después de la construcción del objeto. Las validaciones internas comprueban que los alimentadores estén dentro de la grilla y que la altura del stockpile no exceda la capacidad disponible.</p>
+<p>La separación entre la definición de la simulación y la orquestación permite mantener un dominio limpio y desacoplado, facilitando la reutilización y prueba de los componentes individuales.</p>
+</section>
+<section id="cómo-seleccionamos-activos-y-los-ejecutamos-en-dagster" class="level2">
+<h2 class="anchored" data-anchor-id="cómo-seleccionamos-activos-y-los-ejecutamos-en-dagster">¿Cómo seleccionamos activos y los ejecutamos en <strong><font color="darkmagenta">Dagster</font></strong>?</h2>
+<p>Cuando hacemos uso de <strong><font color="darkmagenta"><span class="kedro-brand">Kedro</span></font></strong> para darle estructura a un proyecto de data science, la ejecución de las pipelines y/o nodos se realiza por medio de una CLI dedicada, con comandos en <code>bash</code> como los que se muestran a continuación:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb10"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Ejemplo de ejecución de un nodo en Kedro.</span></span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a><span class="ex">uv</span> run kedro run <span class="at">--node</span> <span class="op">&lt;</span>nombre_del_nodo<span class="op">&gt;</span></span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Ejemplo de ejecución de una pipeline en Kedro.</span></span>
+<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a><span class="ex">uv</span> run kedro run <span class="at">--pipeline</span> <span class="op">&lt;</span>nombre_de_la_pipeline<span class="op">&gt;</span></span>
+<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a><span class="co"># Ejemplo de ejecución de toda la pipeline en Kedro.</span></span>
+<span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a><span class="ex">uv</span> run kedro run</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Notemos que, previo a la ejecución de cualquier comando de <span class="kedro-brand">Kedro</span>, es importante asegurarse de que el entorno de ejecución esté correctamente configurado y que todas las dependencias necesarias estén instaladas. En el bloque de código anterior, hemos antepuesto <code>uv run</code> para garantizar que los comandos se ejecuten dentro del entorno de <code>uvicorn</code>.</p>
+<p>En <strong><font color="darkmagenta">Dagster</font></strong>, la ejecución de activos y pipelines se realiza a través de su propia CLI, que permite seleccionar y materializar activos específicos, así como lanzar pipelines completas. Esto proporciona un control más fino sobre la orquestación de los componentes del proyecto en comparación con <strong><font color="darkmagenta"><span class="kedro-brand">Kedro</span></font></strong>.</p>
+<p>Consideremos el siguiente ejemplo:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb11"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Configuración del entorno de Dagster.</span></span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a><span class="bu">export</span> <span class="va">DAGSTER_HOME</span><span class="op">=</span><span class="st">"</span><span class="va">$PWD</span><span class="st">/.dagster_home"</span></span>
+<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Ejecución de un activo de datos en Dagster.</span></span>
+<span id="cb11-5"><a href="#cb11-5" aria-hidden="true" tabindex="-1"></a><span class="ex">uv</span> run dagster asset materialize <span class="at">--select</span> <span class="st">'*'</span> <span class="at">-m</span> stockpile_ca.definitions</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Notemos que, a diferencia de <strong><font color="darkmagenta"><span class="kedro-brand">Kedro</span></font></strong>, en <strong><font color="darkmagenta">Dagster</font></strong> solemos configurar previamente el entorno de ejecución a través de la variable de entorno <code>DAGSTER_HOME</code> antes de materializar cualquier activo. Esto asegura que <strong><font color="darkmagenta">Dagster</font></strong> utilice un directorio específico para almacenar su configuración y metadatos, lo que facilita la reproducibilidad y el aislamiento del entorno de ejecución. La sintaxis de ejecución de activos es muy sencilla: Partimos con <code>dagster asset materialize</code> para indicar que materializaremos un determinado activo de datos, y luego continuamos con la selección de los activos específicos mediante la opción <code>--select</code>. Por ejemplo, <code>--select '*'</code> selecciona todos los activos disponibles. La adición de <code>-m stockpile_ca.definitions</code> indica el módulo donde se encuentran definidos los activos a materializar.</p>
+<div class="callout callout-style-default callout-important callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Important</span>Entonces… ¿Cuándo elegir <strong><font color="darkmagenta"><span class="kedro-brand">Kedro</span></font></strong>, <strong><font color="darkmagenta">Dagster</font></strong> u otro orquestador?
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>La elección entre <strong><font color="darkmagenta"><span class="kedro-brand">Kedro</span></font></strong> y <strong><font color="darkmagenta">Dagster</font></strong> depende de las necesidades específicas del proyecto y del equipo. Aquí hay algunas pautas generales:</p>
+<ul>
+<li>Elige <strong><font color="darkmagenta"><span class="kedro-brand">Kedro</span></font></strong> si tu enfoque principal es la construcción de pipelines reproducibles de ciencia de datos con un fuerte énfasis en la estructura del catálogo de datos y la convención sobre la configuración.</li>
+<li>Elige <strong><font color="darkmagenta">Dagster</font></strong> si necesitas un control más fino sobre la orquestación de activos, incluyendo particiones, materializaciones, checks, múltiples consumidores y operación diaria de activos.</li>
+</ul>
+<p>¿Hay más alternativas de uso masivo en el mercado? La respuesta es, naturalmente, que sí. Por ejemplo, <strong><font color="darkmagenta">Airflow</font></strong> es otra opción popular para la orquestación de pipelines, especialmente cuando se requiere una programación compleja y una integración con múltiples sistemas externos. Se trata de una herramienta con fuerte enfoque en patrones de diseño de flujo de trabajo y dependencias entre tareas, propio de los ingenieros de datos. En lo personal, tengo serios problemas entendiendo su configuración y operación diaria, lo que refuerza mi preferencia por herramientas más amables con usuarios menos asiduos a la programación pura y dura. Quizás, por esto mismo, suelo resolver la orquestación de proyectos entre herramientas muy interactivas, como <strong><font color="darkmagenta"><span class="kedro-brand">Kedro</span></font></strong> y <strong><font color="darkmagenta">Dagster</font></strong> (aunque, a juicio personal, creo que siguen siendo bastante <em>low level</em>).</p>
+</div>
+</div>
+</section>
+<section id="visualización-del-dag-en-dagster-webserver" class="level2">
+<h2 class="anchored" data-anchor-id="visualización-del-dag-en-dagster-webserver">Visualización del DAG en <strong><font color="darkmagenta">Dagster</font></strong> Webserver</h2>
+<p>Para levantar el servidor web de <strong><font color="darkmagenta">Dagster</font></strong> y visualizar el DAG de los activos, solemos utilizar un servidor local provisto por la propia librería denominado <strong><font color="darkmagenta">Dagster</font></strong> Webserver. Esta herramienta permite explorar interactivamente los activos, sus dependencias y el linaje de datos, facilitando la comprensión de la arquitectura del proyecto.</p>
+<p>El comando básico para iniciar el servidor web, directamente en la CLI de <strong><font color="darkmagenta">Dagster</font></strong>, es</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb12"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="ex">dg</span> dev</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<section id="integración-del-webserver-en-este-humilde-blog" class="level3">
+<h3 class="anchored" data-anchor-id="integración-del-webserver-en-este-humilde-blog">Integración del Webserver en este humilde blog</h3>
+<p>Para integrar el servidor web de <strong><font color="darkmagenta">Dagster</font></strong> con nuestro proyecto, debemos asegurarnos de tener correctamente configurado el entorno y las definiciones de los activos. Esto incluye establecer la variable de entorno <code>DAGSTER_HOME</code> y la construcción de un módulo dedicado, a fin de que el servidor pueda localizar y cargar todas las definiciones necesarias para representar el DAG de los activos de manera precisa.</p>
+<p>Puntualmente, definimos un <a href="./scripts/build_dagster_snapshot.py">script</a> denominado <code>build_dagster_snapshot.py</code> que se encarga de construir una instantánea del DAG de los activos, permitiendo su visualización en el servidor web de <strong><font color="darkmagenta">Dagster</font></strong>. La visualización <em>per se</em> se construye por medio de código HTML embebido en un archivo estático que luego es servido en nuestro navegador. El que usamos en el proyecto es un <em>blueprint</em> relativamente sencillo.</p>
+<p>En el siguiente bloque de código se presenta un ejemplo de cómo construir la carga útil (del inglés <em>payload</em>) que representa los activos, chequeos y dependencias del DAG resuelto por <strong><font color="darkmagenta">Dagster</font></strong>. Esta información es utilizada posteriormente para generar la visualización en el servidor web de forma posterior, usando una función denominada <code>build()</code>, que es donde precisamente hacemos uso de código HTML embebido:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb13"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> __future__ <span class="im">import</span> annotations</span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> json</span>
+<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> sys</span>
+<span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> pathlib <span class="im">import</span> Path</span>
+<span id="cb13-6"><a href="#cb13-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-7"><a href="#cb13-7" aria-hidden="true" tabindex="-1"></a>ROOT <span class="op">=</span> Path(<span class="va">__file__</span>).parents[<span class="dv">1</span>]</span>
+<span id="cb13-8"><a href="#cb13-8" aria-hidden="true" tabindex="-1"></a>sys.path.insert(<span class="dv">0</span>, <span class="bu">str</span>(ROOT <span class="op">/</span> <span class="st">"src"</span>))</span>
+<span id="cb13-9"><a href="#cb13-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-10"><a href="#cb13-10" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> stockpile_ca.definitions <span class="im">import</span> defs</span>
+<span id="cb13-11"><a href="#cb13-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-12"><a href="#cb13-12" aria-hidden="true" tabindex="-1"></a>OUTPUT <span class="op">=</span> ROOT <span class="op">/</span> <span class="st">"dagster"</span> <span class="op">/</span> <span class="st">"index.html"</span></span>
+<span id="cb13-13"><a href="#cb13-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-14"><a href="#cb13-14" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> build_payload() <span class="op">-&gt;</span> <span class="bu">dict</span>[<span class="bu">str</span>, <span class="bu">object</span>]:</span>
+<span id="cb13-15"><a href="#cb13-15" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""Extrae activos, checks y dependencias desde el grafo resuelto por Dagster."""</span></span>
+<span id="cb13-16"><a href="#cb13-16" aria-hidden="true" tabindex="-1"></a>    graph <span class="op">=</span> defs.resolve_asset_graph()</span>
+<span id="cb13-17"><a href="#cb13-17" aria-hidden="true" tabindex="-1"></a>    assets: <span class="bu">list</span>[<span class="bu">dict</span>[<span class="bu">str</span>, <span class="bu">object</span>]] <span class="op">=</span> []</span>
+<span id="cb13-18"><a href="#cb13-18" aria-hidden="true" tabindex="-1"></a>    checks: <span class="bu">list</span>[<span class="bu">dict</span>[<span class="bu">str</span>, <span class="bu">object</span>]] <span class="op">=</span> []</span>
+<span id="cb13-19"><a href="#cb13-19" aria-hidden="true" tabindex="-1"></a>    edges: <span class="bu">list</span>[<span class="bu">dict</span>[<span class="bu">str</span>, <span class="bu">str</span>]] <span class="op">=</span> []</span>
+<span id="cb13-20"><a href="#cb13-20" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-21"><a href="#cb13-21" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> level, keys <span class="kw">in</span> <span class="bu">enumerate</span>(graph.toposorted_asset_keys_by_level):</span>
+<span id="cb13-22"><a href="#cb13-22" aria-hidden="true" tabindex="-1"></a>        <span class="cf">for</span> key <span class="kw">in</span> <span class="bu">sorted</span>(keys, key<span class="op">=</span><span class="kw">lambda</span> item: item.to_user_string()):</span>
+<span id="cb13-23"><a href="#cb13-23" aria-hidden="true" tabindex="-1"></a>            node <span class="op">=</span> graph.get(key)</span>
+<span id="cb13-24"><a href="#cb13-24" aria-hidden="true" tabindex="-1"></a>            name <span class="op">=</span> key.to_user_string()</span>
+<span id="cb13-25"><a href="#cb13-25" aria-hidden="true" tabindex="-1"></a>            assets.append(</span>
+<span id="cb13-26"><a href="#cb13-26" aria-hidden="true" tabindex="-1"></a>                {</span>
+<span id="cb13-27"><a href="#cb13-27" aria-hidden="true" tabindex="-1"></a>                    <span class="st">"id"</span>: name,</span>
+<span id="cb13-28"><a href="#cb13-28" aria-hidden="true" tabindex="-1"></a>                    <span class="st">"kind"</span>: <span class="st">"asset"</span>,</span>
+<span id="cb13-29"><a href="#cb13-29" aria-hidden="true" tabindex="-1"></a>                    <span class="st">"level"</span>: level,</span>
+<span id="cb13-30"><a href="#cb13-30" aria-hidden="true" tabindex="-1"></a>                    <span class="st">"group"</span>: node.group_name,</span>
+<span id="cb13-31"><a href="#cb13-31" aria-hidden="true" tabindex="-1"></a>                    <span class="st">"kinds"</span>: <span class="bu">sorted</span>(node.kinds),</span>
+<span id="cb13-32"><a href="#cb13-32" aria-hidden="true" tabindex="-1"></a>                    <span class="st">"description"</span>: node.description <span class="kw">or</span> <span class="st">"Activo de software materializable."</span>,</span>
+<span id="cb13-33"><a href="#cb13-33" aria-hidden="true" tabindex="-1"></a>                    <span class="st">"parents"</span>: <span class="bu">sorted</span>(parent.to_user_string() <span class="cf">for</span> parent <span class="kw">in</span> node.parent_keys),</span>
+<span id="cb13-34"><a href="#cb13-34" aria-hidden="true" tabindex="-1"></a>                    <span class="st">"checks"</span>: <span class="bu">sorted</span>(check.name <span class="cf">for</span> check <span class="kw">in</span> node.check_keys),</span>
+<span id="cb13-35"><a href="#cb13-35" aria-hidden="true" tabindex="-1"></a>                }</span>
+<span id="cb13-36"><a href="#cb13-36" aria-hidden="true" tabindex="-1"></a>            )</span>
+<span id="cb13-37"><a href="#cb13-37" aria-hidden="true" tabindex="-1"></a>            edges.extend(</span>
+<span id="cb13-38"><a href="#cb13-38" aria-hidden="true" tabindex="-1"></a>                {<span class="st">"from"</span>: parent.to_user_string(), <span class="st">"to"</span>: name}</span>
+<span id="cb13-39"><a href="#cb13-39" aria-hidden="true" tabindex="-1"></a>                <span class="cf">for</span> parent <span class="kw">in</span> <span class="bu">sorted</span>(node.parent_keys, key<span class="op">=</span><span class="kw">lambda</span> item: item.to_user_string())</span>
+<span id="cb13-40"><a href="#cb13-40" aria-hidden="true" tabindex="-1"></a>            )</span>
+<span id="cb13-41"><a href="#cb13-41" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-42"><a href="#cb13-42" aria-hidden="true" tabindex="-1"></a>            <span class="cf">for</span> check_key <span class="kw">in</span> <span class="bu">sorted</span>(node.check_keys, key<span class="op">=</span><span class="kw">lambda</span> item: item.name):</span>
+<span id="cb13-43"><a href="#cb13-43" aria-hidden="true" tabindex="-1"></a>                check_id <span class="op">=</span> <span class="ss">f"check::</span><span class="sc">{</span>name<span class="sc">}</span><span class="ss">::</span><span class="sc">{</span>check_key<span class="sc">.</span>name<span class="sc">}</span><span class="ss">"</span></span>
+<span id="cb13-44"><a href="#cb13-44" aria-hidden="true" tabindex="-1"></a>                spec <span class="op">=</span> graph.get_check_spec(check_key)</span>
+<span id="cb13-45"><a href="#cb13-45" aria-hidden="true" tabindex="-1"></a>                checks.append(</span>
+<span id="cb13-46"><a href="#cb13-46" aria-hidden="true" tabindex="-1"></a>                    {</span>
+<span id="cb13-47"><a href="#cb13-47" aria-hidden="true" tabindex="-1"></a>                        <span class="st">"id"</span>: check_id,</span>
+<span id="cb13-48"><a href="#cb13-48" aria-hidden="true" tabindex="-1"></a>                        <span class="st">"kind"</span>: <span class="st">"check"</span>,</span>
+<span id="cb13-49"><a href="#cb13-49" aria-hidden="true" tabindex="-1"></a>                        <span class="st">"asset"</span>: name,</span>
+<span id="cb13-50"><a href="#cb13-50" aria-hidden="true" tabindex="-1"></a>                        <span class="st">"name"</span>: check_key.name,</span>
+<span id="cb13-51"><a href="#cb13-51" aria-hidden="true" tabindex="-1"></a>                        <span class="st">"level"</span>: level,</span>
+<span id="cb13-52"><a href="#cb13-52" aria-hidden="true" tabindex="-1"></a>                        <span class="st">"group"</span>: node.group_name,</span>
+<span id="cb13-53"><a href="#cb13-53" aria-hidden="true" tabindex="-1"></a>                        <span class="st">"description"</span>: spec.description <span class="kw">or</span> <span class="st">"Verificación declarada sobre el activo."</span>,</span>
+<span id="cb13-54"><a href="#cb13-54" aria-hidden="true" tabindex="-1"></a>                        <span class="st">"blocking"</span>: <span class="bu">bool</span>(spec.blocking),</span>
+<span id="cb13-55"><a href="#cb13-55" aria-hidden="true" tabindex="-1"></a>                    }</span>
+<span id="cb13-56"><a href="#cb13-56" aria-hidden="true" tabindex="-1"></a>                )</span>
+<span id="cb13-57"><a href="#cb13-57" aria-hidden="true" tabindex="-1"></a>                edges.append({<span class="st">"from"</span>: name, <span class="st">"to"</span>: check_id})</span>
+<span id="cb13-58"><a href="#cb13-58" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-59"><a href="#cb13-59" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> {</span>
+<span id="cb13-60"><a href="#cb13-60" aria-hidden="true" tabindex="-1"></a>        <span class="st">"assets"</span>: assets,</span>
+<span id="cb13-61"><a href="#cb13-61" aria-hidden="true" tabindex="-1"></a>        <span class="st">"checks"</span>: checks,</span>
+<span id="cb13-62"><a href="#cb13-62" aria-hidden="true" tabindex="-1"></a>        <span class="st">"edges"</span>: edges,</span>
+<span id="cb13-63"><a href="#cb13-63" aria-hidden="true" tabindex="-1"></a>        <span class="st">"groups"</span>: <span class="bu">sorted</span>(graph.all_group_names),</span>
+<span id="cb13-64"><a href="#cb13-64" aria-hidden="true" tabindex="-1"></a>    }</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>La función <code>build_asset_graph_payload()</code> tiene una estructura deliberadamente plana y explícita, lo que facilita la generación de la visualización web del grafo de activos sin depender de la lógica interna de <strong><font color="darkmagenta">Dagster</font></strong> en tiempo de ejecución. El DAG por defecto se recupera internamente por medio de la instrucción <code>graph = defs.resolve_asset_graph()</code>, y a partir de ahí se construye un diccionario que contiene todos los activos, verificaciones y relaciones entre ellos, listo para ser consumido por la interfaz web.</p>
+<p>Y bueno… ya está bien de tanta palabrería. A continuación, mostramos el DAG de activos generado por <strong><font color="darkmagenta">Dagster</font></strong>:</p>
 <iframe src="dagster/" title="Dagster Asset Graph del proyecto" width="100%" height="760" style="border:1px solid #dfe7e5;border-radius:12px;">
 </iframe>
-<p><a href="dagster/" class="btn btn-outline-primary">Abrir el Asset Graph en una pestaña</a></p>
-<p>Podemos seleccionar un activo para revisar grupo, dependencias, <code>kinds</code> y checks. El filtro permite aislar activos o verificaciones. La finalidad es la misma que perseguimos con <strong><font color="darkmagenta"><span class="kedro-brand">Kedro</span>‑Viz</font></strong> en el proyecto de forecasting: leer arquitectura y linaje sin reconstruir el sistema mentalmente desde imports.</p>
+<p><a href="dagster/" class="btn btn-outline-primary">Abrir el DAG en una pestaña</a></p>
+<p>La interactividad del servidor web de <strong><font color="darkmagenta">Dagster</font></strong> permite explorar el DAG de activos de manera visual, haciendo clic en los nodos para inspeccionar sus propiedades, dependencias y verificaciones asociadas. La finalidad es esencialmente la misma que perseguimos en la revisión visual de DAGs con <code>kedro-viz</code>: Entender la arquitectura y el linaje de los activos sin necesidad de reconstruir mentalmente el sistema a partir de las importaciones de librerías y funciones.</p>
 </section>
-<section id="interfaz-oficial-y-publicación-estática" class="level2">
-<h2 class="anchored" data-anchor-id="interfaz-oficial-y-publicación-estática">Interfaz oficial y publicación estática</h2>
-<p>Durante desarrollo levantamos la interfaz oficial con:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="bu">export</span> <span class="va">DAGSTER_HOME</span><span class="op">=</span><span class="st">"</span><span class="va">$PWD</span><span class="st">/.dagster_home"</span></span>
-<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a><span class="ex">uv</span> run dagster dev <span class="at">-m</span> stockpile_ca.definitions</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>La página web oficial ofrece Asset Graph, historial de materializaciones, logs, metadata, selección, ejecuciones, checks y el backend GraphQL. Esta edición incluye <code>dagster-webserver</code> en el grupo de desarrollo para que el comando sea reproducible.</p>
-<p>La interfaz oficial no puede copiarse directamente a GitHub Pages como <code>kedro viz build</code>. <strong><font color="darkmagenta">Dagster</font></strong> consulta un servidor y una instancia mediante GraphQL; GitHub Pages sólo entrega archivos. Por eso publicamos una instantánea navegable derivada de las mismas <code>Definitions</code>, y reservamos la UI oficial para operación local o un despliegue con backend.</p>
-<div class="callout callout-style-default callout-important callout-titled" title="Una instantánea no es el plano de control">
-<div class="callout-header d-flex align-content-center">
-<div class="callout-icon-container">
-<i class="callout-icon"></i>
-</div>
-<div class="callout-title-container flex-fill">
-<span class="screen-reader-only">Important</span>Una instantánea no es el plano de control
-</div>
-</div>
-<div class="callout-body-container callout-body">
-<p>La vista embebida muestra definición y linaje, pero no pretende simular ejecuciones, logs o estados en vivo. Esos elementos pertenecen a <strong><font color="darkmagenta">Dagster UI</font></strong> y requieren el servicio activo. La distinción evita ofrecer controles decorativos que no hagan nada en el blog.</p>
-</div>
-</div>
+<section id="la-interfaz-oficial" class="level3">
+<h3 class="anchored" data-anchor-id="la-interfaz-oficial">La interfaz “oficial”</h3>
+<p>Cuando nos encontramos en un entorno de desarrollo propio de la construcción de un proyecto de <strong><font color="darkmagenta">Dagster</font></strong>, podemos levantar la interfaz oficial del servidor web para explorar el DAG de activos de manera interactiva. Su levantamiento se realiza por medio de la siguiente instrucción en la CLI:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb14"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Establecer la variable de entorno DAGSTER_HOME para el proyecto actual.</span></span>
+<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a><span class="bu">export</span> <span class="va">DAGSTER_HOME</span><span class="op">=</span><span class="st">"</span><span class="va">$PWD</span><span class="st">/.dagster_home"</span></span>
+<span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-4"><a href="#cb14-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Levantar la interfaz oficial del servidor web de Dagster.</span></span>
+<span id="cb14-5"><a href="#cb14-5" aria-hidden="true" tabindex="-1"></a><span class="ex">uv</span> run dagster dev <span class="at">-m</span> stockpile_ca.definitions</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Esta versión más completa permite interactuar con el DAG de activos de manera visual y explorar todas las funcionalidades que ofrece <strong><font color="darkmagenta">Dagster</font></strong> directamente desde el navegador. Tales funcionalidades incluyen la inspección de nodos, la visualización de dependencias, la ejecución de pipelines y la revisión de logs y metadata asociada. El proyecto se beneficia enormemente de esta capacidad, ya que facilita la comprensión y el mantenimiento del linaje de los activos de manera mucho más eficiente.</p>
+<p>La interfaz “oficial” de <strong><font color="darkmagenta">Dagster</font></strong> no puede <em>copiarse</em> directamente a un entorno estático como el proporcionado por Github Pages, donde se localiza este blog, debido a que depende de un servidor web dinámico para renderizar y manejar la interactividad del DAG de activos. De hecho, <strong><font color="darkmagenta">Dagster</font></strong> consulta un servidor web dinámico mediante GraphQL para obtener la información necesaria sobre el DAG de activos y su estado en tiempo real. Como Github Pages sólo entrega archivos estáticos, no puede replicar esta funcionalidad dinámica. Esa es la razón por la cual publicamos una “foto” instantánea del DAG de activos por medio de una integración dedicada en un módulo. En general, solemos reservar la interfaz oficial para un despliegue con <em>backend</em> activo.</p>
 </section>
-<section id="leer-el-grafo-de-izquierda-a-derecha" class="level2">
-<h2 class="anchored" data-anchor-id="leer-el-grafo-de-izquierda-a-derecha">Leer el grafo de izquierda a derecha</h2>
-<p><code>public_minute_raw</code> es una raíz porque no depende de otro activo del repositorio. <code>public_minute_curated</code> depende de la fuente y posee el check bloqueante <code>minute_contract</code>. Si ese check falla, no queremos continuar hacia una simulación con entradas inválidas. <code>stockpile_replay</code> consume la tabla curada y publica una serie contra la cual <code>height_reconciliation</code> calcula métricas.</p>
-<p>Los grupos <code>ingestion</code>, <code>engineering</code> y <code>simulation</code> no son sólo colores. Permiten asignar propiedad, filtrar y definir responsabilidades. Los <code>kinds</code> comunican tecnologías: Python y <strong><font color="darkmagenta">Polars</font></strong> en datos; Python y <strong><font color="darkmagenta">NumPy</font></strong> en simulación.</p>
+<section id="lectura-del-dag" class="level3">
+<h3 class="anchored" data-anchor-id="lectura-del-dag">Lectura del DAG</h3>
+<p>Al observar el DAG, notamos que el activo <code>public_minute_raw</code> constituye la raíz del grafo, porque no depende de ningún otro activo. El activo <code>public_minute_curated</code> depende de <code>public_minute_raw</code> y aplica transformaciones y validaciones antes de ser consumido por otros activos. Se observa un chequeo de tipo bloqueante denominado <code>minute_contract</code>, que asegura la integridad de los datos antes de continuar con el flujo de procesamiento. Finalmente, <code>stockpile_replay</code> consume los datos curados y sirve como base para cálculos posteriores, como los realizados por <code>height_reconciliation</code>.</p>
+<p>En el DAG, los chequeos se observan como nodos coloreados en verde, indicando su naturaleza de validación y control dentro del flujo de procesamiento de los activos. Se destacan además tres <strong>grupos</strong> principales: <code>INGESTION</code>, <code>ENGINEERING</code> y <code>SIMULATION</code>, que organizan los activos según su rol en el flujo de datos y procesamiento. Esto no es sólo maquillaje: Queremos reflejar claramente la estructura y las responsabilidades dentro del flujo de trabajo, facilitando la comprensión y el mantenimiento del DAG de activos.</p>
 </section>
-<section id="checks-bloqueantes-y-no-bloqueantes" class="level2">
-<h2 class="anchored" data-anchor-id="checks-bloqueantes-y-no-bloqueantes">Checks bloqueantes y no bloqueantes</h2>
-<p><code>minute_contract</code> es bloqueante porque una tabla desordenada o fuera de rango invalida la ejecución. <code>height_reconciliation</code> no declara que una RMSE alta sea un fallo de software. Verifica que la métrica exista y publica su valor para evaluación metodológica.</p>
-<p>Esta separación evita dos extremos: ejecutar con datos corruptos o detener producción porque un modelo científicamente válido muestra degradación que debe investigarse. La severidad del check depende de la naturaleza de la regla.</p>
 </section>
-<section id="la-ejecución-no-es-el-grafo" class="level2">
-<h2 class="anchored" data-anchor-id="la-ejecución-no-es-el-grafo">La ejecución no es el grafo</h2>
-<p>El Asset Graph describe dependencias estables. Una corrida concreta agrega tiempo, versión de código, parámetros, logs, duración y resultado. Dos corridas comparten grafo, pero materializan versiones distintas.</p>
-<p>Por eso una captura del DAG no certifica que el proyecto haya funcionado. La evidencia completa combina definición, historial, checks y artefactos. En la réplica ejecutamos los tres activos y verificamos ambos checks.</p>
-</section>
-<section id="comparación-pedagógica-con-el-proyecto-anterior" class="level2">
-<h2 class="anchored" data-anchor-id="comparación-pedagógica-con-el-proyecto-anterior">Comparación pedagógica con el proyecto anterior</h2>
-<p><span class="kedro-brand">Kedro</span>‑Viz hace visible una red de nodos, parámetros y datasets cuyo centro es el pipeline. El Asset Graph de <strong><font color="darkmagenta">Dagster</font></strong> pone en primer plano objetos persistentes y su estado operacional. En el proyecto bayesiano preguntábamos “¿qué nodos producen este dataset?”. Aquí también preguntamos “¿cuándo se materializó este activo y qué check lo evaluó?”.</p>
-<p>Ninguna vista vuelve superior a una herramienta. Muestran abstracciones diferentes. La comparación ex post es útil porque ambos proyectos incluyen un producto final, pruebas y datos públicos reproducibles, pero organizan el trabajo alrededor de conceptos distintos.</p>
-<p><a href="../../proyectos/stockpile-cellular-automata/07-contratos-con-pydantic.html">← Contratos con <strong><font color="darkmagenta">Pydantic</font></strong></a> · <a href="../../proyectos/stockpile-cellular-automata/09-reconciliacion-y-validacion.html">Siguiente: reconciliación y validación →</a></p>
+<section id="comentarios-finales" class="level2">
+<h2 class="anchored" data-anchor-id="comentarios-finales">Comentarios finales</h2>
+<p>La orquestación con <strong><font color="darkmagenta">Dagster</font></strong> permite estructurar y controlar de manera eficiente el flujo de datos y la ejecución de activos dentro de un proyecto. La separación clara entre la definición de activos, los chequeos bloqueantes y no bloqueantes, y la visualización del DAG facilita la comprensión, el mantenimiento y la evolución del proyecto. Aunque la interfaz oficial ofrece una experiencia interactiva completa, la publicación de capturas estáticas del DAG sigue siendo útil para documentación y revisión en entornos donde no se puede levantar un servidor dinámico.</p>
+<p><a href="../../proyectos/stockpile-cellular-automata/07-contratos-con-pydantic.html">← Contratos con <strong><font color="darkmagenta">Pydantic</font></strong></a> · <a href="../../proyectos/stockpile-cellular-automata/09-reconciliacion-y-validacion.html">Siguiente: Reconciliación y validación →</a></p>
 
 
 </section>

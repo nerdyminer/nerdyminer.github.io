@@ -54,7 +54,11 @@ from typing import Self
 class ImmutableContract(BaseModel):
     """Base inmutable: Rechaza campos desconocidos y coerciones ambiguas."""
 
-    model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
+    model_config = ConfigDict(
+        extra="forbid",
+        frozen=True,
+        strict=True,
+    )
 
 class GridSpec(ImmutableContract):
     """Resolución cartesiana de la retícula tridimensional."""
@@ -68,7 +72,9 @@ class GridSpec(ImmutableContract):
     def require_odd_horizontal_axes(self) -> Self:
         """Una celda central única simplifica alimentación y cortes ortogonales."""
         if self.n_east % 2 == 0 or self.n_north % 2 == 0:
-            raise ValueError("Los ejes horizontales deben tener un numero impar de celdas")
+            raise ValueError(
+                "Los ejes horizontales deben tener un numero impar de celdas"
+            )
         return self
 ```
 
@@ -79,25 +85,48 @@ En el código anterior observamos dos contratos explícitos:
 
 Podemos observar que todas estas restricciones podrían incluirse directamente en un esquema JSON, pero el uso de <strong><font color='darkmagenta'>Pydantic</font></strong> permite agregar validaciones más complejas y semántica adicional que no se puede expresar solo con tipos y rangos, además de forzar a que el código siga las reglas definidas en los contratos de manera estricta, fallando si no es así y mejorando las posibilidades de rastrear errores y mantener la consistencia del modelo.
 
+### Inmutabilidad
 
+Los contratos anteriores parten con una declaración de inmutabilidad mediante `model_config = ConfigDict(frozen=True)`. Esto asegura que una vez creado un objeto, sus atributos no puedan ser modificados. La razón de ello estriba fundamentalmente en la protección de la reproducibilidad de todos los resultados que derivan de la ejecución del proyecto. Por ejemplo, si el parámetro `angle_of_repose_deg` (el ángulo de reposo del material, que suponemos como fijo) cambiara durante la simulación, los resultados ya no serían reproducibles, porque el estado final del stockpile dependería de un valor mutable.
 
+La inmutabilidad de los contratos no vuelven inmutable al sistema completo. Tampoco deseamos que todos los contratos sean inmutables. Por ejemplo, consideremos el siguiente bloque de código, extraído desde el núcleo didáctico del modelo:
 
+```python
+import numpy as np
 
+from dataclasses import dataclass
+from numpy.typing import NDArray
+from stockpile_ca.contracts import SimulationSpec
 
+# Definimos un objeto `FloatArray`, a modo de anotación, que no es más
+# que un arreglo de Numpy compuesto únicamente por números de punto
+# flotante.
+FloatArray = NDArray[np.float64]
 
+@dataclass(slots=True)
+class StockpileState:
+    """Estado mínimo: llenado y P80 local de cada celda."""
 
+    fill: FloatArray
+    p80_in: FloatArray
 
+    @classmethod
+    def empty(cls, spec: SimulationSpec) -> StockpileState:
+        shape = (spec.grid.n_vertical, spec.grid.n_north, spec.grid.n_east)
+        return cls(fill=np.zeros(shape), p80_in=np.zeros(shape))
 
+    @property
+    def occupied_fraction(self) -> float:
+        return float(self.fill.mean())
+```
 
-## Contratos inmutables
+En el contrato anterior, establecemos un objeto denominado `StockpileState`, que representa el estado mínimo de la pila, correspondiente al llenado y el $P_{80}$ local de cada celda. Tal estado especifica en forma explícita la estructura de los datos que describen la pila en un instante dado, en la forma de dos métodos: `empty()`, que permite crear un estado vacío, y `occupied_fraction()`, que calcula la fracción ocupada del volumen de la pila. Notemos que, por definición, este contrato no es inmutable, porque sus atributos pueden ser modificados después de la creación del objeto: Al representar el stockpile por medio de una retícula 3D de celdas discretas, el estado de cada celda es el resultado de millones de actualizaciones en el tiempo que describen la evolución del cono en el tiempo. Los parámetros que dan origen a la simulación (por ejemplo, el ángulo de reposo del material) sí son inmutables, porque se mantienen fijos. Es importante hacer la distinción.
 
-La inmutabilidad protege reproducibilidad. Si `angle_of_repose_deg` cambia después de simular media ventana, el estado final ya no corresponde a una configuración única. En lugar de mutar un contrato, construimos otro y registramos una nueva corrida.
+## Configuración `.toml`
 
-Esto no vuelve inmutable a todo el sistema. `StockpileState` es deliberadamente mutable porque millones de actualizaciones in-place son el núcleo del cálculo. Los parámetros son inmutables; el estado evoluciona. Confundir ambos objetivos produciría copias costosas o configuraciones inestables.
+La configuración esencial del proyecto completo de modelamiento de nuestro stockpile se almacena en un archivo **TOML**, típicamente ubicado en `conf/public.toml`. TOML es un acrónimo de *Tom's Obvious, Minimal Language*, que significa "el lenguaje obvio y minimalista de Tom", en referencia a su creador, Tom Preston-Werner, co-fundador de Github. Los archovos de este tipo permiten declarar de manera clara y legible los parámetros públicos de un proyecto de software, que luego pueden ser validados y utilizados por Python.
 
-## Configuración TOML
-
-El archivo `conf/public.toml` declara grilla, pila, segregación y seis alimentadores. TOML mantiene tipos básicos y comentarios legibles, mientras <strong><font color='darkmagenta'>Pydantic</font></strong> aporta reglas.
+Como regla general, los archivos TOML se utilizan para declarar configuraciones públicas y constantes del proyecto, incluyendo dependencias, metadatos y opciones de construcción. En este proyecto en particular, el archivo TOML correspondiente declara la configuración de la retícula 3D que representa el stockpile, así como parámetros estructurales fijos del mismo, como el emplazamiento de los feeders y la correa de alimentación:
 
 ```toml
 [grid]
@@ -106,117 +135,223 @@ n_north = 51
 n_vertical = 31
 cell_size_m = 1.95
 
+[stockpile]
+angle_of_repose_deg = 38.0
+bulk_density_t_m3 = 1.69
+design_height_m = 29.04
+
 [segregation]
 fine_limit_in = 0.0525
 coarse_limit_in = 17.535
 surface_strength = 0.7
 trajectory_strength = 0.0
+
+[conveyor]
+label = "Correa de alimentación"
+bearing_deg = 274.0
+
+[[feeders]]
+name = "A-1"
+line = "A"
+east = 37
+north = 24
+
+[[feeders]]
+name = "A-2"
+line = "A"
+east = 32
+north = 18
+
+[[feeders]]
+name = "A-3"
+line = "A"
+east = 26
+north = 13
+
+[[feeders]]
+name = "B-1"
+line = "B"
+east = 21
+north = 39
+
+[[feeders]]
+name = "B-2"
+line = "B"
+east = 15
+north = 34
+
+[[feeders]]
+name = "B-3"
+line = "B"
+east = 10
+north = 29
 ```
 
-Los números son públicos y pertenecen al escenario ficticio del laboratorio. El contrato declara una altura de diseño pedagógica, seis alimentadores con nomenclatura A/B y una correa con rumbo propio. <strong><font color='darkmagenta'>Pydantic</font></strong> valida que esa geometría sintética sea internamente coherente antes de admitirla en el dominio.
+De esta manera:
 
-## Normalizar representación sin normalizar significado
+- Hay 5 niveles de información, declarados públicamente como `grid`, `stockpile`, `segregation`, `conveyor` y `feeders`.
+- Los feeders se especifican individualmente por medio de coordenadas.
+- Todos estos elementos son, por definición, inmutables.
+- Cumple un papel similar al del **diccionario de parámetros** de los proyectos de <strong><font color='darkmagenta'>Kedro</font></strong>.
+- Los números son públicos y pertenecen al escenario ficticio del laboratorio construido en el proyecto.
 
-`tomllib` entrega los arreglos de tablas como listas. El contrato exige una tupla inmutable. `load_spec` convierte la lista a tupla antes de validar:
+Los archivos TOML son deliberadamente simples, pues su propósito es declarar la configuración pública de manera clara y legible. No reemplazan las validaciones provistas por <strong><font color='darkmagenta'>Pydantic</font></strong>, que aseguran la coherencia interna de los datos antes de ser utilizados en el dominio.
+
+La lectura de archivos TOML desde Python se realiza por medio de la librería <strong><font color='darkmagenta'>tomllib</font></strong>, que permite cargar el contenido de un archivo TOML directamente en un diccionario de Python. Usualmente, solemos aislar la carga de las especificaciones provistas por este archivo en un módulo utilitatio de configuración, a fin de usar posteriormente los datos cargados de manera consistente en todo el proyecto. Por ejemplo:
 
 ```python
-payload["feeders"] = tuple(payload.get("feeders", ()))
-return SimulationSpec.model_validate(payload, strict=True)
+from __future__ import annotations
+
+import tomllib
+from pathlib import Path
+
+from stockpile_ca.contracts import SimulationSpec
+
+def load_spec(
+    path: Path | None = None
+) -> SimulationSpec:
+    """
+    Carga la configuración pública y devuelve un contrato inmutable.
+    """
+    # Definimos la fuente del archivo TOML a cargar. Si no se proporciona un
+    # `path`, se asume que el archivo se encuentra en "conf/public.toml"
+    # relativo al proyecto.
+    source = path or Path(__file__).parents[2] / "conf" / "public.toml"
+
+    # Abrimos el archivo TOML y cargamos su contenido en un diccionario de Python.
+    with source.open("rb") as stream:
+        payload = tomllib.load(stream)
+
+    # TOML representa los arreglos de tablas como listas mutables. El contrato
+    # público exige una tupla: normalizamos la representación, no los valores.
+    payload["feeders"] = tuple(payload.get("feeders", ()))
+
+    return SimulationSpec.model_validate(payload, strict=True)
 ```
 
-Esta normalización cambia el contenedor, no los valores. En modo estricto, esperar que <strong><font color='darkmagenta'>Pydantic</font></strong> convierta silenciosamente una lista derrotaría la intención del contrato.
+Notemos que la librería <strong><font color='darkmagenta'>tomllib</font></strong> carga los arreglos de tablas como listas mutables, mientras que el contrato público anterior requiere tuplas inmutables. Por ello, realizamos la normalización antes de validar con <strong><font color='darkmagenta'>Pydantic</font></strong>.
 
-## Fallar antes de asignar memoria
+::: {.callout-note}
+## Las fallas las generamos antes de la asignación de memoria
 
-Validar la geometría antes de crear arreglos evita errores costosos:
+La simulación de stockpiles por medio de autómatas celulares requiere que la configuración inicial sea válida; de lo contrario, se generan errores antes de asignar memoria. Este comportamiento es deliberado: No queremos consumir recursos innecesarios en una simulación que ya está mal configurada. Una validación típica contempla errores específicos, tales como:
 
-- ejes pares sin centro único;
-- alimentador fuera de límites;
-- techo menor que altura de diseño;
-- densidad incompatible con material granular;
-- intensidad de segregación fuera de rango;
-- número inesperado de alimentadores.
+- Paridad de ejes, sin centro único.
+- Feeders fuera de límites previamente establecidos.
+- Techo menor que altura de diseño.
+- Densidad fijada es incompatible con el material granular.
+- Intensidad de segregación fuera de rango.
+- Número inesperado de alimentadores.
 
-Si el contrato falla, no se materializa ningún activo de simulación. Éste es el valor de una frontera fuerte: el error aparece cerca de la causa y con un mensaje de dominio.
+Un contrato de validación permite detectar errores de configuración antes de que se consuman recursos en la simulación, permitiendo además levantar esos errores con un dominio claro y mensajes específicos.
+:::
 
-## Qué no debe vivir en <strong><font color='darkmagenta'>Pydantic</font></strong>
+## Uso de <strong><font color='darkmagenta'>Pydantic</font></strong> para validación estructural
 
-Un validador no debería ejecutar una simulación, leer un archivo remoto ni calcular cobertura de una tabla completa. Debe ser determinista, rápido y libre de efectos laterales. Tampoco conviene crear un modelo por cada celda: el costo de validación y objetos superaría al cálculo numérico.
+### Lo que no debe *vivir* en <strong><font color='darkmagenta'>Pydantic</font></strong>
 
-La tabla minuto a minuto se valida con expresiones de <strong><font color='darkmagenta'>Polars</font></strong>. El estado se valida con operaciones de <strong><font color='darkmagenta'>NumPy</font></strong>. <strong><font color='darkmagenta'>Pydantic</font></strong> protege objetos relativamente pequeños que cruzan fronteras.
+Hemos establecido que <strong><font color='darkmagenta'>Pydantic</font></strong> nos permite validar contratos de configuración de manera previa a la ejecución de la simulación, asegurando que los errores se detecten antes de consumir recursos. También nos permite validar tipos de datos, estructuras anidadas y restricciones específicas de los campos, garantizando que la configuración cumpla con los requisitos esperados antes de iniciar la corrida del proyecto completo. Por supuesto, esto no reemplaza la necesidad de pruebas y validaciones adicionales durante la ejecución de la simulación, pero sí proporciona una primera línea de defensa robusta contra configuraciones inválidas. Además, no *todo* lo relativo a validaciones debe *vivir* dentro de <strong><font color='darkmagenta'>Pydantic</font></strong>.
 
-## <strong><font color='darkmagenta'>Pydantic Settings</font></strong> y secretos
+Un validador, independiente de la ejecución de la simulación, se encarga únicamente de verificar que la configuración cumpla con las reglas y restricciones definidas. Por regla general, debe ser de rápida ejecución, determinista y libre de efectos *laterales*. Esto descarta cualquier operación que implique cambios de estado, acceso a recursos externos o cálculos costosos que no sean estrictamente necesarios para la validación. También descarta la introducción de procedimientos de validación por celda, ya que esto podría generar un costo de validación excesivo en comparación con el beneficio obtenido.
 
-En una versión conectada a sistemas externos, <strong><font color='darkmagenta'>pydantic-settings</font></strong> resuelve direcciones, credenciales y rutas desde variables de entorno. Los secretos no pertenecen al TOML versionado ni a metadata del orquestador.
+En definitiva, para cada insumo o artefacto, existe la herramienta apropiada para su validación. En el caso de este proyecto: <strong><font color='darkmagenta'>Pydantic</font></strong> para configuraciones estructurales, <strong><font color='darkmagenta'>Polars</font></strong> para tablas y <strong><font color='darkmagenta'>Numpy</font></strong> para estados numéricos.
+
+::: {.callout-tip}
+## Uso de <font color='darkmagenta'>`pydantic-settings`</font>
+
+<strong><font color='darkmagenta'>Pydantic</font></strong> nos ofrece configuraciones adicionales para manejar variables de entorno, secretos y otros parámetros de configuración de manera centralizada y segura por medio de la librería anexa <strong><font color='darkmagenta'>`pydantic-settings`</font></strong>. El uso de esta librería permite separar responsabilidades, en el contexto de validación de configuraciones, asegurando que la lógica de obtención de valores desde el entorno no se mezcle con la validación estructural de los datos:
+
+- <strong><font color='darkmagenta'>Pydantic</font></strong> valida, convierte y serializa datos genéricos que entran a una aplicación (por ejemplo, cuerpos de solicitudes HTTP en FastAPI). Por otro lado, <strong><font color='darkmagenta'>`pydantic-settings`</font></strong> está enfocado en cargar parámetros de configuración del sistema, como puertos de bases de datos, claves de API o modos de ejecución (por ejemplo, `dev`, `uat` o `prod`).
+- <strong><font color='darkmagenta'>Pydantic</font></strong> espera recibir los datos de forma explícita (como un diccionario, JSON o argumentos al instanciar un modelo determinado). Por otro lado, <strong><font color='darkmagenta'>`pydantic-settings`</font></strong>  lee automáticamente las variables del sistema operativo (entorno) y soporta la integración nativa con archivos `.env` (usando la misma librería y otras, como <strong><font color='darkmagenta'>dotenv</font></strong>) o archivos secretos.
+- <strong><font color='darkmagenta'>Pydantic</font></strong> implementa una clase base `BaseModel` para definir modelos de datos genéricos, mientras que <strong><font color='darkmagenta'>`pydantic-settings`</font></strong> proporciona una clase base `BaseSettings` específicamente diseñada para manejar configuraciones del sistema y variables de entorno.
+
+La separación de responsabilidades también involucra al correspondiente archivo TOML del proyecto. En este último, no guardamos nada que deba *vivir* en un dominio público, como secretos o credenciales sensibles. Estos deben ser gestionados a través de variables de entorno y <strong><font color='darkmagenta'>`pydantic-settings`</font></strong> para mantener la seguridad y la integridad de la configuración. Un ejemplo de implementación de validación de configuraciones de origen podría ser el siguiente:
 
 ```python
-class SourceSettings(BaseSettings):
-    model_config = SettingsConfigDict(env_prefix="STOCKPILE_", extra="ignore")
-    server: str
-    credential_reference: SecretStr
+from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import SecretStr
+
+class AppConfig(BaseSettings):
+    model_config = SettingsConfigDict(
+        env_prefix="STOCKPILE_",
+        extra="ignore",
+    )
+    database_url: str
+    api_key: SecretStr
+```
+:::
+
+### Un check-list sencillo de validación y documentación
+
+Cuando definimos la estructura de un proyecto, conviene seguir un check-list sencillo que permita garantizar la validez y coherencia de los datos. Un ejemplo muy simple podría incluir ciertas preguntas que un ser humano podría hacerse en relación a cada campo o parámetro:
+
+- **Validación del contrato de tipos:** *¿La entrada cumple con las formas y reglas de tipo esperadas?*
+- **Verificación de software:** *¿La implementación cumple con los invariantes y reglas del sistema?*
+- **Validación científica:** *¿El modelo reproduce observaciones fuera de muestra o calibración?*
+- **Validación de activos (o asset-check):** *¿Un activo materializado satisface una condición operacional?*
+- **Documentación del contrato:** *¿El propósito y las restricciones de cada campo están claramente explicados?*
+
+Notemos que <strong><font color='darkmagenta'>Pydantic</font></strong> resuelve fundamentalmente la validación del contrato de tipos, asegurando que los datos cumplan con las formas y reglas esperadas. Los otros niveles de validación requieren pruebas adicionales, documentación y verificaciones externas. Por ejemplo, la verificación de software se realiza mediante pruebas unitarias, la validación científica mediante experimentos controlados y la validación de activos mediante inspecciones físicas. La documentación del contrato asegura que los desarrolladores comprendan claramente las restricciones y propósitos de cada campo.
+
+La documentación incluye además el texto que imputamos a los mensajes que se levantan cuando se generan errores en la ejecución del proyecto, de manera que los desarrolladores y usuarios puedan comprender rápidamente la causa del problema y cómo corregirlo. Si quisiéramos levantar un error de valor, un mensaje del tipo `ValueError("configuracion invalida")` no sirve como guía; debería ser reemplazado por uno más descriptivo que indique exactamente qué parte del contrato se ha violado. Por ejemplo:
+
+```python
+ValueError("Valor no válido para el número total de celdas definido en el eje X. El número debe ser impar.")
+ValueError("Valor definido para `fine_limit_in` es mayor en magnitud que `coarse_limit_in`.")
+ValueError("Coordenadas de feeder `A-2` no válidas, ya que se encuentran fuera de la grilla.")
+ValueError("Altura de diseño no válida, debe dejar al menos una celda vertical libre en la retícula completa.")
 ```
 
-El contrato valida presencia y forma, pero no imprime el secreto. Un recurso de <strong><font color='darkmagenta'>Dagster</font></strong> puede consumir `SourceSettings` sin pasarlo al dominio.
+Los mensajes asociados a los errores que levantamos deben ser claros y específicos, indicando exactamente qué parte del contrato se ha violado y proporcionando suficiente contexto para que los desarrolladores y usuarios puedan corregir el problema de manera eficiente, muchas veces sin siquiera abrir el código fuente del proyecto.
 
-## Validación, verificación y checks
+## Pruebas asociadas a contratos
 
-Conviene reservar términos:
-
-- **validación de contrato:** ¿la entrada cumple forma y reglas?
-- **verificación de software:** ¿la implementación cumple invariantes?
-- **validación científica:** ¿el modelo reproduce observaciones fuera de calibración?
-- **asset check:** ¿un activo materializado satisface una condición operacional?
-
-<strong><font color='darkmagenta'>Pydantic</font></strong> resuelve principalmente el primer nivel. Las pruebas unitarias y checks cubren los otros.
-
-## Mensajes útiles
-
-`ValueError("configuracion invalida")` aporta poco. El contrato público informa la relación violada:
-
-- “los ejes horizontales deben tener un número impar de celdas”;
-- “fine_limit_in debe ser menor que coarse_limit_in”;
-- “A-2 queda fuera de la grilla”;
-- “la altura de diseño debe dejar al menos una celda vertical libre”.
-
-Un buen error permite actuar sin abrir el código. También reduce la tentación de atrapar todas las excepciones y continuar con valores por defecto.
-
-## Comparación con el catálogo de <strong><font color='darkmagenta'>Kedro</font></strong>
-
-En el proyecto de forecasting, <strong><font color='darkmagenta'>Kedro</font></strong> centraliza datasets y parámetros; se agregó <strong><font color='darkmagenta'>Pydantic</font></strong> para validar parámetros críticos. Aquí el contrato es más central porque la geometría gobierna asignaciones de memoria y validez física.
-
-La diferencia no es que <strong><font color='darkmagenta'>Kedro</font></strong> carezca de validación. Es que su `DataCatalog` responde principalmente “cómo cargar y guardar este dataset”, mientras <strong><font color='darkmagenta'>Pydantic</font></strong> responde “qué objeto puede cruzar esta frontera”. Son responsabilidades complementarias.
-
-## Pruebas del contrato
+El módulo `tests/test_contracts.py` contiene pruebas que verifican que las configuraciones y contratos definidos mediante <strong><font color='darkmagenta'>Pydantic</font></strong> se cumplan correctamente. Dicho módulo es relativamente corto y se muestra a en el siguiente bloque de código:
 
 ```python
+from pathlib import Path
+
+import pytest
+from pydantic import ValidationError
+
+from stockpile_ca.config import load_spec
+from stockpile_ca.contracts import GridSpec
+
+def test_public_configuration_is_self_consistent() -> None:
+    spec = load_spec(Path(__file__).parents[1] / "conf" / "public.toml")
+    assert spec.grid.n_east % 2 == 1
+    assert spec.grid.n_north % 2 == 1
+    assert {feeder.line for feeder in spec.feeders} == {"A", "B"}
+
 def test_grid_rejects_an_ambiguous_centre() -> None:
     with pytest.raises(ValidationError):
         GridSpec(n_east=40, n_north=41, n_vertical=18, cell_size_m=2.2)
 ```
 
-La prueba documenta una decisión de diseño y la hace resistente a refactorizaciones. No prueba internals de <strong><font color='darkmagenta'>Pydantic</font></strong>; prueba nuestra regla.
+Observamos pues dos funciones de prueba en el módulo:
 
-::: {.callout-important title="Un contrato estricto no convierte un supuesto en verdad"}
-Que la densidad esté dentro de un rango plausible no demuestra que sea correcta. <strong><font color='darkmagenta'>Pydantic</font></strong> evita valores imposibles y combinaciones incoherentes; procedencia, medición e incertidumbre siguen siendo responsabilidades metodológicas.
-:::
+- La primera, denominada `test_public_configuration_is_self_consistent()`, verifica que la configuración pública cargada desde `conf/public.toml` sea **autoconsistente**, cumpliendo con las reglas de paridad y unicidad de alimentadores.
+- La segunda, denominada `test_grid_rejects_an_ambiguous_centre()`, verifica que la especificación de la grilla rechace configuraciones que no tengan un centro único, asegurando que se cumpla la invariante de dominio relacionada con la unicidad del centro.
 
-## Tipo, rango e invariante no son lo mismo
+Notemos que estas pruebas permiten documentar las reglas y restricciones que hemos definido para nuestras configuraciones, sirviendo como una forma de especificación ejecutable que complementa la documentación escrita. Las decisiones de diseño resultan pues resistentes a procesos de refactorización.
 
-Decir que `n_east` es un entero sólo resuelve el tipo. Exigir que sea positivo agrega un rango. Exigir que sea impar porque necesitamos un centro único agrega una invariante de dominio. Por último, exigir que todos los alimentadores queden dentro de la grilla agrega una relación entre objetos.
+## Diferencias entre distintos niveles de validación
 
-Podemos ordenar estas reglas de menor a mayor contexto:
+Consideremos un parámetro estático de la grilla, digamos `n_east`. Cuando declaramos que dicho parámetro debe ser un entero, formalmente, estamos estableciendo su **tipo sintáctico**. Matemáticamente, esto restringe el valor de `n_east` al conjunto $\mathbb{Z}$ de los números enteros. Por otro lado, si declaramos además que `n_east` debe ser un número positivo, estamos imponiendo un **rango válido** para dicho parámetro. Si exigimos que `n_east` sea impar para garantizar un centro único en esa dimensión para la retícula completa, estamos imponiendo un **invariante de dominio**. Finalmente, si requerimos que todos los feeders queden dentro de la grilla que describe el dominio espacial completo del autómata, estamos imponiendo una **relación entre objetos**.
 
-1. **Sintáctica:** el dato puede interpretarse como el tipo esperado.
-2. **Local:** el valor individual pertenece a un rango permitido.
-3. **Estructural:** la colección tiene forma, cardinalidad o unicidad válidas.
-4. **Relacional:** varias propiedades son coherentes entre sí.
-5. **Empírica:** la configuración representa adecuadamente el sistema físico.
+Sea cual sea el conjunto de reglas que definamos para nuestras configuraciones, es importante reconocer el nivel de validación al que pertenece cada una, ya que esto influye en cómo y cuándo se detectan los errores y en la robustez de nuestro sistema frente a configuraciones incorrectas. Siempre podremos ordenarlas jerárquicamente, desde las más locales y sintácticas hasta las más globales y relacionales. Por ejemplo, sobre una jerarquía puramente contextual, el orden de estas reglas sería:
 
-<strong><font color='darkmagenta'>Pydantic</font></strong> cubre muy bien los primeros cuatro niveles. El quinto requiere evidencia externa.
+- **Sintáctica:** El dato cumple con el tipo esperado (por ejemplo, es un entero).
+- **Local:** El valor individual pertenece a un rango permitido (por ejemplo, es positivo).
+- **Estructural:** La colección de datos cumple con ciertas propiedades estructurales (por ejemplo, la grilla tiene un número impar de celdas en cada dimensión para un centro único).
+- **Relacional:** Se cumplen las relaciones entre distintos objetos de la configuración (por ejemplo, todos los feeders están dentro de la grilla).
+- **Empírica:** La configuración representa adecuadamente el sistema físico real que se está modelando.
 
-## Un fallo guiado de configuración
+Notemos que <strong><font color='darkmagenta'>Pydantic</font></strong> se hace cargo bastante bien de los primeros cuatro niveles de reglas, porque permite definir tipos, rangos, estructuras y relaciones entre objetos de manera declarativa y automática. Reglas empíricas, en cambio, requieren validación externa o pruebas experimentales.
 
-Consideremos:
+::: {.callout-note}
+## Un ejercicio sencillo
+Consideremos la siguiente declaración de configuración en TOML:
 
 ```toml
 [grid]
@@ -229,56 +364,30 @@ cell_size_m = 2.2
 design_height_m = 45.0
 ```
 
-El valor `n_east=40` es un entero válido y está dentro de un rango plausible, pero no tiene una única celda central. La altura disponible es $18\times2.2=39.6$ m, por lo que una altura de diseño de 45 m atraviesa el techo. Ambos errores deberían aparecer antes de reservar arreglos o iniciar una corrida.
+Tal configuración establece que la retícula completa tiene 40 celdas en dirección este, 41 en dirección norte y 18 en dirección vertical, con un tamaño de celda de 2.2 metros. La altura de diseño del stockpile es de 45 metros.
 
-Un mensaje útil no dice sólo “validation failed”. Identifica la regla y el valor problemático. La validación temprana reduce el radio de búsqueda: el usuario corrige configuración, no investiga una excepción de índice ocurrida diez minutos después.
+El valor `n_east=40` es un número entero que resulta válido y está dentro de un rango físicamente plausible en un diseño típico de stockpile. No obstante, al ser par, no permite un centro único en la retícula: La celda central no existe de manera inequívoca (al tener asignado un valor no entero, igual a 20.5). Notemos además que la altura de la retícula total es $n_{v} \times m = 18 \times 2.2 = 39.6$ m, menor que la altura de diseño del stockpile. En términos prácticos, la altura de diseño no se puede alcanzar con esta configuración geométrica de la retícula.
 
-## Parsear no equivale a aceptar
+Para informar de esto a cualquier desarrollador, conviene emitir mensajes de validación claros que indiquen qué regla se está violando y cuál es el valor problemático. Esto permite que los errores se detecten y corrijan antes de que se produzcan fallos más profundos en la ejecución.
+:::
 
-Una herramienta puede convertir la cadena `"2.2"` en el flotante `2.2`. Esa comodidad es apropiada en formularios o APIs tolerantes, pero puede ocultar que un archivo perdió tipos. El modo estricto del proyecto rechaza coerciones ambiguas.
+## Distinción de *outputs* en contratos de validación
 
-La normalización de una lista TOML a tupla sí está permitida porque cambia representación mutabilidad, no significado. Esta distinción obliga a explicar cada conversión: ¿estamos adaptando un contenedor conocido o adivinando la intención del usuario?
+Con frecuencia, solemos validar únicamente los *inputs* de nuestras funciones o modelos. Sin embargo, también es importante considerar los *outputs*, ya que una función científica no solo recibe datos, sino que también se compromete con ciertas propiedades al devolverlos. Esto incluye la forma del arreglo de datos de entrada, el rango de sus valores correspondientes, la ausencia de elementos no válidos y la conservación de ciertas cantidades. Validar los *outputs* ayuda a garantizar que las funciones cumplan con sus contratos y facilita la detección temprana de errores. En general, tales *garantías* deben ser explícitas y verificables, no implícitas ni asumidas, preferentemente en la forma de declaraciones de tipo `assert` de naturaleza vectorizada, en vez de verificaciones dispersas y manuales.
 
-## Inmutabilidad como propiedad operacional
-
-Una configuración validada se comparte entre activos, dominio y reportes. Si un componente modifica `angle_of_repose_deg` en memoria, la corrida deja de tener una identidad única. Un modelo congelado hace que cambiar parámetros requiera construir un nuevo objeto, lo que facilita registrar la nueva versión.
-
-Inmutabilidad no impide experimentar. Hace explícito que un experimento es otra configuración y no una mutación silenciosa del mismo escenario.
-
-## Fronteras donde conviene validar
-
-Validamos cuando información externa cruza hacia el dominio:
-
-- archivo TOML a `SimulationSpec`;
-- variables de entorno a `SourceSettings`;
-- payload pequeño de una API a un modelo de solicitud;
-- metadata de ejecución a un contrato de publicación.
-
-No validamos cada celda con una instancia de <strong><font color='darkmagenta'>Pydantic</font></strong>. Un arreglo de millones de valores necesita operaciones vectorizadas. La unidad de abstracción correcta depende del volumen y de la clase de regla.
-
-## Contratos de entrada y de salida
-
-Es frecuente validar sólo lo que entra. Sin embargo, una función científica también promete algo al salir: forma del arreglo, rango de llenado, ausencia de P80 en celdas vacías y conservación. Estas garantías se expresan mejor como pruebas y asserts vectorizados que como un modelo por celda.
-
-Una arquitectura robusta combina:
+En este proyecto, la arquitectura de validación se centra en establecer contratos claros tanto para los *inputs* como para los *outputs*. Esto significa que cada función o modelo no solo verifica que los datos que recibe sean correctos y coherentes, sino que también garantiza que los resultados que produce cumplan con ciertas propiedades esperadas. De esta manera, se logra una mayor robustez y confiabilidad en el código científico. Tal arquitectura se expresa de manera resumida en la siguiente tabla:
 
 | Frontera | Herramienta | Ejemplo |
-|---|---|---|
-| configuración | <strong><font color='darkmagenta'>Pydantic</font></strong> | geometría coherente |
-| tabla | <strong><font color='darkmagenta'>Polars</font></strong> | tiempo único y rangos |
-| estado numérico | <strong><font color='darkmagenta'>NumPy</font></strong> + pruebas | $0\le f\le1$ |
-| activo materializado | <strong><font color='darkmagenta'>Dagster</font></strong> checks | cobertura y reconciliación |
+|:---|:---|:--------|
+| Configuración. | <strong><font color='darkmagenta'>Pydantic</font></strong>. | Coherencia espacial y operacional de la geometría inherente al problema. |
+| Tabla de datos. | <strong><font color='darkmagenta'>Polars</font></strong>. | Unicidad de *timestamps* y validación de rangos declarados. |
+| Estado numérico. | <strong><font color='darkmagenta'>Numpy</font></strong> + pruebas adicionales. | Validación de la propiedad de llenado $f$ de las celdas en la retícula ($0\leq f \leq 1$). |
+| Activos materializados. | <strong><font color='darkmagenta'>Dagster</font></strong>. | Validación de la consistencia y disponibilidad de los activos materializados, además de cobertura espacial y reconciliación. |
 
-## Qué hace que un error sea accionable
+## Comentarios finales
 
-Un buen error contiene ubicación, valor recibido, expectativa y posible corrección. No debe imprimir secretos ni una configuración industrial completa. En producción, el mensaje para un operador puede ser distinto del detalle técnico registrado para desarrollo.
+En esta sección hemos explorado cómo establecer contratos de validación claros para los *inputs* y *outputs* de nuestras funciones y modelos. Hemos discutido la importancia de emitir mensajes de error claros y accionables, y cómo esto contribuye a la robustez y confiabilidad del código científico. Además, se ha presentado una tabla resumida que muestra las fronteras de validación, las herramientas utilizadas y ejemplos concretos de validaciones aplicadas.
 
-La validación también es diseño de interfaz: decide qué errores pueden corregirse antes de ejecutar y cómo aprende el usuario la regla que violó.
+En general, establecer contratos de validación claros y consistentes para los *inputs* y *outputs* de nuestras funciones y modelos es fundamental para garantizar la robustez y confiabilidad del código científico. Esto no sólo ayuda a detectar errores de manera temprana, sino que también facilita el mantenimiento y la comprensión del código fuente de cualquier proyecto de este tipo a lo largo del tiempo.
 
-## Ejercicio de extensión
-
-Podemos añadir una regla que exija nombres únicos de alimentador y al menos uno por línea. La prueba debería crear una configuración duplicada, comprobar que falla y verificar que el mensaje señala el duplicado. Después agregamos un alimentador fuera de rango para confirmar que ambas reglas no se confunden.
-
-El ejercicio revela un principio: cada validador debería proteger una decisión identificable. Validadores gigantes con muchas condiciones generan mensajes opacos y son difíciles de probar.
-
-[← Datos con <strong><font color='darkmagenta'>Polars</font></strong>](06-datos-con-polars.qmd) · [Siguiente: orquestación con <strong><font color='darkmagenta'>Dagster</font></strong> →](08-orquestacion-con-dagster.qmd)
+[← Datos con <strong><font color='darkmagenta'>Polars</font></strong>](06-datos-con-polars.qmd) · [Siguiente: Orquestación con <strong><font color='darkmagenta'>Dagster</font></strong> →](08-orquestacion-con-dagster.qmd)
