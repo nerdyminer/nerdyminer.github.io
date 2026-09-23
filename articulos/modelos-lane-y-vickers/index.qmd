@@ -969,12 +969,12 @@ El perfil de leyes debe leerse junto con los flujos. Una ley elevada no es “me
 
 ```{python}
 #| label: fig-lane-vickers-04
-#| fig-cap: "Flujos de caja y valor acumulado para las estrategias de ley fija e intertemporal."
-fig, ax = plt.subplots(2, 1, figsize=(9, 7), sharex=True)
+#| fig-cap: "Flujos de caja, valor acumulado y diferencias incrementales entre las estrategias de ley fija e intertemporal. El panel inferior hace visible una mejora que queda oculta por la escala de los resultados absolutos."
+fig, ax = plt.subplots(3, 1, figsize=(9, 9), sharex=True)
 
 for schedule, label, color in [
     (static_schedule, "Ley fija", "darkgray"),
-    (dynamic_schedule, "Política intertemporal", "darkmagenta"),
+    (dynamic_schedule, "Política intertemporal", "dodgerblue"),
 ]:
     ax[0].plot(
         schedule["period"],
@@ -994,14 +994,73 @@ for schedule, label, color in [
         label=label,
     )
 
+# Calculamos el aporte incremental de la política intertemporal respecto de la ley fija.
+cash_flow_delta = (
+    dynamic_schedule["cash_flow_musd"]
+    - static_schedule["cash_flow_musd"]
+)
+npv_delta_cumulative = (
+    dynamic_schedule["present_value_musd"]
+    - static_schedule["present_value_musd"]
+).cumsum()
+
+# Las barras muestran en qué período se crea o se difiere valor sin ocultar su signo.
+delta_colors = np.where(cash_flow_delta >= 0, "seagreen", "firebrick")
+ax[2].bar(
+    dynamic_schedule["period"],
+    cash_flow_delta,
+    width=0.55,
+    color=delta_colors,
+    alpha=0.78,
+    label=r"$\Delta$ flujo de caja",
+)
+ax[2].axhline(0, color="dimgray", lw=0.9)
+
+# Una segunda escala permite seguir el valor incremental descontado y acumulado.
+ax_npv_delta = ax[2].twinx()
+ax_npv_delta.plot(
+    dynamic_schedule["period"],
+    npv_delta_cumulative,
+    marker="D",
+    color="dodgerblue",
+    lw=2.2,
+    label=r"$\Delta$ VAN acumulado",
+)
+ax_npv_delta.grid(False)
+
 ax[0].set_ylabel("Flujo de caja (MUSD)", fontsize=11, labelpad=10)
 ax[0].legend(ncol=2, loc="best", fontsize=9)
-ax[1].set_xlabel("Período", fontsize=11, labelpad=10)
 ax[1].set_ylabel("VAN acumulado (MUSD)", fontsize=11, labelpad=10)
 ax[1].legend(ncol=2, loc="best", fontsize=9)
+ax[2].set_xlabel("Período", fontsize=11, labelpad=10)
+ax[2].set_ylabel(r"$\Delta$ flujo de caja (MUSD)", fontsize=11, labelpad=10)
+ax_npv_delta.set_ylabel(
+    r"$\Delta$ VAN acumulado (MUSD)",
+    fontsize=11,
+    labelpad=10,
+    color="dodgerblue",
+)
+ax_npv_delta.tick_params(axis="y", colors="dodgerblue")
+
+# Reunimos ambas escalas del panel incremental en una sola leyenda.
+delta_handles, delta_labels = ax[2].get_legend_handles_labels()
+npv_handles, npv_labels = ax_npv_delta.get_legend_handles_labels()
+ax[2].legend(
+    delta_handles + npv_handles,
+    delta_labels + npv_labels,
+    ncol=2,
+    loc="lower right",
+    fontsize=9,
+)
 
 plt.tight_layout()
 ```
+
+Las dos curvas superiores casi no pueden distinguirse porque la diferencia económica es diminuta respecto de la escala absoluta del proyecto. La serie gris sí está presente: Queda debajo de la línea magenta porque la política intertemporal se dibuja en segundo lugar y entrega flujos prácticamente iguales. Esto no significa que ambas optimizaciones hayan encontrado exactamente la misma secuencia de leyes, sino que, para este inventario discretizado, gran parte de esas variaciones no cambia el destino efectivo de las parcelas.
+
+El panel inferior cambia deliberadamente la pregunta. En vez de volver a mostrar cuánto vale cada estrategia, representa cuánto agrega la política intertemporal sobre la ley fija en cada período. Las barras corresponden a la diferencia de flujo de caja, $\Delta CF_t=CF_t^{\mathrm{intertemporal}}-CF_t^{\mathrm{fija}}$: Una barra positiva indica creación o adelanto de caja respecto de la referencia, mientras que una barra negativa indica valor diferido o un costo incremental en ese período. La línea muestra la suma acumulada de esas diferencias después de descontarlas, es decir, la trayectoria de $\Delta VAN$.
+
+Esta ampliación también evita una lectura engañosa. Una mejora visible en el panel incremental puede seguir siendo económicamente pequeña al compararla con los más de 600 MUSD del VAN total. Su utilidad no consiste en engrandecer el resultado, sino en localizar cuándo aparece: En esta realización, la mejora se concentra en los períodos 3 y 4; luego, el $\Delta VAN$ permanece prácticamente constante y termina cerca de 0,063 MUSD. El resultado confirma que el despacho por NSR ya captura casi todo el valor disponible y que la optimización temporal actúa únicamente sobre un margen muy estrecho.
 
 Desde una perspectiva minera, el resultado importante no es sólo la diferencia final de VAN. También debemos revisar que la política no genere oscilaciones imposibles de ejecutar en la alimentación, no use el stockpile como una fuente ficticia de capacidad o calidad, respete la secuencia de fases y bancos, mantenga una utilización defendible de planta y refinería y sea robusta frente a incertidumbre de ley, recuperación, precio y disponibilidad.
 

@@ -28,7 +28,8 @@ Ejemplos hay muchísimos, y que constituyen cuestiones elementales en la minerí
 
 En este ejercicio, abordaremos uno de los problemas más elementales en la planificación minera a cielo abierto: Dado un modelo de bloques, determinar el máximo beneficio de extraer secuencialmente un subconjunto de tales bloques, respetando determinadas restricciones geométricas que guardan relación con el ángulo resultante de dicha extracción, siendo la geometría final de dicha extracción denominada **pit final** (en términos puramente geométricos). Cada bloque se encuentra etiquetado por un determinado beneficio, el cual puede ser positivo o negativo, dependiendo de si dicho bloque está constituido total o parcialmente por mineral de interés económico (por ejemplo, cobre, que es la situación más común en la gran minería de mi país, Chile), o bien, por estéril o lastre (roca sin interés económico).
 
-## Conceptos previos.
+## Conceptos previos
+
 La actividad minera se realiza sobre depósitos de mineral que se forman naturalmente en la corteza terrestre, denominados **yacimientos mineros**. La coletilla de "minero" se justifica siempre que la extracción de los minerales de interés en esos yacimientos sea económicamente rentable. De no ser así, el yacimiento se denominará por defecto **geológico**. La rentabilidad de un yacimiento no es constante, ya que depende de ciertos aspectos tales como el precio de los metales y de la tecnología disponible para su extracción.
 
 La definición de los minerales que pueblan un yacimiento, independientemente de su rentabilidad, es una actividad extensiva dominada por disciplinas geocientíficas. En general (y siendo muy simplista), determinar "lo que hay" en un depósito requiere de la realización de campañas de sondajes que extraen muestras de roca que, una vez estudiadas, permiten caracterizar puntualmente sus propiedades. Matemáticamente, cada campaña de sondajes representa un muestreo no regular que, una vez que se han caracterizado estadísticamente, constituyen una grilla 3D de puntos no regularizada. Una vez disponibles estos puntos, es posible construir **modelos geológicos** que permiten inferir las propiedades de volúmenes continuos de los yacimientos en la forma de sólidos tridimensionales. La forma en la cual se realizan tales inferencias es el dominio de la **geoestadística**, una de las áreas más interesantes en las geociencias (y de la minería propiamente tal).
@@ -39,14 +40,16 @@ Para determinar cómo hacer minería a partir de un depósito, es necesario disp
 
 ![Cada bloque $B_{i}$ en un modelo de bloques puede caracterizarse por un par $(\mathbf{r}_{i}, \mathbf{p}_{i})$, donde $\mathbf{r}_{i}=(x_{i},y_{i},z_{i})$ es un vector que describe las coordenadas del centroide del bloque y $\mathbf{p}_{i}$ es un vector que lista todas las propiedades que se han estimado para ese bloque (por ejemplo, ley de cobre, dureza del mineral, recuperación metalúrgica, entre otros)](images/fig_2.png){#fig-bloques fig-align="center" width="90%"}
 
-## El algoritmo de máximo flujo.
+## El algoritmo de máximo flujo
+
 Para los planificadores mineros de cielo abierto, es común la implementación de rutinas de optimización que, dado un modelo de bloques, permitan maximizar el beneficio derivado de extraer un subconjunto de bloques en un procedimiento secuencial. Decimos "subconjunto" porque, naturalmente, no será posible extraer todos los bloques que constituyen un depósito, ya que muchos de ellos estarán constituidos únicamente por estéril, o bien, la extracción de un bloque con mineral de interés económico requerirá la extracción de varios bloques de estéril que actuarán como contrapeso económico y que, muchas veces, podrían totalizar un beneficio negativo. Sea como sea, la extracción de estos bloques bajo una óptica económica (la actividad minera per se) indudablemente constituye un problema de optimización. Uno bien conocido en la teoría de optimización combinatorial conocido como **problema de máximo flujo**.
 
 Antes de proseguir con la teoría, les compartiré una historia personal a modo de motivación para comprender las bases de este problema. Mi primer contacto con este problema fue cuando ya me encontraba en el séptimo semestre de mi carrera en la universidad (de un total de 12), en una asignatura llamada simplemente "Optimización". Más allá de lo idóneo del nombre, esta asignatura, en mi época universitaria (y me consta que en muchas épocas anteriores) era una de las más temidas en mi universidad (y no solamente en la carrera de ingeniería civil en minas). Quizás su alta tasa de reprobación (no era raro encontrar compañeros cursando esta asignatura por tercera vez) se deba a que, en esta asignatura, se introducía la teoría de optimización combinatorial en sus matices más elementales, considerando problemas de programación lineal (PL) y sus distintas formulaciones: Como una función objetivo sujeta a restricciones que tomaban la forma de un sistema de desigualdades, como un problema matricial, como un modelo de transporte, como un modelo de asignación y, finalmente, como un modelo de redes o grafos. Este último enfoque constituía la última de las tres evaluaciones de la asignatura y era, indudablemente, considerada la más "fácil" de todas... ¿La razón? Muy sencillo: **Los grafos son objetos matemáticos que permiten resolver problemas de alta complejidad con extrema sencillez, explotando sus propiedades estructurales**. El llamado "problema de pit final" era considerado uno de los más fáciles, porque, aún con las complejidades previamente descritas, su formulación con base en un grafo dirigido con un nodo de inicio o fuente ($s$) y un nodo de término o fondo ($t$).
 
 ![Un recuerdo (quizás no tan feliz, para muchos compañeros de universidad –¡pido perdón!–) de una pregunta relacionada a la determinación de un pit final geométrico para un modelo 2D con cuatro niveles. Este era uno de los ejercicios más "papeados" de la época, y considerado uno de los más sencillos](images/fig_3.png){#fig-prueba fig-align="center" width="90%"}
 
-### Intuición.
+### Intuición
+
 Una vez terminado con este paréntesis (quizás no tan) nostálgico, prosigamos. Consideremos el problema de llevar un flujo de determinado material desde una **fuente** hacia un **destino**. El transporte de dicho material se realiza por una serie de caminos o "arcos", generalmente dirigidos (esto es, con una dirección determinada), que conectan dicha fuente con nodos intermedios, los que, a su vez, conectan con el nodo de destino propiamente tal del flujo de interés. Cada arco se etiqueta con una **capacidad**, que corresponde al máximo flujo que puede ser transportado en dicho arco. Estamos interesados en determinar cuál es el camino que conecta la fuente con el destino que **maximiza el flujo total del sistema**, dadas las capacidades en cada arco. Este problema se conoce, en la toería clásica de optimización combinatorial, como **problema de máximo flujo**.
 
 El problema de máximo flujo (en adelante, PMF) puede adaptarse a una enorme cantidad de situaciones que, incluso, pueden no ser triviales. Debido a que el tipo de material que transportamos en el sistema es irrelevante, el mismo puede incluso ser convenientemente ficticio. Algunos ejemplos de problemas de máximo flujo son los siguientes:
@@ -58,6 +61,7 @@ El problema de máximo flujo (en adelante, PMF) puede adaptarse a una enorme can
 El PMF es, por tanto, una puerta de entrada a la formulación de problemas de diversa índole. Su conocimiento resulta, por tanto, extremadamente útil, puesto que, como veremos más adelante, su resolución es relativamente sencilla.
 
 ### ¿Qué es un grafo?
+
 Esta pregunta puede resultar insultante para muchísimos ingenieros. No obstante, ofreciendo las debidas disculpas, resulta importante hacer un *refresh* debido a que los mineros solemos ser muchas veces "hijos del cerro", o bien, "esclavos del Excel". Y ambas alternativas suelen ser propensas a *olvidar* un poco algunos marcos teóricos importantes.
 
 Un **grafo** o **red** es una estructura que comúnmente se utiliza para representar relaciones entre ciertos objetos. Tales objetos pueden ser de cualquier tipo, tales como sitios web, usuarios de una red social, elementos químicos que conforman la molécula de una estructura más compleja, o cualquier otra abstracción similar. Similarmente, las relaciones entre estos objetos suelen depender del contexto en el cual ha sido definido el grafo. Por ejemplo, enlances de dirección a sitios web, seguidores en una red social o enlaces químicos. La @fig-grafos ilustra todos estos ejemplos de manera más gráfica.
@@ -70,7 +74,8 @@ Los grafos tienen varias propiedades que son de interés. Por ejemplo, éstos pu
 
 La **capacidad** de un arco $(i, j)$ suele denotarse como $c_{ij}$. Si dicho arco es bidireccional, es posible etiquetar ese arco dos veces con las capacidades $c_{ij}$ y $c_{ji}$, dependiendo de si el flujo en cuestión circula desde $i$ hacia $j$ o en sentido contrario. Sin embargo, en general, esto no será necesario, puesto que suele ser común que $c_{ij}=c_{ji}$. Con frecuencia, salvo que sea necesario incorporar nodos de fuente y destino artificiales, las capacidades de la red serán siempre finitas y no negativas. Y, por supuesto, el grafo completo será dirigido.
 
-### El concepto de "corte".
+### El concepto de "corte"
+
 Dadas las definiciones anteriores que formalizan el concepto de grafo dirigido, con todos sus elementos estructurales, es claro que el PMF puede formularse como un problema de optimización en un grafo $G=(V, E)$ que tendrá siempre un nodo fuente y un nodo destino (o sumidero, como dictan ciertos libros especializados muy famosos). Estos nodos suelen denotarse como $s$ y $t$, respectivamente. La cantidad de nodos intermedios entre $s$ y $t$ es irrelevante en la formulación del PMF, y su impacto es simplemente variar el tiempo de ejecución de los algoritmos capaces de solucionar este problema. El **flujo** $f_{ij}$ entre los nodos $i$ y $j$ puede ser igual o menor que la capacidad $c_{ij}$, aunque con frecuencia estaremos interesados en los casos para los cuales $f_{ij}=c_{ij}$, por ser mucho más simples de resolver. Naturalmente, la suma local de flujos de entrada en un nodo arbitrario $j$ debe ser igual a la suma local de flujos de salida en el mismo nodo. Por lo tanto, en palabras, este problema puede definirse como
 
 $$
@@ -85,7 +90,8 @@ Consideremos pues un grafo $G=(V,E)$ que describe un PMF. Un corte $\mathcal{C}_
 
 ![Una red que simula el flujo de agua desde una fuente $s$ a un sumidero $t$. Se aprecia que el máximo flujo de la red es equivalente a la capacidad del mínimo corte que interrumple el flujo desde $s$ a $t$, equivalente a 12 unidades (imagen adaptada de un ejercicio aplicado en la asignatura de "Optimización", correspondiente a la carrera de ingeniería civil en minas de la Universidad de Santiago de Chile. Créditos al profesor José Ascencio Castillo por proponer este ejercicio)](images/fig_5.png){#fig-flujoagua fig-align="center" width="90%"}
 
-### Formulación matemática.
+### Formulación matemática
+
 Ya disponemos de todos los ingredientes para construir una formulación matemática adecuada para resolver este problema. Notemos que, *antes* de ponernos a hacer *carpintería* de números y fórmulas (adoro ese término, es uno de los pocos grandes recuerdos que tengo de mi enseñanza secundaria), nos hemos dado el trabajo de construir una intuición adecuada de este problema y también de su solución.
 
 Los datos de entrada de un PMF son los siguientes:
@@ -148,7 +154,8 @@ $$
 \max_{f_{ij}} \  \sum_{j:\left( s,j \right) \in E} f_{ij}=\min_{\pi_{k} ,\alpha_{ij}} \sum_{\left( i,j \right) \in E} c_{ij}\alpha_{ij} \tag{6}
 $$
 
-### Solución del problema.
+### Solución del problema
+
 Es justo preguntarse, después de toda esta continua habladuría de términos matemáticos, cómo solucionar este problema (y, más importante aún, cómo se conecta dicho problema con construir un pit final). Paciencia, amigos. Dicen por ahí que Roma no se construyó en un día. Y por mucho que algunos "líderes" lo crean, los rajos tampoco...
 
 Pero bueno, prosigamos. La mala noticia, una vez definido el *setting* del PMF, es que su solución óptima está garantizada únicamente por medio de la enumeración exhaustiva de todos los cortes de la red correspondiente, eligiendo aquel cuya capacidad sea la menor. Naturalmente, si la red crece en tamaño, esta búsqueda se hará cada vez más intratable. Y como la fuerza bruta es todo menos elegante (dentro del formalismo matemático), es claro que necesitamos una solución más ingeniosa.
@@ -216,7 +223,8 @@ La especie de pseudocódigo que hemos escrito fue hecha de esta manera simplemen
 La dificultad de implementar este algoritmo radica en encontrar $\overline{c}(\mathcal{P})$, lo que equivale a determinar el corte mínimo en cada iteración. En la práctica, la mayoría de las rutinas computacionales provistas por diversas librerías y software especializado opta por dos alternativas para encontrar estos cortes: Una [búsqueda en profundidad (DFS, del inglés *depth-first search*)](https://en.wikipedia.org/wiki/Depth-first_search) o una [búsqueda a lo ancho (BFS, del inglés *breadth-first search*)](https://en.wikipedia.org/wiki/Breadth-first_search), ambas para el grafo residual $G_{f}$. La estrategia DFS es la original propuesta en el algoritmo de Ford-Fulkerson, mientras que la estrategia BFS, al aplicarla al algoritmo de máximo flujo, se conoce como **algoritmo de Edmonds-Karp**, aunque la idea, como podemos observar, es esencialmente la misma en ambos casos.
 :::
 
-## Aplicación al problema de determinación del pit final.
+## Aplicación al problema de determinación del pit final
+
 Al fin, después de más de 2.000 palabras (falso, en realidad no las conté), hemos llegado a la parte más importante de este texto. Intentaremos formular el problema de determinar el pit final, bajo un contexto geométrico, de un inventario de bloques etiquetados por el beneficio correspondiente a su extracción. Para ello, partiremos con la resolución del problema mostrado en la Figura (3), aunque luego intentaremos implementar nuestra solución en algún problema más interesante.
 
 Para ello, nos valdremos de algunas librerías de Python muy útiles:
@@ -255,7 +263,8 @@ blocks = np.array(
 )
 ```
 
-### Formulación.
+### Formulación
+
 Hasta aquí, nada demasiado complicado. Sin embargo, ahora viene lo divertido. Sea $\mathcal{B} =\left\{ b_{ij}\  |\  i=0,...,m-1\wedge j=0,...,n-1 \right\}$ el conjunto de todos los bloques del inventario, donde $i$ y $j$ son indexadores que recorren sus filas y columnas, respectivamente. Cada bloque tiene asignado un beneficio neto $w_{ij}\in \mathbb{R}$, que representa lo que ganamos o perdemos debido a su extracción, dependiendo de si $w_{ij}$ es positivo o negativo.
 
 Cuando deseamos extraer un bloque, en general, nos encontraremos con dos casos: El bloque aflora a la superficie o se encuentra debajo de otros bloques. En el primer caso ($i=0$), la extracción del bloque no supone más esfuerzo que moverlo de su lugar. Sin embargo, en el segundo caso ($i>0$), la extracción del bloque de interés exigirá además la extracción de los bloques **precedentes** o **adyacentes**. La adyacencia de un bloque responde a una cuestión puramente geométrica, y dependerá de las dimensiones del bloque y del **ángulo de talud** que representa la dirección en la cual se realiza la extracción. En su formulación más simple, los bloques tendrán las mismas dimensiones en todos sus ejes y el ángulo de talud será de 45º. Como el problema que deseamos resolver es 2D, esto implica que los bloques son cuadrados y la extracción de todo bloque $b_{ij}$ tal que $i>0$ requiere la extracción de los tres bloques precedentes sobre él: $b_{i-1,j-1},b_{i-1,j}$ y $b_{i-1,j+1}$. Llamamos a ese conjunto de bloques precedentes $\mathcal{H}(b_{ij})$.
@@ -294,7 +303,8 @@ $$
 
 Donde $W=\sum_{w_{ij}>0} w_{ij}$ (la suma de todos los bloques con beneficio positivo) es constante. Por lo tanto, hemos llegado a un importante resultado: La función objetivo $\phi$ es máxima si y sólo si la capacidad $c(S,T)$ es mínima. De esta manera, **concluimos que el problema de extracción óptima en la construcción de un pit final es, de hecho, un PCM y, por extensión, también un PMF (por la condición de dualidad)**.
 
-### Solución por medio de <font color='darkmagenta'>NetworkX</font>.
+### Solución por medio de <font color='darkmagenta'>NetworkX</font>
+
 Muy bien, ya tenemos todo lo que necesitamos y únicamente nos resta *programar* la solución. Con "programar" no me refiero al formular el algoritmo de máximo flujo desde cero, no porque sienta que no vale la pena (de hecho, es un ejercicio muy interesante), sino porque este texto está orientado a colegas que trabajan en minería. Y sé muy bien que no nos sobra el tiempo y muchas veces optamos por rutinas de solución prefabricadas.
 
 Lo anterior no es en absoluto algo negativo. De hecho, está perfecto... ¿Quienes somos nosotros, al final, para juzgar las herramientas que mentes tan brillantes nos proveen gratis en la forma de librerías de Python?
@@ -430,7 +440,69 @@ Personalmente, hubiera deseado saber todo esto en mis tiempos universitarios...
 
 Uno podría evidentemente preguntar... ¿Y el grafo que simula la extracción de estos bloques? Siendo una pregunta completamente justa, y habiendo descrito iterativamente el procedimiento de construcción de este grafo, la verdad es que dibujarlo sí es un procedimiento costoso. Sin embargo, por ser el primer ejercicio que hemos resuelto usando este *approach*, mostraremos este gráfico (construido usando la herramienta Mermaid, especializada en diagramas de flujo) en la @fig-grafopit.
 
-![Grafo que permite modelar la extracción de los bloques que constituyen el pit final que hemos obtenido previamente (construido en Mermaid)](images/fig_6.svg){#fig-grafopit fig-align="center" width="90%"}
+```{mermaid}
+%%| label: fig-grafopit
+%%| fig-cap: "Construcción conceptual de la red dirigida para el problema de pit final. Los arcos económicos conectan la fuente o el sumidero según el signo del beneficio; los arcos segmentados de capacidad M imponen las precedencias de extracción; y el corte mínimo separa los bloques extraídos de aquellos que permanecen fuera del diseño."
+
+flowchart TB
+  subgraph ECONOMY["01 · El valor económico define las capacidades"]
+    direction LR
+    S(("Fuente<br/>s"))
+    POS["Bloque rentable<br/>w > 0"]
+    NEG["Bloque con costo<br/>w < 0"]
+    T(("Sumidero<br/>t"))
+
+    S -->|"capacidad = w"| POS
+    NEG -->|"capacidad = −w"| T
+  end
+
+  subgraph GEOMETRY["02 · El talud de 45° impone la precedencia"]
+    direction TB
+    B["Bloque de interés<br/>b(i,j)"]
+
+    subgraph PREDECESSORS["Bloques superiores que deben extraerse primero"]
+      direction LR
+      LEFT["b(i−1,j−1)"]
+      CENTRE["b(i−1,j)"]
+      RIGHT["b(i−1,j+1)"]
+    end
+
+    B -.->|"M"| LEFT
+    B -.->|"M"| CENTRE
+    B -.->|"M"| RIGHT
+  end
+
+  POS --> NETWORK["Red s–t completa<br/>ambas reglas se repiten<br/>para cada bloque"]
+  B --> NETWORK
+
+  NETWORK --> CUT["Corte mínimo<br/>(S,T)"]
+  CUT --> EXTRACTED["S sin s<br/>bloques extraídos"]
+  CUT --> REJECTED["T sin t<br/>bloques no extraídos"]
+
+  classDef terminal fill:#315F86,stroke:#8CC8F4,stroke-width:2px,color:#FFFFFF
+  classDef positive fill:#285B3A,stroke:#8DD19A,stroke-width:2px,color:#FFFFFF
+  classDef negative fill:#6A2D2B,stroke:#F09A91,stroke-width:2px,color:#FFFFFF
+  classDef block fill:#48334F,stroke:#D5A1DD,stroke-width:2px,color:#FFFFFF
+  classDef predecessor fill:#233F49,stroke:#74C6D3,stroke-width:2px,color:#FFFFFF
+  classDef process fill:#5A4026,stroke:#F1B45B,stroke-width:2px,color:#FFFFFF
+  classDef selected fill:#36542C,stroke:#A7D98B,stroke-width:2px,color:#FFFFFF
+  classDef rejected fill:#4B5156,stroke:#BFC8CE,stroke-width:2px,color:#FFFFFF
+
+  class S,T terminal
+  class POS positive
+  class NEG negative
+  class B block
+  class LEFT,CENTRE,RIGHT predecessor
+  class NETWORK,CUT process
+  class EXTRACTED selected
+  class REJECTED rejected
+
+  style ECONOMY fill:#F5F8FA,stroke:#94AFC1,stroke-width:1px,color:#253D4A
+  style GEOMETRY fill:#F8F3F8,stroke:#B998B5,stroke-width:1px,color:#422F40
+  style PREDECESSORS fill:#EEF6F7,stroke:#94BDC2,stroke-width:1px,color:#294248
+
+  linkStyle default stroke:#647B83,stroke-width:1.7px
+```
 
 Nuestra implementación es mayormente funcional, aunque modularizarla (llevar el código a varias funciones con responsabilidades específicas) no debería ser un problema para algún entusiasta que se inicie en el mundo de los datos. De hecho, podemos probar rápidamente que nuestra solución nos permite resolver cualquier problema 2D similar al anterior. Por ejemplo, consideremos ahora el siguiente inventario de tres niveles:
 
@@ -752,7 +824,8 @@ plt.tight_layout();
 
 Y ahí lo tenemos. La visualización la cambiamos un poco, a fin de tener una representación comprensible de cómo queda este pit final. Resulta inmediato verificar que, en efecto, el algoritmo ha respetado la lógica de precedencia de extracción de cada bloque, imponiendo siempre que el ángulo de extracción sea igual a 45º. De esta manera, nuestra sencilla implementación del algoritmo de Edmonds-Karp pasa la *prueba del tamaño*: No importa la cantidad de bloques, mientras la geometría del inventario sea 2D y, por supuesto, el ángulo de extracción sea tal que necesitemos remover siempre los tres bloques superiores a cada bloque de interés.
 
-## Aspectos geométricos.
+## Aspectos geométricos
+
 Los casos reales donde buscamos optimizar la secuencia de extracción de un rajo, bajo un enfoque geométrico como el desarrollado en este texto, presentan más desafíos que simplemente la escala del problema:
 
 - Los bloques en el inventario no tienen porqué tener las mismas dimensiones en cada eje. Muchas veces, estas dimensiones consideran aspectos geométricos del rajo en cuestión. Por ejemplo, son comunes los modelos de bloques de 10$\times$10$\times$16 m, ya que la dimensión en $z$ se ajusta a la altura de un banco (típicamente, un banco simple tiene una altura que rondea los 16 metros).
@@ -769,7 +842,8 @@ El ángulo de extracción $\alpha$ es un parámetro de diseño que, junto a otro
 
 Vemos pues que, para un caso general que involucra la incorporación explícita de un ángulo de extracción, bastará siempre con introducir el cálculo de $k$ en la solución que estima el pit final.
 
-## Avance por etapas (pits anidados).
+## Avance por etapas (pits anidados)
+
 Finalizaremos esta entrada del repositorio incorporando el efecto secuencial del procedimiento de cálculo del pit final a nuestra implementación. En palabras simples: Hemos estimado el pit final de una sola vez, pero en realidad, llegar a ese punto de la extracción en un rajo puede tomar fácilmente varias décadas. Por lo tanto, es razonable esperar que toda solución de un pit final incorpore siempre un procedimiento secuencial en el cual avanzamos cada cierta cantidad de filas, o de *tiempo*, en el inventario de bloques. Si designamos por $t$ a ese paso *temporal*, entonces cada conjunto $\mathcal{C}(t_{k})$ de bloques extraídos que obtenemos después de aplicaciones sucesivas del algoritmo de Edmonds-Karp para $t=t_{k}$ (donde=$k=0,1,2,...,r$) representa un "pit final" que va creciendo en el tiempo. Al anidar todos estos pits, debiéramos obtener como resultado el pit final para el último paso $t=t_{r}$.
 
 En palabras simples, el algoritimo de Edmonds-Karp se aplica cada cierta cantidad de niveles (filas) en el inventario de bloques, calculando la solución óptima a medida que profundizamos en el rajo. En cada *batch* de bloques solo se consideran los bloques desde la superficie hasta la fila indicada; los inferiores aún no existen para el algoritmo, forzando un pit sub‑óptimo válido a esa profundidad. La conjunción de todos los pits a la máxima profundidad nos da el pit final.
@@ -1144,7 +1218,8 @@ Podemos observar pues que, con este procedimiento, el beneficio resultante de la
 El algoritmo de Edmonds-Karp, en general, responde bien al tamaño del conjunto de datos. Sin embargo, como siempre, esto no es gratis. Dependerá de las capacidades de nuestra máquina. En procedimientos más *"reales"*, en los cuales tratamos con modelos de bloques constituidos por millones de unidades discretas dispuestas en un espacio 3D, esta solución puede presentar problemas de rendimiento, requiriéndose algunos ajustes orientados a la optimización de nuestros recursos.
 :::
 
-## Conclusiones.
+## Conclusiones
+
 En esta entrada hemos mostrado cómo un problema de planificación minera a cielo abierto —la determinación del pit final— puede ser formulado rigurosamente como un problema de corte mínimo en un grafo dirigido. A partir de un modelo de bloques discretizado con beneficios individuales y restricciones geométricas asociadas al ángulo de extracción, se construyó un grafo cuya estructura refleja tanto la viabilidad económica como las dependencias físicas del proceso extractivo. La solución computacional, basada en el algoritmo de máximo flujo, nos permitió obtener de manera eficiente el subconjunto óptimo de bloques a extraer. Este enfoque no solo garantiza la consistencia geométrica y económica del pit final, sino que también ofrece una herramienta versátil y extensible para escenarios más complejos, sirviendo como base para futuras extensiones y/o escalamientos.
 
 Aún así, el problema de determinación de un pit final aún está lejos de resolverse en toda su generalidad después de todo lo aprendido. Primero, porque nos hemos limitado a un problema 2D (a pesar de que la solución en 3D, que veremos en una futura entrada del repo, sigue los mismos preceptos básicos) y, además, porque esta solución es fundamentalmente geométrica. En general, el diseño minero a cielo abierto involucra la introducción de elementos operativos más realistas, como rampas en las cuales circulan los CAEX, y otras construcciones menores, las cuales resultan en la selección de un pit "no tan óptimo", pero práctico (o, como suele llamarse, **pit final operativo**).

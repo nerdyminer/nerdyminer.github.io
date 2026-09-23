@@ -83,7 +83,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <script src="../../site_libs/bootstrap/bootstrap.min.js"></script>
 <link href="../../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
 <link href="../../site_libs/bootstrap/bootstrap-1c6d1870e0fa47bc53bca18fb558ccd8.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
-<link href="../../site_libs/bootstrap/bootstrap-dark-7820c51d3c74e094bd232fdc3a7f6329.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
+<link href="../../site_libs/bootstrap/bootstrap-dark-0ea65f92ab67922e855d6b9d16b17770.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
 <link href="../../site_libs/bootstrap/bootstrap-1c6d1870e0fa47bc53bca18fb558ccd8.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
 <script id="quarto-search-options" type="application/json">{
   "location": "navbar",
@@ -117,6 +117,35 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <script src="../../site_libs/quarto-diagram/mermaid-init.js"></script>
 <link href="../../site_libs/quarto-diagram/mermaid.css" rel="stylesheet">
 
+  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
+  <script defer="" src="https://cdn.jsdelivr.net/npm/mathjax@4/tex-chtml.js" type="text/javascript"></script>
+
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN" && texText && texText.data) {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
 
 </head>
 
@@ -355,9 +384,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <li><a href="#el-producto-final" id="toc-el-producto-final" class="nav-link active" data-scroll-target="#el-producto-final">El producto final</a></li>
   <li><a href="#mapa-del-recorrido" id="toc-mapa-del-recorrido" class="nav-link" data-scroll-target="#mapa-del-recorrido">Mapa del recorrido</a></li>
   <li><a href="#arquitectura-pública" id="toc-arquitectura-pública" class="nav-link" data-scroll-target="#arquitectura-pública">Arquitectura pública</a></li>
-  <li><a href="#reproducir-el-proyecto" id="toc-reproducir-el-proyecto" class="nav-link" data-scroll-target="#reproducir-el-proyecto">Reproducir el proyecto</a></li>
-  <li><a href="#cómo-estudiar-este-proyecto-si-el-tema-es-nuevo" id="toc-cómo-estudiar-este-proyecto-si-el-tema-es-nuevo" class="nav-link" data-scroll-target="#cómo-estudiar-este-proyecto-si-el-tema-es-nuevo">Cómo estudiar este proyecto si el tema es nuevo</a></li>
-  <li><a href="#un-vocabulario-mínimo-antes-de-comenzar" id="toc-un-vocabulario-mínimo-antes-de-comenzar" class="nav-link" data-scroll-target="#un-vocabulario-mínimo-antes-de-comenzar">Un vocabulario mínimo antes de comenzar</a></li>
+  <li><a href="#ejecución-del-proyecto" id="toc-ejecución-del-proyecto" class="nav-link" data-scroll-target="#ejecución-del-proyecto">Ejecución del proyecto</a></li>
+  <li><a href="#cómo-recorrer-este-proyecto" id="toc-cómo-recorrer-este-proyecto" class="nav-link" data-scroll-target="#cómo-recorrer-este-proyecto">¿Cómo recorrer este proyecto?</a></li>
   </ul>
 </nav>
     </div>
@@ -385,37 +413,41 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </header>
 
 
-<p>Un acopio de mineral parece un buffer pasivo cuando se lo observa desde un diagrama de flujo: recibe material desde chancado y lo entrega a una o más líneas de molienda. Sin embargo, su interior conserva memoria. El mineral que cae no queda perfectamente mezclado; fluye por la superficie, se segrega por tamaño, forma zonas con distinta movilidad y vuelve a salir por puntos discretos. Dos corrientes con el mismo tonelaje y la misma granulometría media pueden producir descargas diferentes si llegaron en otro orden o si fueron recuperadas desde posiciones distintas.</p>
-<p>Este proyecto construye una representación tridimensional y dinámica de ese fenómeno mediante un <strong>autómata celular continuo</strong>. El volumen del acopio se divide en una retícula regular. Cada celda almacena una fracción de llenado y un tamaño característico, mientras un conjunto pequeño de reglas locales representa cuatro interacciones: alimentación, descarga, migración del vacío y flujo superficial. La suma de esas reglas sencillas produce propiedades emergentes que un balance de masa de una dimensión no puede mostrar: forma, estratificación, zonas vivas y muertas, segregación radial y diferencias granulométricas entre líneas.</p>
-<div class="callout callout-style-default callout-note callout-titled" title="Una réplica pedagógica con un escenario sintético">
+<p>En el contexto del procesamiento de minerales, tanto en plantas concentradoras como en plantas de hidrometalurgia, los <strong>stockpiles</strong> no suelen recibir el tratamiento teórico y de negocio que realmente merecen, debido a su aparente simplicidad y a la dificultad de observar su comportamiento interno de manera directa. Un stockpile es un acopio de mineral intermedio, comúnmente ubicado entre los procesos de chancado primario y molienda SAG, cuyo propósito es almacenar temporalmente el material y asegurar un flujo continuo hacia las etapas posteriores. Su comportamiento interno, aunque complejo, determina en gran medida la eficiencia y la calidad del procesamiento subsecuente, debido a que el mineral suele percolar a través del acopio siguiendo trayectorias no triviales conforme su distribución granulométrica y las condiciones locales de llenado.</p>
+<p>Un stockpile, por tanto, actúa como regulador o <em>buffer</em> entre dos etapas que procesan mineral en esquemas de tiempo diferentes. El chancado primario opera en modo “batch”, debido a que recibe mineral transportado desde la operación minera en frecuencias variables y que dependen de la secuencia de extracción y las distancias que debe cubrir la flota de transporte. En contraste, la molienda opera de manera continua, sin interrupciones, buscando mantener un flujo estable de material hacia las etapas aguas abajo. Se tiene pues una diferencia estadìstica significativa entre el <em>runtime</em> de ambos sistemas, lo que hace que la dinámica interna del stockpile sea crucial para la estabilidad y eficiencia del proceso global. Cada stockpile se diseña, en general, para alimentar a la molienda durante un período de tiempo razonable (al menos unas cuatro horas).</p>
+<p>Desde una perspectiva estadística, el stockpile actúa como un amortiguador que suaviza las fluctuaciones de flujo entre el chancado y la molienda. Su capacidad para almacenar temporalmente el material y liberar gradualmente hacia la siguiente etapa permite que el sistema global mantenga un comportamiento más predecible y estable, a pesar de la variabilidad inherente en la alimentación y en las operaciones de procesamiento. Se trata pues de un nodo que conserva <strong>memoria</strong> en su interior, afectando la dinámica de las descargas futuras. El mineral que se acopia no se mezcla de manera perfecta: Fluye por la superficie, se segrega por tamaño, forma zonas con perfiles de movilidad muy diferentes entre sí y vuelve a salir por puntos discretos ubicados en su base, que coincide con la localización espacial de los alimentadores y las tolvas de descarga. Así, dos descargas consecutivas pueden diferir significativamente, incluso si las condiciones de alimentación parecen idénticas, debido al orden en que llegan o si son recuperadas desde posiciones distintas.</p>
+<p>En este proyecto, buscamos representar la dinámica interna de un stockpile mediante un modelo computacional que capture tanto la memoria del acopio como la segregación y el flujo del material. El <em>framework</em> escogido se denomina <strong>autómata celular</strong>, que permite modelar sistemas complejos mediante reglas locales aplicadas a una retícula de celdas discretas. Cada celda representa un volumen del stockpile y almacena información sobre el estado del material en esa región, mientras que las reglas locales dictan cómo interactúan las celdas vecinas, simulando fenómenos como la alimentación, la descarga y la migración del material. La suma de estas reglas sencillas permite reproducir propiedades emergentes que un balance de masa unidimensional es incapaz de mostrar: Geometría, estratificación, movimientos internos del mineral (o <strong>carga viva</strong>) y presencia de <em>ratholes</em>, además de segregación radial y diferencias en la descarga hacia distintas líneas de molienda en función de la posición relativa de los alimentadores en la retícula.</p>
+<div class="callout callout-style-default callout-note callout-titled">
 <div class="callout-header d-flex align-content-center">
 <div class="callout-icon-container">
 <i class="callout-icon"></i>
 </div>
 <div class="callout-title-container flex-fill">
-<span class="screen-reader-only">Note</span>Una réplica pedagógica con un escenario sintético
+<span class="screen-reader-only">Note</span>Este proyecto es pedagógico, considerando un escenario industrial simulado
 </div>
 </div>
 <div class="callout-body-container callout-body">
-<p>El trabajo que motivó esta implementación nació de una pregunta industrial, pero la edición pública utiliza un escenario sintético y completamente ficticio. Las señales se diseñaron para conservar los fenómenos que interesa estudiar —detenciones, desfases, vaciado de carga viva y recuperación— sin publicar tags, nombres de equipos, fechas, coordenadas ni parámetros de una operación real.</p>
+<p>La fuente de esta implementación corresponde a un estudio dividido en dos <em>papers</em> publicados por Ye, Hilden y Yahaei en <a href="https://www.sciencedirect.com/science/article/abs/pii/S0892687522004265">2022</a> y <a href="https://www.sciencedirect.com/science/article/pii/S089268752300170X">2023</a>, a partir de un caso industrial en la mina Las Bambas, ubicada en la región de Apurimac, Perú.</p>
+<p>En nuestro caso, implementaremos una idea muy similar, pero con un stack tecnológico distinto, basado en Python y React (a diferencia del caso original, basado en MATLAB y C++). Nos basaremos en un caso industrial simulado. Esto es, diseñado para preservar los fenómenos que nos interesa estudiar en el contexto de los stockpiles.</p>
+<p>Agradezco explícitamente a los autores de este caso de uso y todos los créditos asociados a la idea, implementación y diseño del producto final son de aquellos autores. En este proyecto, nos limitamos a reproducir esa idea ilustrando un stack diferente y con foco en los distintos contratos de datos y activos que se derivan de él.</p>
 </div>
 </div>
-<p>La base metodológica corresponde al trabajo de Z. Ye, M. M. Hilden y M. Yahyaei, del Julius Kruttschnitt Mineral Research Centre. La primera parte desarrolla el autómata 3D y la segregación superficial; la segunda agrega descarga, migración de vacíos, segregación por trayectoria y validación industrial. Agradecemos explícitamente ese caso de uso y lo replicamos en Python con fines educativos. Los autores reportan implementaciones originales en MATLAB y C++; aquí exploramos qué cambia cuando el núcleo científico se rodea de contratos de datos, transformaciones columnares y orquestación basada en activos.</p>
 <section id="el-producto-final" class="level2">
 <h2 class="anchored" data-anchor-id="el-producto-final">El producto final</h2>
-<p>El laboratorio permite elegir cualquier rango disponible de hasta catorce días, reproducirlo cuadro a cuadro, orbitar la cámara 3D, cambiar la exageración vertical, leer la granulometría con una escala RdYlGn fija, inspeccionar la planta y dos cortes verticales, y contrastar el estado simulado con series sintéticas de altura y granulometría. Cada cuadro representa quince minutos: una ventana completa de dos semanas contiene 1.344 estados consecutivos. Para preservar el ancho y la jerarquía de la interfaz, el laboratorio se abre como una aplicación independiente.</p>
-<p><a href="app/" class="btn btn-primary">Abrir Digital Twin Lab</a> <a href="dagster/" class="btn btn-outline-primary">Explorar el Asset Graph de <strong><font color="darkmagenta">Dagster</font></strong></a> <a href="../../proyectos/stockpile-cellular-automata/11-codigo-fuente.html" class="btn btn-outline-secondary">Recorrer el código fuente</a></p>
-<div class="callout callout-style-default callout-important callout-titled" title="Qué significa lo que vemos">
+<p>Para visualizar el producto final de este proyecto, se ha desarrollado un laboratorio digital que permite interactuar con la simulación del stockpile en un entorno tridimensional y dinámico. El modelo completo se ha construido en <strong><font color="dodgerblue">React</font></strong> y utiliza Python para la lógica de simulación y procesamiento de datos. El laboratorio en sí se ejecuta como una aplicación web independiente, ofreciendo una experiencia inmersiva y control total sobre la visualización y manipulación de los datos simulados, a fin de observar el comportamiento emergente que resulta de la simulación conforme el autómata. Cada cuadro en la animación representa un estado del sistema en un instante de tiempo de 15 minutos de duración, con ventanas de hasta dos semanas.</p>
+<p>Además, se provee el grafo de activos correspondiente, que permite explorar las relaciones y dependencias entre los distintos componentes del sistema simulado. A diferencia de <a href="../bayesian-tph-forecasting/">nuestro primer proyecto</a>, la arquitectura en este caso se estructura en base a activos de datos en vez de nodos y pipelines, haciendo uso de <strong><font color="darkmagenta">Dagster</font></strong> como orquestador de los flujos de datos y transformaciones. El grafo de activos ofrece una visión clara de cómo se interconectan los distintos elementos del sistema y facilita la comprensión de la dinámica de datos dentro del laboratorio digital.</p>
+<p><a href="app/" class="btn btn-primary">Abrir Digital Twin Lab</a> <a href="dagster/" class="btn btn-outline-primary">Explorar el DAG de activos de datos de <strong><font color="darkmagenta">Dagster</font></strong></a> <a href="../../proyectos/stockpile-cellular-automata/11-codigo-fuente.html" class="btn btn-outline-secondary">Recorrer el código fuente</a></p>
+<div class="callout callout-style-default callout-note callout-titled">
 <div class="callout-header d-flex align-content-center">
 <div class="callout-icon-container">
 <i class="callout-icon"></i>
 </div>
 <div class="callout-title-container flex-fill">
-<span class="screen-reader-only">Important</span>Qué significa lo que vemos
+<span class="screen-reader-only">Note</span>¿Qué significa lo que vemos en el laboratorio digital?
 </div>
 </div>
 <div class="callout-body-container callout-body">
-<p>La animación es una <strong>demostración determinista construida sobre señales sintéticas</strong>. La correa magenta se representa elevada e inclinada sobre la pila y termina en el punto de descarga; los alimentadores azules y naranjos representan puntos de recuperación bajo la base. No comparten cota ni función y, por lo tanto, no tienen por qué aparecer alineados. El color codifica tamaño característico; la planta revela segregación; los cortes revelan estratificación y zonas de recuperación; y las curvas de reconciliación muestran cómo se diagnostica la distancia entre modelo y sensor. Sus capacidades, rendimientos y equipos pertenecen exclusivamente al caso pedagógico ficticio.</p>
+<p>La animación construida en el laboratorio digital representa el comportamiento del stockpile a lo largo del tiempo, mostrando cómo interactúan los distintos componentes del sistema simulado y cómo emergen patrones complejos a partir de reglas simples del autómata celular. Se trata de una demostración determinista del comportamiento físico de las partículas construida a partir de señales sintéticas. La correa de alimentación se muestra en color magenta conforme una elevación y altura fijas, con vértice de salida alineado con respecto al vértice del stockpile. Se usa un mapa de color secuencial para mostrar la variación del <span class="math inline">\(P_{80}\)</span> de la distribución de tamaños en todo el volumen del stockpile, tanto en la retícula 3D como en distintas vistas bidimensionales, a fin de verificar visualmente la estratificación del material. Se construyen además curvas de reconciliación granulométrica y de altura, a fin de diagnosticar las diferencias observadas entre los valores simulados y los medidos por los sensores.</p>
 </div>
 </div>
 </section>
@@ -636,122 +668,104 @@ Recorrer código <span aria-hidden="true">↗</span>
 </section>
 <section id="arquitectura-pública" class="level2">
 <h2 class="anchored" data-anchor-id="arquitectura-pública">Arquitectura pública</h2>
+<p>En la <a href="#fig-project-architecture" class="quarto-xref">Figura&nbsp;1</a> se muestra la arquitectura del proyecto público, destacando las componentes de datos, contratos, dominio, orquestación y producto. Esta división permite entender cómo se relacionan las distintas partes del sistema y cómo se materializan las dependencias y los contratos en cada capa.</p>
 <div class="cell" data-layout-align="default">
 <div class="cell-output-display">
+<div id="fig-project-architecture" class="quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-project-architecture-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
 <div>
-<p></p><figure class="figure"><p></p>
-<div>
-<pre class="mermaid mermaid-js">flowchart LR
-  G["Escenario sintético&lt;br/&gt;determinista"] --&gt; P["Polars&lt;br/&gt;contrato minuto"]
-  C["TOML público"] --&gt; V["Pydantic&lt;br/&gt;contratos inmutables"]
-  P --&gt; D["Activos Dagster"]
+<pre class="mermaid mermaid-js" data-label="fig-project-architecture">flowchart TB
+  subgraph INPUTS["01 · Entradas públicas"]
+    direction LR
+    G["Escenario sintético&lt;br/&gt;determinista"]
+    C["Configuración&lt;br/&gt;TOML pública"]
+  end
+
+  subgraph CONTRACTS["02 · Preparación y contratos"]
+    direction LR
+    P["Polars&lt;br/&gt;tabla por minuto"]
+    V["Pydantic&lt;br/&gt;contratos inmutables"]
+  end
+
+  subgraph ORCHESTRATION["03 · Orquestación"]
+    D["Dagster&lt;br/&gt;activos y checks"]
+  end
+
+  subgraph DOMAIN["04 · Dominio científico"]
+    K["NumPy&lt;br/&gt;autómata celular 3D"]
+  end
+
+  subgraph OUTPUTS["05 · Salidas del modelo"]
+    direction LR
+    R["Reconciliación&lt;br/&gt;altura y granulometría"]
+    E["Estados visuales&lt;br/&gt;3D y cortes 2D"]
+  end
+
+  subgraph PRODUCT["06 · Producto pedagógico"]
+    A["React + TypeScript&lt;br/&gt;laboratorio digital"]
+  end
+
+  G --&gt; P
+  C --&gt; V
+  P --&gt; D
   V --&gt; D
-  D --&gt; K["Núcleo NumPy&lt;br/&gt;CCA 3D"]
-  K --&gt; R["Reconciliación"]
-  K --&gt; E["Estados visuales"]
-  R --&gt; A["React + SVG"]
-  E --&gt; A["React + canvas"]
+  D --&gt; K
+  K --&gt; R
+  K --&gt; E
+  R --&gt; A
+  E --&gt; A
+
+  classDef input fill:#642052,stroke:#F06ACB,stroke-width:2px,color:#FFFFFF
+  classDef contract fill:#123F48,stroke:#55D5DE,stroke-width:2px,color:#FFFFFF
+  classDef orchestration fill:#293F60,stroke:#8DA9FF,stroke-width:2px,color:#FFFFFF
+  classDef domain fill:#284E38,stroke:#8CCB78,stroke-width:2px,color:#FFFFFF
+  classDef output fill:#5A4026,stroke:#F1B45B,stroke-width:2px,color:#FFFFFF
+  classDef product fill:#36542C,stroke:#A7D98B,stroke-width:2px,color:#FFFFFF
+
+  class G,C input
+  class P,V contract
+  class D orchestration
+  class K domain
+  class R,E output
+  class A product
+
+  style INPUTS fill:#F7F1F5,stroke:#C7A3BB,stroke-width:1px,color:#3B2634
+  style CONTRACTS fill:#EDF6F7,stroke:#8CB9BE,stroke-width:1px,color:#20383C
+  style ORCHESTRATION fill:#EEF1F7,stroke:#9DAAC2,stroke-width:1px,color:#29364B
+  style DOMAIN fill:#EEF5F0,stroke:#9BB9A4,stroke-width:1px,color:#294133
+  style OUTPUTS fill:#F8F2E9,stroke:#C8AC82,stroke-width:1px,color:#493722
+  style PRODUCT fill:#F0F6EC,stroke:#A7BE98,stroke-width:1px,color:#30432A
+
+  linkStyle default stroke:#789097,stroke-width:1.6px
 </pre>
 </div>
-<p></p></figure><p></p>
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-project-architecture-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figura&nbsp;1: Arquitectura del proyecto público conforme las componentes de datos, contratos, dominio, orquestación y producto.
+</figcaption>
+</figure>
 </div>
 </div>
 </div>
-<p>La división es deliberada. <strong><font color="darkmagenta">Polars</font></strong> transforma tablas; <strong><font color="darkmagenta">Pydantic</font></strong> decide si configuración y registros pueden entrar al dominio; <strong><font color="darkmagenta">NumPy</font></strong> mantiene el estado denso del autómata; <strong><font color="darkmagenta">Dagster</font></strong> declara activos, dependencias, materializaciones y verificaciones; y <strong><font color="darkmagenta">React</font></strong> traduce los estados a una experiencia explorable. Ninguna de esas herramientas reemplaza a otra: cada una protege una frontera distinta.</p>
+<p>Esta arquitectura tiene como objetivo principal separar las responsabilidades de cada componente del sistema, facilitando la modularidad, la mantenibilidad y la extensibilidad del proyecto. Cada capa interactúa con las demás a través de interfaces bien definidas, lo que permite que los cambios en una capa tengan un impacto mínimo en las demás.</p>
+<p>En términos del stack tecnológico, cada componente de la arquitectura se asocia con herramientas específicas que cumplen roles bien definidos dentro del proyecto. En primera instancia, <strong><font color="darkmagenta">Polars</font></strong> se encarga de la transformación y gestión eficiente de datos tabulares, asegurando que la información esté disponible en el formato adecuado para las capas posteriores; <strong><font color="darkmagenta">Pydantic</font></strong> valida y asegura la consistencia de la configuración y los registros; <strong><font color="darkmagenta">Numpy</font></strong> mantiene el estado denso del autómata por medio de arreglos vectorizados; <strong><font color="darkmagenta">Dagster</font></strong> orquesta la ejecución, declarando activos, dependencias, materializaciones y verificaciones; y <strong><font color="dodgerblue">React</font></strong> proporciona la interfaz visual interactiva para explorar los estados del sistema. Ninguna de estas librerías reemplaza a otra: Cada una protege una frontera distinta.</p>
 </section>
-<section id="reproducir-el-proyecto" class="level2">
-<h2 class="anchored" data-anchor-id="reproducir-el-proyecto">Reproducir el proyecto</h2>
+<section id="ejecución-del-proyecto" class="level2">
+<h2 class="anchored" data-anchor-id="ejecución-del-proyecto">Ejecución del proyecto</h2>
+<p>A nivel local, si suponemos que este proyecto se localiza en el directorio <code>proyectos/stockpile-cellular-automata</code>, su ejecución completa, punta a punta, se realiza en nuestra terminal por medio de los comandos que se muestran a continuación:</p>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> proyectos/stockpile-cellular-automata</span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="ex">uv</span> sync <span class="at">--group</span> dev</span>
 <span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="ex">uv</span> run ruff check .</span>
 <span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="ex">uv</span> run pytest</span>
 <span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="bu">export</span> <span class="va">DAGSTER_HOME</span><span class="op">=</span><span class="st">"</span><span class="va">$PWD</span><span class="st">/.dagster_home"</span></span>
 <span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="ex">uv</span> run dagster asset materialize <span class="at">--select</span> <span class="st">'*'</span> <span class="at">-m</span> stockpile_ca.definitions</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>La materialización crea tres activos: la serie sintética pública, la tabla curada con <strong><font color="darkmagenta">Polars</font></strong> y la reproducción del acopio. Dos <code>asset checks</code> comprueban el contrato minuto a minuto y publican las métricas de reconciliación. El visor desplegado no necesita ese runtime: consume un índice JSON y archivos binarios diarios cuantizados, y decodifica únicamente la ventana solicitada.</p>
+<p>Debido a que usamos <strong><font color="darkmagenta">Dagster</font></strong> para la orquestación, es necesario establecer la variable de entorno <code>DAGSTER_HOME</code> antes de ejecutar la materialización de activos. Esto asegura que <strong><font color="darkmagenta">Dagster</font></strong> pueda almacenar y acceder a la información de ejecución de manera consistente. Además, el proyecto se <strong>materializa</strong> conforme tres activos de datos: Una serie sintética pública de entrada, la tabla de datos ya procesada con <strong><font color="darkmagenta">Polars</font></strong> y la reproducción del stockpile por medio de nuestro modelo. Dos <strong>chequeos de activos</strong> comprueban uno de los aspectos esenciales del proyecto: La granularidad y consistencia de los datos minuto a minuto, representados ambos en un <strong>contrato de datos</strong>, publicando las métricas de reconciliación.</p>
 </section>
-<section id="cómo-estudiar-este-proyecto-si-el-tema-es-nuevo" class="level2">
-<h2 class="anchored" data-anchor-id="cómo-estudiar-este-proyecto-si-el-tema-es-nuevo">Cómo estudiar este proyecto si el tema es nuevo</h2>
-<p>Este recorrido no supone experiencia previa con autómatas celulares, mecánica de medios granulares ni orquestadores de datos. Sí ayuda saber leer Python elemental, pero el orden está pensado para que el código aparezca después de la pregunta que intenta resolver. Si un término como <em>P80</em>, ángulo de reposo, actualización asíncrona o activo de software todavía no significa nada, no es necesario investigarlo antes: cada concepto se construye en el módulo donde empieza a ser necesario.</p>
-<p>La secuencia tiene cuatro capas. Los módulos 1 y 2 presentan el problema y el lenguaje mínimo del modelo. Los módulos 3, 4 y 5 construyen los mecanismos físicos de formación, segregación y descarga. Los módulos 6, 7 y 8 muestran cómo convertir ese modelo en un sistema de datos verificable. Los módulos 9 y 10 discuten evidencia y producto. El módulo 11 recorre el repositorio en el mismo orden causal.</p>
-<p>Una buena forma de lectura consiste en formular siempre cinco preguntas:</p>
-<ol type="1">
-<li><strong>¿Qué representa el estado?</strong> Una variable del autómata debe tener unidad y significado físico.</li>
-<li><strong>¿Qué evento cambia ese estado?</strong> Alimentar, descargar y relajar una pendiente no son el mismo mecanismo.</li>
-<li><strong>¿Qué se conserva?</strong> Ninguna regla local puede crear volumen o propiedad granulométrica de la nada.</li>
-<li><strong>¿Qué podemos observar?</strong> La altura y una muestra de correa no revelan directamente todo el interior del acopio.</li>
-<li><strong>¿Qué evidencia refutaría el modelo?</strong> Una animación plausible no basta para validarlo.</li>
-</ol>
-<div class="callout callout-style-default callout-tip callout-titled" title="Ruta corta y ruta completa">
-<div class="callout-header d-flex align-content-center">
-<div class="callout-icon-container">
-<i class="callout-icon"></i>
-</div>
-<div class="callout-title-container flex-fill">
-<span class="screen-reader-only">Tip</span>Ruta corta y ruta completa
-</div>
-</div>
-<div class="callout-body-container callout-body">
-<p>Para una primera lectura conceptual, conviene recorrer los módulos 1, 2, 3, 4, 5, 9 y el visor. Para reproducir el proyecto completo, se agregan 6, 7, 8 y 11. Las ecuaciones no están puestas como requisito ornamental: cada una fija una conservación, una escala o una interpretación que luego aparece en código.</p>
-</div>
-</div>
-</section>
-<section id="un-vocabulario-mínimo-antes-de-comenzar" class="level2">
-<h2 class="anchored" data-anchor-id="un-vocabulario-mínimo-antes-de-comenzar">Un vocabulario mínimo antes de comenzar</h2>
-<table class="caption-top table">
-<colgroup>
-<col style="width: 50%">
-<col style="width: 50%">
-</colgroup>
-<thead>
-<tr class="header">
-<th>Término</th>
-<th>Significado en este proyecto</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td>Acopio o <em>stockpile</em></td>
-<td>Inventario granular temporal entre una etapa que alimenta y otra que recupera mineral.</td>
-</tr>
-<tr class="even">
-<td>Alimentación</td>
-<td>Flujo de material que entra por la zona superior.</td>
-</tr>
-<tr class="odd">
-<td>Descarga o recuperación</td>
-<td>Material extraído por alimentadores ubicados bajo la pila.</td>
-</tr>
-<tr class="even">
-<td>Celda</td>
-<td>Volumen elemental de la retícula, capaz de estar vacío, parcialmente ocupado o lleno.</td>
-</tr>
-<tr class="odd">
-<td>Estado latente</td>
-<td>Interior estimado por el modelo, que no observamos directamente.</td>
-</tr>
-<tr class="even">
-<td>P80</td>
-<td>Tamaño bajo el cual pasa el 80 % del material en una distribución granulométrica.</td>
-</tr>
-<tr class="odd">
-<td>Segregación</td>
-<td>Separación espacial de tamaños sin que las partículas cambien de tamaño.</td>
-</tr>
-<tr class="even">
-<td>Reconciliación</td>
-<td>Comparación cuantitativa entre una salida simulada y una medición independiente.</td>
-</tr>
-<tr class="odd">
-<td>DAG</td>
-<td>Grafo dirigido sin ciclos que representa dependencias computacionales o de datos.</td>
-</tr>
-<tr class="even">
-<td>Activo de software</td>
-<td>Objeto de datos identificable, materializable y verificable dentro de <strong><font color="darkmagenta">Dagster</font></strong>.</td>
-</tr>
-</tbody>
-</table>
-<p>El hilo conductor puede resumirse así: transformamos series temporales en eventos, los eventos modifican un estado 3D, las reglas locales producen una forma global, mediciones externas desafían esa forma y el orquestador conserva evidencia de todo el recorrido.</p>
+<section id="cómo-recorrer-este-proyecto" class="level2">
+<h2 class="anchored" data-anchor-id="cómo-recorrer-este-proyecto">¿Cómo recorrer este proyecto?</h2>
+<p>La lectura de este proyecto no requiere de experiencia previa con autómatas celulares, dinámica de medios granulares ni orquestadores de datos. Sin embargo, se recomienda tener conocimientos básicos de Python y sus librerías esenciales de análisis de datos para poder seguir los ejemplos de código y comprender la implementación de los modelos.</p>
+<p>Nos preocuparemos de introducir el vocabulario necesario para entender estructuralmente este caso de uso a nivel programático e industrial. Dedicaremos un apartado a cada concepto clave a medida que se vuelve relevante en el desarrollo del proyecto, incluyendo las librerías de Python utilizadas, los autómatas celulares, la dinámica de medios granulares y el stack tecnológico del producto final.</p>
 <p><a href="../../proyectos/stockpile-cellular-automata/01-problema-y-arquitectura.html" class="btn btn-outline-primary">Comenzar por el problema</a></p>
 
 
@@ -1458,7 +1472,7 @@ document.addEventListener("DOMContentLoaded", function () {
       &nbsp;
     </div>
     <div class="nav-footer-right">
-<p>Hecho con Quarto</p>
+<p>Este blog fue construido con mucho ❤️ en Quarto</p>
 </div>
   </div>
 </footer>
