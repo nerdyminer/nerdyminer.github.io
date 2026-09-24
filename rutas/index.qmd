@@ -1,0 +1,108 @@
+---
+title: ""
+pagetitle: "Rutas de aprendizaje"
+description: "Recorridos guiados por el contenido de NerdyMiner, organizados por objetivo, dificultad, dedicación y prerrequisitos."
+page-layout: full
+toc: false
+---
+
+```{=html}
+<header class="routes-hero">
+  <p class="home-eyebrow">Cómo leer NerdyMiner</p>
+  <h1>No necesitas leer el blog en orden. Necesitas un buen punto de partida.</h1>
+  <p>Estas rutas conectan artículos, apuntes, clases y proyectos de acuerdo con una intención pedagógica. El orden es estable: Puedes volver semanas después y continuar exactamente donde quedaste.</p>
+  <div class="routes-level-legend" aria-label="Definición de niveles">
+    <span><b class="home-level home-level-initial">Inicial</b> Construye vocabulario y fundamentos.</span>
+    <span><b class="home-level home-level-intermediate">Intermedio</b> Integra conceptos y aplicación.</span>
+    <span><b class="home-level home-level-advanced">Avanzado</b> Exige formalismo o implementación extensa.</span>
+  </div>
+</header>
+
+<nav class="routes-jump" aria-label="Índice de rutas">
+  <a href="#python-datos">Python y datos</a>
+  <a href="#matematicas-modelar">Matemáticas</a>
+  <a href="#grafos-optimizacion">Grafos</a>
+  <a href="#machine-learning">Machine learning</a>
+  <a href="#optimizacion-minera">Decisiones mineras</a>
+  <a href="#procesos-mineralurgicos">Procesos</a>
+  <a href="#forecasting-bayesiano">Forecasting</a>
+  <a href="#digital-twin-stockpile">Stockpile 3D</a>
+</nav>
+
+<main id="learning-route-catalog" class="routes-catalog" aria-live="polite">
+  <p class="routes-loading">Construyendo el catálogo de lecturas…</p>
+</main>
+
+<noscript>
+  <p>Las rutas requieren JavaScript para desplegar su catálogo. Puedes continuar explorando desde las secciones de Artículos, Apuntes, Clases y Proyectos.</p>
+</noscript>
+
+<script>
+(function () {
+  const routeInfo = [
+    { name: "Python para analizar datos", id: "python-datos", level: "Inicial", description: "Construye una base práctica en arreglos y datos tabulares antes de avanzar a modelos.", outcome: "Manipular, resumir y preparar datos con Numpy y Pandas." },
+    { name: "Matemáticas para modelar", id: "matematicas-modelar", level: "Inicial", description: "Recorre álgebra lineal, cálculo, probabilidad y geometría desde sus fundamentos hasta formulaciones avanzadas.", outcome: "Leer y construir modelos matemáticos con mayor autonomía." },
+    { name: "Grafos, información y optimización", id: "grafos-optimizacion", level: "Intermedio", description: "Conecta estructuras discretas, incertidumbre, redes computacionales y procesos que evolucionan entre estados.", outcome: "Representar relaciones, flujos y dependencias como problemas computables." },
+    { name: "Machine learning con criterio", id: "machine-learning", level: "Intermedio", description: "Estudia los algoritmos desde sus supuestos y geometría antes de concentrarte en sus interfaces de software.", outcome: "Seleccionar, evaluar e interpretar modelos predictivos con fundamento." },
+    { name: "Optimización y decisiones mineras", id: "optimizacion-minera", level: "Intermedio", description: "Pasa desde la máxima clausura y el pit final hasta políticas intertemporales de consumo de reservas.", outcome: "Explicar cómo restricciones, destinos y oportunidad económica modifican un plan minero." },
+    { name: "Modelamiento de procesos mineralúrgicos", id: "procesos-mineralurgicos", level: "Avanzado", description: "Analiza fenómenos operacionales mediante balances, geometría, inferencia y datos industriales.", outcome: "Traducir conocimiento de proceso en una estructura matemática contrastable." },
+    { name: "Forecasting Bayesiano operacional", id: "forecasting-bayesiano", level: "Avanzado", description: "Sigue un proyecto completo desde el problema y el catálogo de datos hasta inferencia, reporte y operación.", outcome: "Diseñar un flujo Bayesiano reproducible para explicar desempeño operacional." },
+    { name: "Digital twin de stockpile", id: "digital-twin-stockpile", level: "Avanzado", description: "Construye un autómata celular tridimensional y conviértelo en un producto analítico orquestado y observable.", outcome: "Conectar física granular, datos, validación y software dentro de un digital twin." }
+  ];
+
+  const levelClass = (level) => ({ Inicial: "initial", Intermedio: "intermediate", Avanzado: "advanced" })[level] || "intermediate";
+  const duration = (minutes) => {
+    const hours = Math.floor(minutes / 60);
+    const rest = minutes % 60;
+    if (!hours) return `${rest} min`;
+    return rest ? `${hours} h ${rest} min` : `${hours} h`;
+  };
+  const escapeHtml = (value) => String(value).replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;").replaceAll("'", "&#039;");
+
+  fetch("/learning-content.json", { cache: "no-store" })
+    .then((response) => {
+      if (!response.ok) throw new Error("No se pudo cargar el catálogo");
+      return response.json();
+    })
+    .then((catalog) => {
+      const container = document.querySelector("#learning-route-catalog");
+      container.replaceChildren();
+
+      routeInfo.forEach((route) => {
+        const items = catalog.items
+          .filter((item) => item.route === route.name)
+          .sort((left, right) => left.sequence - right.sequence || left.title.localeCompare(right.title));
+        if (!items.length) return;
+
+        const minutes = items.reduce((total, item) => total + item.estimatedMinutes, 0);
+        const section = document.createElement("section");
+        section.id = route.id;
+        section.className = "learning-route-detail";
+        section.innerHTML = `
+          <div class="learning-route-summary">
+            <div class="learning-route-heading">
+              <span class="home-level home-level-${levelClass(route.level)}">${escapeHtml(route.level)}</span>
+              <span>${items.length} ${items.length === 1 ? "lectura" : "lecturas"} – ${duration(minutes)}</span>
+            </div>
+            <h2>${escapeHtml(route.name)}</h2>
+            <p>${escapeHtml(route.description)}</p>
+            <div class="learning-route-goal"><strong>Al terminar podrás:</strong> ${escapeHtml(route.outcome)}</div>
+          </div>
+          <ol class="learning-route-steps"></ol>`;
+
+        const steps = section.querySelector(".learning-route-steps");
+        items.forEach((item) => {
+          const step = document.createElement("li");
+          step.innerHTML = `<a href="${escapeHtml(item.url)}"><span><b>${escapeHtml(item.title)}</b><small>${escapeHtml(item.kind)} – ${escapeHtml(item.level)} – ${escapeHtml(item.estimatedTime)}</small></span><span aria-hidden="true">→</span></a>`;
+          steps.append(step);
+        });
+        container.append(section);
+      });
+    })
+    .catch(() => {
+      const loading = document.querySelector(".routes-loading");
+      if (loading) loading.textContent = "No fue posible cargar el catálogo. Las secciones principales del sitio siguen disponibles desde la navegación.";
+    });
+})();
+</script>
+```

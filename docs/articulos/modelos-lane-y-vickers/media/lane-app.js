@@ -3,6 +3,8 @@
 
   const ROOT_ID = "lane-cutoff-lab";
   const PLOTLY_URL = "https://cdn.plot.ly/plotly-3.6.0.min.js";
+  const IS_ENGLISH = document.documentElement.lang.toLowerCase().startsWith("en");
+  const text = (spanish, english) => (IS_ENGLISH ? english : spanish);
   const COLORS = {
     blue: "#3976a8",
     green: "#2b8a66",
@@ -105,7 +107,7 @@
 
     for (let i = 1; i <= dumpCount; i += 1) {
       dumps.push({
-        name: `Botadero ${i}`,
+        name: `${text("Botadero", "Waste dump")} ${i}`,
         cost: numberValue(`lane-dump-${i}-cost`),
         capacity: numberValue(`lane-dump-${i}-capacity`) * 1e6,
       });
@@ -122,7 +124,7 @@
 
     for (let i = 1; i <= productCount; i += 1) {
       products.push({
-        name: `Producto ${i}`,
+        name: `${text("Producto", "Product")} ${i}`,
         type: byId(`lane-product-${i}-type`).value,
         price: numberValue(`lane-product-${i}-price`),
         recovery: numberValue(`lane-product-${i}-recovery`) / 100,
@@ -202,7 +204,7 @@
         ? Math.max(...orderedDumps.map((dump) => dump.cost))
         : 0;
       overflow = tonnesToAllocate;
-      allocations["Destino excedente"] = overflow;
+      allocations[text("Destino excedente", "Overflow destination")] = overflow;
       dumpCost += overflow * (highestDumpCost + 25);
     }
 
@@ -237,16 +239,16 @@
       revenueSlope,
     );
     const timeTerms = [
-      { name: "Mina", years: params.resourceTonnes / params.mineCapacity },
-      { name: "Planta", years: processedTonnes / params.plantCapacity },
-      { name: "Refinería Cu", years: mainMetal / params.refineryCapacity },
+      { name: text("Mina", "Mine"), years: params.resourceTonnes / params.mineCapacity },
+      { name: text("Planta", "Plant"), years: processedTonnes / params.plantCapacity },
+      { name: text("Refinería Cu", "Cu refinery"), years: mainMetal / params.refineryCapacity },
     ];
 
     productOutputs
       .filter((product) => product.type === "coproduct")
       .forEach((product) => {
         timeTerms.push({
-          name: `Mercado ${product.name}`,
+          name: `${text("Mercado", "Market")} ${product.name}`,
           years: product.output / product.capacity,
         });
       });
@@ -371,22 +373,25 @@
     const values = solution.results.map((result) => result.value / 1e6);
     const durations = solution.results.map((result) => result.duration);
     const layout = commonLayout(
-      "Valor y duración del escenario según ley de corte",
+      text(
+        "Valor y duración del escenario según ley de corte",
+        "Scenario value and duration by cut-off grade",
+      ),
     );
     const gridColor = layout._laneGridColor;
     const textColor = layout._laneTextColor;
     delete layout._laneGridColor;
     delete layout._laneTextColor;
     layout.xaxis = {
-      title: "Ley de corte (% metal principal)",
+      title: text("Ley de corte (% metal principal)", "Cut-off grade (% primary metal)"),
       gridcolor: gridColor,
     };
     layout.yaxis = {
-      title: "Valor del escenario (MUSD)",
+      title: text("Valor del escenario (MUSD)", "Scenario value (MUSD)"),
       gridcolor: gridColor,
     };
     layout.yaxis2 = {
-      title: "Duración (años)",
+      title: text("Duración (años)", "Duration (years)"),
       overlaying: "y",
       side: "right",
       showgrid: false,
@@ -415,7 +420,7 @@
         x: solution.optimum.cutoff * 100,
         y: 1,
         yref: "paper",
-        text: `Óptimo: ${formatGrade(solution.optimum.cutoff)}`,
+        text: `${text("Óptimo", "Optimum")}: ${formatGrade(solution.optimum.cutoff)}`,
         showarrow: false,
         yshift: 11,
         font: { size: 11, color: textColor },
@@ -430,19 +435,25 @@
           y: values,
           type: "scatter",
           mode: "lines",
-          name: "Valor económico",
+          name: text("Valor económico", "Economic value"),
           line: { color: COLORS.blue, width: 3 },
-          hovertemplate: "Ley %{x:.2f}%<br>Valor %{y:.0f} MUSD<extra></extra>",
+          hovertemplate: text(
+            "Ley %{x:.2f}%<br>Valor %{y:.0f} MUSD<extra></extra>",
+            "Grade %{x:.2f}%<br>Value %{y:.0f} MUSD<extra></extra>",
+          ),
         },
         {
           x: cutoffs,
           y: durations,
           type: "scatter",
           mode: "lines",
-          name: "Duración",
+          name: text("Duración", "Duration"),
           yaxis: "y2",
           line: { color: COLORS.red, width: 2, dash: "dot" },
-          hovertemplate: "Ley %{x:.2f}%<br>Duración %{y:.2f} años<extra></extra>",
+          hovertemplate: text(
+            "Ley %{x:.2f}%<br>Duración %{y:.2f} años<extra></extra>",
+            "Grade %{x:.2f}%<br>Duration %{y:.2f} years<extra></extra>",
+          ),
         },
       ],
       layout,
@@ -452,7 +463,12 @@
 
   function renderCutoffs(solution) {
     const refs = solution.references;
-    const labels = ["Lane: mina", "Lane: planta", "Lane: refinería", "Óptimo"];
+    const labels = [
+      text("Lane: mina", "Lane: mine"),
+      text("Lane: planta", "Lane: plant"),
+      text("Lane: refinería", "Lane: refinery"),
+      text("Óptimo", "Optimum"),
+    ];
     const values = [
       refs.gm * 100,
       refs.gc * 100,
@@ -461,16 +477,16 @@
     ];
     const validText = values.map((value, index) =>
       index === 2 && !Number.isFinite(refs.gr)
-        ? "No factible"
+        ? text("No factible", "Infeasible")
         : `${value.toFixed(2)} %`,
     );
-    const layout = commonLayout("Leyes económicas y óptimo numérico");
+    const layout = commonLayout(text("Leyes económicas y óptimo numérico", "Economic cut-off grades and numerical optimum"));
     const gridColor = layout._laneGridColor;
     delete layout._laneGridColor;
     delete layout._laneTextColor;
     layout.margin = { l: 112, r: 30, t: 76, b: 52 };
     layout.xaxis = {
-      title: "Ley (% metal principal)",
+      title: text("Ley (% metal principal)", "Grade (% primary metal)"),
       gridcolor: gridColor,
       rangemode: "tozero",
     };
@@ -501,27 +517,31 @@
 
   function renderDestinations(solution) {
     const optimum = solution.optimum;
-    const destinationNames = ["Planta", ...Object.keys(optimum.destinations)];
+    const destinationNames = [text("Planta", "Plant"), ...Object.keys(optimum.destinations)];
     const destinationValues = [
       optimum.processedTonnes / 1e6,
       ...Object.values(optimum.destinations).map((value) => value / 1e6),
     ];
     const colorMap = {
       Planta: COLORS.green,
+      Plant: COLORS.green,
       "Stockpile 1": COLORS.stock1,
       "Stockpile 2": COLORS.stock2,
       "Botadero 1": COLORS.dump1,
       "Botadero 2": COLORS.dump2,
+      "Waste dump 1": COLORS.dump1,
+      "Waste dump 2": COLORS.dump2,
       "Destino excedente": COLORS.overflow,
+      "Overflow destination": COLORS.overflow,
     };
-    const layout = commonLayout("Balance de masa en la política óptima");
+    const layout = commonLayout(text("Balance de masa en la política óptima", "Mass balance under the optimal policy"));
     const gridColor = layout._laneGridColor;
     delete layout._laneGridColor;
     delete layout._laneTextColor;
     layout.margin = { l: 46, r: 25, t: 76, b: 92 };
     layout.xaxis = { tickangle: -25, automargin: true };
     layout.yaxis = {
-      title: "Tonelaje (Mt)",
+      title: text("Tonelaje (Mt)", "Tonnage (Mt)"),
       gridcolor: gridColor,
     };
     layout.showlegend = false;
@@ -555,17 +575,20 @@
     byId("lane-kpi-bottleneck").textContent = optimum.bottleneck;
     byId("lane-kpi-value").textContent = formatValue(optimum.value);
     byId("lane-kpi-duration").textContent =
-      `${optimum.duration.toFixed(2)} años`;
+      `${optimum.duration.toFixed(2)} ${text("años", "years")}`;
 
     const timeDetail = optimum.timeTerms
-      .map((term) => `${term.name}: ${term.years.toFixed(2)} años`)
+      .map((term) => `${term.name}: ${term.years.toFixed(2)} ${text("años", "years")}`)
       .join(" · ");
     const warning =
       optimum.overflow > 1
-        ? ` Advertencia: ${(optimum.overflow / 1e6).toFixed(1)} Mt exceden la capacidad declarada de disposición y reciben una penalización económica.`
+        ? text(
+          ` Advertencia: ${(optimum.overflow / 1e6).toFixed(1)} Mt exceden la capacidad declarada de disposición y reciben una penalización económica.`,
+          ` Warning: ${(optimum.overflow / 1e6).toFixed(1)} Mt exceed declared disposal capacity and receive an economic penalty.`,
+        )
         : "";
     byId("lane-lab-status").textContent =
-      `Tiempos equivalentes en el óptimo: ${timeDetail}.${warning}`;
+      `${text("Tiempos equivalentes en el óptimo", "Equivalent times at the optimum")}: ${timeDetail}.${warning}`;
     byId("lane-lab-status").classList.toggle(
       "is-warning",
       optimum.overflow > 1,
@@ -642,7 +665,10 @@
       })
       .catch(() => {
         byId("lane-lab-status").textContent =
-          "No fue posible cargar Plotly. Verifica la conexión y recarga la página.";
+          text(
+            "No fue posible cargar Plotly. Verifica la conexión y recarga la página.",
+            "Plotly could not be loaded. Check your connection and reload the page.",
+          );
         byId("lane-lab-status").classList.add("is-warning");
       });
   }

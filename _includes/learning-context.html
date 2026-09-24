@@ -1,0 +1,45 @@
+<script>
+(function () {
+  const normalizePath = (value) => {
+    const path = value.replace(/\/index\.html$/, "/");
+    return path.endsWith(".html") || path.endsWith("/") ? path : `${path}/`;
+  };
+
+  const escapeHtml = (value) => String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+
+  const currentPath = normalizePath(window.location.pathname);
+  fetch("/learning-content.json", { cache: "no-store" })
+    .then((response) => {
+      if (!response.ok) throw new Error("No se pudo cargar el catálogo pedagógico");
+      return response.json();
+    })
+    .then((catalog) => {
+      const item = catalog.items.find((candidate) => normalizePath(candidate.url) === currentPath);
+      if (!item) return;
+
+      const titleBlock = document.querySelector("#title-block-header");
+      if (!titleBlock || titleBlock.querySelector(".learning-context")) return;
+
+      const levelSlug = item.level.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+      const context = document.createElement("aside");
+      context.className = "learning-context";
+      context.setAttribute("aria-label", "Contexto pedagógico de esta lectura");
+      context.innerHTML = `
+        <span class="learning-context-label">Antes de comenzar</span>
+        <span class="learning-context-chip learning-level-${levelSlug}">${escapeHtml(item.level)}</span>
+        <span class="learning-context-chip">${escapeHtml(item.estimatedTime)}</span>
+        <span class="learning-context-chip">${escapeHtml(item.kind)}</span>
+        <span class="learning-context-detail"><strong>Ruta:</strong> ${escapeHtml(item.route)}</span>
+        <span class="learning-context-detail"><strong>Prerrequisito:</strong> ${escapeHtml(item.prerequisite)}</span>`;
+      titleBlock.append(context);
+    })
+    .catch(() => {
+      /* El contenido sigue siendo completamente utilizable sin esta mejora. */
+    });
+})();
+</script>
