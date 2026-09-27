@@ -112,10 +112,18 @@ As noted above, the main difference between the three- and two-dimensional probl
 
 ::: {.eq-scroll}
 $$
-\begin{array}{l}S_{5}\left( b_{ijk} \right) =\left\{ b_{ij,k-1},b_{i-1,j,k-1},b_{i+1,j,k-1},b_{i,j-1,k-1},b_{i,j+1,k-1} \right\}\\ S_{9}\left( b_{ijk} \right) =\left\{ b_{i+r,j+r,k-1}\  :\  r=\left\{ -1,0,1 \right\} \right\}\end{array} \  \  ;\  \  k>0
+\begin{aligned}
+S_{5}\left( b_{ijk} \right)
+&=\left\{ b_{ij,k-1},b_{i-1,j,k-1},b_{i+1,j,k-1},b_{i,j-1,k-1},b_{i,j+1,k-1} \right\}\cap\mathcal{B},\\
+S_{9}\left( b_{ijk} \right)
+&=\left\{ b_{i+r,j+s,k-1}\in\mathcal{B}\  :\  r,s\in\left\{ -1,0,1 \right\} \right\},
+\qquad k>0.
+\end{aligned}
 \tag{2}
 $$
 :::
+
+The offsets $r$ and $s$ in $S_{9}$ are independent: Their nine combinations enumerate the complete $3\times3$ grid above the block of interest. Intersecting with $\mathcal{B}$ expresses the truncated-neighborhood convention at the inventory boundary. An implementation may instead enforce a hard boundary that forbids extracting a block whenever one of its theoretical predecessors lies outside the model. Whichever policy is chosen must be stated and applied consistently in the formulation, graph construction, and solution validation.
 
 Now consider a directed graph $G=(V,E)$, where $V$ is its node set and $E$ its arc set. As in the two-dimensional case, each inventory block $b_{ijk}$ is represented by a node $v_{ijk}\in V$. If $n_x$, $n_y$, and $n_z$ are the numbers of block positions along each dimension, then
 
@@ -181,14 +189,23 @@ $$
 $$
 :::
 
-For **cubic blocks**, $d_x=d_y=h$. In the principal $(x,z)$ and $(y,z)$ sections, the effective angle is $45°$ for both patterns. In diagonal directions, however:
+For **cubic blocks**, $d_x=d_y=h$. In the principal $(x,z)$ and $(y,z)$ sections, both patterns advance horizontally by one block per bench and therefore produce $\theta=\arctan(h/d_x)=45°$.
 
-- With $S_{5}(b_{ijk})$, diagonal steps can occur between successive benches, producing $\theta=\arctan\!\left(h/\sqrt{h^2+h^2}\right)=\arctan(1/\sqrt{2})\approx35.3°$ when measured from the horizontal—or $54.7°$ under the complementary convention measured from the vertical.
-- With $S_{9}(b_{ijk})$, the complete upper neighborhood must be removed, producing a more uniform effective slope across horizontal directions.
+The difference appears in plan view. Repeating $S_{5}$ expands the excavation as a diamond. Along a diagonal direction, its effective horizontal advance per bench is $d_x/\sqrt{2}$, giving
 
-If $d_x\neq d_y$, the effective angle also becomes direction-dependent because the horizontal advance differs along the two block dimensions.
+$$
+\theta_{5,\mathrm{diag}}=\arctan\left(\frac{h}{d_x/\sqrt{2}}\right)=\arctan(\sqrt{2})\approx54.7°.
+$$
 
-Which pattern is preferable depends on the objective. The 1–5 pattern usually removes fewer predecessor blocks and can therefore retain more economic value, but its direction-dependent geometry may be too aggressive for some geotechnical domains. The 1–9 pattern is more conservative and removes more waste to reach the same depth. Choosing between them requires local information about faults, groundwater, weak rock domains, and nearby infrastructure such as workshops or plant facilities. Steeper wall assumptions demand stronger geotechnical justification and monitoring.
+Repeating $S_{9}$ expands the excavation as a square because the pattern also includes the four diagonal predecessors. In the same direction, its horizontal advance per bench is $\sqrt{2}\,d_x$, giving
+
+$$
+\theta_{9,\mathrm{diag}}=\arctan\left(\frac{h}{\sqrt{2}\,d_x}\right)=\arctan\left(\frac{1}{\sqrt{2}}\right)\approx35.3°.
+$$
+
+If $d_x\neq d_y$, the principal angles are $\arctan(h/d_x)$ and $\arctan(h/d_y)$. Thus, for a fixed bench height, the wider block dimension produces a smaller angle measured from the horizontal—a flatter wall.
+
+Which pattern is preferable depends on the problem. For a fixed deep block, $S_{9}$ requires a superset of the predecessors required by $S_{5}$ and is therefore the more conservative local constraint. This relationship does not imply a universal percentage of waste removal: The final tonnage depends on the model geometry and values, its boundaries, the boundary policy, and the blocks selected by the optimizer. Economic and geotechnical comparisons must therefore be made for each inventory using local information about faults, groundwater, weak rock domains, and nearby infrastructure. Steeper wall assumptions require stronger geotechnical justification and monitoring.
 
 ## A first practical exercise
 
@@ -200,7 +217,7 @@ Before constructing the full graph, we test the implementation on a small model 
 
 ![A small example used to test the implementation. Positive-value blocks are green, negative-value blocks are red, and zero-value blocks are yellow.](/articulos/pit-final-3d/images/fig_4.png){#fig-pit-final-3d-04 fig-align="center" width="95%"}
 
-We assume these blocks are cubic. The 1–9 pattern imposes the more conservative and directionally uniform geometry; the 1–5 pattern preserves the same principal-section behavior but permits a different effective diagonal slope.
+We assume these blocks are cubic. Both patterns preserve a $45°$ profile in the coordinate planes; measured from the horizontal, the diagonal angle is approximately $54.7°$ for 1–5 and $35.3°$ for 1–9.
 
 We begin with the required imports. In this first exercise, <strong><font color='darkmagenta'>Plotly</font></strong> will produce the three-dimensional inventory view and the optimal pits obtained with each predecessor pattern.
 

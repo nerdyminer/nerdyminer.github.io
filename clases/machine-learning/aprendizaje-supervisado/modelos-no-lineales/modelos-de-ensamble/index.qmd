@@ -79,21 +79,21 @@ Para $k=1,...,r$. De esta manera, $P(X_{k}=1)=p$. Definimos también:
 $$S=\sum_{k=1}^{r} X_{k} \tag{2.2}$$
 :::
 
-Y que corresponde al número total de modelos que aciertan en su predicción para una instancia de entrenamiento dada. Si diseñamos un ensamble que esté comprendido por estos $r$ modelos de clasificación, entonces éste acertará en su predicción "global" o "colectiva" si al menos la mitad de sus componentes aciertan; es decir, si $S\geq \left\lceil \frac{r}{2} \right\rceil$. De esta manera, la probabilidad de que el ensamble sea exitoso en sus predicciones puede expresarse como
+Y que corresponde al número total de modelos que aciertan en su predicción para una instancia de entrenamiento dada. Bajo los supuestos anteriores, $S$ sigue una distribución binomial con $r$ ensayos y probabilidad de éxito $p$: $S\sim\mathrm{Bin}(r,p)$. Si exigimos **mayoría estricta**, el ensamble acertará cuando $S$ alcance el umbral $m=\left\lfloor r/2\right\rfloor+1$. Esta definición evita considerar un empate como una decisión mayoritaria cuando $r$ es par. De esta manera, la probabilidad de que el ensamble sea exitoso puede expresarse como
 
 ::: {.eq-scroll}
-$$\begin{array}{lll}P\left( \mathrm{ensamble\  acierta} \right)&=&\displaystyle P\left( S\geq \left\lceil \frac{r}{2} \right\rceil \right)\\ &=&\displaystyle \sum_{k=\left\lceil p/2 \right\rceil}^{r} \left( \begin{matrix}r\\ k\end{matrix} \right) p^{k}\left( 1-p \right)^{r-k}\end{array} \tag{2.3}$$
+$$\begin{array}{lll}P\left( \mathrm{ensamble\  acierta} \right)&=&\displaystyle P\left( S\geq m \right)\\ &=&\displaystyle \sum_{k=m}^{r} \left( \begin{matrix}r\\ k\end{matrix} \right) p^{k}\left( 1-p \right)^{r-k},\qquad m=\left\lfloor \frac{r}{2}\right\rfloor+1\end{array} \tag{2.3}$$
 :::
 
-Es decir, el éxito en las predicciones del ensamble sigue una distribución de Bernoulli. Esta estrategia de evaluación de los aciertos de un ensamble sigue la misma lógica que una **votación mayoritaria**. Vale decir, la respuesta del ensamble será igual a la respuesta más frecuente de los predictores individuales. En la teoría del aprendizaje automático esta estrategia se conoce como **votación dura**.
+Es decir, el número de aciertos que sostiene la decisión del ensamble sigue una distribución binomial. Esta estrategia de agregación sigue la lógica de una **votación mayoritaria**: La respuesta del ensamble será igual a la clase que reciba más votos de los predictores individuales. En la teoría del aprendizaje automático esta estrategia se conoce como **votación dura**.
 
 Para cada uno de los componentes del ensamble, los errores de clasificación individuales están dados por la probabilidad complementaria $q=1-p$. Ya que $p>\frac{1}{2}$, necesariamente se tendrá que $q<\frac{1}{2}$. Por lo tanto, bajo las reglas de votación dura, la probabilidad de que el ensamble no acierte en sus predicciones será
 
 ::: {.eq-scroll}
-$$\begin{array}{lll}P\left( \mathrm{ensamble\  no\  acierta} \right)&=&\displaystyle 1-P\left( S\geq \left\lceil \frac{r}{2} \right\rceil \right)\\ &=&\displaystyle P\left( S<\left\lceil \frac{r}{2} \right\rceil \right)\\ &=&\displaystyle \sum_{k=0}^{\left\lceil p/2 \right\rceil -1} \left( \begin{matrix}r\\ k\end{matrix} \right) p^{k}\left( 1-p \right)^{r-k}\end{array} \tag{2.4}$$
+$$\begin{array}{lll}P\left( \mathrm{ensamble\  no\  acierta} \right)&=&\displaystyle 1-P\left( S\geq m \right)\\ &=&\displaystyle P\left( S<m \right)\\ &=&\displaystyle \sum_{k=0}^{m-1} \left( \begin{matrix}r\\ k\end{matrix} \right) p^{k}\left( 1-p \right)^{r-k}\end{array} \tag{2.4}$$
 :::
 
-Cuando $r$ es impar, se tiene que $\left\lceil p/2 \right\rceil =\frac{p+1}{2}$. Por otro lado, cuando $p$ es par, entonces $\left\lceil p/2 \right\rceil =\frac{r}{2} +1$. En ambos casos, es posible demostrar que, cuando $p$ crece, esta probabilidad de error disminuye. Para ello, ilustraremos en un gráfico de Python el efecto de $p$ sobre el error cometido por un ensamble dependiendo de su tamaño (es decir, del número de modelos componentes). Para ello, partimos con las importaciones de librerías y funciones correspondientes:
+Cuando $r$ es impar, el umbral es $m=(r+1)/2$. Cuando $r$ es par, una mayoría estricta exige $m=r/2+1$. En ambos casos, para una cantidad fija de clasificadores, la probabilidad de error disminuye cuando aumenta $p$ por encima de $1/2$. A continuación ilustraremos en un gráfico de Python el efecto de $p$ sobre el error del ensamble para distintos valores de $r$, es decir, para distintos números de modelos componentes. Partimos con las importaciones de librerías y funciones correspondientes:
 
 ```{python}
 import matplotlib.pyplot as plt
@@ -192,8 +192,8 @@ Este resultado es famoso en ciencias políticas y sociales, porque muestra por q
 
 Extendiendo la idea del teorema (2.1), para un número finito $r$ de modelos de clasificación, podemos distinguir que:
 
-1. Si $p>\frac{1}{2}$, el valor esperado de aciertos del ensamble será $\mathrm{E} \left[ S \right] =rp$, el cual es mayor que $\frac{1}{2}$.
-2. Por propiedades de la distribución de Bernoulli, la mayor parte de la masa en su función de probabilidad se concentra alrededor de la media $rp$. Al estar la media por encima de $p/2$, resulta más probable que $S\geq p/2$ que $S< p/2$.
+1. Si $p>\frac{1}{2}$, el valor esperado de aciertos del ensamble será $\mathrm{E} \left[ S \right] =rp$, el cual es mayor que $r/2$.
+2. Por propiedades de la distribución binomial, la masa de probabilidad se concentra alrededor de la media $rp$. Al estar la media por encima de $r/2$, resulta cada vez más probable que $S\geq m$ a medida que crece $r$.
 
 Aplicando el teorema central del límite ([que explicamos en detalle en esta entrada del blog](/apuntes/calculo-incertidumbre-y-optimizacion/distribuciones-especificas-de-probabilidad/), generando una aproximación normal de $S$ cuando $r$ crece infinitamente, se tendrá que
 
@@ -204,7 +204,7 @@ $$S\sim \mathcal{N} \left( pr,pr\left( 1-p \right) \right) \tag{2.5}$$
 Por lo tanto, la probabilidad de que $S\geq \frac{r}{2}$ puede calcularse como
 
 ::: {.eq-scroll}
-$$\begin{array}{lll}\displaystyle P\left( S\geq \frac{r}{2} \right)&=&\displaystyle P\left( \frac{S-pr}{\sqrt{pr\left( 1-pr \right)}} \geq \frac{\frac{r}{2} -pr}{\sqrt{pr\left( 1-pr \right)}} \right)\\ &=&\displaystyle P\left( Z\geq \frac{\frac{r}{2} -pr}{\sqrt{pr\left( 1-pr \right)}} \right)\end{array} \tag{2.6}$$
+$$\begin{array}{lll}\displaystyle P\left( S\geq \frac{r}{2} \right)&\approx&\displaystyle P\left( \frac{S-rp}{\sqrt{rp\left( 1-p \right)}} \geq \frac{\frac{r}{2} -rp}{\sqrt{rp\left( 1-p \right)}} \right)\\ &=&\displaystyle P\left( Z\geq \frac{\frac{r}{2} -rp}{\sqrt{rp\left( 1-p \right)}} \right)\end{array} \tag{2.6}$$
 :::
 
 Donde $Z$ es una variable aleatoria Gaussiana (de tipo estándar). Como $p>\frac{1}{2}$, el numerador $\frac{r}{2} -pr$ es negativo, por lo que la probabilidad de que $Z$ sea mayor que un número negativo es mayor que $\frac{1}{2}$ y aumenta con $r$. En consecuencia, la probabilidad de que el ensamble cometa un error tiende a cero cuando $r\rightarrow \infty$, mientras que el error $q$ de cada clasificador individual permanece fija en $1-p$. Aún con valores de $r$ no muy grandes, la reducción del error de clasificación por efecto del ensamble suele ser significativa cuando $p$ se mantiene por encima de $\frac{1}{2}$ y las correlaciones entre los predictores individuales no son muy altas.
@@ -5592,20 +5592,20 @@ print("----------------------------------")
 # ... o en términos de sensibilidad y especificidad.
 print("----------------------------------")
 print("--- Conjunto de entrenamiento ----")
-print(f"Sensibilidad = {(cm_t[1, 1] / (cm_t[1, 1] + cm_t[0, 1])):.3f}")
-print(f"Especificidad = {(cm_t[0, 0] / (cm_t[0, 0] + cm_t[1, 0])):.3f}")
+print(f"Sensibilidad = {(cm_t[1, 1] / (cm_t[1, 1] + cm_t[1, 0])):.3f}")
+print(f"Especificidad = {(cm_t[0, 0] / (cm_t[0, 0] + cm_t[0, 1])):.3f}")
 print("----------------------------------")
 print("--- Conjunto de prueba público ---")
-print(f"Sensibilidad = {(cm_b[1, 1] / (cm_b[1, 1] + cm_b[0, 1])):.3f}")
-print(f"Especificidad = {(cm_b[0, 0] / (cm_b[0, 0] + cm_b[1, 0])):.3f}")
+print(f"Sensibilidad = {(cm_b[1, 1] / (cm_b[1, 1] + cm_b[1, 0])):.3f}")
+print(f"Especificidad = {(cm_b[0, 0] / (cm_b[0, 0] + cm_b[0, 1])):.3f}")
 print("----------------------------------")
 print("--- Conjunto de prueba privado ---")
-print(f"Sensibilidad = {(cm_v[1, 1] / (cm_v[1, 1] + cm_v[0, 1])):.3f}")
-print(f"Especificidad = {(cm_v[0, 0] / (cm_v[0, 0] + cm_v[1, 0])):.3f}")
+print(f"Sensibilidad = {(cm_v[1, 1] / (cm_v[1, 1] + cm_v[1, 0])):.3f}")
+print(f"Especificidad = {(cm_v[0, 0] / (cm_v[0, 0] + cm_v[0, 1])):.3f}")
 print("----------------------------------")
 ```
 
-El clasificador que hemos construido resulta ser bastante bueno: Erra en menos del 11% de los eventos de colisión catalogados como "señal" en ambos conjuntos de prueba, lo que se traduce en una sensibilidad especialmente alta, bordeando el 90%. La especificidad se ve afectada por la decisión de cortar en un 16% de instancias por ranking de probabilidades, pero vemos que el impacto no es enorme: Se mantienen siempre sobre 76%, lo que es más que razonable para un conjunto de datos tan desbalanceado.
+Con estas fórmulas, la sensibilidad se calcula como $TP/(TP+FN)$ y responde qué fracción de las señales reales detecta el clasificador. La especificidad se calcula como $TN/(TN+FP)$ y responde qué fracción del fondo real reconoce correctamente. Esta distinción es indispensable en un conjunto tan desbalanceado: La regla que conserva únicamente el 16% superior del ranking puede mejorar la pureza de la selección, pero su efecto sobre ambas métricas debe leerse directamente desde la matriz de confusión, sin intercambiar falsos positivos y falsos negativos en los denominadores.
 
 En palabras simples, cuando buscamos una partícula que resulta extremadamente rara:
 

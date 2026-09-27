@@ -105,10 +105,18 @@ Como mencionamos unas líneas más arriba, la diferencia más significativa del 
 
 ::: {.eq-scroll}
 $$
-\begin{array}{l}S_{5}\left( b_{ijk} \right) =\left\{ b_{ij,k-1},b_{i-1,j,k-1},b_{i+1,j,k-1},b_{i,j-1,k-1},b_{i,j+1,k-1} \right\}\\ S_{9}\left( b_{ijk} \right) =\left\{ b_{i+r,j+r,k-1}\  :\  r=\left\{ -1,0,1 \right\} \right\}\end{array} \  \  ;\  \  k>0
+\begin{aligned}
+S_{5}\left( b_{ijk} \right)
+&=\left\{ b_{ij,k-1},b_{i-1,j,k-1},b_{i+1,j,k-1},b_{i,j-1,k-1},b_{i,j+1,k-1} \right\}\cap\mathcal{B},\\
+S_{9}\left( b_{ijk} \right)
+&=\left\{ b_{i+r,j+s,k-1}\in\mathcal{B}\  :\  r,s\in\left\{ -1,0,1 \right\} \right\},
+\qquad k>0.
+\end{aligned}
 \tag{2}
 $$
 :::
+
+Los desplazamientos $r$ y $s$ de $S_{9}$ son independientes: Sus nueve combinaciones enumeran la malla completa de $3\times3$ sobre el bloque de interés. La intersección con $\mathcal{B}$ expresa la convención de vecindad truncada en los bordes del inventario. En una implementación también puede imponerse una frontera dura que prohíba extraer un bloque cuando alguno de sus precedentes teóricos cae fuera del modelo; lo importante es declarar y aplicar la misma política en la formulación, la construcción del grafo y la validación del resultado.
 
 Consideremos ahora un grafo dirigido $G=(V,E)$, donde $V$ es el conjunto de nodos y $E$ es el conjunto de arcos de $G$. De manera análoga al caso 2D, cada bloque $b_{ijk}$ del inventario se representa como un nodo $v_{ijk}\in V$. Si $n_{x},n_{y}$ y $n_{z}$ representan el total de bloques en cada dimensión del inventario, entonces $V$ puede describirse formalmente como
 
@@ -174,14 +182,23 @@ $$
 $$
 :::
 
-A partir de esta fórmula, distinguimos los siguientes casos de interés: **Si los bloques son cúbicos**, entonces $d_{x}=d_{y}=z$. En las direcciones principales (planos $(x, z)$ e $(y, z)$), el ángulo $\theta$ será siempre igual a $45°$, independientemente del patrón de extracción escogido. Por otro lado, en una dirección arbitraria distinta de los planos coordenados, se tendrá que:
+A partir de esta fórmula podemos separar las direcciones principales de las diagonales. **Si los bloques son cúbicos**, entonces $d_x=d_y=h$. En los planos principales $(x,z)$ e $(y,z)$, ambos patrones producen un avance horizontal de un bloque por banco y, por tanto, $\theta=\arctan(h/d_x)=45°$.
 
-- Si el patrón escogido es $S_{5}(b_{ijk})$, entonces $\theta =\arctan \left( \frac{h}{\sqrt{\triangle h^{2}+\triangle h^{2}}} \right) =\arctan \left( \frac{1}{\sqrt{2}} \right) \approx 54.7°$, porque este patrón permite avances diagonales entre capas sucesivas.
-- Si el patrón escogido es $S_{9}(b_{ijk})$, no podremos realizar avances diagonales, porque todo bloque exigirá siempre la remoción de todos los bloques adyacentes en la capa superior. De esta manera, el avance en todas las direcciones es siempre de $45°$.
+La diferencia aparece en planta. La repetición del patrón $S_{5}$ expande la excavación como un rombo: En la dirección diagonal, su avance horizontal efectivo por banco es $d_x/\sqrt{2}$, por lo que
 
-Por otro lado, **si los bloques son tales que $d_{x}\neq d_{y}$**, entonces el ángulo de extracción en la dirección de los bloques *más anchos* será mayor, lo que implicará una mayor pendiente.
+$$
+\theta_{5,\mathrm{diag}}=\arctan\left(\frac{h}{d_x/\sqrt{2}}\right)=\arctan(\sqrt{2})\approx54.7°.
+$$
 
-¿Cuál patrón de extracción es mejor? Bueno... esto dependerá de los intereses involucrados. Por ejemplo, si comparamos ambos ángulos de extracción resultantes, se tendrá que $\frac{\tan^{2} \left( 54.7^{\circ} \right)}{\tan^{2} \left( 45^{\circ} \right)} =\frac{1/\left( 1\sqrt{2} \right)^{2}}{1^{2}} =\frac{1}{2}$, lo que implica que escoger el patrón 1-5 implicará la remoción de un 50% menos de estéril para llegar a la misma profundidad que con el patrón 1-9. Naturalmente, desde una perspectiva económica, esto es algo positivo, porque implicará un beneficio neto mayor. Pero, en contraposición, esto puede aumentar el riesgo de inestabilidades geotécnicas con control estructural (como deslizamientos planos o en cuña). Por lo tanto, la elección de un patrón u otro exigirá siempre la evaluación de condiciones locales que dependen tanto de las características geológicas del yacimiento (fallas, presencia de agua o dominios geotécnicos de baja resistencia) como de la infraestructura a construir (comedores, talleres, etc.). Ángulos de extracción más grandes, en general, requerirán de mayor soporte y control geotécnico.
+El patrón $S_{9}$ expande la excavación como un cuadrado, pues incorpora también los cuatro precedentes diagonales. En esa misma dirección, el avance horizontal por banco es $\sqrt{2}\,d_x$ y
+
+$$
+\theta_{9,\mathrm{diag}}=\arctan\left(\frac{h}{\sqrt{2}\,d_x}\right)=\arctan\left(\frac{1}{\sqrt{2}}\right)\approx35.3°.
+$$
+
+Si $d_x\neq d_y$, los ángulos principales son $\arctan(h/d_x)$ y $\arctan(h/d_y)$. Por consiguiente, manteniendo fija la altura de banco, la dirección asociada al bloque más ancho produce un ángulo medido desde la horizontal **menor**, es decir, una pared más tendida.
+
+¿Cuál patrón de extracción es mejor? Depende del problema. Para un bloque profundo fijo, $S_{9}$ exige un superconjunto de los precedentes requeridos por $S_{5}$ y representa una restricción geométrica más conservadora. Sin embargo, de esa relación local no se desprende un porcentaje universal de estéril removido. El tonelaje final depende de la geometría y los valores del modelo, de sus fronteras, de la política aplicada en los bordes y de cuáles bloques decide seleccionar el optimizador. Por ello, la comparación económica y geotécnica debe realizarse sobre cada inventario concreto, considerando fallas, agua, dominios de baja resistencia e infraestructura cercana. Ángulos más empinados requieren una justificación y un control geotécnico más exigentes.
 
 ## Un primer ejercicio práctico
 
@@ -193,7 +210,7 @@ Antes de construir cualquier grafo, primero *inventaremos* un problema de escala
 
 ![Un sencillo ejercicio para testear nuestra implementación. Los bloques con beneficio $w_{ijk}$ positivo se marcan en color verde, mientras que los bloques con beneficio $w_{ijk}$ negativo se marcan en color rojo. Los bloques con beneficio nulo se marcan en color amarillo.](images/fig_4.png){#fig-pit-final-3d-04 fig-align="center" width="95%"}
 
-Asumiremos que estos bloques son cúbicos, por lo que sus dimensiones serán irrelevantes para la determinación del pit final. De esta forma, si escogemos el patrón 1-9 para la extracción de los bloques precedentes a un bloque de interés, el ángulo de extracción será igual a $45°$ en todas direcciones, mientras que si el patrón de extracción es 1-5, el ángulo en la dirección diagonal será aproximadamente igual a $54.7°$, manteniendo un perfil de $45°$ en los planos coordenados.
+Asumiremos que estos bloques son cúbicos. Ambos patrones mantienen un perfil de $45°$ en los planos coordenados; en la dirección diagonal, el patrón 1-5 produce aproximadamente $54.7°$ y el patrón 1-9 aproximadamente $35.3°$, siempre midiendo el ángulo desde la horizontal.
 
 Partimos pues con las importaciones correspondientes. En este primer ejercicio, haremos uso de la librería <strong><font color='mediumorchid'>Plotly</font></strong> para construir las visualizaciones 3D del inventario por defecto, además de los resultados óptimos para cada patrón de extracción.
 
