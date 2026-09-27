@@ -1,0 +1,1247 @@
+---
+title: "The ultimate pit problem (2D variant)"
+subtitle: "An introduction to the ultimate-pit problem from mine planning, graph theory, and its implementation in Python"
+description: "In this entry, we learn how to solve one of the most fundamental structural problems in mine planning through a simple Python implementation of an algorithm drawn directly from graph theory."
+categories: [Mining, Mine Planning, Combinatorial Optimization, Graph Theory, Python]
+date: 2026-03-19
+lang: en
+header-includes: |
+  <link rel="canonical" href="https://nerdyminer.github.io/en/articles/ultimate-pit/">
+  <link rel="alternate" hreflang="es" href="https://nerdyminer.github.io/articulos/pit-final/">
+  <link rel="alternate" hreflang="en" href="https://nerdyminer.github.io/en/articles/ultimate-pit/">
+  <link rel="alternate" hreflang="x-default" href="https://nerdyminer.github.io/articulos/pit-final/">
+jupyter: nerdyminer
+toc: true
+toc-depth: 3
+crossref:
+  chapters: true
+  fig-title: Figure
+  tbl-title: Table
+  fig-prefix: Figure
+  tbl-prefix: Table
+format:
+  html:
+    code-fold: false
+    code-tools: false
+    html-math-method: mathjax
+---
+
+```{=html}
+<nav class="article-language-switch" aria-label="Article language">
+  <span>Language</span>
+  <a href="/articulos/pit-final/" lang="es" hreflang="es">ES</a>
+  <a class="is-active" href="/en/articles/ultimate-pit/" lang="en" hreflang="en" aria-current="page">EN</a>
+</nav>
+```
+
+::: {.callout-note}
+## Central idea
+
+The ultimate-pit problem consists of determining which blocks are worth extracting in order to maximize total economic benefit, while respecting the geometric precedence constraints that follow from pit stability.
+:::
+
+## Introduction
+
+During my wanderings through the job market (and, in a way, during my time at university as well), I have heard on several occasions from some people (mind you, not necessarily professionals) that open-pit mining is, procedurally, an activity that is apparently far *simpler* than underground mining, given the complexity the latter inherits from its selectivity, which naturally governs mine design. Personally, I have always found such claims a bit bold and even, in a certain sense, fallacies of incomplete generalization. Open-pit mining presents complexities on a massive and, in my humble opinion, volumetric scale, frequently dominated by scale effects. Yet human ingenuity has produced solutions of great beauty to tackle those complexities, solutions that have crystallized into genuine planning and operating *frameworks*.
+
+There are plenty of examples, and they are fundamental topics in open-pit mining at both the industrial and academic levels. One emblematic image of pit operations is the haul truck—known in Chilean mining by the acronym *CAEX*. Everybody wants a photo next to one because it conveys the scale of these true titans of material haulage. Yet a haul truck is simply a unit that carries material from an origin—usually loading equipment such as an electric rope shovel, hydraulic excavator, or wheel loader—to a destination such as a crusher or waste dump. This situation motivates a fundamental mining problem: Assigning trucks to origins and destinations so that haulage cost is minimized while the amount of material moved is maximized. In graph theory, this is the well-known *minimum-cost maximum-flow problem* (MCMFP). It underpins much of the software that mine dispatchers use to assign trucks to shovels, crushers, and dumps in the *real world*. Mining colleagues who have spent time in dispatch will have heard dispatchers mention the *LP* more than once; that *linear program* is a mathematical representation of the MCMFP, built by expressing origins, destinations, and haul routes as a graph or network.
+
+In this exercise, we will tackle one of the most fundamental problems in open-pit mine planning: Given a block model, determine the subset of blocks whose sequential extraction maximizes total economic value while respecting the geometric precedence constraints imposed by the design slope angles. The resulting limiting geometry is called the **ultimate pit**. Each block is assigned an economic value, which may be positive or negative depending on whether it contains enough ore of economic interest—for example, copper, the most common case in Chilean large-scale mining—or consists of waste rock with no recoverable economic value.
+
+## Background concepts
+
+Mining targets concentrations of minerals that formed naturally in the Earth's crust. In geological terms, these are **mineral deposits**. A mineral deposit becomes an **ore deposit**, or **orebody**, when the valuable minerals can be extracted economically under the prevailing technical and market conditions. That qualification is not permanent: Economic viability changes with metal prices, operating costs, recovery, and the technology available for extraction and processing.
+
+Characterizing the minerals within a deposit, regardless of their economic value, is an extensive undertaking led by the geosciences. In very simple terms, determining "what is there" requires drilling programs that recover rock samples. Once logged and assayed, those samples provide local observations of the deposit's properties. Mathematically, a drilling program produces a spatially irregular set of samples rather than a regular three-dimensional grid. From those observations, **geological models** can be built to infer properties throughout continuous volumes of the deposit and represent them as three-dimensional solids. The methods used to make those spatial inferences belong to **geostatistics**, one of the most compelling areas of both geoscience and mining.
+
+![A general diagram illustrating how a geological model is built from a drilling campaign](/articulos/pit-final/images/fig_1.png){#fig-deposito fig-align="center" width="90%"}
+
+To determine how to mine a deposit, it is necessary to have a **discrete representation** of the deposit of interest, since mining consists, in very general terms, of sequentially extracting portions of that deposit. For this reason, once a geological model has been built, we usually **discretize** it into thousands to millions of regularly sized blocks (depending on the size of the modelled deposit). Each of these blocks will be characterized by the coordinates of its centroid and the properties inferred for it, which will be assumed to be uniform throughout its extent. Consequently, the union of all these blocks will constitute the so-called **block model**, which will be the input for any procedure that estimates a first extraction sequence.
+
+![Each block $B_{i}$ in a block model can be characterized by a pair $(\mathbf{r}_{i}, \mathbf{p}_{i})$, where $\mathbf{r}_{i}=(x_{i},y_{i},z_{i})$ is a vector describing the coordinates of the block centroid and $\mathbf{p}_{i}$ is a vector listing all the properties that have been estimated for that block (for example, copper grade, ore hardness, metallurgical recovery, among others)](/articulos/pit-final/images/fig_2.png){#fig-bloques fig-align="center" width="90%"}
+
+## The maximum-flow algorithm
+
+Open-pit mine planners commonly use optimization routines that select a subset of blocks from a block model and maximize the economic value generated by extracting them in a feasible sequence. We say "subset" because extracting every block in a deposit is rarely worthwhile. Many blocks contain only waste, while reaching a valuable ore block may require removing several overlying waste blocks whose combined mining cost outweighs the ore block's positive value. Determining which blocks should be mined is therefore an optimization problem. One elegant formulation is based on a classic problem from combinatorial optimization: The **maximum-flow problem**.
+
+Before continuing with the theory, I will share a personal story as motivation for understanding the foundations of this problem. I first encountered it in the seventh semester of my twelve-semester university degree, in a course simply called "Optimization". Aptly named though it was, during my university years—and for many cohorts before mine—it was one of the most feared courses at the university, not only within mining engineering. Its high failure rate may have reflected the way it introduced the foundations of combinatorial optimization through several formulations of linear programming (LP): An objective function subject to a system of inequalities, a matrix problem, a transportation model, an assignment model, and finally a network or graph model. This last approach formed the third and final assessment and was widely considered the "easiest". The reason is simple: **Graphs are mathematical objects that let us solve highly complex problems with remarkable simplicity by exploiting their structural properties**. Despite the complexities described above, the ultimate-pit problem can be formulated as a directed graph with a source node ($s$) and a sink node ($t$).
+
+![A memory (perhaps not such a happy one, for many university classmates –my apologies!–) of a question related to determining a geometric ultimate pit for a 2D model with four levels. This was one of the most "drilled" exercises of the period, and considered one of the simplest](/articulos/pit-final/images/fig_3.png){#fig-prueba fig-align="center" width="90%"}
+
+### Intuition
+
+With this (perhaps not so) nostalgic aside out of the way, let us continue. Consider the problem of carrying a flow of some material from a **source** to a **destination**. That material is transported along a series of paths or "arcs", generally directed (that is, with a given direction), connecting that source with intermediate nodes, which in turn connect to the destination node of the flow of interest. Each arc is labelled with a **capacity**, corresponding to the maximum flow that can be carried on that arc. We are interested in determining which path connecting the source with the destination **maximizes the total flow of the system**, given the capacities on each arc. This problem is known, in classical combinatorial optimization theory, as the **maximum-flow problem**.
+
+The maximum-flow problem (hereafter, MFP) can be adapted to an enormous number of situations that may even be non-trivial. Because the type of material we transport in the system is irrelevant, it can even be conveniently fictitious. Some examples of maximum-flow problems are the following:
+
+- Consider a set of $m$ oil wells and $n$ crude refineries, with intermediate pumping stations that drive the flow of crude towards its destinations. If the oil is carried through pipelines built for that purpose with certain fixed capacities, connecting the wells with the intermediate pumping stations and, in turn, with the refineries, then the problem of maximizing crude flow between wells and refineries is an MFP. This is a typical MFP case requiring the addition of an artificial source and destination to the complete network, because the MFP always demands a single source and destination. The capacities of the arcs connecting the "source" with the $m$ wells and the $n$ refineries with the "destination" are conveniently assigned an infinite capacity, so that any MFP solution procedure is not disturbed by these additions.
+
+- Consider a mining complex comprising $m$ independent mining operations that feed ore to $n$ stockpiles. Each stockpile supplies an ore concentrating plant that blends material from the different mines into several comminution circuits. A conveyor network carries the ore, with each belt constrained by a capacity in tonnes per hour. Some conveyor routes may need to be taken out of service to avoid operational interference with higher-throughput belts. Maximizing the ore feed delivered to the concentrating plant can therefore be formulated as an MFP. An artificial upstream source node with effectively infinite capacity supplies the mine nodes and completes the network structure. Individual conveyor arcs may then have positive or zero capacity, depending on the interference created by selecting a particular stockpile or route to feed the plant.
+
+The MFP is, therefore, a gateway to formulating problems of many different kinds. Knowing it is consequently extremely useful, since, as we will see later, solving it is relatively simple.
+
+### What is a graph?
+
+This question may sound insulting to a great many engineers. Nevertheless, offering due apologies, it is important to do a *refresh* because we miners are often "children of the hill", or else "slaves to <strong><font color='dodgerblue'>Excel</font></strong>". And both alternatives tend to make us *forget* some important theoretical frameworks.
+
+A **graph** or **network** is a structure commonly used to represent relationships between certain objects. Those objects can be of any kind, such as websites, users of a social network, chemical elements making up the molecule of a more complex structure, or any similar abstraction. Similarly, the relationships between these objects usually depend on the context in which the graph has been defined. For example, hyperlinks pointing to websites, followers on a social network, or chemical bonds. @fig-grafos illustrates all these examples more graphically.
+
+![Some examples of graphs representing particular structures of interest. Graphs (a) and (b) represent the same chemical structure, corresponding to a paracetamol molecule. The difference is that, in the network representation (b), the chemical bond types carry a weight on each arc, corresponding to the number of valence electrons (image adapted from the beautiful book "Linear Algebra and Optimization for Machine Learning, a Textbook", by Charu C. Aggarwal (2022))](/articulos/pit-final/images/fig_4.png){#fig-grafos fig-align="center" width="90%"}
+
+The objects represented by a graph are usually called **vertices** or **nodes**, while the relationships between them are depicted by means of **arcs** or **paths**. Mathematically, a graph is usually defined as a pair $G=(V,E)$, where $V$ is the set of nodes and $E$ is the set of arcs. In general, the set $V$ is finite, and is usually made up of a total of $n$ elements –so that we usually write $V=\left\{ 1,...,n\right\}$–, $n$ therefore being the **order** of the graph $G$. The set $E$ is usually written explicitly as $E=\left\{ \left( i,j\right)  \in \mathbb{R}^{2} :i\wedge j\in V,i\neq j\right\}$, where the arc $(i,j)$ is the one connecting node $i$ with node $j$. When every node of $G$ has connecting arcs with all the other nodes, we say that $G$ is a **fully interconnected** graph.
+
+Graphs have several properties that are of interest. For example, they may be **directed** or **undirected**. In the first case, each arc $(i,j)$ has a prescribed direction, so information or material *flows* from $i$ to $j$ but not from $j$ to $i$. A familiar mining and metallurgical example is the process flowsheet of an ore concentrating plant. The flowsheet begins at one or more feed nodes—typically primary crushing—and branches toward several terminal nodes. For copper concentrate, one terminal destination may ultimately be a port; for tailings, it will be a tailings storage facility (TSF).
+
+The **capacity** of an arc $(i, j)$ is usually denoted $c_{ij}$. If that arc is bidirectional, it is possible to label it twice with the capacities $c_{ij}$ and $c_{ji}$, depending on whether the flow runs from $i$ to $j$ or in the opposite direction. In many applications this distinction is unnecessary because $c_{ij}=c_{ji}$. Unless artificial source and sink nodes are required, network capacities will generally be finite and non-negative. In the examples that follow, the resulting graph is directed.
+
+### The concept of a "cut"
+
+Given the previous definitions that formalize the concept of a directed graph, with all its structural elements, it is clear that the MFP can be formulated as an optimization problem on a graph $G=(V, E)$ that will always have a source node and a destination node (or sink, as certain very famous specialized books call it). These nodes are usually denoted $s$ and $t$, respectively. The number of intermediate nodes between $s$ and $t$ is irrelevant in formulating the MFP, and its impact is simply to vary the runtime of the algorithms capable of solving this problem. The **flow** $f_{ij}$ between nodes $i$ and $j$ may be equal to or less than the capacity $c_{ij}$, although we will often be interested in the cases for which $f_{ij}=c_{ij}$, as they are much simpler to solve. Naturally, the local sum of inflows at an arbitrary node $j$ must equal the local sum of outflows at the same node. Therefore, in words, this problem can be defined as
+
+$$
+\begin{array}{ll}\max&z=\mathrm{Total\  flow\  of\  the\  network}\\ \mathrm{s.t.} :&\mathrm{local\  flow\  on} \  \left( i,j \right) \leq \mathrm{capacity\  of} \  (i,j)\\ &\mathrm{inflow\  at} \  j=\mathrm{outflow\  at} \  j\end{array} \tag{1}
+$$
+
+Where $k\in V\wedge (i,j)\in E$.
+
+The formulation above is not mathematically concise, but it is a very useful starting point, because it lets us understand the problem from its most elementary aspects. However, a more rigorous formulation also requires introducing an additional concept that will be key to its solution: the so-called **cut** or **interruption**.
+
+Let us then consider a graph $G=(V,E)$ describing an MFP. A cut $\mathcal{C}_{r}$ is a subset of arcs whose removal from $G$ completely interrupts the flow between nodes $s$ and $t$. The **capacity of the cut** $\mathcal{C}_{r}$ equals the sum of the capacities of the arcs that define it. In this way, the **basic idea** of the MFP is the following: among *all* the possible cuts of $G$, the one with *minimum* capacity is the **bottleneck** that determines the maximum flow in the network. This idea is illustrated in Figure (5), where a network of pipes carrying water from a source $s$ to a sink $t$ is emulated by means of a graph. The minimum cut, highlighted in orange, interrupts the flow of the network by intersecting the arcs $(s,3),(5,6),(9,4)$ and $(4,8)$, having a capacity equal to $6+3+3+3=12$ flow units. The reader is left with the task of testing other cuts in the network, in order to show that none will have a smaller capacity than this one, so that this is the maximum flow we can generate in this network.
+
+![A network simulating water flow from a source $s$ to a sink $t$. We can see that the maximum flow of the network is equivalent to the capacity of the minimum cut that interrupts the flow from $s$ to $t$, equal to 12 units (image adapted from an exercise used in the "Optimization" course of the mining engineering degree at Universidad de Santiago de Chile. Credit to Professor José Ascencio Castillo for proposing this exercise)](/articulos/pit-final/images/fig_5.png){#fig-flujoagua fig-align="center" width="90%"}
+
+### Mathematical formulation
+
+We now have all the ingredients to build a suitable mathematical formulation to solve this problem. Note that, *before* getting down to *carpentry* with numbers and formulas (I love that term, it is one of the few great memories I have of my secondary education), we have taken the trouble to build an adequate intuition for this problem and also for its solution.
+
+The input data of an MFP are the following:
+
+- A directed graph $G=(V,E)$ conveniently constructed to represent our problem.
+- Two nodes that will play the role of the source $s$ and the destination $t$, conveniently labelled.
+- For each arc $(i,j)\in E$, the corresponding capacities, denoted $c_{ij}$, such that $c_{ij}\geq 0$ for every $(i,j)$.
+
+We define as **decision variables** of the MFP the flows $f_{ij}$ circulating through $G$. Those flows correspond to the images of a function $f:E\longrightarrow \mathbb{R}^{+}$, called the **flow function**, which must satisfy the following conditions:
+
+1) Capacity limit of each arc: $\forall \left( i,j \right) \in E\  :\  0\leq f_{ij}\leq c_{ij}$.
+2) Flow conservation (except at $s$ and at $t$): $\forall j\in V\setminus \left\{ s,t \right\} :\  \displaystyle \sum_{i:\left( i,j \right) \in E} f_{ij}=\sum_{k:\left( j,k \right) \in E} f_{jk}$.
+3) The total flow sent from $s$ to $t$ will be defined as $\displaystyle z=\sum_{j:\left( s,j \right) \in E} f_{ij}$.
+
+In this way, the mathematical formulation of the MFP is
+
+$$
+\begin{array}{ll}\displaystyle \max_{f_{ij}}&z=\displaystyle \sum_{j:\left( s,j \right) \in E} f_{ij}\\ \mathrm{s.t.} :&f_{ij}\leq c_{ij}\  ;\  \forall \left( i,j \right) \in E\\ &\displaystyle \sum_{i:\left( i,j \right) \in E} f_{ij}=\sum_{k:\left( j,k \right) \in E} f_{jk}\  ;\  \forall j\in V\setminus \left\{ s,t \right\}\\ &f_{ij}\geq 0\  ;\  \forall \left( i,j \right) \in E\end{array} \tag{2}
+$$
+
+Any reader who has taken the "Optimization" course or its equivalents ("Operations Research", as it is called at other universities) will have no trouble recognizing that expression (2) is the same as (1), but in a concise mathematical wrapper called a **linear program** (LP). A linear program is a particular case of optimization problem in which both the objective function and the constraints are linear in the decision variables (which, let us recall, in the MFP are the $f_{ij}$). LPs are the gateway to combinatorial optimization theory because of their simplicity and the algorithms that exist to solve them (such as the simplex method). And while the MFP is, without doubt, an LP, there are much faster ways to solve it that exploit its representation as a graph.
+
+Every LP has an associated LP called the **dual problem** (the original LP is called the **primal**), and the two are closely related, to the point that the optimal solution of one is also the optimal solution of the other. The direction of optimization in the two is opposite; that is, if the primal problem is a maximization, the dual will be a minimization. As the reader might expect, the dual problem of the MFP is, in effect, the **minimum-cut problem (MCP)** describing the bottleneck of the network. Each decision variable of the primal problem represents a constraint of the dual and vice versa.
+
+Mathematically, a cut $\mathcal{C}_{r}=\left\{ S,T \right\}$ in $G$ is a partition of $V$ such that $s\in S$ and $t\in T$. In other words, the cut $\mathcal{C}_{r}$ partitions $G$ in such a way that the source node $s$ remains on one side of the cut and the destination node $t$ on the other. The subscript $r$ simply indicates that this cut is only one of several possible cuts that can interrupt the flow from $s$ to $t$. The **cut set** $X_{\mathcal{C}_{r}}$ of a cut $\mathcal{C}_{r}$ is the set of arcs connecting the part where the source $s$ is located with the part where $t$ is located. That is,
+
+$$
+X_{\mathcal{C}_{r}}=\left\{ \left( i,j \right) \in E\  :\  i\in S\wedge j\in T \right\} \tag{3}
+$$
+
+Expression (3) lets us *set* the fundamental characteristic of every cut: if all the arcs of $X_{\mathcal{C}_{r}}$ are removed from the network, then it is not possible to carry flow from $s$ to $t$, because there is no path joining these nodes in the resulting graph. In this way, the **capacity of the cut** $\mathcal{C}_{r}$ equals the sum of the capacities of the arcs that are in $X_{\mathcal{C}_{r}}$, which can be written as
+
+$$
+c\left( S,T \right) =\sum_{\left( i,j \right) \in X_{\mathcal{C}_{r}}} c_{ij}=\sum_{\left( i,j \right) \in E} c_{ij}\alpha_{ij} \tag{4}
+$$
+
+Where $\alpha_{ij}$ is a binary variable equal to $1$ when $i\in S$ and $j\in T$, and $0$ in any other case. There is one **dual variable** $\alpha_{ij}$ for each constraint defining the capacities of each arc in the network.
+
+The remaining dual variables correspond to the flow-conservation constraints, and are defined as $\pi_{s},..., \pi_{i},\pi_{j},...,\pi_{t}$ (one per node). These variables are unrestricted, but it can be convenient to "assume" them binary, in order to simply represent which side of the cut the source $s$ and the destination $t$ lie on with respect to each node of the network. In this way, $\pi_{i}=1$ if node $i$ is on the side of the cut where the source $s$ is, while $\pi_{i}=0$ if node $i$ is on the side of the cut where the destination $t$ is. The good news is that the optimal solution of the dual is guaranteed under this formulation.
+
+Although the dual formulation admits real variables for $\pi_{k}$, the problem is in fact such that the optimum always lies at binary variables, so we can assume without loss of generality that $\pi_i \in {0,1}$ and $\alpha_{ij} \in {0,1}$ at the minimum cut.
+
+Putting all these pieces together, the dual problem of the MFP (which is the MCP) is formulated as
+
+$$
+\begin{array}{ll}\displaystyle \min_{\pi_{k} ,\alpha_{ij}}&c\left( S,T \right) =\displaystyle \sum_{\left( i,j \right) \in E} c_{ij}\alpha_{ij}\\ \mathrm{s.t.} :&\pi_{i} -\pi_{j} +\alpha_{ij} \geq 0\  ;\  \forall \left( i,j \right) \in E\\ &\pi_{s} -\pi_{t} =1\\ &\alpha_{ij} \geq 0\  ;\  \forall \left( i,j \right) \in E\end{array} \tag{5}
+$$
+
+The three sets of dual constraints are usually interpreted as follows:
+
+- Potential constraint ($\pi_{i} -\pi_{j} +\alpha_{ij} \geq 0\  ;\  \forall \left( i,j \right) \in E$): it explains the incremental effects of adding more flow on a given arc, represented by the dual variables $\pi_{i},\pi_{j},...$. Following the logic that describes a cut in a flow network, if we rearrange this constraint as $\alpha_{ij}\geq \pi_{j}- \pi_{i}$, then each variable $\pi_{i},\pi_{j},...$ simply describes whether the "slope" of the arc $(i,j)$ is positive (rising towards $t$) or negative (falling towards $t$). If that slope is positive, there is a cost for reaching the source. If that slope is negative, that cost equals zero.
+
+- Normalization constraint ($\pi_{s} -\pi_{t} =1$): it normalizes the MCP, its solutions being invariant under the addition of the same constant flow to each $\pi_{k}$ ($k\in E$). Letting the source sit exactly one unit above the destination anchors the MCP in such a way that the dual objective function really counts the capacity of each cut.
+
+- Non-negativity constraint ($\alpha_{ij}\geq 0\  ;\  \forall \left( i,j \right) \in E$): it lets us interpret the dual variables $\alpha_{ij}$ as the cost of using each arc $(i,j)$ to carry flow in the minimum cut. In this way, if the arc $(i,j)$ is not within the cut set, its "price" $\alpha_{ij}$ will equal zero. If the arc $(i,j)$ is included in the cut set, then its "price" $\alpha_{ij}$ will equal $1$, so that the "cost" of using that arc will equal its capacity, in accordance with the dual objective function.
+
+Do you remember I mentioned that a primal LP has the same optimal solution as its dual LP? Well, that result is fundamental in this context, and the basis of the so-called **maximum-flow – minimum-cut theorem**: *the maximum flow that can be carried through the network $G=(V,E)$ equals the capacity of the minimum cut $\mathcal{C}_{r}$ of $G$*. That is,
+
+$$
+\max_{f_{ij}} \  \sum_{j:\left( s,j \right) \in E} f_{ij}=\min_{\pi_{k} ,\alpha_{ij}} \sum_{\left( i,j \right) \in E} c_{ij}\alpha_{ij} \tag{6}
+$$
+
+### Solving the problem
+
+It is fair to ask, after all this continuous chatter about mathematical terms, how to solve this problem (and, more importantly, how that problem connects with building an ultimate pit). Patience, friends. They say Rome was not built in a day. And however much some "leaders" may believe otherwise, neither are open pits...
+
+But anyway, let us continue. The bad news, once the MFP *setting* has been defined, is that its optimal solution is only guaranteed by exhaustively enumerating all the cuts of the corresponding network and choosing the one with the smallest capacity. Naturally, if the network grows in size, this search will become increasingly intractable. And since brute force is anything but elegant (within mathematical formalism), it is clear that we need a more ingenious solution.
+
+The first solution for this problem is due to a [paper published in 1956](https://www.cs.yale.edu/homes/lans/readings/routing/ford-max_flow-1956.pdf) by the American mathematicians Lester Randolph Ford Jr. and Delbert Ray Fulkerson, who proposed an ingenious algorithm derived from equation (6), called (how else...) the **Ford-Fulkerson algorithm**. The idea governing this procedure is very simple: send flow iteratively, increasing the total flow from $s$ to $t$ until it is no longer possible to increase that flow any further. The interesting part of this algorithm lies in the fact that we do not *just go and send* flow along *any* path, but rather choose certain paths that have available capacity to send more flow, called **augmenting paths**. The tool that will let us be efficient in defining such paths is the so-called *residual graph*.
+
+Given a flow function $f:E\longrightarrow \mathbb{R}^{+}$ on the graph $G=(V,E)$, the **residual graph** $G_{f}=(V,E_{f})$ is built according to the following procedure. For each arc $(i,j)\in E$:
+
+- If $f_{ij}< c_{ij}$, then there is a *forward-traversed* arc $(i,j)$ in the residual graph with **residual capacity or residual** $\overline{c}_{ij} =c_{ij}-f_{ij}$.
+- If $f_{ij}> 0$, then there is a *backward-traversed* arc $(j,i)$ in the residual graph with residual $\overline{c}_{ij} =f_{ji}$.
+
+All right, that was somewhat confusing... Traverse an arc backwards? Well, yes. The clever part of the algorithm is precisely that it lets us *remove* flow that we sent in a previous iteration if we find a better alternative (a shorter augmenting path). The logic is simple: we can partially reverse past decisions about where to send flow. If we can no longer send any more, the problem is solved and the flow is maximum.
+
+This algorithm can be described sequentially as follows:
+
+::: {.algo-box}
+
+::: {.algo-line}
+[def]{.algo-key} [Ford_Fulkerson]{.algo-name} $(G=(V,E),c_{ij},s,t)$
+:::
+
+::: {.algo-indent .algo-indent-1}
+
+::: {.algo-line}
+$f_{ij}\longleftarrow 0$ for all arcs $(i,j)\in E$
+:::
+
+::: {.algo-line}
+[while]{.algo-key} there exists an augmenting path $\mathcal{P}$ from $s$ to $t$ in $G_f$, such that $\overline{c}_{ij}>0;\forall (i,j)\in\mathcal{P}$:
+:::
+
+::: {.algo-indent .algo-indent-2}
+
+::: {.algo-line}
+Find $\overline{c}(\mathcal{P})=\min\left\{\overline{c}_{ij}:(i,j)\in\mathcal{P}\right\}$
+:::
+
+::: {.algo-line}
+[for]{.algo-key} $(i,j)\in\mathcal{P}$:
+:::
+
+::: {.algo-indent .algo-indent-3}
+
+::: {.algo-line}
+We send flow along the augmenting path: $f_{ij}\longleftarrow f_{ij}+\overline{c}(\mathcal{P})$.
+:::
+
+::: {.algo-line}
+The flow “could” be removed later, updating the progress: $f_{ji}\longleftarrow f_{ji}-\overline{c}(\mathcal{P})$.
+:::
+
+::: {.algo-line}
+[return]{.algo-key} $f=\sum_{j:(s,j)\in E} f_{sj}$ (the total flow sent from the source $s$).
+:::
+
+:::
+:::
+:::
+:::
+
+The sort of pseudocode we have written was done this way simply because I am familiar with Python. Surely, a more seasoned professional will be able to formulate it far better.
+
+::: {.callout-warning}
+## Careful!
+The difficulty of implementing this algorithm lies in finding $\overline{c}(\mathcal{P})$, which amounts to determining the minimum cut at each iteration. In practice, most computational routines provided by various libraries and specialized software opt for two alternatives for finding these cuts: a [depth-first search (DFS)](https://en.wikipedia.org/wiki/Depth-first_search) or a [breadth-first search (BFS)](https://en.wikipedia.org/wiki/Breadth-first_search), both on the residual graph $G_{f}$. The DFS strategy is the original one proposed in the Ford-Fulkerson algorithm, while the BFS strategy, when applied to the maximum-flow algorithm, is known as the **Edmonds-Karp algorithm**, although the idea, as we can see, is essentially the same in both cases.
+:::
+
+## Application to the ultimate-pit determination problem
+
+At last, after more than 2,000 words (false, I did not actually count them), we have reached the most important part of this text. We will formulate the geometric ultimate-pit problem for an inventory of blocks labelled with their economic value if extracted. We will begin by solving the problem shown in Figure (3), and then apply the same solution to a more interesting case.
+
+For this, we will make use of some very useful Python libraries:
+
+- <strong><font color='darkmagenta'>Numpy</font></strong>, to build our block inventory in the form of a 2D array (with rows and columns). By the way, in this repository we LOVE using <strong><font color='darkmagenta'>Numpy</font></strong>. It is one of my favourite libraries (in fact, it is the first one I learned to use after MONTHS of tutorials and study sessions).
+- <strong><font color='darkmagenta'>Matplotlib</font></strong>, to plot our results.
+- <strong><font color='darkmagenta'>NetworkX</font></strong>, to formulate the problem as a graph and implement the maximum-flow algorithm to solve it. This library is incredibly useful for formulating and solving all kinds of problems by means of graphs. I recommend that anyone who does not have it in their toolbox give it a chance.
+
+We import these libraries:
+
+```{python}
+import matplotlib.pyplot as plt
+import networkx as nx
+import numpy as np
+import seaborn as sns
+```
+
+```{python}
+# We set up our figures so that they look nice.
+plt.rcParams["figure.dpi"] = 90
+sns.set_theme()
+plt.style.use("bmh")
+```
+
+And we create our small inventory:
+
+```{python}
+# We generate the matrix with block-by-block benefits.
+blocks = np.array(
+    [
+        [-3, -2, 1, -1, -1, 1, -1, -8, -9],
+        [-9, -2, 3, 1, -1, 3, -7, 1, -9],
+        [-9, -8, 6, 1, -2, 2, -8, -3, -10],
+        [-11, -5, 2, 10, -5, 12, -10, -6, -10],
+    ],
+)
+```
+
+### Formulation
+
+So far, nothing too complicated. However, now comes the fun part. Let $\mathcal{B} =\left\{ b_{ij}\  |\  i=0,...,m-1\wedge j=0,...,n-1 \right\}$ be the set of all blocks in the inventory, where $i$ and $j$ are indices running over its rows and columns, respectively. Each block is assigned a net benefit $w_{ij}\in \mathbb{R}$, representing what we gain or lose from extracting it, depending on whether $w_{ij}$ is positive or negative.
+
+When we want to extract a block, two cases may arise: The block is exposed at the surface, or it lies beneath other blocks. In the first case ($i=0$), the block can be removed directly. In the second ($i>0$), extracting the block of interest also requires mining its **predecessor blocks**. This precedence relationship is purely geometric and depends on the block dimensions and the **slope angle** imposed on the excavation. In the simplest formulation, all blocks have equal dimensions along their axes and the slope angle is 45º. Because our problem is two-dimensional, the blocks are square, and extracting any block $b_{ij}$ with $i>0$ requires first extracting the three blocks immediately above it: $b_{i-1,j-1},b_{i-1,j}$, and $b_{i-1,j+1}$. We denote this predecessor set by $\mathcal{H}(b_{ij})$.
+
+The precedence relationship described by $\mathcal{H}(b_{ij})$ describes an extremely important geometric constraint in the ultimate-pit problem, because block extraction always starts from above.
+
+Let $C$ be a subset of blocks of the inventory $\mathcal{B}$. We will say that $C$ is **closed** if $b_{ij}\in C\wedge i>0\Longrightarrow \mathcal{H} \left( b_{ij} \right) \subseteq C$. That is, $C$ contains the blocks of interest and the blocks that are necessary in order to extract each of them. The ultimate-pit determination problem can then be expressed as
+
+$$
+\begin{array}{ll}\displaystyle \max_{C\subseteq \mathcal{B}}&\displaystyle \phi \left( C \right) =\sum_{b_{ij}\in C} w_{ij}\\ \mathrm{s.t.} :&C\  \mathrm{is\  closed}\end{array} \tag{7}
+$$
+
+So far, expression (7) does not look very much like an MFP or an MCP. But be patient, we are getting there...
+
+A graph $G=(V,E)$ capturing the precedence and extraction logic is not hard to build. Each block in the inventory becomes a node in a directed network whose arcs encode block values and the required mining precedences. In this way:
+
+- $V=\left\{ v_{ij}\  |\  b_{ij}\in \mathcal{B} \right\} \cup \left\{ s,t \right\}$, where $v_{ij}$ is simply the node label. The source and sink nodes ($s$ and $t$) are artificial and are assigned to the network once the inventory blocks have been defined in its structure.
+
+- The arcs are labelled with capacities equal to the benefits, according to $E=\begin{cases}\left( s\rightarrow v_{ij} \right) ,u_{s,ij}=w_{ij}&;\  w_{ij}\geq 0\\ \left( v_{ij}\rightarrow t \right) ,u_{ij,t}=-w_{ij}&;\  w_{ij}<0\end{cases}$.
+
+- For each node $v_{ij}$ with $i>0$ and each $p\in \mathcal{H}(b_{ij})$, we define $\left( v_{ij}\rightarrow v_{p} \right)\wedge u_{ij,p}=M$, where $M$ is a sufficiently large value that gives the arcs connecting a block to its predecessors an effectively infinite capacity. This prevents a feasible minimum cut from severing those precedence arcs. Because infinity cannot be represented numerically, any value satisfying $M>\sum\nolimits_{w_{kl}>0} w_{kl}$ is enough to keep the algorithm from selecting a cut through them.
+
+With the graph built, we can formulate the dual problem—the minimum cut. Recall from equation (4) that a cut $\mathcal{C}_{r}$ has capacity $c(S,T)$, where $s\in S$ and $t\in T$. An admissible cut avoids the large-capacity precedence arcs and instead crosses arcs associated with block value. It therefore identifies the optimal extraction closure by minimizing the economic value forfeited—or, equivalently, maximizing the value retained in the pit. That loss function is represented by the cut capacity $c(S,T)$.
+
+Note that:
+
+- If $v_{ij}\in T$ when $w_{ij}>0$, then $w_{ij}$ is "lost" (it is a block with positive benefit that is not extracted).
+- If $v_{ij}\in S$ when $w_{ij}<0$, then $-w_{ij}$ is "paid" (the block is extracted).
+- The arcs representing the precedence relationships will never be part of the minimum cut, because their "cost" is $M$, which, as we said before, is very large ("we cannot afford it").
+
+In this way, setting $C=S\setminus \left\{ s \right\}$, the **net benefit** of extracting the blocks in $C$ is
+
+$$
+\begin{array}{lll}\phi \left( C \right)&=&\displaystyle \sum_{w_{ij}>0,v_{ij}\in C} w_{ij}-\sum_{w_{ij}<0,v_{ij}\in C} \left( -w_{ij} \right)\\ &=&W-c\left( S,T \right)\end{array} \tag{8}
+$$
+
+Where $W=\sum_{w_{ij}>0} w_{ij}$ (the sum of all blocks with positive benefit) is constant. Therefore, we have arrived at an important result: the objective function $\phi$ is maximum if and only if the capacity $c(S,T)$ is minimum. In this way, **we conclude that the optimal extraction problem in building an ultimate pit is, in fact, an MCP and, by extension, also an MFP (by the duality condition)**.
+
+### Solution with <strong><font color='darkmagenta'>NetworkX</font></strong>
+
+Very well, we already have everything we need and all that remains is to *program* the solution. By "program" I do not mean formulating the maximum-flow algorithm from scratch, not because I feel it is not worth it (in fact, it is a very interesting exercise), but because this text is aimed at colleagues who work in mining. And I know very well that we do not have time to spare and often opt for prefabricated solution routines.
+
+The above is not at all a negative thing. In fact, it is perfectly fine... Who are we, in the end, to judge the tools that such brilliant minds provide us for free in the form of Python libraries?
+
+Anyway. The library we will use to solve this problem is called <strong><font color='darkmagenta'>NetworkX</font></strong>. As I mentioned before, it is a battery of resources that lets us formulate, analyze, and optimize graphs. It comes equipped with a generous number of optimization algorithms that exploit the simple structure of these mathematical objects. One of those algorithms is, of course, minimum cut, which is nothing more than a *wrapper* for the Edmonds-Karp algorithm.
+
+Building graphs in <strong><font color='darkmagenta'>NetworkX</font></strong> is governed by certain objects describing networks with desirable properties. In our case, we will build a directed graph, which is represented in this library by the `DiGraph` object (from *Directed Graph*). Adding any arc to this graph can be done with the `add_edge()` method, specifying the start and end nodes, and the arc capacity using the `capacity` parameter.
+
+We therefore start by defining our graph `G`, and the source (`source`) and sink (`sink`) nodes:
+
+```{python}
+# We build the graph that will represent the extraction problem for these blocks.
+G = nx.DiGraph()
+source = "s"
+sink = "t"
+```
+
+Next, we compute the sum of the values of all positive blocks and add `1` to obtain the large value `M` assigned to the precedence arcs of blocks that are not exposed at the surface. This capacity acts as a prohibitive penalty that prevents the minimum cut from crossing those arcs:
+
+```{python}
+# We define the sum of all positive block values and add 1 to obtain the
+# large-M value that prevents the minimum cut from crossing the arcs that define the
+# precedence relationships governing the extraction of a block.
+M = blocks[blocks > 0].sum() + 1
+```
+
+Next, we will create a simple function that will let us label each node in the form `B{i}_{j}`, where `i` and `j` are the counters indexing the rows and columns of the complete inventory:
+
+```{python}
+# We create a very simple function that will let us map each block to a unique label
+# for each node.
+def node_label(i, j):
+    return f"B{i}_{j}"
+
+# We assign the inventory dimensions to different variables.
+n_rows, n_cols = blocks.shape
+```
+
+Now we will build the graph representing the extraction problem in full, making use of an iterative procedure. Each intermediate node will be called `v_ij`, assigning the corresponding capacities according to the rules governing the cuts, depending on the sign of the benefit associated with each block. Finally, we will connect every block with `i > 0` (which does not outcrop at the surface) to its preceding blocks, assigning them capacities large enough (the `M`) for the maximum-flow algorithm to ignore them:
+
+```{python}
+# We build the directed network representing the problem.
+for i in range(n_rows):
+    for j in range(n_cols):
+        # We define each intermediate node.
+        v_ij = node_label(i, j)
+
+        # We define the benefits of each block (network capacities).
+        w_ij = blocks[i, j]
+
+        # We assign these benefits in the form of capacities.
+        if w_ij >= 0:
+            G.add_edge(source, v_ij, capacity=w_ij)
+        else:
+            G.add_edge(v_ij, sink, capacity=-w_ij)
+
+        # We impose the geometric constraint governing block extraction: slope angle
+        # equal to 45º, which implies always extracting the three blocks above a
+        # block of interest.
+        if i > 0:
+            for dj in (-1, 0, 1):
+                jj = j + dj
+                if 0 <= jj < n_cols:
+                    # We define the preceding block.
+                    pred = node_label(i - 1, jj)
+
+                    # We assign the precedence rule.
+                    G.add_edge(v_ij, pred, capacity=M)
+```
+
+Now all that remains is to solve this problem, which is as easy as using the `minimum_cut()` function that, behind the scenes, applies the Edmonds-Karp algorithm to determine the maximum flow (maximum net benefit from extracting the blocks in the ultimate pit). As a result we will obtain the capacity of the minimum cut (`cut_value`) found by the algorithm, in addition to the sets `S` and `T`, describing the blocks that remain on the source side and the sink side, respectively, once that cut has been drawn. The blocks that are extracted are in `S` (excluding the source):
+
+```{python}
+# We solve the problem using the minimum-cut algorithm.
+cut_value, (S, T) = nx.minimum_cut(G, source, sink)
+selected_blocks = [n for n in S if n not in (source, sink)]
+```
+
+Naturally, we are interested in visualizing the geometry of the ultimate pit, so we will create a Boolean array indicating which blocks are extracted by the maximum-flow algorithm:
+
+```{python}
+# We generate an indicator matrix to show the blocks that are extracted.
+mask = np.zeros_like(blocks, dtype=bool)
+for block in selected_blocks:
+    i, j = map(int, block[1:].split("_"))
+    mask[i, j] = True
+```
+
+Finally, we compute the net extraction benefit:
+
+```{python}
+# We compute the maximum benefit we obtain from the extraction determined (ultimate pit).
+total_profit = (blocks * mask).sum()
+```
+
+Let us recall that, under our formulation, that net benefit equals `M`, minus the capacity of the minimum cut (`cut_value`), minus `1` (the unit we added to the sum of positive block benefits to ensure that `M` was large enough):
+
+```{python}
+np.allclose(total_profit, M - 1 - cut_value)
+```
+
+Finally, we use <strong><font color='darkmagenta'>Matplotlib</font></strong> to visualize our ultimate pit:
+
+```{python}
+#| label: fig-pit-final-toy-example
+#| fig-cap: "Blocks selected in the first toy inventory. The annotated values correspond to the benefit or cost of each block, while the stepped envelope lets us verify that the 45-degree precedences are satisfied."
+# We plot our ultimate pit.
+fig, ax = plt.subplots(figsize=(9, 5))
+p = ax.imshow(mask, cmap=plt.cm.gray_r, vmin=0, vmax=1, origin="upper")
+
+# We generate some annotations to show the benefits associated with each block.
+for i in range(n_rows):
+    for j in range(n_cols):
+        color_ij = 'lightgreen' if mask[i, j] else 'red'
+        ax.text(j, i, blocks[i, j], ha='center', va='center', color=color_ij, fontsize=10)
+
+# And finally, we label our plot.
+ax.set_xticks(range(n_cols))
+ax.set_yticks(range(n_rows))
+ax.set_xticklabels(range(n_cols))
+ax.set_yticklabels(range(n_rows))
+ax.set_xlabel("Column", fontsize=12, labelpad=10)
+ax.set_ylabel("Row (0 = Surface)", fontsize=12, labelpad=10)
+ax.set_title(
+    f"Optimal pit: Total benefit = {total_profit}", fontsize=14, fontweight="bold", pad=10,
+)
+plt.tight_layout();
+```
+
+And there we have it, a nice geometric ultimate pit that respects the precedence rules derived from an extraction angle equal to 45º.
+
+Personally, I would have liked to know all this back in my university days...
+
+One could obviously ask... And what about the graph simulating the extraction of these blocks? That being a completely fair question, and having described iteratively the procedure for building this graph, the truth is that drawing it is indeed a costly procedure. However, since this is the first exercise we have solved using this *approach*, we will show this diagram (built using the <strong><font color='dodgerblue'>Mermaid</font></strong> tool, specialized in flow diagrams) in @fig-grafopit.
+
+```{mermaid}
+%%| label: fig-grafopit
+%%| fig-cap: "Conceptual construction of the directed network for the ultimate-pit problem. The economic arcs connect to the source or the sink depending on the sign of the benefit; the dashed arcs with capacity M impose the extraction precedences; and the minimum cut separates the extracted blocks from those that remain outside the design."
+
+flowchart TB
+  subgraph ECONOMY["01 · Economic value defines the capacities"]
+    direction LR
+    S(("Source<br/>s"))
+    POS["Profitable block<br/>w > 0"]
+    NEG["Block with a cost<br/>w < 0"]
+    T(("Sink<br/>t"))
+
+    S -->|"capacity = w"| POS
+    NEG -->|"capacity = −w"| T
+  end
+
+  subgraph GEOMETRY["02 · The 45° slope imposes precedence"]
+    direction TB
+    B["Block of interest<br/>b(i,j)"]
+
+    subgraph PREDECESSORS["Overlying blocks that must be extracted first"]
+      direction LR
+      LEFT["b(i−1,j−1)"]
+      CENTRE["b(i−1,j)"]
+      RIGHT["b(i−1,j+1)"]
+    end
+
+    B -.->|"M"| LEFT
+    B -.->|"M"| CENTRE
+    B -.->|"M"| RIGHT
+  end
+
+  POS --> NETWORK["Complete s–t network<br/>both rules repeat<br/>for every block"]
+  B --> NETWORK
+
+  NETWORK --> CUT["Minimum cut<br/>(S,T)"]
+  CUT --> EXTRACTED["S without s<br/>extracted blocks"]
+  CUT --> REJECTED["T without t<br/>blocks not extracted"]
+
+  classDef terminal fill:#315F86,stroke:#8CC8F4,stroke-width:2px,color:#FFFFFF
+  classDef positive fill:#285B3A,stroke:#8DD19A,stroke-width:2px,color:#FFFFFF
+  classDef negative fill:#6A2D2B,stroke:#F09A91,stroke-width:2px,color:#FFFFFF
+  classDef block fill:#48334F,stroke:#D5A1DD,stroke-width:2px,color:#FFFFFF
+  classDef predecessor fill:#233F49,stroke:#74C6D3,stroke-width:2px,color:#FFFFFF
+  classDef process fill:#5A4026,stroke:#F1B45B,stroke-width:2px,color:#FFFFFF
+  classDef selected fill:#36542C,stroke:#A7D98B,stroke-width:2px,color:#FFFFFF
+  classDef rejected fill:#4B5156,stroke:#BFC8CE,stroke-width:2px,color:#FFFFFF
+
+  class S,T terminal
+  class POS positive
+  class NEG negative
+  class B block
+  class LEFT,CENTRE,RIGHT predecessor
+  class NETWORK,CUT process
+  class EXTRACTED selected
+  class REJECTED rejected
+
+  style ECONOMY fill:#F5F8FA,stroke:#94AFC1,stroke-width:1px,color:#253D4A
+  style GEOMETRY fill:#F8F3F8,stroke:#B998B5,stroke-width:1px,color:#422F40
+  style PREDECESSORS fill:#EEF6F7,stroke:#94BDC2,stroke-width:1px,color:#294248
+
+  linkStyle default stroke:#647B83,stroke-width:1.7px
+```
+
+Our implementation is mostly functional, although modularizing it (moving the code into several functions with specific responsibilities) should not be a problem for any enthusiast starting out in the world of data. In fact, we can quickly show that our solution lets us solve any 2D problem similar to the previous one. For example, let us now consider the following three-level inventory:
+
+```{python}
+# We define a new block inventory.
+blocks = np.array([
+    [-3, -2, -3, -4, -2, -1,  1, -1, -2],
+    [-10,  3,  6,  5,  2, -1, -3,  4, -9],
+    [-13, -3,  3,  9,  4,  1, -5, -10, -16]
+])
+```
+
+The solution (all at once):
+
+```{python}
+#| label: fig-pit-final-second-toy-example
+#| fig-cap: "Ultimate pit obtained for the second toy inventory. The selection maximizes the joint benefit without including deep blocks whose overlying predecessors remain unextracted."
+# We build the graph that will represent the extraction problem for these blocks.
+G = nx.DiGraph()
+source = "s"
+sink = "t"
+
+# We define the sum of all the benefits of the network and add 1 to it, in order to build the
+# large-M value that prevents the minimum cut from crossing the arcs that define the
+# precedence relationships governing the extraction of a block.
+M = blocks[blocks > 0].sum() + 1
+
+# We assign the inventory dimensions to different variables.
+n_rows, n_cols = blocks.shape
+
+# We build the directed network representing the problem.
+for i in range(n_rows):
+    for j in range(n_cols):
+        # We define each intermediate node.
+        v_ij = node_label(i, j)
+
+        # We define the benefits of each block (network capacities).
+        w_ij = blocks[i, j]
+
+        # We assign these benefits in the form of capacities.
+        if w_ij >= 0:
+            G.add_edge(source, v_ij, capacity=w_ij)
+        else:
+            G.add_edge(v_ij, sink, capacity=-w_ij)
+
+        # We impose the geometric constraint governing block extraction: slope angle
+        # equal to 45º, which implies always extracting the three blocks above a
+        # block of interest.
+        if i > 0:
+            for dj in (-1, 0, 1):
+                jj = j + dj
+                if 0 <= jj < n_cols:
+                    # We define the preceding block.
+                    pred = node_label(i - 1, jj)
+
+                    # We assign the precedence rule.
+                    G.add_edge(v_ij, pred, capacity=M)
+
+# We solve the problem using the minimum-cut algorithm.
+cut_value, (S, T) = nx.minimum_cut(G, source, sink)
+selected_blocks = [n for n in S if n not in (source, sink)]
+
+# We generate an indicator matrix to show the blocks that are extracted.
+mask = np.zeros_like(blocks, dtype=bool)
+for block in selected_blocks:
+    i, j = map(int, block[1:].split("_"))
+    mask[i, j] = True
+
+# Finally, we compute the maximum benefit we obtain from the extraction determined (ultimate pit).
+total_profit = (blocks * mask).sum()
+
+# We check that the solution of the maximum-flow problem is equivalent to the solution of the
+# corresponding minimum-cut problem.
+np.allclose(total_profit, M - 1 - cut_value)
+
+# We plot our ultimate pit.
+fig, ax = plt.subplots(figsize=(9, 5))
+p = ax.imshow(mask, cmap=plt.cm.gray_r, vmin=0, vmax=1, origin="upper")
+
+# We generate some annotations to show the benefits associated with each block.
+for i in range(n_rows):
+    for j in range(n_cols):
+        color_ij = 'lightgreen' if mask[i, j] else 'red'
+        ax.text(j, i, blocks[i, j], ha='center', va='center', color=color_ij, fontsize=10)
+
+# And finally, we label our plot.
+ax.set_xticks(range(n_cols))
+ax.set_yticks(range(n_rows))
+ax.set_xticklabels(range(n_cols))
+ax.set_yticklabels(range(n_rows))
+ax.set_xlabel("Column", fontsize=12, labelpad=10)
+ax.set_ylabel("Row (0 = Surface)", fontsize=12, labelpad=10)
+ax.set_title(
+    f"Optimal pit: Total benefit = {total_profit}", fontsize=14, fontweight="bold", pad=10,
+)
+plt.tight_layout();
+```
+
+The previous exercises are very pedagogical but they remain very small examples of what building an extraction sequence up to an ultimate pit really means. The expert planners who may read this repository entry will probably find the effort we have just made rather quaint, and rightly so, since they deal with block models containing thousands, and even tens of thousands, of volumetric units.
+
+The good news is that the Edmonds-Karp algorithm scales very well with the size of the corresponding graph, which means that in practice the size of the inventory of interest is not relevant for our implementation, as long as its geometry is 2D. To verify the suitability of our implementation, we will replicate our exercise on a 2D inventory much larger than the previous ones, with more than 60 levels. This inventory is provided freely in the `datasets` folder of this repository, and corresponds to a semicolon-separated file called `blocks_inventory_2d.csv`. To access it, we will make use of <strong><font color='darkmagenta'>Pandas</font></strong>:
+
+<div class="dataset-download">
+  <a class="dataset-download-btn" href="/articulos/datasets/blocks_inventory_2d.csv" download="blocks_inventory_2d.csv">Download blocks_inventory_2d.csv</a>
+</div>
+
+```{python}
+import pandas as pd
+```
+
+```{python}
+# We access the file.
+block_inventory = pd.read_csv("../../../articulos/datasets/blocks_inventory_2d.csv", delimiter=";")
+```
+
+Next, we inspect this file:
+
+```{python}
+# We inspect the first rows.
+print(f"Number of rows = {block_inventory.shape[0]}")
+print(f"Number of columns = {block_inventory.shape[1]}")
+block_inventory.head()
+```
+
+We see that this is a 2D inventory with 62 rows and 74 columns. This gives us a total of 4588 blocks and, by extension, a network with the same number of nodes, which is naturally impractical to represent visually. However, the logic of the extraction process is essentially the same, with the difference that this inventory comes with **copper grades** instead of extraction benefits for each block.
+
+We will therefore start by indexing this inventory with respect to its first column (`"Instancia"`) and building a very simple visualization of these grades, in order to see the geometry of this deposit:
+
+```{python}
+# We set the ´Instancia´ column as the index for the model rows.
+block_inventory.set_index("Instancia", inplace=True)
+```
+
+```{python}
+#| label: fig-pit-final-copper-inventory
+#| fig-cap: "Spatial distribution of the copper grades of the two-dimensional inventory. The higher-grade zones appear beneath a surface cover and delimit the potential economic core of the deposit."
+# We create a heat map to visualize our inventory.
+fig, ax = plt.subplots(figsize=(9, 5))
+p = sns.heatmap(
+    data=block_inventory.values, cmap="plasma", ax=ax,
+)
+# We label and adjust.
+cb = ax.collections[0].colorbar
+cb.set_label(label="Cu grade (%)", fontsize=11, labelpad=10)
+ax.set_title(
+    "Block inventory, Cu grades", fontsize=13,
+    fontweight="bold", pad=10,
+)
+cb.ax.tick_params(labelsize=11)
+ax.set_xticklabels([])
+ax.set_yticklabels([])
+plt.tight_layout();
+```
+
+We see then that the blocks with a significant copper grade only start to appear some 10 levels below the surface. The deposit, in this section, has a fairly irregular geometry, so it constitutes an interesting exercise in itself. However, we will first express these blocks in terms of their economic benefit, making some assumptions:
+
+- Block dimensions ($D_{x},D_{y}$ and $D_{z}$) = 10$\times$10$\times$10 m.
+- Cut-off grade ($g_{c}$) = 0.24% Cu. All blocks with grades below this threshold will be assumed to be waste blocks (with no economic interest).
+- Unit mining costs for waste ($C_{e}$) and ore ($C_{m}$) = 2.2 USD/t and 2.8 USD/t, respectively.
+- Waste density ($\rho_{e}$) and ore density ($\rho_{m}$) = 2.4 t/m$^{3}$ and 3.0 t/m$^{3}$, respectively.
+- Copper price ($P_{\mathrm{Cu}}$) = 4.0 USD/lb.
+- Conversion factor from tonnes to pounds ($f_{\mathrm{t}\rightarrow \mathrm{lb}}$) = 2204.62 lb/t.
+- Estimated copper recovery for the plant ($R_{\mathrm{Cu}}$) = 85%.
+- Estimated efficiency for the plant assets ($F_{o}$) = 92%.
+- Unit ore processing cost ($C_{p}$) = 10 USD/t.
+
+With this information, the procedure we will follow to compute the extraction benefits/costs of each block is simple:
+
+1) We define the indicator $e_{ij}$ signalling whether the block $b_{ij}$ is waste or ore (according to the cut-off grade).
+2) We compute the mass contained in each block: $m_{ij}= D_{x} D_{y} D_{z} \rho_{e}$ if the block is waste, and $m_{ij}= D_{x} D_{y} D_{z} \rho_{m}$ if the block is ore.
+3) We compute the benefit associated with each block as:
+
+$$
+w_{ij}=\begin{cases}m_{ij}\left( \overbrace{g_{ij}R_{\mathrm{Cu}}P_{\mathrm{Cu}}F_{o}f_{\mathrm{t} \rightarrow \mathrm{lb}}}^{\mathrm{revenue}} -\overbrace{C_{m}-C_{p}}^{\mathrm{costs}} \right)&;\  \mathrm{if} \  e_{ij}\  \mathrm{indicates\  ore}\\ -m_{ij}C_{e}&;\  \mathrm{if} \  e_{ij}\  \mathrm{indicates\  waste}\end{cases} \tag{9}
+$$
+
+We replicate this procedure below:
+
+```{python}
+# We set some parameters of interest.
+Dx, Dy, Dz = 10, 10, 10
+cutoff_grade = 0.24
+ore_mining_cost = 2.8
+waste_mining_cost = 2.2
+ore_density = 3.0
+waste_density = 2.4
+cu_price = 4.0
+conversion_factor = 2204.62
+cu_recovery = 0.85
+plant_efficiency = 0.92
+plant_cost = 10.0
+
+# We indicate which blocks will be considered ore according to the cut-off grade.
+indicator_matrix = np.zeros_like(block_inventory)
+n_rows, n_cols = indicator_matrix.shape
+for i in range(n_rows):
+    indicator_matrix[i] = np.where(block_inventory.iloc[i] < cutoff_grade, 0, 1)
+
+# For each of these blocks, we compute its mass.
+mass_matrix = np.zeros_like(indicator_matrix)
+for i in range(n_rows):
+    for j in range(n_cols):
+        if indicator_matrix[i, j] == 0:
+            mass_matrix[i, j] = Dx * Dy * Dz * waste_density
+        else:
+            mass_matrix[i, j] = Dx * Dy * Dz * ore_density
+
+# ... and, finally, its benefit.
+benefit_matrix = np.zeros_like(indicator_matrix)
+for i in range(n_rows):
+    for j in range(n_cols):
+        if indicator_matrix[i, j] == 0:
+            benefit_matrix[i, j] = - mass_matrix[i, j] * waste_mining_cost
+        else:
+            mine_cost_ij = mass_matrix[i, j] * ore_mining_cost
+            plant_cost_ij = mass_matrix[i, j] * plant_cost
+            profit_ij = mass_matrix[i, j] \
+            * (block_inventory.iloc[i, j] / 100) \
+            * cu_recovery \
+            * cu_price \
+            * plant_efficiency \
+            * conversion_factor
+            benefit_ij = profit_ij - mine_cost_ij - plant_cost_ij
+            benefit_matrix[i, j] = benefit_ij
+```
+
+With the block inventory expressed in terms of the corresponding benefits, it is relatively simple to estimate the ultimate pit by applying our implementation of the Edmonds-Karp algorithm. We can see below that we will not move so much as a comma of the code we have already been applying to smaller inventories, in order to show that this solution is independent of the scale of the problem:
+
+```{python}
+# We build the graph that will represent the extraction problem for these blocks.
+G = nx.DiGraph()
+source = "s"
+sink = "t"
+
+# We define the sum of all the benefits of the network and add 1 to it, in order to build the
+# large-M value that prevents the minimum cut from crossing the arcs that define the
+# precedence relationships governing the extraction of a block.
+M = benefit_matrix[benefit_matrix > 0].sum() + 1
+
+# We build the directed network representing the problem.
+for i in range(n_rows):
+    for j in range(n_cols):
+        # We define each intermediate node.
+        v_ij = node_label(i, j)
+
+        # We define the benefits of each block (network capacities).
+        w_ij = benefit_matrix[i, j]
+
+        # We assign these benefits in the form of capacities.
+        if w_ij >= 0:
+            G.add_edge(source, v_ij, capacity=w_ij)
+        else:
+            G.add_edge(v_ij, sink, capacity=-w_ij)
+
+        # We impose the geometric constraint governing block extraction: slope angle
+        # equal to 45º, which implies always extracting the three blocks above a
+        # block of interest.
+        if i > 0:
+            for dj in (-1, 0, 1):
+                jj = j + dj
+                if 0 <= jj < n_cols:
+                    # We define the preceding block.
+                    pred = node_label(i - 1, jj)
+
+                    # We assign the precedence rule.
+                    G.add_edge(v_ij, pred, capacity=M)
+
+# We solve the problem using the minimum-cut algorithm.
+cut_value, (S, T) = nx.minimum_cut(G, source, sink)
+selected_blocks = [n for n in S if n not in (source, sink)]
+
+# We generate an indicator matrix to show the blocks that are extracted.
+mask = np.zeros_like(benefit_matrix, dtype=bool)
+for block in selected_blocks:
+    i, j = map(int, block[1:].split("_"))
+    mask[i, j] = True
+
+# Finally, we compute the maximum benefit we obtain from the extraction determined (ultimate pit).
+total_profit = (benefit_matrix * mask).sum()
+
+# We check that the solution of the maximum-flow problem is equivalent to the solution of the
+# corresponding minimum-cut problem.
+np.allclose(total_profit, M - 1 - cut_value)
+```
+
+Finally, we visualize the ultimate pit obtained by our procedure:
+
+```{python}
+from matplotlib import colors
+```
+
+```{python}
+#| label: fig-pit-final-large-inventory
+#| fig-cap: "Classification of the blocks of the large-scale inventory according to whether they belong to the ultimate pit. The extracted envelope preserves the slope imposed by the precedences between levels."
+# We plot our ultimate pit.
+fig, ax = plt.subplots(figsize=(9, 5))
+
+# We create a discrete colour map with only two colours.
+cmap = plt.get_cmap('Dark2')
+c1, c2 = cmap(0), cmap(7)
+discrete_cmap = colors.ListedColormap([c1, c2])
+
+# We continue with the plot.
+p = sns.heatmap(
+    data=mask, cmap=discrete_cmap, vmin=0, vmax=1, cbar_kws={"ticks": [0, 1]},
+    ec="k", lw=0.0,
+)
+# And we label...
+ax.set_axis_off()
+ax.set_title(
+    f"Optimal pit: Total benefit = {(total_profit / 1e+6).round(2)} M",
+    fontsize=14, fontweight="bold", pad=10,
+)
+cb = ax.collections[0].colorbar
+cb.set_label(label="", fontsize=11, labelpad=10)
+cb.ax.set_yticklabels(["Block not extracted", "Block extracted"])
+plt.tight_layout();
+```
+
+And there we have it. We changed the visualization a little, in order to have an understandable representation of how this ultimate pit ends up. It is immediate to verify that the algorithm has indeed respected the extraction precedence logic of each block, always imposing that the extraction angle be equal to 45º. In this way, our simple implementation of the Edmonds-Karp algorithm passes the *size test*: the number of blocks does not matter, as long as the inventory geometry is 2D and, of course, the extraction angle is such that we always need to remove the three blocks above each block of interest.
+
+## Geometric aspects
+
+Real cases where we seek to optimize the extraction sequence of a pit, under a geometric approach like the one developed in this text, present more challenges than simply the scale of the problem:
+
+- The blocks in the inventory do not have to have the same dimensions along each axis. Very often, these dimensions account for geometric aspects of the pit in question. For example, block models of 10$\times$10$\times$16 m are common, since the dimension in $z$ is adjusted to the height of a bench (typically, a single bench has a height of around 16 metres).
+- The extraction angle does not have to be 45º. In fact, if the blocks have unequal dimensions, keeping a precedence relationship of three blocks for each lower block can easily change that value. By trigonometry, it is easy to verify that the extraction angle $\alpha$ satisfies the condition $\cot(\alpha) = \frac{\mathrm{horizontal\ advance}}{\mathrm{vertical\ advance}}$. If the vertical advance represents the design height $h$ of a bench, then the horizontal advance allowed per bench will be $L=h \cot(\alpha)$ and, therefore, the number $k$ of positions we must move to either side in the row immediately above a block of interest, in order to count its predecessor blocks, will be $k=\left\lceil \frac{h}{L} \cot \left( \alpha \right) \right\rceil$. If $k=1$, we must extract 3 blocks in order to remove a block of interest.
+- And most importantly: block models in the real world are three-dimensional.
+
+In what remains of this exercise, we will address the first two points, leaving the problem of finding an optimal pit in 3D for a later entry of the repository.
+
+The extraction angle $\alpha$ is a design parameter that, together with others, governs the geometry inherent to mining a pit. In very general terms, this angle describes the relationship that results from going deeper into the mine, on the basis that the advance is always carried out on planes including the $z$ axis until reaching a common region (or several of them), called the **pit bottom**. If the blocks have rectangular sections in the $xz$ and $yz$ planes, with dimensions $D_{z}=16$ m and $D_{x}=D_{y}=10$ m (which is a typical case), then the precedence relationships between the blocks, according to $k$, will be:
+
+- For $\alpha \geq 58º$, $k=1$ and therefore extracting a block $b_{ij}$, for $i>0$, will require extracting the 3 predecessor blocks $b_{i-1,j-1}$, $b_{i-1,j}$ and $b_{i-1,j+1}$.
+- For $40º<\alpha <58º$, $k=2$ and therefore extracting a block $b_{ij}$, for $i>0$, will require extracting the 5 predecessor blocks $b_{i-1,j-2}$, $b_{i-1,j-1}$, $b_{i-1,j}$, $b_{i-1,j+1}$ and $b_{i-1,j+2}$.
+- For $\alpha \leq 40º$, $k=3$ and therefore extracting a block $b_{ij}$, for $i>0$, will require extracting the 7 predecessor blocks $b_{i-1,j\pm r}$, where $r=0,1,2,3$.
+
+We see then that, for a general case involving the explicit incorporation of an extraction angle, it will always be enough to introduce the computation of $k$ into the solution that estimates the ultimate pit.
+
+## Staged progression (nested pits)
+
+We will close this repository entry by incorporating the sequential effect of the ultimate-pit computation procedure into our implementation. Put simply: we have estimated the ultimate pit all at once, but in reality, reaching that point of extraction in a pit can easily take several decades. It is therefore reasonable to expect that every ultimate-pit solution always incorporates a sequential procedure in which we advance every certain number of rows, or of *time*, in the block inventory. If we denote by $t$ that *temporal* step, then each set $\mathcal{C}(t_{k})$ of extracted blocks that we obtain after successive applications of the Edmonds-Karp algorithm for $t=t_{k}$ (where=$k=0,1,2,...,r$) represents an "ultimate pit" that grows over time. By nesting all these pits, we should obtain as a result the ultimate pit for the last step $t=t_{r}$.
+
+Put simply, the Edmonds-Karp algorithm is applied every certain number of levels (rows) in the block inventory, computing the optimal solution as we go deeper into the pit. In each *batch* of blocks only the blocks from the surface down to the indicated row are considered; the ones below do not yet exist for the algorithm, forcing a sub‑optimal pit that is valid at that depth. The union of all the pits at maximum depth gives us the ultimate pit.
+
+Since the procedure for obtaining the optimal pit in this case is no different, except for its execution in a *batch* scheme, we will illustrate its application on the same block inventory as before, with certain differences:
+
+- We will define the ultimate-pit solution as a function, in order to apply it easily for different levels (or *batches* of blocks by rows).
+- We will incorporate the effect of varying the extraction angle by means of the parameter $k$, in order to automate the number of predecessor blocks required to extract a block of interest.
+- The final result (the nested pits) will be shown in an animation made in <strong><font color='darkmagenta'>Matplotlib</font></strong>.
+
+Let us proceed:
+
+```{python}
+import base64
+import io
+import json
+import math
+```
+
+```{python}
+from IPython.display import HTML
+from tqdm import tqdm
+```
+
+```{python}
+# We move our procedure for assembling the graph representing block extraction
+# into a Python function.
+def maximum_closure_graph(
+    benefits: np.ndarray,
+    angle_deg: float=45,
+) -> np.ndarray:
+    """
+    Sequential procedure that builds a maximum-closure graph to represent the blocks making up an
+    inventory and their extraction sequence, taking into account the associated benefits. The graph
+    emulates a maximum-flow problem, introducing artificial nodes `s` and `t` that will be connected
+    to the blocks with positive and negative benefit, respectively.
+
+    Parameters:
+    -----------
+    benefits : 2D array of values storing the benefits associated with extracting a 2D inventory of
+        blocks, for which we wish to estimate the ultimate pit.
+    angle_def : Extraction angle (in degrees).
+    """
+    # We define the value of `k` to estimate the number of preceding blocks in the extraction of an
+    # arbitrary block, according to the extraction angle of the pit.
+    k = math.ceil(1 / math.tan(math.radians(angle_deg)))
+
+    # We retrieve the number of rows and columns of the inventory.
+    n_rows, n_cols = benefits.shape
+
+    # We formulate the graph and add the `s` and `t` nodes.
+    G = nx.DiGraph()
+    source, sink = 's', 't'
+    G.add_nodes_from([source, sink])
+
+    # We define the value we will assign to the precedence arcs. In this case, we shield the value
+    # with a 1 in case a subset of inventory rows contains only waste blocks.
+    M = max(1, benefits[benefits > 0].sum() + 1)
+
+    # We internally define the function that will label the graph nodes.
+    def node(i, j):
+        return f"B{i}_{j}"
+
+    # We build our graph iteratively.
+    for i in range(n_rows):
+        for j in range(n_cols):
+            # We define nodes and benefits.
+            v_ij = node(i, j)
+            w_ij = benefits[i, j]
+
+            # We connect the nodes with positive benefits to `s`, and the nodes with negative benefits
+            # to `t`.
+            if w_ij >= 0:
+                G.add_edge(source, v_ij, capacity=w_ij)
+            else:
+                G.add_edge(v_ij, sink, capacity=-w_ij)
+            # We generate the precedence arcs.
+            if i > 0:
+                for dk in range(-k, k + 1):
+                    jk = j + dk
+                    if 0 <= jk < n_cols:
+                        G.add_edge(v_ij, node(i - 1, jk), capacity=M)
+
+    # We compute the minimum cut with the Edmonds-Karp algorithm.
+    cut_val, (S, T) = nx.minimum_cut(G, source, sink)
+
+    # We generate a Boolean array describing the blocks that are extracted according to the optimal
+    # solution found by the algorithm.
+    mask = np.zeros_like(benefits, dtype=bool)
+    for v in S:
+        if v in (source, sink): continue
+        i, j = map(int, v[1:].split('_'))
+        mask[i, j] = True
+
+    return mask
+```
+
+In this exercise, the *batches* of blocks will be defined every 5 rows. This may be somewhat abrupt, but the reader is free to choose whichever they prefer in their own working environment:
+
+```{python}
+# We define the sequence in which we will generate our nested pits.
+depths = list(range(9, n_rows, 5))
+depths.append(n_rows - 1)
+```
+
+And now we compute the ultimate pits for each *batch*. For each one we compute the corresponding benefit, and store in a list the Boolean arrays resulting from indicating the corresponding (nested) extractions at each step:
+
+```{python}
+# We obtain the optimal pits for each step of the sequence.
+mining_angle = 45
+nested_masks = []
+profits = []
+for t in tqdm(depths, desc="Generating nested pits"):
+    sub_benefits = benefit_matrix[:t + 1, :]
+    mask_t = maximum_closure_graph(benefits=sub_benefits, angle_deg=mining_angle)
+
+    # We bring each nested pit to full size.
+    padded_t = np.zeros_like(benefit_matrix, dtype=bool)
+    padded_t[:t + 1, :] = mask_t
+    nested_masks.append(padded_t)
+    profits.append((sub_benefits * mask_t).sum())
+```
+
+Finally, we build our animation:
+
+```{python}
+#| echo: false
+# We build an interactive viewer to show the progression of the optimal pit.
+max_cols_display = 100
+step = max(1, n_cols // max_cols_display)
+disp_cols = np.arange(0, n_cols, step)
+
+def make_pit_frame(frame_idx):
+    mask = nested_masks[frame_idx]
+    disp = mask[:, disp_cols]
+    depth = depths[frame_idx]
+
+    fig, ax = plt.subplots(figsize=(9, 5))
+    ax.imshow(
+        disp,
+        cmap=discrete_cmap,
+        vmin=0,
+        vmax=1,
+        origin="upper",
+        interpolation="nearest",
+    )
+    ax.set_axis_off()
+    ax.set_title(
+        f"Optimal pit down to row {depth} - "
+        f"Benefit = {profits[frame_idx] / 1e6:,.0f} M",
+        fontsize=13,
+        fontweight="bold",
+        pad=10,
+    )
+    fig.tight_layout()
+
+    buffer = io.BytesIO()
+    fig.savefig(
+        buffer,
+        format="png",
+        dpi=180,
+        facecolor="white",
+    )
+    plt.close(fig)
+    return base64.b64encode(buffer.getvalue()).decode("utf-8")
+
+pit_frames = [make_pit_frame(i) for i in range(len(depths))]
+pit_player_id = "pit-stage-player"
+
+pit_player_html = f"""
+<div id="{pit_player_id}" class="pit-stage-player">
+  <div class="pit-stage-screen">
+    <img class="pit-stage-frame" alt="Staged progression of the optimal pit">
+  </div>
+  <div class="pit-stage-controls">
+    <button class="pit-stage-button" type="button" aria-label="Previous stage">
+      &lsaquo;
+    </button>
+    <button class="pit-stage-button pit-stage-play" type="button" aria-label="Play">
+      Play
+    </button>
+    <button class="pit-stage-button" type="button" aria-label="Next stage">
+      &rsaquo;
+    </button>
+    <input class="pit-stage-slider" type="range" min="0"
+      max="{len(pit_frames) - 1}" value="0" step="1"
+      aria-label="Stage selector">
+    <span class="pit-stage-counter"></span>
+  </div>
+</div>
+
+<style>
+  .pit-stage-player {{
+    --pit-accent: #3f6f9f;
+    --pit-ink: #2f3437;
+    --pit-muted: #827e75;
+    --pit-surface: #f7f7f5;
+    --pit-border: #dfd9ce;
+    display: grid;
+    gap: 0.85rem;
+    margin: 1.2rem auto;
+    max-width: 920px;
+  }}
+
+  .pit-stage-screen {{
+    background: var(--pit-surface);
+    border: 1px solid var(--pit-border);
+    border-radius: 12px;
+    box-shadow: 0 8px 24px rgb(47 52 55 / 10%);
+    box-sizing: border-box;
+    display: flex;
+    justify-content: center;
+    overflow: hidden;
+    padding: 0.75rem;
+  }}
+
+  .pit-stage-frame {{
+    display: block;
+    image-rendering: auto;
+    margin: 0 auto;
+    max-width: 100%;
+    width: min(100%, 900px);
+    height: auto;
+  }}
+
+  .pit-stage-controls {{
+    align-items: center;
+    background: #ffffff;
+    border: 1px solid var(--pit-border);
+    border-radius: 999px;
+    box-shadow: 0 6px 18px rgb(47 52 55 / 8%);
+    display: grid;
+    grid-template-columns: 40px 74px 40px 1fr auto;
+    gap: 0.55rem;
+    padding: 0.55rem 0.7rem;
+  }}
+
+  .pit-stage-button {{
+    align-items: center;
+    background: var(--pit-surface);
+    border: 1px solid transparent;
+    border-radius: 999px;
+    color: var(--pit-ink);
+    cursor: pointer;
+    display: inline-flex;
+    font: 700 0.88rem/1 system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+    height: 36px;
+    justify-content: center;
+    transition: background 160ms ease, color 160ms ease, transform 160ms ease;
+  }}
+
+  .pit-stage-button:hover {{
+    background: var(--pit-accent);
+    color: #ffffff;
+    transform: translateY(-1px);
+  }}
+
+  .pit-stage-play {{
+    background: var(--pit-accent);
+    color: #ffffff;
+  }}
+
+  .pit-stage-slider {{
+    accent-color: var(--pit-accent);
+    cursor: pointer;
+    width: 100%;
+  }}
+
+  .pit-stage-counter {{
+    color: var(--pit-muted);
+    font: 700 0.82rem/1 system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+    min-width: 4.8rem;
+    text-align: right;
+  }}
+
+  @media (max-width: 640px) {{
+    .pit-stage-controls {{
+      border-radius: 16px;
+      grid-template-columns: 36px 66px 36px;
+    }}
+
+    .pit-stage-slider,
+    .pit-stage-counter {{
+      grid-column: 1 / -1;
+    }}
+
+    .pit-stage-counter {{
+      text-align: center;
+    }}
+  }}
+</style>
+
+<script>
+(() => {{
+  const frames = {json.dumps(pit_frames)};
+  const root = document.getElementById("{pit_player_id}");
+  if (!root || !frames.length) return;
+
+  const image = root.querySelector(".pit-stage-frame");
+  const buttons = root.querySelectorAll(".pit-stage-button");
+  const prevButton = buttons[0];
+  const playButton = root.querySelector(".pit-stage-play");
+  const nextButton = buttons[2];
+  const slider = root.querySelector(".pit-stage-slider");
+  const counter = root.querySelector(".pit-stage-counter");
+
+  let currentFrame = 0;
+  let timer = null;
+
+  function render(frame) {{
+    currentFrame = (frame + frames.length) % frames.length;
+    image.src = `data:image/png;base64,${{frames[currentFrame]}}`;
+    slider.value = currentFrame;
+    counter.textContent = `Stage ${{currentFrame + 1}}/${{frames.length}}`;
+  }}
+
+  function stop() {{
+    clearInterval(timer);
+    timer = null;
+    playButton.textContent = "Play";
+    playButton.setAttribute("aria-label", "Play");
+  }}
+
+  function start() {{
+    timer = setInterval(() => {{
+      render(currentFrame + 1);
+      if (currentFrame === frames.length - 1) stop();
+    }}, 700);
+    playButton.textContent = "Pause";
+    playButton.setAttribute("aria-label", "Pause");
+  }}
+
+  prevButton.addEventListener("click", () => {{
+    stop();
+    render(currentFrame - 1);
+  }});
+
+  nextButton.addEventListener("click", () => {{
+    stop();
+    render(currentFrame + 1);
+  }});
+
+  playButton.addEventListener("click", () => {{
+    if (timer) {{
+      stop();
+      return;
+    }}
+    if (currentFrame === frames.length - 1) render(0);
+    start();
+  }});
+
+  slider.addEventListener("input", (event) => {{
+    stop();
+    render(Number(event.target.value));
+  }});
+
+  render(0);
+}})();
+</script>
+"""
+
+#| label: fig-pit-final-staged-extraction
+#| fig-cap: "Staged evolution of the extraction of the two-dimensional inventory. The viewer lets us follow the incorporation of blocks and verify that each advance maintains the pit precedence geometry."
+HTML(pit_player_html)
+```
+
+We can see then that, with this procedure, the benefit resulting from extracting the blocks is somewhat lower than the one obtained by solving the problem all at once, but it is a far more realistic and adaptable approach.
+
+::: {.callout-warning}
+## Careful!
+
+The Edmonds-Karp algorithm, in general, responds well to the size of the data set. However, as always, this does not come for free. It will depend on the capabilities of our machine. In more *"real"* procedures, in which we deal with block models made up of millions of discrete units arranged in 3D space, this solution may present performance problems, requiring some adjustments aimed at optimizing our resources.
+:::
+
+## Conclusions
+
+In this entry we have shown how an open-pit mine planning problem —determining the ultimate pit— can be rigorously formulated as a minimum-cut problem on a directed graph. Starting from a discretized block model with individual benefits and geometric constraints associated with the extraction angle, we built a graph whose structure reflects both the economic viability and the physical dependencies of the extraction process. The computational solution, based on the maximum-flow algorithm, allowed us to obtain efficiently the optimal subset of blocks to be extracted. This approach not only guarantees the geometric and economic consistency of the ultimate pit, but also offers a versatile and extensible tool for more complex scenarios, serving as a foundation for future extensions and/or scale-ups.
+
+Even so, the ultimate-pit determination problem is still far from being solved in all its generality after everything we have learned. First, we have limited ourselves to a 2D problem—even though the 3D solution, which we will see in a future repository entry, follows the same basic principles. Second, this solution is fundamentally geometric. Practical open-pit design must incorporate operational elements such as haul ramps, on which the trucks travel, as well as berms, access constraints, and other infrastructure. These requirements lead to a pit that is no longer mathematically optimal but is operationally mineable: The **operational ultimate pit**.
+
+I hope this entry motivates mining colleagues (and non-mining ones) to *get their hands dirty* in the world of programming and free themselves a little from the dominance of software reserved for certain tasks and, at the same time, explore solving such fundamental problems on the basis of suitable mathematical formulations that are, hopefully, adaptable to the use case at hand. Of course, I also want to motivate colleagues from other data areas in mining. Not every business problem is solved by applying whatever is in fashion (with the blessed AI label); sometimes, going back to fundamentals is simpler and captures more value.

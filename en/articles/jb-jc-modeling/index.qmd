@@ -1,0 +1,2342 @@
+---
+title: "Modeling the fill level of a SAG mill"
+subtitle: "A metallurgical model for understanding grinding kinematics"
+description: "Building a metallurgical model to estimate the fill level of a SAG mill from power, geometry, internal charge, and operating variables."
+categories: [Metallurgy, Grinding, Comminution, Python]
+date: 2026-06-28
+lang: en
+header-includes: |
+  <link rel="canonical" href="https://nerdyminer.github.io/en/articles/jb-jc-modeling/">
+  <link rel="alternate" hreflang="es" href="https://nerdyminer.github.io/articulos/jb-jc-modeling/">
+  <link rel="alternate" hreflang="en" href="https://nerdyminer.github.io/en/articles/jb-jc-modeling/">
+  <link rel="alternate" hreflang="x-default" href="https://nerdyminer.github.io/articulos/jb-jc-modeling/">
+jupyter: nerdyminer
+toc: true
+toc-depth: 3
+crossref:
+  chapters: true
+  fig-title: Figure
+  tbl-title: Table
+  fig-prefix: Figure
+  tbl-prefix: Table
+format:
+  html:
+    code-fold: false
+    code-tools: false
+    html-math-method: mathjax
+---
+
+```{=html}
+<nav class="article-language-switch" aria-label="Article language">
+  <span>Language</span>
+  <a href="/articulos/jb-jc-modeling/" lang="es" hreflang="es">ES</a>
+  <a class="is-active" href="/en/articles/jb-jc-modeling/" lang="en" hreflang="en" aria-current="page">EN</a>
+</nav>
+```
+
+::: {.callout-note}
+## Central idea
+
+Before training predictive models it is worth asking whether the phenomenon can be represented by a reasonable physical, metallurgical, or empirical formulation. In this post we use the **Hogg and Fuerstenau model** as a starting point for building an algebraic estimator of the fill level of a SAG mill. The idea is not to replace sensors or control systems, but to show how a domain model can work as an operational *proxy*, help interpret the kinematics of the internal charge, and serve as a baseline before moving on to purely statistical or machine-learning approaches.
+:::
+
+## Introduction
+
+Working intensively with data is fun, and it lets us develop a structured, rather logical way of thinking when solving any kind of problem, whether scientific, engineering-related, or simply tied to any domain where there is useful information we can exploit. It lets us build into our daily routine practices that demand, as far as possible, the provision of quality data that, in the best case, will allow us to make a decision.
+
+However, these routines also breed somewhat risky habits from the *problem-solving* perspective. At a strategic level, when we ask for a certain amount of data, we automatically tend to look for pre-packaged solutions that fit some given frame of reference or *framework*, without first pausing for a moment to think more strategically, because we fall into the bad habit of automating recipes. When I was a first-year engineering student, this habit cost me dearly in courses where my professors were pushing me precisely not to plug formulas into a recipe. I will never forget the first exam I took in Physics, where I was asked for the acceleration of an object rolling down a slope, and where I could never apply Newton's second law ($F=ma$) because I could not find the inputs that would lead me straight to that formula (the $a$ was the result of working the object's position function through differential calculus). At that moment I realized I had fallen into the recipe trap, and that I had not developed strategic thinking to solve the problem. It is not the inputs that lead me to the formula; it is the understanding of the problem that lets me identify the right formula to solve it.
+
+Data scientists often fall into this trap. In many cases I have seen young professionals, in their enthusiasm and eagerness to apply what they know, go straight to `model.fit()` without first stopping to think about the problem they are trying to solve, and without first analyzing the data they have at hand. Very often the solution does not involve applying a machine-learning model at all; it can be as simple as running an exploratory analysis of the data, or even a visualization that lets us spot patterns or trends we had not seen before. In other cases it may be necessary to clean the data, or to transform it, before a machine-learning model can be applied. Before machine-learning theory became such a popular field, building artifacts that could represent systems, phenomena, or industrial processes demanded far more domain knowledge and special care when choosing a model. And of course, in the best case, those models had the advantage of being algebraically closed, providing a concise formula that even encouraged us to build charts (the famous "nomograms" our Geomechanics colleagues use to solve slope-stability problems, for example) representing implementations across different contextual scenarios.
+
+Today, with the popularization of machine-learning models, it is common to see these models applied without any prior analysis of the problem, without a deep understanding of the data, and without a critical evaluation of the results. This can lead to misleading outcomes, or even to wrong decisions based on models that are not suited to the problem at hand. Even after thoroughly analyzing the data available for a particular problem, we feel tempted to jump straight into testing sophisticated models, without first considering simpler ones that could be equally effective or even better. In many cases, a linear regression model or a simple moving average can be enough to solve a problem, with no need to resort to more complex models such as neural networks or decision trees.
+
+In this article we are going to tackle a specific problem related to predicting the fill level of a SAG mill, using an empirical model developed in the 1970s by the American academics Richard Hogg and Douglas W. Fuerstenau. This model allows us to estimate the net power drawn by a SAG mill given certain contextual information (generally design information), and it is used extensively to size these mills at the project level. Anyone who wants to evaluate a project involving the construction of a SAG grinding line has surely used this model to understand how big that asset needs to be. We, however, will take advantage of this model to understand how the mill's fill level behaves as a function of the net power draw and of certain aspects of its internal charge behavior derived from operating variables, thereby obtaining an algebraically closed formula that will let us predict the mill's fill level as a function of these variables, dispensing in the first instance with a fill-level sensor, which tends to be an expensive asset and one that can present maintenance problems over the long run. Naturally, the model will work as a *proxy* for the fill-level sensor, and therefore its performance will depend largely on the quality of the data we have available to train it, and it will in no way replace a sensor. But it can get us out of trouble when trying to understand the mill's optimal operating region, or even when detecting anomalies in fill-level behavior that could be associated with operational or maintenance problems.
+
+## Key operating variables in SAG grinding
+
+A SAG (Semi-Autogenous Grinding) mill reduces the size of ore after primary crushing. It is one of the most important assets in an ore concentrating plant: It is typically the plant's largest individual energy consumer and one of the main drivers of concentrator operating cost. Consequently, efforts to improve the energy efficiency, cost, or throughput of a concentrating plant usually begin with the SAG mill, through either design improvements or changes in operating practice. Understanding its behavior is therefore essential to optimizing both the mill and the wider comminution circuit.
+
+In this context, understanding the principal KPIs of SAG mill operation is fundamental to making informed decisions about the mill and the overall performance of the concentrator. In many operations, discussions about plant "efficiency" are largely discussions about SAG mill performance. One of the main concerns for operational leaders is the asset's overall equipment effectiveness (OEE): Its availability should be as high as practicable, and its operating rate should remain as close as possible to sustainable capacity. Ideally, the mill should stop only for planned maintenance.
+
+Structurally, a SAG mill is nothing more than a horizontal cylinder that rotates about its axis and contains an internal charge made up of the ore being ground and the steel balls used to assist grinding. Its dimensions are usually large enough to let gravity help out in the grinding process too, making the rocks strike each other and the steel balls, which facilitates size reduction. For this reason its geometry is such that the length of this cylinder is usually equal to or less than its diameter, which keeps the internal charge moving and prevents it from compacting at the bottom of the mill.
+
+Inside, the mill is lined with a wear-resistant material that protects the mill structure from the impact and abrasion caused by the rocks and steel balls. In addition, the mill has a feed system for introducing the ore to be ground, and a discharge system for extracting the ground product. The mill also has a drive system that lets it rotate about its axis, and a control system that regulates its rotational speed and other operating parameters. Liners are consumables that must be replaced periodically since, despite their wear resistance, they suffer progressive deterioration from the action of the rocks and grinding media, which can affect grinding efficiency and increase operating costs. The service period of a set of liners is called a **campaign**. Every SAG mill maintenance program contemplates that these liners must be changed every so many days. Sometimes a few more, sometimes a few fewer, depending on the type of ore entering the grinding circuit and its mechanical properties. What matters is that, as the campaign advances, the internal space of the mill grows larger, which produces progressive changes in some key operating variables.
+
+![Photo of the interior of a SAG mill, showing the internal structure that makes up the liner. Liners are essential to mill operation, since they protect its internal structure and shell, but for that very reason they suffer permanent wear.](/articulos/jb-jc-modeling/images/fig_1.jpg){#fig-liner fig-align="center" width="80%"}
+
+The key operating variables in a SAG mill are the following:
+
+- **Power**: This is the amount of energy the mill demands to do its work, normally measured in watts (or, rather, in multiples of that unit, such as kilowatts or megawatts). It is a variable that is monitored constantly in mill operation, since it is a key indicator of energy efficiency and performance. The power drawn by the mill depends on several factors, such as the type of ore being ground, the amount of internal charge, the mill's rotational speed, and the condition of the liners. In general, as the campaign advances and the liners wear down, the power drawn by the mill tends to increase, since the mill's internal space grows larger and the mill has to work harder to move the internal charge. Power also lets us understand the specific energy consumption of the grinding process (that is, the ratio of power to ore mass flow), which is a direct "proxy" for how hard the feed rock is.
+
+- **Bearing pressure:** This is the force per unit area the mill exerts on a series of "pads" or bearing cells located at the bottom of the mill, which measure the pressure the mill's internal charge exerts on those cells (normally in *psi*). This variable is a key indicator of the amount of internal charge in the mill and therefore of its fill level. As the campaign advances and the liners wear down, bearing pressure tends to decrease, since the mill's internal space grows larger because of liner wear (liners that, by extension, weigh less and less) and the internal charge is distributed more uniformly.
+
+- **Rotational speed:** This is the speed at which the mill rotates about its axis, normally measured in revolutions per minute (*rpm*). This variable is a key indicator of grinding efficiency, since an appropriate rotational speed can improve the mill's energy efficiency and increase its throughput. As the campaign advances and the liners wear down, rotational speed tends to stay constant, since the operator usually adjusts the speed to maintain an adequate fill level and avoid operational problems associated with a fill level that is too low or too high. It is therefore an indicator of the mill's operational stability.
+
+- **Feed-slurry solids concentration:** This is the proportion of solids in the slurry fed to the mill, normally reported as **percent solids by mass** (*% w/w*). Process water is added to control slurry rheology and material transport through the mill. This variable affects slurry density, grinding efficiency, power draw, and throughput; it should not be confused with the bulk density of the entire internal charge, which also contains coarse rock and steel balls.
+
+- **Torque:** This is the twisting force the mill exerts on its rotation axis, normally measured in Newton-meters (*Nm*), although it can also be measured as a percentage of the maximum torque the mill can exert. It describes the turning force (also called "motor torque") exerted by the drive system to rotate the cylinder loaded with ore and balls. It therefore represents the motor's ability to lift the charge against gravity, and it is crucial for explaining the mill's energy consumption. As the campaign advances and the liners wear down, torque tends to increase, since the mill has to work harder to move the internal charge because of the increase in the mill's internal space.
+
+- **Fill level:** This is the amount of internal charge in the mill, normally measured as a percentage of its total internal volume (*%*). This internal charge is the sum of ore, water, and grinding media (steel balls of a size usually defined by the Metallurgy group). Fill level is a crucial variable for understanding the efficiency, power draw, and throughput of a SAG mill. Controlling it is important, since a high fill level increases power and production, but if it is excessive it reduces process efficiency; a very low level can cause balls to impact the liners, damaging them.
+
+A SAG mill liner campaign usually lasts several months, depending on liner quality and the type of ore fed. In my experience, that duration is around 4 to 6 months. During that time the mill experiences progressive changes in its operational behavior due to liner wear, which affects variables such as power draw, bearing pressure, and fill level, among others. It is therefore fundamental to monitor these variables throughout the campaign in order to understand how the mill's behavior evolves and to make informed decisions about its operation and maintenance. In this context, the Hogg and Fuerstenau model lets us estimate the mill's fill level as a function of the power draw and other operating parameters, which can be very useful for optimizing its operation and improving its energy efficiency over the course of the campaign.
+
+## The Hogg and Fuerstenau model
+
+The Hogg and Fuerstenau model is a metallurgical equation used to estimate the power draw of a SAG mill based on its physical dimensions, rotational speed, and internal charge dynamics. Those dynamics are described through several variables that split the charge into a grinding-media component (steel balls), a slurry component (the ore itself), and a coarse component. In this way the net power drawn by the SAG mill, in kilowatts, can be expressed as
+
+::: {.eq-scroll}
+$$
+P(t)=0.238\,D_m(t)^{2.5}L_m\,\phi(t)\rho_{sl}(t)
+\left[J_c(t)-1.065J_c(t)^2\right]\sin(\alpha)
+\tag{1}
+$$
+:::
+
+Here $P(t)$ is the net power draw in kW, $D_{m}(t)$ is the effective mill diameter in feet, $L_{m}$ is the effective length in feet, $\phi(t)$ is the fraction of critical speed, $\rho_{sl}(t)$ is the slurry density, $\alpha$ is the effective charge-lifting angle, and $J_{c}(t)$ is the total charge filling—or mill fill level. The last of these is the variable we want to infer.
+
+In the *real world*, every device that runs on electricity suffers energy losses, and a SAG mill is no exception. Therefore the net power drawn by the SAG mill is not the power delivered by the electric motor that drives it. The power delivered by the electric motor, in kW, can be expressed by multiplying the "operational" power reported by the corresponding sensor by an efficiency factor, which is typically set at around 90%.
+
+### Inverting the model
+
+Any slurry can be expressed as a combination of solids and water. The mixture is governed by the density of the solid fraction and by the proportion of the mass of those solids with respect to the total mass of the slurry. Therefore the resulting density of the slurry $\rho_{sl}(t)$ entering the mill can be expressed as
+
+::: {.eq-scroll}
+$$
+\rho_{sl} (t)=\frac{1}{C_{sl}(t)/\rho_{m} +\left( 1-C_{sl}(t) \right) / \rho_{w}}
+\tag{2}
+$$
+:::
+
+where $C_{sl}(t)$ is the **solids mass fraction** of the feed slurry, expressed as a dimensionless value between 0 and 1. In plant instrumentation, the corresponding tag is commonly reported as **percent solids by mass**; therefore, a reading of 75% solids becomes $C_{sl}=0.75$ in the equation. The quantities $\rho_m$ and $\rho_w$ are the in-situ ore density and water density, respectively. For simplicity, we will assume they are constant and set them at $\rho_m=3.0$ t/m$^3$ and $\rho_w=1.0$ t/m$^3$.
+
+The mathematical beauty of the model is that we can group everything that does not depend directly on $J_{c}(t)$ into a factor $K(t)$, such that
+
+::: {.eq-scroll}
+$$
+K(t)=0.238\,D_m(t)^{2.5}L_m\,\phi(t)\rho_{sl}(t)\sin(\alpha)
+\tag{3}
+$$
+:::
+
+This lets us rewrite equation (1) in condensed form as
+
+::: {.eq-scroll}
+$$
+P(t)=K(t)\left[J_c(t)-1.065J_c(t)^2\right]
+\tag{4}
+$$
+:::
+
+Equation (4) is a quadratic equation in $J_{c}(t)$. If we write it in the form $f\left( t \right) =at^{2}+bt+c$, we can identify the coefficients as $a=-1.065K(t)$, $b=K(t)$, and $c=-P(t)$. Applying the general formula for solving quadratic equations, we can solve for $J_c(t)$ as
+
+::: {.eq-scroll}
+$$
+J_{c}(t)=\frac{1\pm\sqrt{1-4.26\frac{P(t)}{K(t)}}}{2.13}
+\tag{5}
+$$
+:::
+
+This inversion comes with two practical caveats. First, the discriminant must be non-negative in order to guarantee that the solution of (5) is real. Second, the selected root must fall within a physically reasonable range. In general, in a real operation, the result is usually bounded manually, because the empirical model can receive data contaminated by noise, shutdowns, operational constraints, or impossible readings. And the Hogg and Fuerstenau model was originally calibrated as a design equation, not as an operating model.
+
+### Liner wear and effective geometry
+
+An important aspect of the Hogg and Fuerstenau model is that the effective mill diameter $D_m(t)$ is not constant over the course of the campaign. As the liners wear down, the effective internal diameter of the mill increases, which directly affects the power drawn by the mill and therefore the estimated fill level. Even if the change is small, the mill diameter enters the model as $D_m^{2.5}$, so it is not a good idea to ignore it.
+
+As a rule of thumb, it is common to assume that the effective mill diameter $D_m(t)$ is a linear function of time, which can be expressed through a wear rate or *liner wear ratio* indicating how much the liner wears per unit of time. This wear rate can vary depending on the type of ore, its hardness, liner quality, and the mill's operating conditions. For simplicity, we will assume a fixed rate resulting from the average wear between the feed chute and the mill discharge. In our case, the average wear values are the following:
+
+- Wear rate at the feed end ($w_{in}$): 1.15 mm/day.
+- Wear rate at the discharge end ($w_{out}$): 1.29 mm/day.
+
+This gives us a fixed average wear rate of 1.22 mm/day, equivalent to 0.05083 mm/hour. By design, the original dimensions of the mills are 36x15 ft (10.98x4.575 m). If we assume a thickness of $\zeta= 0.557743$ ft for the mill shell, we can estimate the effective internal diameter of the mills as:
+
+::: {.eq-scroll}
+$$
+D_{m}(t) = D_{0} - 2\ \zeta + 2\ w_{in}\ H(t)
+\tag{6}
+$$
+:::
+
+where $D_{0}$ is the original mill diameter and $H(t)$ is the liner service life (in hours). Note that we have added the wear rate, since the effective internal diameter increases as the liners wear down.
+
+In practical terms, both the application of the Hogg & Fuerstenau model and the consideration of SAG mill liner wear rates are usually implemented in spreadsheets specially designed for this purpose. These are extremely useful tools for design and operations engineers, since they allow quick, accurate calculations of the mill's power draw and estimated fill level while accounting for operating conditions and liner wear. In this post we do not intend to "sell" a replacement for these tools, but rather to offer a more programmatic and flexible alternative that lets us explore SAG mill behavior under different operating and liner-wear conditions.
+
+An example of an automated spreadsheet is shown in @fig-calcspreadsheet.
+
+![Typical example of an automated spreadsheet for estimating the net power levels of a SAG mill, which uses the Hogg & Fuerstenau model and accounts for the liner wear rate.](/articulos/jb-jc-modeling/images/fig_2.png){#fig-calcspreadsheet fig-align="center" width="100%"}
+
+### Calibrating the model against the mill's bearing pressure
+
+The Hogg & Fuerstenau model cannot be used, on its own, to estimate a mill's fill level, because it is fundamentally a **design equation** that was developed for specific feed conditions and circuit morphology. For this reason it is necessary to adapt this model to a real operating case, and it is common to use the mill's bearing pressure as a charge *proxy* or **anchor point**. The reason is simple: The greater the mill's internal charge, the greater the pressure it will exert on its pads or bearings (elementary physics!), so it is reasonable to assume that its fill level $J_{c}$ will be proportional, by some factor, to that pressure. By comparing the value of $J_{c}$ we obtain from the Hogg & Fuerstenau model against certain reference values obtained in the field and against the pressure values, we can introduce adjustments that allow greater flexibility and better-quality estimates.
+
+What we want, then, is a calibrated value of the mill's fill level, denoted $J_{c}^{\mathrm{cal}}(t)$, that satisfies the power equation
+
+::: {.eq-scroll}
+$$
+P(t) = F\ K(t)\ (J_{c}^{\mathrm{cal}}(t) - 1.065\ (J_{c}^{\mathrm{cal}}(t))^{2})
+\tag{7}
+$$
+:::
+
+where $F$ is a **calibration factor** whose job is to absorb units, liner-related effects, and operational noise. To estimate it, we use the pressure measurement $p(t)$ at a time $t$. Because, as we have verified in the charts above, pressure declines linearly over the campaign, we can normalize its value in order to "capture" fill-level variations within an uncertainty band bounded by extreme levels $p_{\mathrm{min}}$ and $p_{\mathrm{max}}$, according to the relation
+
+:::{.eq-scroll}
+$$
+p_{\mathrm{norm}}(t) = \frac{C(p(t), p_{\mathrm{min}}, p_{\mathrm{max}}) - p_{\mathrm{min}}}{p_{\mathrm{max}} - p_{\mathrm{min}}}
+\tag{8}
+$$
+:::
+
+where the function $C(p(t), p_{\mathrm{min}}, p_{\mathrm{max}})$ bounds the value of $p(t)$ within the range $[p_{\mathrm{min}}, p_{\mathrm{max}}]$, and is analogous to the `clip()` function in <strong><font color='darkmagenta'>Numpy</font></strong> and <strong><font color='darkmagenta'>Pandas</font></strong>. That is,
+
+:::{.eq-scroll}
+$$
+\tilde{p} \left( t \right) = C \left( p\left( t \right) ,p_{\mathrm{min}},p_{\mathrm{max}} \right) =\begin{cases}p_{\mathrm{min}}&;\  \text{if} \  p\left( t \right) <p_{\mathrm{min}}\\ p\left( t \right)&;\  \text{if} \  p_{\mathrm{min}}\leq p\left( t \right) \leq p_{\mathrm{max}}\\ p_{\mathrm{max}}&;\  \text{if} \  p\left( t \right) >p_{\mathrm{max}}\end{cases}
+\tag{9}
+$$
+:::
+
+The normalized values taken as pressure "extremes", say $p_{\mathrm{min}}$ and $p_{\mathrm{max}}$, are usually estimated from the mill's historical bearing-pressure data for a particular campaign, or for a small set of campaigns. Whatever the case, if pressure does not decrease linearly over time within the same campaign, this normalized value can be *inverted* by making the substitution $p_{\mathrm{norm}}(t) \rightarrow 1 - p_{\mathrm{norm}}(t)$, so that the calibration factor $F$ stays within a reasonable range while preserving a positive correlation between bearing pressure and mill fill level, since we want the fill level to always vary in the same direction as the pressure.
+
+We now proceed to define a physically reasonable range for the total fill level in the SAG mill, called the **operating envelope**, which will serve as the range of our model. For a 36-foot-diameter mill, a typical variation range for this exercise is $0.22 \leq J_{c} \leq 0.34$, which can be adjusted according to known fill-level measurements, but for this case we will assume these values are representative of normal mill operation. That being so, we can estimate a **reference fill level** $J_{c}^{\mathrm{ref}}(t)$ as
+
+:::{.eq-scroll}
+$$
+J_{c}^{\mathrm{ref}}(t) = J_{c}^{\mathrm{min}} + p_{\mathrm{norm}}(t)\ (J_{c}^{\mathrm{max}} - J_{c}^{\mathrm{min}})
+\tag{10}
+$$
+:::
+
+Let $g(J_{c}(t))= J_{c}(t) - 1.065\ (J_{c}(t))^{2}$. Then, for each $t$, we can estimate the calibration factor $F(t)$ as
+
+:::{.eq-scroll}
+$$
+F(t)=\frac{P(t)}{K(t) g(J_{c}^{\mathrm{ref}}(t))}
+\tag{11}
+$$
+:::
+
+The global calibration factor for the complete campaign (or for the set of campaigns considered as support for the model), denoted $F$, can finally be estimated as an aggregate of the individual values $F(t)$, whether through a simple average, a weighted average, or a median, depending on how robust we want the model to be. In this case we will use the median in order to minimize the effect of outliers and obtain a calibration factor more representative of the mill's general behavior during the campaign:
+
+:::{.eq-scroll}
+$$
+F= \mathrm{Me}(F(t))
+\tag{12}
+$$
+:::
+
+This choice of $F$ makes the net power estimated by the model and the actual power measured at the mill agree, on average, with the fill-level curve, whose geometry is then described from the internal physics of the charge, captured by $g(J_{c}(t))$. In this way, all that remains is to solve the calibrated model for $J_{c}^{\mathrm{cal}}(t)$, which is obtained from equation (7) with $F$ fixed, as
+
+:::{.eq-scroll}
+$$
+g(J_{c}(t)) = \frac{P(t)}{F K(t)}\ \longrightarrow \ 1.065\ (J_{c}^{\mathrm{cal}}(t))^{2} - J_{c}^{\mathrm{cal}}(t) + \frac{P(t)}{F K(t)} = 0
+\tag{13}
+$$
+:::
+
+where we choose the root that gives us a value of $J_{c}^{\mathrm{cal}}(t)$ within the physically reasonable range defined by the operating envelope.
+
+### Estimating the ball filling $J_{b}$
+
+As noted earlier, the volume occupied by the SAG mill's internal charge comprises three fractions: The grinding-media or steel-ball filling $J_{b}$, the slurry fraction $J_{sl}$, and the coarse-ore fraction $J_{o}$. The $J_{b}$ fraction is crucial for understanding mill behavior because it directly affects grinding efficiency and power draw. Estimating it is more difficult than estimating total charge filling $J_{c}$, however, because the Hogg and Fuerstenau model does not provide a direct relationship between $J_{b}$ and the measured operating variables. Moreover, $J_{b}$ evolves relatively slowly as balls wear and are replenished in discrete charging events. Many theoretical treatments assume that $J_{b}$ remains nearly constant between additions, decreases gradually through wear, and rises in steps when new balls are charged. Real operations do not always follow that idealization.
+
+A more reasonable approach to estimating $J_{b}$ at a time $t$ involves considering the dynamics of the mill's internal charge through a mass balance that includes the grinding steel, with the added difficulty that in many cases we will not have data on ball purges, which complicates a more direct estimate. For this reason we will again turn to bearing pressure as a *proxy* for calibrating the model we want to build. Thus, starting from the Hogg & Fuerstenau model, let $V_{m} = \frac{\pi}{4} D^{2}L$ be the effective internal volume of the mill (in m³). Then the masses making up each fraction of the mill's internal charge are:
+
+- Ball mass: $M_{b}(t) = J_{b}(t) V_{m} \rho_{b}$, where $\rho_{b}$ is the ball density (assumed constant at 7.75 t/m³).
+- Slurry mass: $M_{sl}(t) = J_{sl}(t) V_{m} \rho_{sl}(t)$, where $J_{sl}(t)$ is the mill's volumetric slurry fraction.
+- Coarse mass: $M_{o}(t) = \rho_{m}(J_{c}(t) - J_{b}(t))V_{m}$, where $\rho_{m}$ is the ore density (assumed constant at 3.0 t/m³).
+
+Note that $J_{sl}(t)$ can be approximated, under steady-state conditions, as $J_{sl} \approx \varepsilon J_{c}(t)$, where $\varepsilon$ is the interstitial filling fraction, which indicates how much void space within the charge has been filled with slurry. This value is usually assumed to be a process constant based on technical studies by the metallurgy teams. For this exercise we will assume a value of $\varepsilon = 0.6$.
+
+To estimate $J_{b}$ we need to know the total mass of the mill's internal charge $M_{c}(t)$, which is the sum of the ball, slurry, and coarse masses. That is,
+
+:::{.eq-scroll}
+$$
+\begin{array}{lll}M_{\mathrm{tot}}(t)&=&M_{b}(t)+M_{sl}(t)+M_{o}(t)\\ &=&[\rho_{b} J_{b}(t)+\rho_{m} (J_{c}(t)-J_{b}(t))+\rho_{sl} (t)\varepsilon J_{c}(t)]V_{m}(t)\end{array}
+\tag{14}
+$$
+:::
+
+With a bit of algebra, we can solve equation (14) for $J_{b}(t)$ as
+
+:::{.eq-scroll}
+$$
+J_{b}(t) = \frac{\frac{M_{\mathrm{tot}}(t)}{V_{m}(t)} - J_{c}(t)(\rho_{m} + \varepsilon \rho_{sl}(t))}{\rho_{b} - \rho_{m}}
+\tag{15}
+$$
+:::
+
+
+... but there is a problem: We do not have a direct measurement of $M_{\mathrm{tot}}(t)$, the total mass of the mill's internal charge. That is where the trick of using the mill's bearing pressure as a *proxy* for its fill level comes in.
+
+As before, we will assume that the bearing pressure $p(t)$ is proportional to the total mass of the mill's internal charge. This assumption is reasonable, since the greater the internal charge mass, the greater the pressure exerted on the mill's pads or bearings (again, elementary physics: Newton's formula for pressure is $P = F/A$, where $F$ is the force exerted by the internal charge mass and $A$ is the contact area, that force being the weight of said charge). We will further assume that the relationship between pressure and the total internal charge mass is linear, with the bias parameter of that relationship attributable to operational noise. That is,
+
+:::{.eq-scroll}
+$$
+M_{\mathrm{tot}}(t) = \alpha\ p^{\ast}(t) + \beta
+\tag{16}
+$$
+:::
+
+where $\alpha$ and $\beta$ are calibration parameters that must be estimated from historical data, and $p^{\ast}(t)$ is the correctly oriented normalized bearing pressure, such that its value increases as the mill's internal charge mass increases. To do this, we can use the same normalization we defined earlier for the reference fill level $J_{c}^{\mathrm{ref}}(t)$, but adjusting the minimum and maximum pressure values as appropriate for the campaign in question. To estimate $\alpha$ and $\beta$ we will use rolling medians anchored to the $p_{5}$ and $p_{95}$ percentiles of the oriented bearing pressure and the corresponding $J_{b}$ values inferred in the field. Those values are generally supplied by the metallurgy group and represent manual ball-fill-level measurements at specific moments of the campaign.
+
+The procedure will then be as follows:
+
+1. We will compute the 5th and 95th percentiles of the oriented bearing pressure $p^{\ast}(t)$.
+2. For each time window corresponding to the $p_{5}$ and $p_{95}$ percentiles, we will compute the median of $J_{c}^{\mathrm{cal}}(t)$, $\rho_{sl}(t)$, and $V_{m}(t)$, and we will use these values to estimate the total mass of the mill's internal charge $M_{\mathrm{tot}}(t)$ at those percentiles. This is the part where we choose the values of $J_{b}^{min}$ and $J_{b}^{max}$ based on the daily $J_{b}$ records coming from the metallurgy group. We only need to compute the average pressure for that measurement:
+
+:::{.eq-scroll}
+$$
+\begin{array}{lll}M_{p_{5}}&=&\mathrm{Me} \left[ V_{m}(t)\left( \rho_{m} J_{c}^{cal}(t)+\left( \rho_{b} -\rho_{m} \right) J_{b}^{min}+\rho_{sl} (t)\varepsilon J_{c}^{cal}(t) \right) \right]_{p5}\\ {}M_{p_{95}}&=&\mathrm{Me} \left[ V_{m}(t)\left( \rho_{m} J_{c}^{cal}(t)+\left( \rho_{b} -\rho_{m} \right) J_{b}^{max}+\rho_{sl} (t)\varepsilon J_{c}^{cal}(t) \right) \right]_{p95}\end{array}
+\tag{17}
+$$
+:::
+
+3. We solve the linear interpolation equation:
+
+:::{.eq-scroll}
+$$
+\beta= \frac{M_{p95}-M_{p5}}{p^{\ast}_{p95}-p^{\ast}_{p5}}\ \wedge \ \alpha=M_{p5} - \beta p^{\ast}_{p5}
+\tag{18}
+$$
+:::
+
+In this way we can finally compute $J_{b}(t)$:
+
+- We evaluate the linear equation: $M_{\mathrm{tot}}(t) = \alpha p^{\ast}(t) + \beta$.
+- We substitute $M_{\mathrm{tot}}(t)$ into the equation for $J_{b}(t)$.
+- We bound the values to a physical range, limited by the actual $J_{b}$ values recorded in the field, and we verify that $J_{b}(t) \leq J_{c}(t)$ for all $t$.
+
+Note that, if $M_{p_{5}} > M_{p_{95}}$, then our bearing-pressure measurements are not correctly oriented, and we must invert the bearing-pressure normalization for the model to work properly. This can be done simply by replacing $p^{\ast}(t)$ with $1 - p^{\ast}(t)$ in equation (16), and then repeating the procedure for estimating $\alpha$ and $\beta$.
+
+### Ball-to-charge filling ratio (or $J_{b}/J_{c}$ ratio)
+
+Once we distinguish between the total charge filling $J_{c}$ and the ball filling $J_{b}$, a particularly useful variable appears for interpreting the mill's internal state: **The ratio between the two**. We will call it the **ball-to-charge filling ratio**, or simply the **filling ratio**, and denote it by $\Gamma_b(t)$. Formally,
+
+:::{.eq-scroll}
+$$
+\Gamma_b(t)=\frac{J_b(t)}{J_c(t)}
+\tag{19}
+$$
+:::
+
+The ratio $\Gamma_b(t)$ measures what fraction of the volume occupied by the internal charge is explained by steel grinding media. In other words, it tells us not only how many balls are in the mill, nor just how full it is, but how the charge is split between grinding media and its other components: Coarse ore, slurry, and interstitial voids. That is why it is a more informative variable than looking at $J_{b}$ or $J_{c}$ separately. Two conditions with the same $J_{b}$ can represent very different operational states if the total $J_{c}$ changes; likewise, two conditions with the same $J_{c}$ can have very different grinding kinematics if the relative proportion of balls is not the same.
+
+From a physical standpoint, $\Gamma_b(t)$ captures part of the balance between impact grinding, abrasion grinding, and slurry transport. When the filling ratio is too low, the charge contains relatively few grinding media compared to its total volume. In that case the mill can lose effective impact capacity, increase the residence of coarse ore, develop a heavier charge from the transport standpoint, and operate with lower breakage efficiency. The operational symptom usually appears as higher pressure or power without a proportional improvement in throughput, increased recirculation, or a coarser product than expected. When $\Gamma_b(t)$ is too high, the opposite problem occurs: There are many grinding media relative to the total charge volume. This can increase impact intensity, but it can also raise specific energy consumption, accelerate ball and liner wear, reduce the volume available for ore and slurry, and favor over-grinding conditions or a charge that is less efficient for the actual feed rate.
+
+One practical way to read this ratio is to decompose $J_{c}(t)$ as the sum of a ball contribution, a coarse contribution, and a slurry contribution,
+
+:::{.eq-scroll}
+$$
+J_{c}(t)=J_{b}(t)+J_{o}(t)+J_{\mathrm{sl}}(t)
+\tag{20}
+$$
+:::
+
+In this way, $\Gamma_b(t)$ works as a relative indicator of charge composition. If it rises because $J_{b}$ goes up while $J_{c}$ stays relatively stable, we could be facing a campaign with a higher relative steel inventory. If it rises because $J_{c}$ falls while $J_{b}$ holds steady, the operational diagnosis is different: The mill could be losing ore or slurry charge, not necessarily gaining balls. If it decreases, it may indicate media wear, low ball replenishment, a relative increase in ore charge, or a change in feed and classification dynamics.
+
+In operational control, the filling ratio is valuable because it connects slow and fast decisions. Ball addition is a slow, discrete, metallurgical decision that also has economic implications (because of consumable purchasing); water, speed, feed, and some pressure/power *set-points* are faster decisions. Good mill control does not seek to maximize $\Gamma_b(t)$, but to keep it within a band where the charge has enough impact energy, good mobility, transport capacity, and discharge stability. In a real plant, this ratio should be contrasted against ball-charging records, specific energy consumption, product particle size, bearing pressure, mill noise or vibration, power, and cyclone behavior. Its value lies not so much in operating at a perfect number, but in detecting when the relative composition of the charge is drifting toward a less efficient regime.
+
+## A practical exercise in Python
+
+And well... We are now ready to implement all this theory in a practical exercise. We will use Python to build a fill-level model for a SAG mill, relying fundamentally on classic libraries for data analysis and visualization, such as <strong><font color='darkmagenta'>Numpy</font></strong>, <strong><font color='darkmagenta'>Pandas</font></strong>, and <strong><font color='darkmagenta'>Plotly</font></strong>. Our preference for <strong><font color='darkmagenta'>Plotly</font></strong> in this exercise is mostly practical: We want to take advantage of the interactivity of its charts to explore the data and the model's behavior, along with other relationships of interest that we will meet along the way.
+
+We will use a simulated dataset describing the operation of a SAG mill from a set of typical sensors covering fresh and total feed, motor power, bearing pressure, slurry density, and rotational speed. Data like this is what we typically get when querying plant historians such as PI System, and it is usually necessary to first implement a data cleaning and filtering procedure to remove outliers, measurement errors, and other issues that could affect the quality of the analysis.
+
+The data used in this exercise comes from the following external files:
+
+- `pi_data.csv`: Historical data emulating a typical download from a historian, with a granularity of 15 minutes per measurement (averages).
+- `campaign_record.csv`: Historical information on liner campaigns and wear.
+- `actual_measurements.csv`: Manual measurements of $J_{c}$ and $J_{b}$ for the SAG mill.
+
+The files are available for direct download:
+
+::: {.dataset-download}
+::: {.dataset-download-grid}
+[15-min operational data](/articulos/datasets/pi_data.csv){.dataset-download-btn download="pi_data.csv"}
+
+[Liner-replacement campaigns](/articulos/datasets/campaign_record.csv){.dataset-download-btn download="campaign_record.csv"}
+
+[Point measurements](/articulos/datasets/actual_measurements.csv){.dataset-download-btn download="actual_measurements.csv"}
+:::
+:::
+
+### Initial exploration
+
+So let us access these files and load the data into a <strong><font color='darkmagenta'>Pandas</font></strong> DataFrame for analysis:
+
+```{python}
+import numpy as np
+import pandas as pd
+import plotly.graph_objects as go
+import plotly.io as pio
+import plotly.subplots as psub
+```
+
+```{python}
+import warnings
+```
+
+```{python}
+from IPython.display import HTML
+```
+
+```{python}
+# We suppress the `UserWarning` messages that may appear
+# while the code runs.
+warnings.filterwarnings("ignore", category=UserWarning)
+```
+
+```{python}
+# We define the font family we will use in the figures.
+PLOTLY_FONT = "Calibri, Arial, sans-serif"
+
+# Minimum operating thresholds.
+POWER_THRESHOLD = 7000.0
+PRESSURE_THRESH = 750.0
+THROUGHPUT_THRESH = 2000.0
+
+# And we set the default template.
+pio.templates.default = "ggplot2"
+
+
+def show_plotly(fig):
+    """
+    Embeds Plotly figures without loading MathJax from Plotly.
+
+    Quarto already handles the document's math rendering. If we let
+    Plotly load or negotiate its own MathJax, some equations in the
+    article may end up looking different from the rest of the blog.
+    """
+    return HTML(
+        fig.to_html(
+            full_html=False,
+            include_plotlyjs="cdn",
+            include_mathjax=False,
+            config={
+                "responsive": True,
+                "displaylogo": False,
+            },
+        )
+    )
+```
+
+```{python}
+# We load the data as DataFrames.
+pi_data = pd.read_csv("../../../articulos/datasets/pi_data.csv")
+reliner_data = pd.read_csv("../../../articulos/datasets/campaign_record.csv")
+actual_vals_data = pd.read_csv("../../../articulos/datasets/actual_measurements.csv")
+```
+
+Let us first get to know the structure of the first DataFrame, which we have called `pi_data`:
+
+```{python}
+# We check the structure of the `pi_data` DataFrame.
+pi_data.info()
+```
+
+We see that it is a DataFrame with `9` columns:
+
+- `timestamp`: Column detailing the `timestamp` of each measurement, with a granularity of 15 minutes. Note that this column has been "translated" by <strong><font color='darkmagenta'>Pandas</font></strong> into a `str` type, so we will need to convert it to a `datetime` type in order to work with it more efficiently.
+- `sag_power_kw`: Variable representing the SAG mill motor power, measured in kW.
+- `sag_speed_rpm`: Variable representing the SAG mill rotational speed, measured in rpm.
+- `bearing_pressure_psi`: Variable representing the SAG mill bearing pressure, measured in psi. It is an average resulting from the pressure exerted by the mill (its own weight plus the internal charge) on the mill's *pads* or bearings, which are usually equipped with pressure sensors.
+- `fresh_feed_tph`: Variable representing the fresh ore feed to the SAG mill, measured in t/h.
+- `total_feed_tph`: Variable representing the total ore feed to the SAG mill, measured in t/h. This variable is the sum of the fresh feed plus the ore recirculated from other circuits (for example, pebbles).
+- `process_water_m3h`: Variable representing the water input to the SAG mill, measured in m³/h. This variable is crucial for keeping the slurry density within an appropriate range, since adding water allows us to control the viscosity and the transport capacity of the ore inside the mill.
+- `feed_solids_pct`: Variable representing the **percent solids by mass** in the slurry entering the SAG mill. The model divides this percentage by 100 to obtain the dimensionless **solids mass fraction** used in the slurry-density equation. This variable is important for estimating slurry density and, consequently, grinding performance. It is a design and operating parameter that should remain within an appropriate range.
+- `liner_age_min`: Variable counting the accumulated SAG mill operating time since the last liner change, measured in minutes. This variable is crucial for estimating liner wear and therefore the evolution of the mill's effective internal diameter over the course of the campaign.
+
+Note that the DataFrame has more than `78000` rows. At a granularity of 15 minutes per row, this gives us a little over 2 years of historical data, which lets us analyze the evolution of the SAG mill's behavior across several liner campaigns.
+
+Now we check the structure of the second DataFrame, which we have called `reliner_data`:
+
+```{python}
+# We check the structure of the `reliner_data` DataFrame.
+reliner_data.info()
+```
+
+It is a DataFrame with `4` columns:
+
+- `campaign_id`: Unique identifier of the liner campaign, which lets us associate each record with a specific campaign.
+- `init_date`: Start date of the liner campaign, which lets us compute the time elapsed from the start of the campaign to each measurement.
+- `end_date`: End date of the liner campaign, which lets us determine the total duration of the campaign and associate each measurement with the corresponding campaign.
+- `duration`: Total duration of the liner campaign, measured in days. This variable is useful for analyzing the evolution of liner wear over time and its impact on the SAG mill's operating variables.
+
+This DataFrame will let us associate each measurement with the corresponding liner campaign, which is crucial for analyzing the evolution of the SAG mill over its service life and understanding how liner wear affects the operating variables. It will also let us build useful visualizations indicating different mill states within a specific campaign.
+
+Finally, we check the structure of the third DataFrame, which we have called `actual_vals_data`:
+
+```{python}
+# We check the structure of the `actual_vals_data` DataFrame.
+actual_vals_data.info()
+```
+
+It is a DataFrame with `12` columns, containing point measurements of several SAG mill operating variables:
+
+- `timestamp`: Column detailing the `timestamp` of each measurement. Being a point measurement, the granularity of this column is variable, depending on when the manual measurements were taken.
+- `pressure_psi`: Column specifying a point measurement of the SAG mill bearing pressure, in psi.
+- `speed_rpm`: Column specifying a point measurement of the SAG mill rotational speed, in rpm.
+- `power_kw`: Column specifying a point measurement of the SAG mill motor power, in kW.
+- `iron_grade_pct`: Column specifying a point measurement of the iron grade of the ore fed to the SAG mill, as a percentage. Iron grade matters in many mining operations, since it affects grinding efficiency and final product quality, because iron minerals such as magnetite and hematite are denser and harder than other minerals, which can affect the mill's power draw and liner wear.
+- `torque_pct`: Column specifying a point measurement of the SAG mill torque, as a percentage. Torque is a crucial parameter for understanding grinding efficiency and the mill's power draw, since it indicates the twisting force the mill exerts on its rotation axis. It is a proxy for the mill's internal charge, and analyzing it can help identify operational problems such as mill overload.
+- `feed_solids_pct`: Column containing a point measurement of the feed slurry's **percent solids by mass**.
+- `coarse_split_pct`: Column specifying a point measurement of the percentage of coarse material in the SAG mill's internal charge, as a percentage. This variable is important for understanding the particle size distribution inside the mill and its impact on grinding efficiency. In general, coarse particles tend to occupy more space inside the mill and are the ones that take longest to be reduced, so their presence can affect the mill's power draw and liner wear.
+- `free_lifters`: Column specifying a point measurement of the number of free *lifters* in the SAG mill. *Lifters* are internal mill elements that help lift and mix the internal charge, improving grinding efficiency. The number of free *lifters* can affect the distribution of the internal charge and therefore the mill's power draw.
+- `jc_measured_pct`: Column specifying a point measurement of the SAG mill's total fill level, as a percentage.
+- `liner_age_h`: Column specifying a point measurement of the SAG mill liner age, in hours.
+- `jb_measured_pct`: Column specifying a point measurement of the SAG mill's ball fill level, as a percentage.
+
+### Characterizing the campaigns
+
+In general, a liner campaign is characterized by the behavior of the SAG mill's bearing pressure over time, as well as by the evolution of the motor power. As a rule, because the liners wear down progressively, bearing pressure tends to decrease over time, while motor power may increase due to greater friction and internal resistance in the mill. However, these behaviors can vary depending on operating conditions, the type of ore, and liner quality.
+
+Let us check the case of bearing pressure. To do that, we first have to make sure the `timestamp` column of the `pi_data` DataFrame is correctly converted to a `datetime` type so we can perform time-based analysis efficiently. Then we can group the data by campaign and compute descriptive statistics such as the mean, median, percentiles, and standard deviation of bearing pressure over time. In this first *approach*, we will look at pressure behavior through a daily moving average:
+
+```{python}
+# We convert the `timestamp` column to `datetime` so we can work with it efficiently.
+pi_data["timestamp"] = pd.to_datetime(pi_data["timestamp"])
+```
+
+```{python}
+#| label: fig-sag-bearing-pressure-campaigns
+#| fig-cap: "Daily evolution of bearing pressure during the liner campaigns. The long-term trend makes it possible to separate the cumulative effect of wear from short-term operational fluctuations."
+# Chart showing pressure evolution over campaign time.
+# We initialize the figure.
+fig = go.Figure()
+
+# We consider power above 7000 kW as an initial filter
+# (mill always online).
+pi_data_filtered = pi_data[pi_data["sag_power_kw"] > POWER_THRESHOLD].copy()
+
+# We add the pressure evolution (daily resampling).
+fig.add_trace(
+    go.Scatter(
+        x=pi_data_filtered.resample("D", on="timestamp").mean().index,
+        y=pi_data_filtered.resample("D", on="timestamp").mean()["bearing_pressure_psi"],
+        mode="lines",
+        name="Bearing pressure",
+        line=dict(color="royalblue", width=2, shape="hv"),
+    )
+)
+
+# We configure the figure layout.
+fig.update_layout(
+    title=dict(
+        text="<b>Evolution of the SAG mill bearing pressure</b>",
+        font=dict(size=20, family=PLOTLY_FONT),
+    ),
+    height=400,
+)
+
+fig.update_xaxes(
+    title=dict(
+        text="<b>Date</b>",
+        font=dict(size=15, family=PLOTLY_FONT),
+    ),
+)
+
+fig.update_yaxes(
+    title=dict(
+        text="<b>Bearing pressure (psi)</b>",
+        font=dict(size=15, family=PLOTLY_FONT),
+    ),
+)
+
+show_plotly(fig)
+```
+
+We can see that, broadly speaking, bearing pressure decreases linearly over time, which is consistent with liner wear theory. However, we can also note significant variations in bearing pressure, which may be due to changes in operating conditions such as ore feed, slurry density, and mill rotational speed. They may also be due to maintenance events, grinding-media charging, or other kinds of shutdown.
+
+From an operational standpoint, this trend is a first sign of dataset health. If pressure falls gradually during the campaign, the sensor is capturing a metallurgically reasonable phenomenon: the liner loses thickness, the effective volume grows, and the same internal charge mass is distributed over a larger space. What matters is not to interpret every isolated drop as wear. In SAG grinding, short-term variations are usually mixed in with changes in tonnage, hardness, particle size, slurry density, speed, and control strategies. That is why it is best to read this curve as a campaign trend, not as an instantaneous fill-level diagnosis.
+
+Next, we are going to characterize the behavior of the SAG mill's power–pressure pair over the course of the campaign, in order to find the "region" within it where mill throughput is maximized. In general, we expect a positive correlation between motor power and bearing pressure, since the greater the mill's internal charge, the greater the power required to keep it operating. However, shutdowns and other operational events can degrade this relationship to some extent.
+
+We will take any campaign from the provided record, say the second one, and build a chart that lets us visualize the throughput isocontours in the space defined by motor power and bearing pressure. We will format the dates in the `reliner_data` DataFrame so we can filter the measurements corresponding to the selected campaign, and then we will build a scatter plot with throughput isocontours, using <strong><font color='darkmagenta'>Plotly</font></strong> to take advantage of its interactivity:
+
+```{python}
+# We convert the campaign dates to `datetime` format.
+reliner_data["init_date"] = pd.to_datetime(reliner_data["init_date"])
+reliner_data["end_date"] = pd.to_datetime(reliner_data["end_date"])
+```
+
+To avoid considering spurious data, we will use the same minimum-power filter as before, but we will also apply a minimum throughput filter of 2000 tph as a double check:
+
+```{python}
+def plot_campaign_domain(campaign_index: int):
+    """
+    Function that generates a scatter plot of power versus pressure
+    for a specific campaign, with throughput isocontours.
+    """
+    # Scatter plot of power versus pressure for a specific campaign.
+    # We select the campaign indicated by the index.
+    CAMPAIGN_INIT = reliner_data["init_date"].iloc[campaign_index]
+    CAMPAIGN_END = reliner_data["end_date"].iloc[campaign_index]
+
+    # We initialize the figure.
+    fig = go.Figure()
+
+    # We filter the data for the selected campaign.
+    # Minimum power of 7000 kW and feed above 2000 t/h.
+    campaign_pi_data = pi_data[
+        (pi_data["sag_power_kw"] > POWER_THRESHOLD)
+        & (pi_data["fresh_feed_tph"] > THROUGHPUT_THRESH)
+        & (pi_data["timestamp"] >= CAMPAIGN_INIT)
+        & (pi_data["timestamp"] <= CAMPAIGN_END)
+    ]
+
+    # We keep only the variables we need for the chart.
+    plot_data = campaign_pi_data[
+        ["sag_power_kw", "bearing_pressure_psi", "fresh_feed_tph"]
+    ].dropna()
+
+    # We build a discrete grid to estimate throughput isocontours.
+    # In each cell we use the average observed within the interval.
+    N_BINS = 24
+    plot_data = plot_data.assign(
+        power_bin=pd.cut(plot_data["sag_power_kw"], bins=N_BINS),
+        pressure_bin=pd.cut(plot_data["bearing_pressure_psi"], bins=N_BINS),
+    )
+
+    contour_grid = plot_data.pivot_table(
+        index="pressure_bin",
+        columns="power_bin",
+        values="fresh_feed_tph",
+        aggfunc="mean",
+        observed=False,
+    )
+
+    power_centers = [interval.mid for interval in contour_grid.columns]
+    pressure_centers = [interval.mid for interval in contour_grid.index]
+
+    # Scatter of power versus pressure for the selected campaign.
+    fig.add_trace(
+        go.Scatter(
+            mode="markers",
+            x=plot_data["sag_power_kw"],
+            y=plot_data["bearing_pressure_psi"],
+            marker=dict(
+                color=plot_data["fresh_feed_tph"],
+                colorscale="RdYlGn",
+                symbol="square",
+                size=7,
+                opacity=0.82,
+                colorbar=dict(
+                    title=dict(
+                        text="<b>Throughput (tph)</b>",
+                        side="right",
+                        font=dict(size=15, family=PLOTLY_FONT),
+                    ),
+                    tickfont=dict(size=12, family=PLOTLY_FONT),
+                    x=1.065,
+                    thickness=24,
+                ),
+            ),
+            opacity=0.7,
+            name="Hourly data",
+        )
+    )
+
+    # Throughput isocontours estimated on the bivariate grid.
+    fig.add_trace(
+        go.Contour(
+            x=power_centers,
+            y=pressure_centers,
+            z=contour_grid.to_numpy(),
+            contours=dict(
+                coloring="none",
+                showlabels=True,
+                labelfont=dict(
+                    size=11,
+                    color="black",
+                    family=PLOTLY_FONT,
+                ),
+            ),
+            line=dict(
+                color="black",
+                width=1.4,
+                dash="dash",
+            ),
+            hoverinfo="skip",
+            showscale=False,
+            connectgaps=True,
+            name="tph isocontours",
+        )
+    )
+
+    # Figure layout configuration.
+    fig.update_layout(
+        title=dict(
+            text="<b>Scatter of power versus pressure for the selected campaign</b>",
+            font=dict(size=20, family=PLOTLY_FONT),
+            x=0.5,
+            xanchor="center",
+        ),
+        legend=dict(
+            orientation="h",
+            x=0.5,
+            y=1.02,
+            xanchor="center",
+            yanchor="bottom",
+            bgcolor="rgba(255,255,255,0)",
+            title=None,
+        ),
+        margin=dict(t=120, r=150),
+        height=600,
+    )
+
+    fig.update_xaxes(
+        title=dict(
+            text="<b>power_kw</b>",
+            font=dict(size=15, family=PLOTLY_FONT),
+        )
+    )
+    fig.update_yaxes(
+        title=dict(
+            text="<b>Bearing pressure (psi)</b>",
+            font=dict(size=15, family=PLOTLY_FONT),
+        )
+    )
+
+    return fig
+```
+
+So let us go with campaign number `1`:
+
+```{python}
+#| label: fig-sag-power-pressure-domain-campaign-1
+#| fig-cap: "Power-pressure domain of campaign 1. The throughput gradient distinguishes the combinations that convert applied energy into processed tonnes most efficiently."
+# We display the domain of campaign 1.
+show_plotly(plot_campaign_domain(campaign_index=1))
+```
+
+We see that the region of greatest throughput stability (*green* zone) in this campaign lies in a power domain between 12 and 14 MW, with bearing pressure below 890 psi. The *red* zone represents an unstable operating domain, with throughput below 2000 tph, which indicates that the mill is probably operating with a higher level of ore recirculation, which could point to an overload problem.
+
+Operationally, this kind of map is useful because it separates two questions that often get mixed up in the control room: "are we drawing power?" and "is that power buying tonnes?". A high-power zone with low throughput is not necessarily good operation; it may simply be a mill working heavy, with a less efficient charge, greater recirculation, or more competent ore. In contrast, a zone of medium-high power with moderate pressure and high throughput suggests a more interesting condition: the charge is active enough to grind, but not so overloaded that it loses transport capacity.
+
+Not all campaigns behave as steadily as the one we have just analyzed. In general, it is common to find campaigns with more erratic behavior, with significant variations in bearing pressure and motor power, which may be due to changes in operating conditions, the type of ore, and liner quality. For example, for campaign number `4`:
+
+```{python}
+#| label: fig-sag-power-pressure-domain-campaign-4
+#| fig-cap: "Power-pressure domain of campaign 4. The scatter of throughput levels reveals a less stable operating regime than the one observed in campaign 1."
+# We display the domain of campaign 4.
+show_plotly(plot_campaign_domain(campaign_index=4))
+```
+
+The behavior is similar, but now the point cloud shows greater dispersion, which indicates that the mill operates over a wider range of conditions, with significant variations in bearing pressure and motor power. In this way, the main point cloud concentrates between 12.5-14.5 MW and 860-950 psi, which seems to be the dominant operating zone of the campaign. The highest throughputs are located mainly in the region defined by medium-to-high power, around 13-14 MW, with pressures roughly between 870-930 psi. Note also that operating at higher power does not by itself guarantee higher throughput, since toward very high pressures, above 950 psi, regions with below-average throughput appear. Finally, the lowest-performance zone appears at the edges of the mill's operational stability cloud: Low power, low pressure, or extreme combinations of high pressure with high power.
+
+A map like this makes it possible to issue initial operational recommendations that are very helpful in practice: Given a target pressure, it is worth checking which power band maximizes throughput without pushing the mill toward regions of high dispersion or unstable performance. In general, the isocontours suggest that there are "islands" of better performance, not a single simple linear trend. This points to an operational interaction between power, pressure, and grinding kinetics.
+
+### Mapping liner wear
+
+Having characterized the behavior of bearing pressure and motor power across the campaigns, we can proceed to map the SAG mill's liner wear. To do this, we will agree on some initial design parameters, which we already specified earlier:
+
+- Original mill diameter: $D_{0} = 36$ ft (~10.98 m).
+- Mill length: $L = 15$ ft (~4.575 m).
+- Unit conversion factor: $1$ ft = $0.3048$ m.
+- Mill shell thickness: $\zeta = 0.557743$ ft (~0.17 m).
+- Wear rate at the feed end: $w_{in} = 1.15$ mm/day.
+
+Because we will be working with data on the density of the slurry entering the mill, we will make sure to remove outliers of this variable, filtering out the whole range of values falling outside the range between the $p_{5}$ and $p_{95}$ percentiles:
+
+```{python}
+# We create a copy of the `pi_data` DataFrame to avoid any mishaps.
+df = pi_data.copy()
+
+# We define the minimum and maximum percentiles for filtering solids.
+SOLIDS_MIN_Q, SOLIDS_MAX_Q = 5.0, 95.0
+df_filt = df[
+    (df["feed_solids_pct"] >= np.nanpercentile(df["feed_solids_pct"], SOLIDS_MIN_Q))
+    & (df["feed_solids_pct"] <= np.nanpercentile(df["feed_solids_pct"], SOLIDS_MAX_Q))
+]
+```
+
+Next, we define the mill's initial parameters in Python:
+
+```{python}
+# Initial configuration for computing the wear rate.
+D0_ft, L0_ft = 36.0, 15.0  # Original mill dimensions.
+ft_to_m = 0.3048  # Conversion factor from feet to meters.
+D0_m, L0_m = D0_ft * ft_to_m, L0_ft * ft_to_m  # Original internal dimensions in meters.
+wear_rate = 1.15 # Wear rate in mm/day
+shell_thickness_ft = 0.557743 # Shell thickness in feet.
+shell_thickness_m = shell_thickness_ft * ft_to_m # Shell thickness in meters.
+```
+
+We will define some additional initial parameters for building the model, in accordance with the Hogg & Fuerstenau power equation:
+
+- Steel ball density: $\rho_{b} = 7.75$ t/m³.
+- Ore density: $\rho_{m} = 3.0$ t/m³.
+- Interstitial filling fraction: $\varepsilon = 0.6$.
+- Motor electrical efficiency factor: $\eta = 0.90$.
+- Lifter face angle: $\theta = 51^{\circ}$.
+
+And we carry these values over into Python variables:
+
+```{python}
+# Additional configuration for the ball fill-level model.
+rho_b = 7.75 # Steel ball density (t/m3).
+rho_m = 3.00 # Ore density (t/m3).
+rho_w = 1.00 # Water density (t/m3).
+epsilon = 0.60 # Interstitial filling fraction.
+efficiency_factor = 0.90 # Electrical efficiency factor.
+lifter_angle_sag = 51.0 # Lifter face angle in degrees for the SAG mill.
+```
+
+### Implementing the Hogg & Fuerstenau model
+
+Next, we will build a Python function that lets us compute the SAG mill's total fill level ($J_{c}$) according to the initial settings defined above:
+
+```{python}
+def build_jc(
+    orientation: str,
+    p_raw: pd.Series,
+    p5: pd.Series,
+    p95: pd.Series,
+    P_eff_kw: pd.Series,
+    K: pd.Series,
+):
+    """
+    Function that builds the SAG mill's total fill level, following the inversion
+    of the Hogg & Fuerstenau power equation.
+
+    Parameters
+    ----------
+    orientation : Orientation of the pressure proxy ("normal" or "inverted").
+    p_raw : Values of the pressure proxy.
+    p5 : p5 percentile of the pressure proxy.
+    p95 : p95 percentile of the pressure proxy.
+    P_eff_kw : Effective power values in kW.
+    K : Constant K in the Hogg & Fuerstenau model.
+    """
+    # We define the hard limits for the Jc value.
+    # These are "extreme" physical limits.
+    jc_lower, jc_upper = 0.05, 0.60
+
+    # We define the quadratic factor for Jb in the inversion of the Hogg & Fuerstenau model.
+    a = 1.065
+
+    # We clip the raw pressure values within the p5 and p95 percentiles.
+    p_clip = np.clip(p_raw, p5, p95)
+
+    # We normalize the pressure values.
+    p_norm = (p_clip - p5) / max(1e-9, (p95 - p5))
+
+    # We check the orientation (in case pressure does not decrease with liner wear).
+    if orientation == "inverted":
+        p_norm = 1.0 - p_norm
+
+    # We compute the reference Jc based on the pressure proxy.
+    jc_ref = 0.17 + p_norm * (0.34 - 0.17)
+
+    # We compute the correction factor instance by instance.
+    with np.errstate(divide='ignore', invalid='ignore'):
+        Fi = P_eff_kw / (K * (jc_ref - a * jc_ref**2))
+    Fi = Fi[np.isfinite(Fi) & (Fi > 0)]
+
+    # We compute the median correction factor.
+    F = float(np.nanmedian(Fi)) if Fi.size > 0 else 1.0
+
+    # We correct the bias term in the quadratic equation using F.
+    C = F * K
+
+    # We compute the discriminant of the quadratic equation.
+    with np.errstate(divide='ignore', invalid='ignore'):
+        X = P_eff_kw / C
+
+    disc = 1.0 - 4*a*X
+    disc = np.maximum(disc, 0.0)
+
+    # We compute the roots of the quadratic equation for Jc.
+    root1 = (1.0 - np.sqrt(disc)) / (2*a)
+    root2 = (1.0 + np.sqrt(disc)) / (2*a)
+
+    # We choose the valid root and clip it to reasonable values.
+    jc = np.where((root1 >= jc_lower) & (root1 <= jc_upper), root1, np.nan)
+    jc = np.where(np.isnan(jc) & (root2 >= jc_lower) & (root2 <= jc_upper), root2, jc)
+    jc = np.clip(jc, jc_lower, jc_upper)
+
+    # We compute the correlation between the clipped pressure proxy and Jc.
+    # If there are no finite values in Jc, the correlation is set to `-inf`.
+    corr = np.corrcoef(
+        p_clip[np.isfinite(jc)],
+        jc[np.isfinite(jc)]
+    )[0, 1] if np.isfinite(jc).any() else -np.inf
+
+    return jc, F, corr
+```
+
+The `build_jc()` function encapsulates the procedure used to reconstruct the SAG mill's total fill level, $J_{c}$, from the effective power, the bearing pressure, and the geometric-operational constant of the Hogg & Fuerstenau model. The central idea is to use pressure as a physical *proxy* for internal charge and, with it, calibrate the inversion of the power equation. The function returns the values `jc`, `F`, and `corr`, which correspond to the fill level itself, the aggregate correction factor (via the median) for calibrating the power model, and the correlation between the pressure proxy and the computed fill level.
+
+We are now ready for our $J_{c}$ calculation. We simply apply the `build_jc()` function below:
+
+```{python}
+# Percentiles defining the extremes of the pressure proxy for computing Jc.
+percentiles = [5, 95]
+
+# We set the input variables for computing Jc.
+SOLIDS_COL = "feed_solids_pct"
+SPEED_COL = "sag_speed_rpm"
+POWER_COL = "sag_power_kw"
+PRESSURE_COL = "bearing_pressure_psi"
+liner_age = df_filt["liner_age_min"]
+wear_thickness = wear_rate * (liner_age / 24.0) # Thickness loss due to wear.
+
+# Effective internal diameter.
+D_eff_m = D0_m - 2 * shell_thickness_m + 2 * (wear_thickness / 1000.0)
+D_eff_ft = D_eff_m / ft_to_m # We convert the effective diameter to feet for the H&F model.
+df_filt["calc_eff_ft_sag"] = D_eff_ft.copy() # We assign the effective diameter in feet to the DataFrame.
+df_filt["calc_eff_m_sag"] = D_eff_m.copy() # We assign the effective diameter in meters to the DataFrame.
+
+# Effective internal volume.
+Vm_k = (np.pi / 4) * (D_eff_m ** 2) * L0_m
+
+# We compute the slurry density.
+Cp_k = df_filt[SOLIDS_COL] / 100.0 # We express solids as a fraction.
+rho_sl_k = 1.0 / ((Cp_k / rho_m) + ((1 - Cp_k) / rho_w)) # Density in t/m3.
+
+# Inversion of the Hogg & Fuerstenau model to compute the "raw" Jc.
+Nc = 42.3 / np.sqrt(D_eff_ft) # Critical speed of the mill (rpm).
+phi = df_filt[SPEED_COL] / Nc # Fraction of critical speed.
+
+P_eff = efficiency_factor * df_filt[POWER_COL] # Effective net power (kW).
+sin_theta = np.sin(np.radians(lifter_angle_sag)) # Sine of the lifter face angle.
+K = 0.238 * (D_eff_ft ** 2.5) * (L0_ft - shell_thickness_ft) * phi * rho_sl_k * sin_theta # K factor for H&F.
+
+# Auto-orientation of the pressure proxy and computation of Jc for both co-dependence cases.
+p_raw_k = df_filt[PRESSURE_COL].astype(float).values
+p5_k, p95_k = np.nanpercentile(p_raw_k, [percentiles[0], percentiles[1]])
+
+jc_norm_raw, F_norm, corr_norm = build_jc(
+    orientation="normal",
+    p_raw=p_raw_k,
+    p5=p5_k,
+    p95=p95_k,
+    P_eff_kw=P_eff,
+    K=K,
+)
+
+jc_inv_raw, F_inv, corr_inv = build_jc(
+    orientation="inverted",
+    p_raw=p_raw_k,
+    p5=p5_k,
+    p95=p95_k,
+    P_eff_kw=P_eff,
+    K=K,
+)
+
+# We choose the best pressure orientation, based on the correlation.
+if (corr_norm >= corr_inv) and (np.isfinite(corr_norm)) and (corr_norm > 0.0):
+    chosen_or = "normal"
+    jc_raw = jc_norm_raw
+    F = F_norm
+else:
+    chosen_or = "inverted"
+    jc_raw = jc_inv_raw
+    F = F_inv
+
+# Effective pressure value depending on the chosen orientation.
+p_eff_k = p_raw_k if chosen_or == "normal" else (p5_k + p95_k - p_raw_k)
+
+# We assign the computed values to our DataFrame.
+df_filt["calc_int_vol_sag"] = Vm_k.copy()
+df_filt["calc_sl_dens_sag"] = rho_sl_k.copy()
+df_filt["calc_jc_cal_sag"] = jc_raw.copy()
+df_filt["calc_eff_bear_press_sag"] = p_eff_k.copy()
+
+# We print a summary of the results.
+print(f"SAG mill - Chosen orientation: {chosen_or} | Correlation: {max(corr_norm, corr_inv):.4f} | Calibration factor F: {F:.4f}")
+```
+
+Next, we visually inspect the result obtained for the total fill level we have just estimated:
+
+```{python}
+#| label: fig-sag-jc-time-series
+#| fig-cap: "Evolution of the total fill level estimated through the calibrated inversion of the Hogg and Fuerstenau model. Resampling every four hours exposes regime changes without confusing them with instantaneous noise."
+# We initialize the figure.
+fig = go.Figure()
+
+# We add the evolution of the estimated total fill level (Jc) over campaign time.
+# We resample every 4h for greater visual clarity.
+fig.add_trace(
+    go.Scatter(
+        x=df_filt.resample("4h", on="timestamp").mean().index,
+        y=df_filt.resample("4h", on="timestamp").mean()["calc_jc_cal_sag"],
+        mode="lines",
+        name="Total fill level (Jc)",
+        line=dict(color="dodgerblue", width=2, shape="hv"),
+    ),
+)
+
+# We configure the figure layout.
+fig.update_layout(
+    title="<b>Calibrated Jc model (H&F model + pressure proxy)</b>",
+    title_subtitle=dict(
+        text="The calibration factor F accounts for the liner wear rate - 4h resampling for greater clarity",
+        font=dict(size=14, family=PLOTLY_FONT),
+    ),
+    title_font=dict(size=20, family=PLOTLY_FONT),
+    height=500,
+    margin=dict(t=110),
+)
+
+fig.update_yaxes(
+    title_text="<b>Estimated fill level (Jc)</b>",
+    title_font=dict(size=16, family=PLOTLY_FONT),
+    dtick=0.1,
+)
+
+show_plotly(fig)
+```
+
+The resulting curve should be read as a smoothed signal of internal state, not as a direct measurement. In a plant, a metallurgist would not use this value in isolation to decide aggressive setpoint changes; they would contrast it against power, pressure, tonnage, feed particle size, mill noise, and ball-charging events. What we do expect from a useful $J_c$ signal is that it satisfy three basic criteria: that it stay within a metallurgically plausible range, that it not jump absurdly in response to instrumentation noise, and that it track the structural changes of the campaign, especially those induced by liner wear and sustained variations in internal charge.
+
+We also check the observed distribution of the $J_{c}$ values through a histogram, to confirm that the estimated values fall within a reasonable range:
+
+```{python}
+#| label: fig-sag-jc-distribution
+#| fig-cap: "Distribution of the estimated total fill level. The median and the interquartile range make it possible to verify that the reconstruction remains concentrated in an operationally plausible band."
+# We initialize the figure.
+fig = go.Figure()
+
+# We draw the histogram.
+fig.add_trace(
+    go.Histogram(
+        x=df_filt["calc_jc_cal_sag"],
+        nbinsx=100,
+        marker_color="dodgerblue",
+        opacity=0.75,
+    ),
+)
+
+# We show reference percentiles and the median.
+q1 = np.nanpercentile(df_filt[df_filt["calc_jc_cal_sag"] <= 0.34]["calc_jc_cal_sag"], 25)
+q3 = np.nanpercentile(df_filt[df_filt["calc_jc_cal_sag"] <= 0.34]["calc_jc_cal_sag"], 75)
+median = np.nanmedian(df_filt[df_filt["calc_jc_cal_sag"] <= 0.34]["calc_jc_cal_sag"])
+
+fig.add_vline(
+    x=q1,
+    line=dict(color="black", width=1.0, dash="dash"),
+    opacity=1.0,
+    annotation_text="Q1",
+    annotation_position="top left",
+    annotation_textangle=90,
+)
+
+fig.add_vline(
+    x=q3,
+    line=dict(color="black", width=1.0, dash="dash"),
+    opacity=1.0,
+    annotation_text="Q3",
+    annotation_position="top left",
+    annotation_textangle=90,
+)
+
+fig.add_vline(
+    x=median,
+    line=dict(color="black", width=2.0),
+    opacity=1.0,
+    annotation_text="Median",
+    annotation_position="top left",
+    annotation_textangle=90,
+)
+
+# We configure the figure layout.
+fig.update_layout(
+    title="<b>Observed distribution of estimated Jc values</b>",
+    title_font=dict(size=20, family=PLOTLY_FONT),
+    height=500,
+)
+
+fig.update_xaxes(
+    title_text="<b>Estimated fill level (Jc)</b>",
+    title_font=dict(size=16, family=PLOTLY_FONT),
+    dtick=0.05,
+)
+
+fig.update_yaxes(
+    title_text="<b>Observed frequency</b>",
+    title_font=dict(size=16, family=PLOTLY_FONT),
+)
+
+show_plotly(fig)
+```
+
+The histogram works as a quick plausibility test for operations. If the distribution ends up excessively pinned to the model's limits, that normally indicates that the calibration is forcing the solution too hard or that the operating envelope is not well defined for this campaign. In contrast, a distribution concentrated in a reasonable band, with a stable median and no artificial pile-up at the extremes, suggests that the model is reconstructing a charge state compatible with normal operation. In practical terms, this review avoids a frequent trap: obtaining a visually pretty time series that is nonetheless propped up by physically implausible values.
+
+Once the SAG mill's total fill level has been estimated, it is essential to compare its values against the measured values of the mill's other operating variables, in order to verify the coherence of the results obtained:
+
+```{python}
+#| label: fig-sag-jc-operational-dependencies
+#| fig-cap: "Joint density of the estimated total fill level with power, speed, liner age, and pressure. The panels show the operating regimes that sustain the reconstructed signal."
+# We initialize the figure.
+fig = psub.make_subplots(
+    rows=2,
+    cols=2,
+    shared_xaxes=True,
+    subplot_titles=(
+        "<b>Jc v/s mill power</b>",
+        "<b>Jc v/s rotational speed</b>",
+        "<b>Jc v/s liner age</b>",
+        "<b>Jc v/s bearing pressure</b>",
+    ),
+    vertical_spacing=0.14,
+    horizontal_spacing=0.15,
+)
+
+fig.update_annotations(font=dict(size=17, family=PLOTLY_FONT))
+
+# We resample the data to 4h for greater visual clarity.
+df_filt_4h = (
+    df_filt
+    .resample("4h", on="timestamp")
+    .mean()
+    .reset_index()
+)
+
+# We apply the previous power filter, and we add others
+# (speed above 8 rpm and pressure above 750 psi) to avoid
+# spurious values.
+SPEED_THRESH = 8.0
+df_filt_4h = df_filt_4h[
+    (df_filt_4h["sag_power_kw"] > POWER_THRESHOLD)
+    & (df_filt_4h["bearing_pressure_psi"] > PRESSURE_THRESH)
+    & (df_filt_4h["sag_speed_rpm"] > SPEED_THRESH)
+]
+
+# Compact configuration for each panel.
+contour_panels = [
+    {
+        "y": "sag_power_kw",
+        "colorscale": "Blues",
+        "row": 1,
+        "col": 1,
+        "show_scale": False,
+    },
+    {
+        "y": "sag_speed_rpm",
+        "colorscale": "Greens",
+        "row": 1,
+        "col": 2,
+        "show_scale": False,
+    },
+    {
+        "y": "liner_age_min",
+        "colorscale": "Oranges",
+        "row": 2,
+        "col": 1,
+        "show_scale": False,
+    },
+    {
+        "y": "bearing_pressure_psi",
+        "colorscale": "Reds",
+        "row": 2,
+        "col": 2,
+        "show_scale": True,
+    },
+]
+
+# We draw 2D contours of the observed density. Each observation represents
+# a 4-hour window, because of the resampling applied earlier.
+for panel in contour_panels:
+    fig.add_trace(
+        go.Histogram2dContour(
+            x=df_filt_4h["calc_jc_cal_sag"],
+            y=df_filt_4h[panel["y"]],
+            colorscale=panel["colorscale"],
+            contours=dict(
+                coloring="heatmap",
+                showlines=True,
+            ),
+            line=dict(
+                color="rgba(30,30,30,0.55)",
+                width=0.8,
+            ),
+            nbinsx=40,
+            nbinsy=40,
+            showscale=panel["show_scale"],
+            colorbar=dict(
+                title=dict(
+                    text="<b>Number of observations every 4 hours</b>",
+                    side="bottom",
+                    font=dict(size=14, family=PLOTLY_FONT),
+                ),
+                orientation="h",
+                x=0.5,
+                y=-0.22,
+                xanchor="center",
+                yanchor="top",
+                len=0.72,
+                thickness=18,
+                tickfont=dict(size=11, family=PLOTLY_FONT),
+            ) if panel["show_scale"] else None,
+            hovertemplate=(
+                "<b>Jc</b>: %{x}<br>"
+                "<b>Variable</b>: %{y}<br>"
+                "<b>Observations</b>: %{z}<extra></extra>"
+            ),
+        ),
+        row=panel["row"],
+        col=panel["col"],
+    )
+
+# We configure the figure layout.
+fig.update_layout(
+    title="<b>Observed density contours for estimated Jc<br>v/s operating variables</b>",
+    title_font=dict(size=20, family=PLOTLY_FONT),
+    margin=dict(t=130, b=130),
+    height=1000,
+)
+
+# Axis labels.
+fig.update_yaxes(
+    title=dict(
+        text="<b>Motor power (kW)</b>",
+        font=dict(size=16, family=PLOTLY_FONT),
+    ),
+    row=1, col=1,
+)
+
+fig.update_yaxes(
+    title=dict(
+        text="<b>Rotational speed (rpm)</b>",
+        font=dict(size=16, family=PLOTLY_FONT),
+    ),
+    row=1, col=2,
+)
+
+fig.update_yaxes(
+    title=dict(
+        text="<b>Liner age (h)</b>",
+        font=dict(size=16, family=PLOTLY_FONT),
+    ),
+    row=2, col=1,
+)
+
+fig.update_yaxes(
+    title=dict(
+        text="<b>Bearing pressure (psi)</b>",
+        font=dict(size=16, family=PLOTLY_FONT),
+    ),
+    row=2, col=2,
+)
+
+fig.update_xaxes(
+    title=dict(
+        text="<b>Estimated fill level (jc)</b>",
+        font=dict(size=16, family=PLOTLY_FONT),
+    ),
+    row=2, col=1,
+)
+
+fig.update_xaxes(
+    title=dict(
+        text="<b>Estimated fill level (jc)</b>",
+        font=dict(size=16, family=PLOTLY_FONT),
+    ),
+    row=2, col=2,
+)
+
+fig.update_xaxes(
+    showticklabels=False,
+    row=1, col=1,
+)
+
+fig.update_xaxes(
+    showticklabels=False,
+    row=1, col=2,
+)
+
+show_plotly(fig)
+```
+
+These charts help us read the model from a perspective closer to operations. In the power panel, we expect the largest number of observations to sit within a consistent band of $J_{c}$. Accordingly, if the estimated fill level rises without power following along, the proxy is probably capturing noise or external conditions that do not represent effective charge. In the speed panel, a narrow cloud usually indicates that the mill was operated with a relatively stable speed strategy; if separate bands were to appear, we could be facing different control modes or deliberate changes in operating strategy.
+
+The liner-age panel is especially important. If the model is well oriented, the estimated $J_{c}$ should not be interpreted without considering how far the campaign has progressed. The same pressure value does not mean exactly the same thing with new liners as with worn liners. That is why we incorporate the mill's effective geometry. Finally, the pressure panel constitutes the most direct operational coherence check, since the estimated fill level must bear a reasonable relationship to the bearing pressure, but it should not be perfectly rigid. If it were, the model would not be adding information; if it had no relationship at all, the pressure proxy would not be providing physical anchoring.
+
+From the metallurgical standpoint, the most useful result is not a single $J_{c}$ number, but an operating region. A dense, stable band of observations indicates where the mill spends most of its time; the peripheral zones suggest less frequent, transient, or potentially suboptimal conditions. In a real application, these regions would be cross-referenced with throughput, specific energy consumption, product particle size, and pumping/cyclone constraints before turning them into an operational recommendation.
+
+In our exercise, the rules above are satisfied in a satisfactory but not rigid way. The estimated fill level stays within an interquartile range equal to $[0.24, 0.29]$, with a median of $0.27$, which suggests that the mill operates in a relatively stable $J_{c}$ band, without abrupt jumps or pile-ups at the extremes. The correlation between the pressure proxy and the estimated fill level is positive and significant, which indicates that the model is capturing the expected physical relationship between these variables. The correlation between the estimated fill level and the mill power is also positive, while in the case of rotational speed the correlation is weak and speed stays mostly stable within a very rigid band, which suggests that the mill operates with a control strategy focused on keeping speed as close as possible to the critical speed, without large variations.
+
+### Estimating the ball fill level
+
+Having estimated the mill's total fill level, we proceed to implement the closure of the Hogg & Fuerstenau model in order to estimate the ball fill level, $J_{b}$, using the equations that let us split the mill's internal volume into its main components: Balls, ore, and slurry. The mass balance equation (14) can be implemented in Python as follows:
+
+```{python}
+def med_mass(mask, jb_target, jc, V_m, rho_sl, epsilon):
+    """
+    Function that estimates the SAG mill's median internal mass for a target jb.
+    The target jb is a kind of anchor point that serves as a reference
+    for bounding the variation of jb, with the aim of tracking its
+    expected low variability, although this is not guaranteed.
+
+    Parameters:
+    -----------
+    mask : Boolean mask for filtering valid entries.
+    jb_target : Target jb value (expressed as a floating-point number).
+    jc : Series of jc values (fill level).
+    V_m : Series of effective volume values (m3).
+    rho_sl : Series of slurry density values (t/m3).
+    epsilon : Interstitial filling constant (float).
+    """
+    # Extracting masked values.
+    jc_w = jc[mask] # Fill level.
+    V_w = V_m[mask] # Volume (based on effective dimensions).
+    rho_wi = rho_sl[mask] # Slurry density.
+
+    # Computing the internal mass for a target jb.
+    M_rows = V_w * (3.0 * jc_w + (rho_b - 3.0) * jb_target + rho_wi * epsilon * jc_w)
+
+    return float(np.nanmedian(M_rows)) if M_rows.size > 0 else np.nan
+```
+
+In the `med_mass()` function, we require the imputation of a target $J_{b}$ that serves as a reference to keep its variability from escaping to physically impossible levels. The function returns the median of the mill's internal mass, considering only the valid entries according to the boolean mask `mask`. This median is used as a reference point for adjusting the ball fill level in the model.
+
+Next, we implement equation (15) in Python, relying on the `med_mass()` function, in order to estimate the ball fill level, $J_{b}$:
+
+```{python}
+# We define the extreme reference values for jb.
+Jb_min_ref = 0.16
+Jb_max_ref = 0.18
+
+# We retrieve the variables needed to compute jb.
+jc_k = df_filt["calc_jc_cal_sag"].copy() # Estimated fill level.
+p_raw_k = df_filt["bearing_pressure_psi"].astype(float) # Effective bearing pressure.
+p_eff_k = df_filt["calc_eff_bear_press_sag"].copy() # Effective working pressure.
+Vm_k = df_filt["calc_int_vol_sag"].copy() # Effective volume of the internal charge.
+rho_sl_k = df_filt["calc_sl_dens_sag"].copy() # Slurry density.
+
+# We create masks to track all instances
+# outside the safety interval of the effective pressure.
+p5_k, p95_k = np.nanpercentile(
+    p_raw_k,
+    [percentiles[0], percentiles[1]],
+)
+
+mask_low_k = p_eff_k <= p5_k
+mask_high_k = p_eff_k >= p95_k
+
+# We obtain the p5 and p95 percentiles of the effective
+# bearing pressure.
+p5_eff_k, p95_eff_k = np.nanpercentile(
+    p_eff_k,
+    [percentiles[0], percentiles[1]],
+)
+
+# We compute the internal mass components for the
+# jb reference values.
+M_p5_k = med_mass(
+    mask=mask_low_k,
+    jb_target=Jb_min_ref,
+    jc=jc_k,
+    V_m=Vm_k,
+    rho_sl=rho_sl_k,
+    epsilon=epsilon,
+)
+
+M_p95_k = med_mass(
+    mask=mask_high_k,
+    jb_target=Jb_max_ref,
+    jc=jc_k,
+    V_m=Vm_k,
+    rho_sl=rho_sl_k,
+    epsilon=epsilon,
+)
+
+# We obtain the extreme values for the bearing pressure,
+# in order to make sure we are handling the grind-out and
+# feed-starvation cases.
+p5_med_k = float(
+    np.nanmedian(p_raw_k[mask_low_k])
+) if mask_low_k.any() else float(p5_eff_k)
+
+p95_med_k = float(
+    np.nanmedian(p_raw_k[mask_high_k])
+) if mask_high_k.any() else float(p95_eff_k)
+
+# We find the `alpha` and `beta` parameters that make up
+# the linear relationship between jb and the internal mass.
+beta_k = (M_p95_k - M_p5_k) / max(1e-9, (p95_med_k - p5_med_k))
+alpha_k = M_p5_k - beta_k * p5_med_k
+
+# We use that linear relationship to estimate the internal
+# mass of the SAG mill.
+M_tot_k = alpha_k + beta_k * p_eff_k
+
+# We estimate jb according to the mass balance above.
+jb_k = (
+    (M_tot_k / Vm_k) - (rho_m * jc_k + rho_sl_k * epsilon * jc_k)
+) / (rho_b - rho_m)
+
+# We print the parameters of the linear relationship on screen.
+print(f"Estimated parameters: alpha = {alpha_k:.2f}, beta = {beta_k:.2f}")
+
+# We assign the computed values to the `df_filt` DataFrame.
+df_filt["calc_mass_sag"] = M_tot_k.copy()
+df_filt["calc_jb_cal_sag"] = jb_k.copy()
+
+# We remove the negative jb values, which can occur
+# when the internal mass is very low.
+df_filt["calc_jb_cal_sag"] = (
+    df_filt["calc_jb_cal_sag"]
+    .apply(lambda x: x if x >= 0.0 else np.nan)
+)
+
+# We check whether jb <= jc. If not, we set jb = jc to simulate a
+# mill completely full of balls ("grind-out" case).
+df_filt["calc_jb_cal_sag"] = np.where(
+    df_filt["calc_jb_cal_sag"] > df_filt["calc_jc_cal_sag"],
+    df_filt["calc_jc_cal_sag"],
+    df_filt["calc_jb_cal_sag"],
+)
+```
+
+As before, we visually inspect the evolution of the estimated ball fill level, $J_{b}$, across the different campaigns:
+
+```{python}
+#| label: fig-sag-jb-time-series
+#| fig-cap: "Temporal evolution of the ball fill level reconstructed through the internal mass balance and the pressure proxy. The oscillations make it possible to contrast campaign changes with media replenishment and wear events."
+# We initialize the figure.
+fig = go.Figure()
+
+# We add the evolution of the estimated ball fill level (jb) over campaign time.
+# We resample every 4h for greater visual clarity.
+fig.add_trace(
+    go.Scatter(
+        x=df_filt.resample("4h", on="timestamp").mean().index,
+        y=df_filt.resample("4h", on="timestamp").mean()["calc_jb_cal_sag"],
+        mode="lines",
+        name="Ball fill level (jb)",
+        line=dict(color="darkorange", width=2, shape="hv"),
+    ),
+)
+
+# We configure the figure layout.
+fig.update_layout(
+    title="<b>Calibrated jb model (internal mass balance + pressure proxy)</b>",
+    title_font=dict(size=20, family=PLOTLY_FONT),
+    height=500,
+)
+
+fig.update_yaxes(
+    title_text="<b>Estimated ball fill level (jb)</b>",
+    title_font=dict(size=16, family=PLOTLY_FONT),
+    dtick=0.1,
+)
+
+show_plotly(fig)
+```
+
+The calibrated $J_{b}$ model shows a considerably noisier signal than that of $J_{c}$, which is to be expected, since the ball level responds not only to instantaneous power or pressure, but also to the history of media wear, discrete ball-charging events, changes in ore hardness, particle-size variations, and internal charge transport conditions. Even so, the series stays mostly within a physically reasonable band, close to typical SAG operating values, with oscillations between campaigns that seem to capture state changes rather than a smooth continuous trend. From an operational standpoint, it is not advisable to read every isolated peak or drop as a real change in ball inventory; rather, this time series should be interpreted as a diagnostic signal of equivalent internal mass. Sharp drops may be associated with transients, shutdowns, poor data quality, or conditions where pressure stops cleanly representing the ball charge. What makes the chart valuable is that it lets us observe when the mill appears to be operating with a higher or lower ball charge relative to its own historical pattern, information that can be contrasted with ball-addition records, specific energy consumption, grinding noise, and throughput stability.
+
+We also check the observed distribution of the $J_{b}$ values through a histogram, to confirm that the estimated values fall within an operationally coherent range:
+
+```{python}
+#| label: fig-sag-jb-distribution
+#| fig-cap: "Distribution of the estimated ball fill level. The median and quartile references make it possible to assess the stability of the equivalent grinding-media inventory."
+# We initialize the figure.
+fig = go.Figure()
+
+# We draw the histogram.
+fig.add_trace(
+    go.Histogram(
+        x=df_filt["calc_jb_cal_sag"],
+        nbinsx=100,
+        marker_color="darkorange",
+        opacity=0.75,
+    ),
+)
+
+# We show reference percentiles and the median.
+q1 = np.nanpercentile(df_filt[df_filt["calc_jb_cal_sag"] <= 0.34]["calc_jb_cal_sag"], 25)
+q3 = np.nanpercentile(df_filt[df_filt["calc_jb_cal_sag"] <= 0.34]["calc_jb_cal_sag"], 75)
+median = np.nanmedian(df_filt[df_filt["calc_jb_cal_sag"] <= 0.34]["calc_jb_cal_sag"])
+
+fig.add_vline(
+    x=q1,
+    line=dict(color="black", width=1.0, dash="dash"),
+    opacity=1.0,
+    annotation_text="Q1",
+    annotation_position="top left",
+    annotation_textangle=90,
+)
+
+fig.add_vline(
+    x=q3,
+    line=dict(color="black", width=1.0, dash="dash"),
+    opacity=1.0,
+    annotation_text="Q3",
+    annotation_position="top left",
+    annotation_textangle=90,
+)
+
+fig.add_vline(
+    x=median,
+    line=dict(color="black", width=2.0),
+    opacity=1.0,
+    annotation_text="Median",
+    annotation_position="top left",
+    annotation_textangle=90,
+)
+
+# We configure the figure layout.
+fig.update_layout(
+    title="<b>Observed distribution of estimated jb values</b>",
+    title_font=dict(size=20, family=PLOTLY_FONT),
+    height=500,
+)
+
+fig.update_xaxes(
+    title_text="<b>Estimated fill level (jb)</b>",
+    title_font=dict(size=16, family=PLOTLY_FONT),
+    dtick=0.05,
+)
+
+fig.update_yaxes(
+    title_text="<b>Observed frequency</b>",
+    title_font=dict(size=16, family=PLOTLY_FONT),
+)
+
+show_plotly(fig)
+```
+
+The estimated distribution of $J_{b}$ ends up concentrated in a band that is quite reasonable for SAG operation, with a median close to the center of the cloud and a relatively tight interquartile range. This is a good sign, since, despite the temporal noise observed in the series, the model is not pushing most of the estimates toward extreme values nor piling them up artificially at the physical limits. The unimodal shape suggests that, over the period analyzed, the mill operated most of the time around a dominant ball-charge regime, with deviations toward lower or higher values that may be associated with campaign changes, media wear, ball additions, ore variability, or operational transients. From the metallurgical standpoint, this histogram is useful as a plausibility check. If the center of mass of the distribution were too low, we would suspect an underestimation of ball inventory or a loss of sensitivity in the pressure proxy; if it were too high, we might be confusing ore/slurry charge with media charge. In this case, the distribution suggests a reasonably stable calibrated model, although its practical use should always be complemented with actual records of ball consumption and addition.
+
+
+### Computing the filling ratio
+
+All that remains is to compute the SAG mill's filling ratio: $\Gamma_{b} =J_{b}/J_{c}$. As we commented earlier, this ratio is an indicator of the mill's filling efficiency and is useful in operational control, since it lets us identify whether the mill is operating with an appropriate proportion of balls relative to the total charge volume:
+
+```{python}
+# We compute the filling ratio.
+df_filt["calc_jb_jc_sag"] = df_filt["calc_jb_cal_sag"] / df_filt["calc_jc_cal_sag"]
+df_filt["calc_jb_jc_sag"] = (
+    df_filt["calc_jb_jc_sag"]
+    .apply(lambda x: x if np.isfinite(x) and (x >= 0.0) else np.nan)
+)
+
+# We check that jb/jc <= 1. If not, we set jb/jc = 1 to simulate a mill
+# completely full of balls ("grind-out" case).
+df_filt["calc_jb_jc_sag"] = np.where(
+    df_filt["calc_jb_jc_sag"] > 1.0,
+    1.0,
+    df_filt["calc_jb_jc_sag"],
+)
+```
+
+Next, we visually inspect the evolution of the estimated filling ratio, $\Gamma_{b}$, across the different campaigns:
+
+```{python}
+#| label: fig-sag-filling-ratio-time-series
+#| fig-cap: "Evolution of the Jb/Jc filling ratio. The series reveals changes in the relative composition of grinding media and total charge between campaigns."
+# We initialize the figure.
+fig = go.Figure()
+
+# We add the evolution of the estimated ball fill level (jb) over campaign time.
+# We resample every 4h for greater visual clarity.
+fig.add_trace(
+    go.Scatter(
+        x=df_filt.resample("4h", on="timestamp").mean().index,
+        y=df_filt.resample("4h", on="timestamp").mean()["calc_jb_jc_sag"],
+        mode="lines",
+        name="Filling ratio (jb/jc)",
+        line=dict(color="firebrick", width=2, shape="hv"),
+    ),
+)
+
+# We configure the figure layout.
+fig.update_layout(
+    title="<b>Jb/Jc filling ratio</b>",
+    title_font=dict(size=20, family=PLOTLY_FONT),
+    title_subtitle=dict(
+        text="Estimation based on the H&F model and the internal charge balance",
+        font=dict(size=14, family=PLOTLY_FONT),
+    ),
+    height=500,
+    margin=dict(t=110),
+)
+
+fig.update_yaxes(
+    title_text="<b>Filling ratio (jb/jc)</b>",
+    title_font=dict(size=16, family=PLOTLY_FONT),
+    dtick=0.1,
+)
+
+show_plotly(fig)
+```
+
+The time series of $\Gamma_{b} = J_{b}/J_{c}$ shows that the relative composition of the internal charge does not stay fixed during the campaigns, but oscillates within a wide band, with episodes where balls account for close to half of the total fill and others where they come to dominate a large part of the effective charge. From an operational standpoint, this is expected if we remember that $J_{c}$ responds to the mill's total charge, while $J_{b}$ is conditioned by media wear, discrete ball replenishment, ore changes, feed transients, and the quality of the pressure proxy. Very high values, close to 1, should be read with care: Physically they would indicate a charge almost entirely dominated by steel media, something that may appear as a clipping effect, an underestimation of ore/slurry charge, or transient conditions rather than as a desirable permanent state. In metallurgical terms, the usefulness of the chart lies in detecting regime changes: When $\Gamma_{b}$ rises steadily, the mill could be operating with greater impact intensity but also with higher specific consumption and wear; when it drops too far, it may lose breakage capacity from media and depend more on autogenous mechanisms, with a risk of coarse material building up. Therefore, this ratio should not be used as an isolated setpoint, but as an indicator of internal composition to be contrasted against throughput, power, pressure, grinding noise, product particle size, and actual ball-addition records.
+
+Now, the filling ratio becomes much more useful when we stop looking at it as an isolated time series and start crossing it with outcome variables. In particular, we want to know which regions of the plane defined by $\Gamma_b$ and mill power concentrate higher throughput levels. The metallurgical intuition is straightforward: for the same power, different internal charge compositions can produce very different grinding rates. A charge with a low relative proportion of balls may consume energy without generating enough effective impact; a charge with an excessive proportion of balls may increase impacts and wear, but reduce the useful space for ore and slurry. For this reason, we will look for throughput isocontours in the filling-ratio--power plane, in order to identify candidate operating bands for different campaigns.
+
+The following function replicates the logic used earlier to study power and pressure, but now dispenses with the scatter plot. In its place, it builds a bivariate grid where each cell contains the average throughput observed for a combination of filling ratio and power. On that surface we draw a color gradient and isocontour lines, which lets us visually locate regions of equivalent throughput:
+
+```{python}
+def plot_filling_ratio_domain(campaign_index: int):
+    """
+    Function that plots throughput isocontours in the plane
+    formed by the pair (filling ratio, power) for a specific
+    campaign.
+    """
+    # We select the campaign indicated by index.
+    CAMPAIGN_INIT = reliner_data["init_date"].iloc[campaign_index]
+    CAMPAIGN_END = reliner_data["end_date"].iloc[campaign_index]
+
+    # We filter the campaign and clean up spurious operating conditions.
+    campaign_data = df_filt[
+        (df_filt["timestamp"] >= CAMPAIGN_INIT)
+        & (df_filt["timestamp"] <= CAMPAIGN_END)
+        & (df_filt["sag_power_kw"] > POWER_THRESHOLD)
+        & (df_filt["fresh_feed_tph"] > THROUGHPUT_THRESH)
+        & (df_filt["calc_jb_jc_sag"] > 0.0)
+        & (df_filt["calc_jb_jc_sag"] <= 1.0)
+    ].copy()
+
+    # We resample to 4 hours to stay consistent with the earlier
+    # charts and reduce very high-frequency noise.
+    plot_data = (
+        campaign_data
+        .resample("4h", on="timestamp")
+        .mean()
+        .reset_index()
+        [["calc_jb_jc_sag", "sag_power_kw", "fresh_feed_tph"]]
+        .dropna()
+    )
+
+    # We build a discrete grid: filling ratio vs power.
+    N_BINS = 28
+    plot_data = plot_data.assign(
+        ratio_bin=pd.cut(plot_data["calc_jb_jc_sag"], bins=N_BINS),
+        power_bin=pd.cut(plot_data["sag_power_kw"], bins=N_BINS),
+    )
+
+    contour_grid = plot_data.pivot_table(
+        index="power_bin",
+        columns="ratio_bin",
+        values="fresh_feed_tph",
+        aggfunc="mean",
+        observed=False,
+    )
+
+    ratio_centers = [interval.mid for interval in contour_grid.columns]
+    power_centers = [interval.mid for interval in contour_grid.index]
+
+    # We initialize the figure.
+    fig = go.Figure()
+
+    # Map of average throughput and isocontours.
+    fig.add_trace(
+        go.Contour(
+            x=ratio_centers,
+            y=power_centers,
+            z=contour_grid.to_numpy(),
+            colorscale="RdYlGn",
+            contours=dict(
+                coloring="heatmap",
+                showlabels=True,
+                labelfont=dict(
+                    size=11,
+                    color="black",
+                    family=PLOTLY_FONT,
+                ),
+            ),
+            line=dict(
+                color="black",
+                width=1.2,
+                dash="dash",
+            ),
+            connectgaps=True,
+            colorbar=dict(
+                title=dict(
+                    text="<b>Throughput (tph)</b>",
+                    side="right",
+                    font=dict(size=15, family=PLOTLY_FONT),
+                ),
+                tickfont=dict(size=12, family=PLOTLY_FONT),
+                x=1.02,
+                thickness=24,
+            ),
+            hovertemplate=(
+                "<b>Filling ratio</b>: %{x:.2f}<br>"
+                "<b>Power</b>: %{y:.0f} kW<br>"
+                "<b>Average throughput</b>: %{z:.0f} tph<extra></extra>"
+            ),
+        )
+    )
+
+    # We configure the layout.
+    fig.update_layout(
+        title=dict(
+            text="<b>Throughput isocontours by filling ratio and power</b>",
+            font=dict(size=20, family=PLOTLY_FONT),
+            x=0.5,
+            xanchor="center",
+        ),
+        title_subtitle=dict(
+            text=f"Campaign index {campaign_index} - 4-hour resampling",
+            font=dict(size=14, family=PLOTLY_FONT),
+        ),
+        height=600,
+        margin=dict(t=120, r=140),
+    )
+
+    fig.update_xaxes(
+        title=dict(
+            text="<b>Filling ratio (Jb/Jc)</b>",
+            font=dict(size=15, family=PLOTLY_FONT),
+        ),
+    )
+
+    fig.update_yaxes(
+        title=dict(
+            text="<b>power_kw</b>",
+            font=dict(size=15, family=PLOTLY_FONT),
+        ),
+    )
+
+    return fig
+```
+
+Let us look first at the resulting domain for campaign number `1`:
+
+```{python}
+#| label: fig-sag-filling-ratio-domain-campaign-1
+#| fig-cap: "Control surface of campaign 1. The isocontours locate the combinations of filling ratio and power associated with higher mill throughput."
+show_plotly(plot_filling_ratio_domain(campaign_index=1))
+```
+
+This chart should be read as an operating surface (or, in more technical jargon, as a **control surface**): Each color represents the average throughput observed for a combination of power and filling ratio, while the black curves connect regions of similar throughput. If the highest-throughput zones concentrate in a narrow band of $\Gamma_{b}$, then the campaign suggests a relatively well-defined charge composition for operating efficiently. If, on the contrary, the maxima appear scattered across several islands, then throughput is probably also being governed by variables we are not plotting directly, such as ore hardness, particle size, water, recirculation, or classification.
+
+Let us repeat the exercise for campaign number `4`, which previously showed more dispersed behavior in the power-pressure map:
+
+```{python}
+#| label: fig-sag-filling-ratio-domain-campaign-4
+#| fig-cap: "Control surface of campaign 4. The position of its maxima shows that the efficient filling-ratio band depends on the state of the campaign and not on a single universal value."
+show_plotly(plot_filling_ratio_domain(campaign_index=4))
+```
+
+Comparing campaigns lets us separate structural conditions from transient ones. The same filling ratio can be favorable in one liner campaign and less attractive in another if liner wear, feed characteristics, or control strategy change. For that reason, the practical recommendation is not to choose a single $J_{b}/J_{c}$ ratio for the entire operating history, but to build target bands by liner campaign or family of operating conditions. In control terms, these surfaces help answer a concrete question: For a given power draw, which relative charge composition appears to convert energy into processed tonnes most effectively?
+
+The control surfaces show that the relationship between filling ratio, power, and throughput is neither linear nor unique across campaigns, which is very consistent with a real SAG operation. In campaign index `1`, the throughput maxima appear in several zones: An interesting region around $\Gamma_b \approx 0.85-0.90$ with power close to 11.8-12.2 MW, and another band of good performance toward $\Gamma_b \approx 0.65-0.75$ with higher power, on the order of 13-14 MW. This suggests that the campaign admits more than one efficient regime: One with a higher filling ratio and moderate power, possibly associated with good relative availability of grinding media, and another with higher power where the mill seems to compensate with energy for a different charge composition. In campaign index `4`, by contrast, the surface looks more structured toward a good-throughput zone around $\Gamma_b \approx 0.85-0.92$ and power close to 10.8-12.0 MW, while at higher power throughput does not necessarily improve. From an operational perspective, this is highly relevant: Pushing power does not guarantee maximizing tonnes if the internal charge composition is not in a favorable band. The practical reading would be to use these surfaces to build target bands by campaign, not a universal $J_b/J_c$ recommendation. If one campaign shows high throughput with elevated filling ratios and moderate power, the strategy could aim at sustaining a sufficiently active media charge without energetically overloading the mill; if another campaign requires higher power to reach similar throughput, then hardness, particle size, liner wear, recirculation, or classification conditions are probably coming into play. In short, these surfaces make it possible to transform the filling ratio from a simple calculated indicator into a control tool: They help locate regions where energy converts better into throughput, and distinguish when increasing power is genuinely useful and when it only makes the operation more expensive.
+
+### Exploratory operational-control dashboard
+
+So that the comparison between campaigns is not reduced to two static charts, we can build a small interactive dashboard. The idea is simple: Keep the same control surface, but let the reader switch campaigns with a slider. For each campaign we also show the point of highest average throughput observed in the grid. That point should not be interpreted as an automatic operating recipe, since it may be supported by only a few observations or reflect feed variability or campaign-specific conditions; however, it serves as a quick marker for locating candidate regions of efficient operation.
+
+This dashboard is deliberately sober. It does not try to replace an expert system or a plant optimizer; it only makes it possible to explore a concrete metallurgical question: **For a given liner campaign, which historical combination of filling ratio and power draw converted energy into processed tonnes most effectively?**
+
+```{python}
+def build_filling_ratio_surface(
+    campaign_index: int,
+    n_bins: int = 28,
+    min_obs: int = 40,
+):
+    """
+    Builds the average throughput surface for a specific campaign.
+    Returns the bin centers and the throughput matrix.
+    """
+    # We select the start and end of the campaign.
+    campaign_init = reliner_data["init_date"].iloc[campaign_index]
+    campaign_end = reliner_data["end_date"].iloc[campaign_index]
+
+    # We filter reasonable operating data.
+    campaign_data = df_filt[
+        (df_filt["timestamp"] >= campaign_init)
+        & (df_filt["timestamp"] <= campaign_end)
+        & (df_filt["sag_power_kw"] > POWER_THRESHOLD)
+        & (df_filt["fresh_feed_tph"] > THROUGHPUT_THRESH)
+        & (df_filt["calc_jb_jc_sag"] > 0.0)
+        & (df_filt["calc_jb_jc_sag"] <= 1.0)
+    ].copy()
+
+    # We resample to stabilize the operational reading.
+    plot_data = (
+        campaign_data
+        .resample("4h", on="timestamp")
+        .mean()
+        .reset_index()
+        [["calc_jb_jc_sag", "sag_power_kw", "fresh_feed_tph"]]
+        .dropna()
+    )
+
+    # If the campaign has little data, we do not build a surface.
+    if len(plot_data) < min_obs:
+        return None
+
+    # We build the discrete grid.
+    plot_data = plot_data.assign(
+        ratio_bin=pd.cut(plot_data["calc_jb_jc_sag"], bins=n_bins),
+        power_bin=pd.cut(plot_data["sag_power_kw"], bins=n_bins),
+    )
+
+    contour_grid = plot_data.pivot_table(
+        index="power_bin",
+        columns="ratio_bin",
+        values="fresh_feed_tph",
+        aggfunc="mean",
+        observed=False,
+    )
+
+    # If the grid ends up empty, we discard the campaign.
+    if contour_grid.dropna(how="all").empty:
+        return None
+
+    ratio_centers = np.array([interval.mid for interval in contour_grid.columns])
+    power_centers = np.array([interval.mid for interval in contour_grid.index])
+    throughput_grid = contour_grid.to_numpy()
+
+    return ratio_centers, power_centers, throughput_grid
+
+def plot_filling_ratio_dashboard():
+    """
+    Builds an interactive dashboard for navigating control surfaces
+    by campaign.
+    """
+    # We look for campaigns with enough data to build the surface.
+    surfaces = []
+    for campaign_index in range(len(reliner_data)):
+        surface = build_filling_ratio_surface(campaign_index)
+        if surface is not None:
+            surfaces.append((campaign_index, *surface))
+
+    # We initialize traces and slider steps.
+    traces = []
+    steps = []
+
+    for idx, (campaign_index, ratio_x, power_y, grid_z) in enumerate(surfaces):
+        visible = idx == 0
+
+        # We locate the point of highest average throughput observed in the grid.
+        max_pos = np.unravel_index(np.nanargmax(grid_z), grid_z.shape)
+        best_power = power_y[max_pos[0]]
+        best_ratio = ratio_x[max_pos[1]]
+        best_throughput = grid_z[max_pos]
+
+        # Throughput surface.
+        traces.append(
+            go.Contour(
+                x=ratio_x,
+                y=power_y,
+                z=grid_z,
+                visible=visible,
+                colorscale="RdYlGn",
+                contours=dict(
+                    coloring="heatmap",
+                    showlabels=True,
+                    labelfont=dict(
+                        size=10,
+                        color="black",
+                        family=PLOTLY_FONT,
+                    ),
+                ),
+                line=dict(color="black", width=1.0, dash="dash"),
+                connectgaps=True,
+                colorbar=dict(
+                    title=dict(
+                        text="<b>Throughput (tph)</b>",
+                        side="right",
+                        font=dict(size=15, family=PLOTLY_FONT),
+                    ),
+                    tickfont=dict(size=12, family=PLOTLY_FONT),
+                    x=1.02,
+                    thickness=24,
+                ),
+                hovertemplate=(
+                    "<b>Filling ratio</b>: %{x:.2f}<br>"
+                    "<b>Power</b>: %{y:.0f} kW<br>"
+                    "<b>Average throughput</b>: %{z:.0f} tph<extra></extra>"
+                ),
+                name="Throughput surface",
+                showscale=True,
+            )
+        )
+
+        # Point of highest average throughput.
+        traces.append(
+            go.Scatter(
+                x=[best_ratio],
+                y=[best_power],
+                visible=visible,
+                mode="markers+text",
+                marker=dict(
+                    color="black",
+                    size=13,
+                    symbol="x",
+                    line=dict(color="white", width=2),
+                ),
+                text=[f"{best_throughput:.0f} tph"],
+                textposition="top center",
+                textfont=dict(size=12, family=PLOTLY_FONT, color="black"),
+                hovertemplate=(
+                    "<b>Best historical cell</b><br>"
+                    f"<b>Campaign</b>: {campaign_index}<br>"
+                    "<b>Filling ratio</b>: %{x:.2f}<br>"
+                    "<b>Power</b>: %{y:.0f} kW<br>"
+                    f"<b>Average throughput</b>: {best_throughput:.0f} tph"
+                    "<extra></extra>"
+                ),
+                name="Best historical cell",
+            )
+        )
+
+        # Each step must activate the two traces associated with a campaign.
+        visible_mask = [False] * (2 * len(surfaces))
+        visible_mask[2 * idx] = True
+        visible_mask[2 * idx + 1] = True
+
+        steps.append(
+            dict(
+                method="update",
+                label=f"C{campaign_index}",
+                args=[
+                    {
+                        "visible": visible_mask,
+                    },
+                    {
+                        "title.subtitle.text": (
+                            f"Campaign index {campaign_index} - "
+                            "4-hour resampling"
+                        )
+                    },
+                ],
+            )
+        )
+
+    # We assemble the figure.
+    fig = go.Figure(data=traces)
+
+    fig.update_layout(
+        title=dict(
+            text=(
+                "<b>Control dashboard: throughput by "
+                "filling ratio and power</b>"
+            ),
+            font=dict(size=20, family=PLOTLY_FONT),
+            x=0.5,
+            xanchor="center",
+        ),
+        title_subtitle=dict(
+            text=(
+                f"Campaign index {surfaces[0][0]} - "
+                "4-hour resampling"
+            ),
+            font=dict(size=14, family=PLOTLY_FONT),
+        ),
+        sliders=[
+            dict(
+                active=0,
+                currentvalue=dict(
+                    prefix="Campaign ",
+                    font=dict(size=14, family=PLOTLY_FONT),
+                ),
+                pad=dict(t=45),
+                steps=steps,
+            )
+        ],
+        legend=dict(
+            orientation="h",
+            x=0.5,
+            y=1.06,
+            xanchor="center",
+            yanchor="bottom",
+        ),
+        height=680,
+        margin=dict(t=130, r=140, b=90),
+    )
+
+    fig.update_xaxes(
+        title=dict(
+            text="<b>Filling ratio (Jb/Jc)</b>",
+            font=dict(size=15, family=PLOTLY_FONT),
+        ),
+    )
+
+    fig.update_yaxes(
+        title=dict(
+            text="<b>Power (kW)</b>",
+            font=dict(size=15, family=PLOTLY_FONT),
+        ),
+    )
+
+    return fig
+```
+
+```{python}
+#| label: fig-sag-filling-ratio-dashboard
+#| fig-cap: "Interactive dashboard for exploring throughput surfaces by campaign. The controls make it possible to compare robust bands of filling ratio and power, as well as the observational support of each region."
+show_plotly(plot_filling_ratio_dashboard())
+```
+
+The right way to read this dashboard is campaign by campaign. The black marker indicates the cell with the highest average throughput within the grid, but its value should be understood as a historical reference, not as a direct *set-point*. A very high cell may come from a genuinely favorable condition, but it may also come from a zone with few observations, from softer ore, or from a particularly good transient configuration. That is why, rather than chasing an exact point, it is better to look for **consistent regions**: Bands of filling ratio and power where throughput stays high across several neighboring cells. That spatial stability is far more valuable for operational control than an isolated maximum.
+
+### Comparing the results against the various measurements of $J_{b}$ and $J_{c}$
+
+To close the exercise, let us compare the values estimated by the model against the point measurements available in `actual_vals_data`. This step must be done carefully, since the manual measurements of $J_b$ and $J_c$ do not constitute a continuous series, but rather field observations taken on specific dates. In addition, the file provided with these measurements contains dates without an explicit time, whereas the historian holds high-frequency records. For this reason, we will not compare against the nearest 15-minute point, since that would give a false sense of precision. Instead, we will summarize the model at a daily scale using the median, and we will compare each point measurement against the estimated daily state of the mill for that same date.
+
+```{python}
+# We prepare the point field measurements.
+actual_compare = actual_vals_data.copy()
+actual_compare["timestamp"] = pd.to_datetime(actual_compare["timestamp"]).dt.normalize()
+
+# The actual measurements come expressed as percentages.
+actual_compare["actual_jc"] = actual_compare["jc_measured_pct"] / 100.0
+actual_compare["actual_jb"] = actual_compare["jb_measured_pct"] / 100.0
+actual_compare["actual_jb_jc"] = actual_compare["actual_jb"] / actual_compare["actual_jc"]
+
+# We summarize the model at a daily scale, using robust medians.
+model_daily = (
+    df_filt
+    .resample("D", on="timestamp")
+    .median(numeric_only=True)
+    .reset_index()
+)
+model_daily["timestamp"] = model_daily["timestamp"].dt.normalize()
+
+# We keep the columns relevant to the comparison.
+model_daily = model_daily[
+    [
+        "timestamp",
+        "calc_jc_cal_sag",
+        "calc_jb_cal_sag",
+        "calc_jb_jc_sag",
+        "sag_power_kw",
+        "bearing_pressure_psi",
+        "fresh_feed_tph",
+    ]
+].rename(
+    columns={
+        "calc_jc_cal_sag": "model_jc",
+        "calc_jb_cal_sag": "model_jb",
+        "calc_jb_jc_sag": "model_jb_jc",
+        "sag_power_kw": "power_kw",
+        "bearing_pressure_psi": "pressure_psi",
+        "fresh_feed_tph": "throughput_tph",
+    }
+)
+
+# We join the point measurements with the estimated daily median.
+model_vs_actual = (
+    actual_compare
+    .merge(model_daily, on="timestamp", how="left")
+    .dropna(subset=["model_jc", "model_jb"])
+)
+
+# We compute estimation errors.
+for var_j in ["jc", "jb", "jb_jc"]:
+    model_vs_actual[f"error_{var_j}"] = (
+        model_vs_actual[f"model_{var_j}"] - model_vs_actual[f"actual_{var_j}"]
+    )
+    model_vs_actual[f"abs_error_{var_j}"] = model_vs_actual[f"error_{var_j}"].abs()
+```
+
+With this we obtain a compact table that lets us inspect each field measurement and its modeled counterpart:
+
+```{python}
+cols_to_show = [
+    "timestamp",
+    "actual_jc",
+    "model_jc",
+    "error_jc",
+    "actual_jb",
+    "model_jb",
+    "error_jb",
+    "actual_jb_jc",
+    "model_jb_jc",
+    "error_jb_jc",
+]
+
+model_vs_actual[cols_to_show].round(4)
+```
+
+We also summarize performance through bias, mean absolute error, RMSE, and correlation. Bias is defined as `model - measurement`, so that positive values indicate an average level of overestimation by the model, while negative values indicate underestimation. The mean absolute error (MAE) and the RMSE let us evaluate the magnitude of the errors regardless of their sign, while the correlation indicates how well the model follows the general trend of the point measurements:
+
+```{python}
+def summarize_point_comparison(data, var):
+    """
+    Summarizes the contrast between modeled values and point measurements.
+    """
+    err = data[f"error_{var}"].dropna()
+    actual = data[f"actual_{var}"]
+    model = data[f"model_{var}"]
+
+    return {
+        "variable": var,
+        "n": int(err.shape[0]),
+        "bias": np.nanmean(err),
+        "mae": np.nanmean(np.abs(err)),
+        "rmse": np.sqrt(np.nanmean(err**2)),
+        "correlation": actual.corr(model),
+    }
+```
+
+```{python}
+# We build a performance summary for each variable of interest.
+comparison_summary = pd.DataFrame(
+    [
+        summarize_point_comparison(model_vs_actual, "jc"),
+        summarize_point_comparison(model_vs_actual, "jb"),
+        summarize_point_comparison(model_vs_actual, "jb_jc"),
+    ]
+)
+
+# And we display it on screen.
+comparison_summary.round(4)
+```
+
+A direct visualization helps us understand whether the model is following the general trend of the point measurements. In the chart below, each point corresponds to a manual measurement. The dashed line represents the ideal case, where the modeled value coincides exactly with the measured value:
+
+```{python}
+#| label: fig-sag-fill-level-point-comparison
+#| fig-cap: "Agreement between the Jc, Jb, and Jb/Jc estimates and the point field measurements. The diagonal represents perfect agreement and makes it possible to identify bias and dispersion in each quantity."
+# We initialize a comparison figure.
+fig = psub.make_subplots(
+    rows=1,
+    cols=3,
+    subplot_titles=(
+        "<b>Jc</b>",
+        "<b>Jb</b>",
+        "<b>Jb/Jc</b>",
+    ),
+    horizontal_spacing=0.12,
+)
+
+fig.update_annotations(font=dict(family=PLOTLY_FONT, size=18))
+
+comparison_specs = [
+    {
+        "var": "jc",
+        "title": "<b>Total fill level</b>",
+        "color": "dodgerblue",
+        "row": 1,
+        "col": 1,
+    },
+    {
+        "var": "jb",
+        "title": "<b>Ball level</b>",
+        "color": "darkorange",
+        "row": 1,
+        "col": 2,
+    },
+    {
+        "var": "jb_jc",
+        "title": "<b>Filling ratio</b>",
+        "color": "firebrick",
+        "row": 1,
+        "col": 3,
+    },
+]
+
+for spec_k in comparison_specs:
+    var_k = spec_k["var"]
+    row_k = spec_k["row"]
+    col_k = spec_k["col"]
+
+    fig.add_trace(
+        go.Scatter(
+            x=model_vs_actual[f"actual_{var_k}"],
+            y=model_vs_actual[f"model_{var_k}"],
+            mode="markers",
+            marker=dict(
+                color=spec_k["color"],
+                size=9,
+                opacity=0.8,
+                line=dict(color="black", width=0.8),
+            ),
+            text=model_vs_actual["timestamp"].dt.strftime("%Y-%m-%d"),
+            hovertemplate=(
+                "<b>Date</b>: %{text}<br>"
+                "<b>Measurement</b>: %{x:.3f}<br>"
+                "<b>Model</b>: %{y:.3f}<extra></extra>"
+            ),
+            showlegend=False,
+        ),
+        row=row_k,
+        col=col_k,
+    )
+
+    min_axis = np.nanmin(
+        [
+            model_vs_actual[f"actual_{var_k}"].min(),
+            model_vs_actual[f"model_{var_k}"].min(),
+        ]
+    )
+    max_axis = np.nanmax(
+        [
+            model_vs_actual[f"actual_{var_k}"].max(),
+            model_vs_actual[f"model_{var_k}"].max(),
+        ]
+    )
+    axis_pad = 0.05 * (max_axis - min_axis)
+    min_axis -= axis_pad
+    max_axis += axis_pad
+
+    fig.add_trace(
+        go.Scatter(
+            x=[min_axis, max_axis],
+            y=[min_axis, max_axis],
+            mode="lines",
+            line=dict(color="black", width=1.2, dash="dash"),
+            showlegend=False,
+            hoverinfo="skip",
+        ),
+        row=row_k,
+        col=col_k,
+    )
+
+    fig.update_xaxes(
+        title=dict(
+            text="<b>Point measurement</b>",
+            font=dict(size=14, family=PLOTLY_FONT),
+        ),
+        range=[min_axis, max_axis],
+        row=row_k,
+        col=col_k,
+    )
+
+    fig.update_yaxes(
+        title=dict(
+            text="<b>Model</b>",
+            font=dict(size=14, family=PLOTLY_FONT),
+        ),
+        range=[min_axis, max_axis],
+        row=row_k,
+        col=col_k,
+    )
+
+fig.update_layout(
+    title=dict(
+        text="<b>Contrast between the model and the point field measurements</b>",
+        font=dict(size=20, family=PLOTLY_FONT),
+        x=0.5,
+        xanchor="center",
+    ),
+    height=500,
+    margin=dict(t=100),
+)
+
+show_plotly(fig)
+```
+
+Finally, it is also useful to look at the contrast along the time axis, keeping clear that the field points are discrete observations:
+
+```{python}
+#| label: fig-sag-fill-level-temporal-validation
+#| fig-cap: "Modeled Jc and Jb series against the available manual measurements. The comparison preserves the point-wise nature of the field observations and avoids interpreting them as continuous sensors."
+# We initialize a temporal figure.
+fig = psub.make_subplots(
+    rows=2,
+    cols=1,
+    shared_xaxes=True,
+    vertical_spacing=0.08,
+)
+
+# Daily model series and actual Jc points.
+fig.add_trace(
+    go.Scatter(
+        x=model_daily["timestamp"],
+        y=model_daily["model_jc"],
+        mode="lines",
+        name="Modeled Jc",
+        line=dict(color="dodgerblue", width=2),
+    ),
+    row=1,
+    col=1,
+)
+
+fig.add_trace(
+    go.Scatter(
+        x=model_vs_actual["timestamp"],
+        y=model_vs_actual["actual_jc"],
+        mode="markers",
+        name="jc_measured_pct",
+        marker=dict(color="navy", size=9, symbol="diamond"),
+    ),
+    row=1,
+    col=1,
+)
+
+# Daily model series and actual Jb points.
+fig.add_trace(
+    go.Scatter(
+        x=model_daily["timestamp"],
+        y=model_daily["model_jb"],
+        mode="lines",
+        name="Modeled Jb",
+        line=dict(color="darkorange", width=2),
+    ),
+    row=2,
+    col=1,
+)
+
+fig.add_trace(
+    go.Scatter(
+        x=model_vs_actual["timestamp"],
+        y=model_vs_actual["actual_jb"],
+        mode="markers",
+        name="jb_measured_pct",
+        marker=dict(color="saddlebrown", size=9, symbol="diamond"),
+    ),
+    row=2,
+    col=1,
+)
+
+fig.update_layout(
+    title=dict(
+        text="<b>Temporal comparison against point measurements</b>",
+        font=dict(size=20, family=PLOTLY_FONT),
+        x=0.5,
+        xanchor="center",
+    ),
+    legend=dict(
+        orientation="h",
+        x=0.5,
+        y=1.04,
+        xanchor="center",
+        yanchor="bottom",
+    ),
+    height=700,
+    margin=dict(t=120),
+)
+
+fig.update_yaxes(
+    title=dict(
+        text="<b>Jc</b>",
+        font=dict(size=14, family=PLOTLY_FONT),
+    ),
+    row=1,
+    col=1,
+)
+
+fig.update_yaxes(
+    title=dict(
+        text="<b>Jb</b>",
+        font=dict(size=14, family=PLOTLY_FONT),
+    ),
+    row=2,
+    col=1,
+)
+
+fig.update_xaxes(
+    title=dict(
+        text="<b>Date</b>",
+        font=dict(size=14, family=PLOTLY_FONT),
+    ),
+    row=2,
+    col=1,
+)
+
+show_plotly(fig)
+```
+
+The contrast confirms something important: The model is useful as a continuous estimator of operating regime, but it should not be read as a direct replacement for point measurements. For $J_{c}$ a fairly defensible signal appears, since the model underestimates the total fill by around 2.9 percentage points, with a mean absolute error close to 3.2 points and a moderate positive correlation. Operationally, this suggests that the reconstruction captures part of the coarse dynamics of the fill level, although its bias should be corrected if it is to be used as an absolute indicator. For $J_{b}$, by contrast, the average bias is small, but the point-to-point correlation is weak and negative; this is to be expected, because the ball level is inferred from an internal balance, pressure, and wear/replenishment assumptions, not measured directly and continuously. The ratio $J_{b}/J_{c}$ amplifies both effects, since it tends to end up overestimated and shows greater dispersion. The metallurgical reading is therefore rather prudent: We can use $J_{c}$ as a continuous tracking signal, $J_{b}$ as a trend indicator subject to recalibration, and the filling ratio as a control variable for comparing campaigns and building operating surfaces, not as an absolute number for making fine decisions without recent field contrast.
+
+## Final comments
+
+The exercise above does not claim to turn a SAG mill into a perfectly observable system. That would be selling smoke with pretty equations. What it does allow is something considerably more useful for operations: Building a continuous, traceable, and debatable reading of the mill's internal state from signals that normally already exist in the plant. In that sense, the value of the model lies not only in estimating $J_{c}$, $J_{b}$, or the $J_{b}/J_{c}$ ratio, but in transforming scattered variables such as power, pressure, throughput, campaign history, and point measurements into a coherent operational narrative.
+
+The main practical gain appears when we stop looking at each signal separately. Power provides information about energy demand and charge condition; pressure helps interpret how that charge is settling; throughput shows the metallurgical consequence; and the filling ratio lets us connect all those elements with a physical hypothesis about the balance between balls, slurry, and rock. By crossing these variables on control surfaces, we no longer ask only whether the mill is drawing more or less power, but in which operating zone that power effectively translates into higher throughput.
+
+There is also an important caveat. Models of this kind are sensitive to data quality, to the consistency of the campaigns, to major shutdowns, to ore changes, to classification conditions, and to any operational event that alters the normal relationship between power, pressure, and internal charge. For that reason, rather than thinking of this model as a closed instrument, it is best to treat it as a living analytical layer: It is calibrated with field measurements, reviewed with metallurgical judgment, updated when operating conditions change, and used to guide technical conversations, not to replace them.
+
+From an applied standpoint, the natural next step would be to turn this logic into a per-campaign monitoring dashboard. There we could track the evolution of $J_{c}$, $J_{b}$, $J_{b}/J_{c}$, power, pressure, and throughput in a single view; detect deviations from the historical envelope; and suggest recommended operating zones under certain stability, availability, and treatment constraints. The beauty of it is that the model does not deliver a single recipe, but a map: A way of locating where the mill is operating, how far it is from its historically favorable zones, and which hypotheses are worth discussing before touching the operation.
+
+In short, this article shows a way of moving from noisy industrial data toward an operational diagnostic tool. It is not magic, nor does it claim to be. It is simplified physical modeling, applied statistics, and process judgment put into conversation with one another. And when those three things are arranged well, even an imperfect estimate can become a very good compass for operating better.

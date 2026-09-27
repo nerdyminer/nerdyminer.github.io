@@ -22,11 +22,11 @@ La teoría de la información permite medir matemáticamente la incertidumbre, l
 
 La **teoría de la información** nació como una teoría matemática de la comunicación. Su pregunta original era profundamente práctica: *¿Cómo podemos transmitir mensajes de forma eficiente y confiable a través de un canal posiblemente ruidoso?* Sin embargo, la respuesta desarrollada por Claude Shannon terminó produciendo un lenguaje matemático mucho más general, capaz de cuantificar incertidumbre, información, redundancia y pérdida de información en sistemas probabilísticos.
 
-En estadística y aprendizaje automático, estas ideas aparecen constantemente. Cuando entrenamos un clasificador, estamos comparando una distribución verdadera con una distribución predicha. Cuando medimos la relevancia de una variable de entrada, estamos preguntando cuánta incertidumbre reduce respecto de una variable de salida. Cuando evaluamos un modelo de lenguaje, estamos preguntando cuán sorprendido queda el modelo frente a una secuencia de tokens observada. En todos estos casos, estamos usando conceptos de teoría de la información.
+En estadística y aprendizaje automático, estas ideas aparecen constantemente. Cuando entrenamos un [modelo de clasificación](/clases/machine-learning/aprendizaje-supervisado/modelos-lineales/modelos-de-clasificacion-parte-i/), estamos comparando una distribución observada o *verdadera* con una distribución predicha. Cuando medimos la importancia de una variable de entrada con respecto a una variable de respuesta, estamos preguntando cuánta incertidumbre reduce respecto de dicha variable. Cuando evaluamos un modelo de lenguaje, estamos preguntando cuán sorprendido queda el modelo frente a una secuencia de *tokens* observada. En todos estos casos, estamos usando conceptos de teoría de la información.
 
-El objetivo de este apunte es construir una introducción práctica y matemática a estos conceptos, manteniendo siempre una conexión con ejemplos computacionales. Partiremos desde la idea de **sorpresa** asociada a un evento, y a partir de ella construiremos la entropía de Shannon. Luego estudiaremos la entropía conjunta, la entropía condicional, el principio de máxima entropía, la información mutua, la divergencia de Kullback-Leibler, la entropía cruzada y la perplejidad.
+El objetivo de este apunte es construir una introducción práctica y matemática a estos conceptos, manteniendo siempre una conexión con ejemplos computacionales. Partiremos desde la idea de **sorpresa** asociada a un evento, y a partir de ella construiremos el concepto de **entropía de Shannon**. Luego ampliaremos nuestro foco y trabajaremos aspectos claves de la teoría de la información, tales como la **entropía conjunta**, la **entropía condicional**, el **principio de máxima entropía**, la **información mutua**, la **divergencia de Kullback-Leibler**, la **entropía cruzada** y la **perplejidad**.
 
-Como en los apuntes anteriores, usaremos Python únicamente como herramienta de apoyo para visualizar y calcular ejemplos concretos.
+Como en los apuntes anteriores, usaremos Python mayormente como herramienta de apoyo para visualizar y realizar cálculos en algunos ejemplos concretos.
 
 ```{python}
 import matplotlib.pyplot as plt
@@ -42,9 +42,17 @@ sns.set()
 plt.style.use("bmh")
 ```
 
+::: {.callout-tip}
+## ¿Qué es un *token*?
+
+Un *token* es una unidad discreta de información que puede representar un símbolo, palabra, carácter o cualquier otro elemento indivisible dentro de un vocabulario finito. En el contexto del procesamiento de lenguaje natural, por ejemplo, los *tokens* suelen corresponder a palabras o subpalabras. En general, los *tokens* permiten transformar información continua o compleja en elementos discretos que pueden ser analizados y procesados de manera más sencilla.
+
+Los *tokens* constituyen un elemento central en los modelos de lenguaje a gran escala (LLMs, del inglés *large language models*). Aceleradores y asistentes importantes en el mercado, como Códex/ChatGPT y Claude, tienen una cuota de uso cuyo cobro se realiza en función del número de *tokens* procesados. Cuando un asistente nos *dice* que ha consumido 1000 *tokens* para procesar una instrucción, significa que ha manejado 1000 unidades discretas de información correspondientes a esa instrucción. 1000 *tokens* equivalen, aproximadamente, a unas 750 palabras en inglés. Unas dos páginas en formato carta.
+:::
+
 ## El concepto de entropía de la información
 
-Consideremos una variable aleatoria $X:\Omega\longrightarrow\mathbb{R}$, cuyas realizaciones pueden interpretarse como los posibles mensajes emitidos por una fuente. En muchos contextos de comunicación, procesamiento de señales, estadística y procesamiento de lenguaje natural, dichos mensajes no se observan como magnitudes continuas de precisión infinita, sino como símbolos, estados, mediciones discretizadas o tokens pertenecientes a un vocabulario finito.
+Consideremos una variable aleatoria $X:\Omega\longrightarrow\mathbb{R}$, cuyas realizaciones pueden interpretarse como los posibles mensajes emitidos por una fuente. En muchos contextos de comunicación, procesamiento de señales, estadística y procesamiento de lenguaje natural, dichos mensajes no se observan como magnitudes continuas de precisión infinita, sino como símbolos, estados, mediciones discretizadas o *tokens* pertenecientes a un vocabulario finito.
 
 Por esta razón, comenzaremos estudiando el caso discreto. Supongamos que $X$ puede tomar un número finito de valores
 
@@ -57,9 +65,9 @@ $$
 
 de modo que el total de realizaciones posibles de $X$ es $|\mathcal{X}|=2n+1$.
 
-Esta notación no busca restringir artificialmente el alcance de la teoría, sino fijar un punto de partida limpio: primero estudiaremos fuentes discretas de información y, más adelante, discutiremos qué cambia cuando $X$ es una variable aleatoria continua. Esta distinción será importante, porque la versión continua de la entropía —la entropía diferencial— no se interpreta exactamente igual que la entropía discreta. En particular, la entropía diferencial puede ser negativa y depende de la escala de medición.
+Esta notación no busca restringir artificialmente el alcance de la teoría, sino fijar un punto de partida limpio: Primero estudiaremos fuentes discretas de información y, más adelante, discutiremos qué cambia cuando $X$ es una variable aleatoria continua. Esta distinción será importante, porque la versión continua de la entropía, denominada **entropía diferencial**, no se interpreta exactamente igual que la entropía discreta. En particular, la entropía diferencial puede ser negativa y depende de la escala de medición.
 
-En este contexto, cada evento elemental $X=x_k$ ocurre con probabilidad
+En este contexto, cada evento elemental $X=x_{k}$ ocurre con probabilidad
 
 ::: {.eq-scroll}
 $$
@@ -68,7 +76,7 @@ p_{k}=P\left( X=x_{k} \right) ,\qquad 0\leq p_{k}\leq 1,\qquad \sum_{k=-n}^{n} p
 $$
 :::
 
-Si existe un valor $x_k$ tal que $p_k=1$, entonces no hay incertidumbre respecto del mensaje que emitirá la fuente. Es decir, sabemos de antemano que la realización será $X=x_k$. En tal caso, observar efectivamente $x_k$ no produce sorpresa y, en consecuencia, no entrega información nueva. Si, por el contrario, cada realización de $X$ ocurre con una probabilidad distinta y, en particular, el valor de $p_k$ es pequeño, entonces el mensaje transmitido por el evento $X=x_k$ será más sorpresivo. En ese caso, la ocurrencia del evento transmite una mayor cantidad de información en comparación con eventos más probables.
+Si existe un valor $x_{k}$ tal que $p_{k}=1$, entonces no hay incertidumbre respecto del mensaje que emitirá la fuente. Es decir, sabemos de antemano que la realización será $X=x_{k}$. En tal caso, observar efectivamente $x_{k}$ no produce sorpresa y, en consecuencia, no entrega información nueva. Si, por el contrario, cada realización de $X$ ocurre con una probabilidad distinta y, en particular, el valor de $p_{k}$ es pequeño, entonces el mensaje transmitido por el evento $X=x_{k}$ será más sorpresivo. En ese caso, la ocurrencia del evento transmite una mayor cantidad de información en comparación con eventos más probables.
 
 De esta manera, los conceptos de incertidumbre, sorpresa e información quedan íntimamente relacionados. Antes de observar la realización de $X$, existe incertidumbre. Al observar un evento poco probable, experimentamos sorpresa. Y después de observarlo, ganamos información. Por eso, la cantidad de información asociada a un evento debe ser inversamente proporcional a su probabilidad.
 
@@ -89,13 +97,13 @@ La base del logaritmo en la ecuación anterior es arbitraria, aunque induce dist
 
 La cantidad de información satisface las siguientes propiedades:
 
-- **(P1):** Si $p_k=1$, entonces $I(x_k)=0$. Esto equivale a decir que, si tenemos certeza absoluta sobre la ocurrencia de un evento, entonces no ganamos información nueva cuando dicho evento ocurre.
-- **(P2):** $I(x_k)\geq 0$ para $0<p_k\leq 1$. La ocurrencia de un evento puede entregar poca o mucha información, pero nunca una cantidad negativa de información.
-- **(P3):** Si $p(x_i)<p(x_j)$, entonces $I(x_i)>I(x_j)$. Es decir, mientras menos probable sea un evento, mayor será la cantidad de información entregada por su ocurrencia.
+- **(P1):** Si $p_{k}=1$, entonces $I(x_{k})=0$. Esto equivale a decir que, si tenemos certeza absoluta sobre la ocurrencia de un evento, entonces no ganamos información nueva cuando dicho evento ocurre.
+- **(P2):** $I(x_{k})\geq 0$ para $0<p_{k}\leq 1$. La ocurrencia de un evento puede entregar poca o mucha información, pero nunca una cantidad negativa de información.
+- **(P3):** Si $p_{i}<p_{j}$, entonces $I(x_{i})>I(x_{j})$. Es decir, mientras menos probable sea un evento, mayor será la cantidad de información entregada por su ocurrencia.
 
-Notemos que la condición $p_k=0$ debe tratarse con cuidado. Si un evento tiene probabilidad nula, entonces no puede ocurrir bajo el modelo probabilístico considerado. Por esta razón, la información puntual $I(x_k)$ se define usualmente para eventos con probabilidad estrictamente positiva.
+Notemos que la condición $p_{k}=0$ debe tratarse con cuidado. Si un evento tiene probabilidad nula, entonces no puede ocurrir bajo el modelo probabilístico considerado. Por esta razón, la información puntual $I(x_{k})$ se define usualmente para eventos con probabilidad estrictamente positiva.
 
-La cantidad de información $I(X)$ puede verse como una nueva variable aleatoria inducida por $X$. En efecto, si $X$ toma el valor $x_k$, entonces $I(X)$ toma el valor $I(x_k)=-\log(p_k)$. Por lo tanto, podemos calcular la cantidad promedio de información como el valor esperado de $I(X)$:
+La cantidad de información $I(X)$ puede verse como una nueva variable aleatoria inducida por $X$. En efecto, si $X$ toma el valor $x_{k}$, entonces $I(X)$ toma el valor $I(x_{k})=-\log(p_{k})$. Por lo tanto, podemos calcular la cantidad promedio de información como el valor esperado de $I(X)$. Es decir,
 
 ::: {.eq-scroll}
 $$
@@ -106,7 +114,7 @@ $$
 
 Este valor esperado tiene una importancia central en la teoría de la información, por lo que formalizaremos su definición a continuación.
 
-<strong><font color='blue'>Definición 3.2 – Entropía de una variable aleatoria discreta:</font></strong> Sea $X$ una variable aleatoria discreta con soporte finito $\mathcal{X}={x_{-n},\dots,x_n}$. Si designamos por $p_k=P(X=x_k)$ a la probabilidad de que ocurra el evento $X=x_k$, entonces la entropía de $X$, denotada por $H(X)$, se define como
+<strong><font color='blue'>Definición 3.2 – Entropía de una variable aleatoria discreta:</font></strong> Sea $X$ una variable aleatoria discreta con soporte finito $\mathcal{X}={x_{-n},\dots,x_{n}}$. Si designamos por $p_{k}=P(X=x_{k})$ a la probabilidad de que ocurra el evento $X=x_{k}$, entonces la **entropía** de $X$, denotada por $H(X)$, se define como
 
 ::: {.eq-scroll}
 $$
@@ -115,9 +123,22 @@ H\left( X \right) :=-\sum_{k=-n}^{n} p_{k}\log \left( p_{k} \right)
 $$
 :::
 
-La entropía $H(X)$ es la cantidad promedio de información producida por la fuente. Equivalentemente, es el valor esperado de la sorpresa $I(X)=-\log(P(X))$. Por ello, $H(X)$ no es una variable aleatoria, sino un número asociado a la distribución de probabilidad de $X$. Dicho de otra forma, $H(X)$ es un funcional de la distribución de $X$.
+La entropía $H(X)$ es la cantidad promedio de información producida por la fuente correspondiente. Equivalentemente, es el valor esperado de la sorpresa $I(X)=-\log(P(X))$. Por ello, $H(X)$ no es una variable aleatoria, sino un número asociado a la distribución de probabilidad de $X$. Dicho de otra forma, $H(X)$ es un **funcional** de la distribución de $X$.
 
-En la ecuación anterior usamos la convención
+::: {.callout-note}
+## ¿Qué es un funcional?
+
+En el contexto del análisis matemático, un **funcional** es una función cuyo dominio es un espacio de funciones y cuyo codominio es el conjunto de los números reales. En otras palabras, un funcional toma una función como entrada y devuelve un número real como salida.
+
+Ejemplos clásicos de funcionales incluyen:
+
+- **Integral de una función:** $F[f] = \int_a^b f(x) \, dx$.
+- **Norma de una función:** $F[f] = \|f\| = \left( \int_a^b |f(x)|^2 \, dx \right)^{1/2}$.
+
+La entropía no es más que un caso un tanto más general del ejemplo de la integral de una función, donde en lugar de integrar sobre un intervalo continuo, se realiza una suma ponderada sobre un conjunto discreto de eventos posibles.
+:::
+
+En la ecuación (3.5) usamos la convención
 
 ::: {.eq-scroll}
 $$
@@ -126,7 +147,7 @@ $$
 $$
 :::
 
-de modo que los eventos de probabilidad nula no contribuyen a la suma.
+de modo que los eventos de probabilidad nula no contribuyen a la suma correspondiente.
 
 A partir de la definición anterior, se puede demostrar que la entropía de una variable aleatoria discreta con $|\mathcal{X}|=2n+1$ posibles realizaciones satisface
 
@@ -258,7 +279,7 @@ ax.set_ylabel(
 plt.tight_layout()
 ```
 
-El resultado confirma la intuición: la fuente casi determinista tiene baja entropía, porque casi siempre emite el mismo mensaje. La fuente uniforme, por otro lado, alcanza la máxima entropía posible para cuatro mensajes, igual a
+El resultado confirma la intuición: La fuente casi determinista tiene baja entropía, porque casi siempre emite el mismo mensaje. La fuente uniforme, por otro lado, alcanza la máxima entropía posible para cuatro mensajes, igual a
 
 ::: {.eq-scroll}
 $$
@@ -269,7 +290,7 @@ $$
 
 La fuente intermedia queda entre ambos extremos. No es completamente predecible, pero tampoco alcanza la incertidumbre máxima de una fuente uniforme.
 
-En el campo del **procesamiento de lenguaje natural** (o **NLP**, del inglés *natural language processing*), esta interpretación es particularmente útil. Si $X$ representa el próximo token emitido por una fuente textual, entonces $p_k$ representa la probabilidad de observar el token $x_k$. Un token extremadamente frecuente tiende a producir poca sorpresa. Un token raro, técnico o inesperado produce una mayor cantidad de información. Desde esta perspectiva, la entropía mide la incertidumbre promedio asociada al próximo token de una fuente de lenguaje. ◼︎
+En el campo del **procesamiento de lenguaje natural** (o **NLP**, del inglés *natural language processing*), esta interpretación es particularmente útil. Si $X$ representa el próximo *token* emitido por una fuente textual, entonces $p_k$ representa la probabilidad de observar el *token* $x_k$. Un *token* extremadamente frecuente tiende a producir poca sorpresa. Un *token* raro, técnico o inesperado produce una mayor cantidad de información. Desde esta perspectiva, la entropía mide la incertidumbre promedio asociada al próximo *token* de una fuente de lenguaje. ◼︎
 
 ### Entropía diferencial de variables aleatorias continuas
 
@@ -279,11 +300,11 @@ La respuesta es afirmativa, pero con una advertencia importante: La entropía di
 
 Formalizaremos esta idea en la siguiente definición.
 
-<strong><font color='blue'>Definición 3.3 – Entropía diferencial de una variable aleatoria continua:</font></strong> Sea $X:\Omega \longrightarrow \mathbb{R}$ una variable aleatoria continua con función de densidad $f_X(x)$. Se define la **entropía diferencial** de $X$, denotada por $h(X)$, como
+<strong><font color='blue'>Definición 3.3 – Entropía diferencial de una variable aleatoria continua:</font></strong> Sea $X:\Omega \longrightarrow \mathbb{R}$ una variable aleatoria continua con función de densidad $f_{X}(x)$. Se define la **entropía diferencial** de $X$, denotada por $h(X)$, como
 
 ::: {.eq-scroll}
 $$
-h(X):=-\int_{-\infty}^{+\infty}f_X(x)\log\left(f_X(x)\right)dx=-\mathrm{E}\left[\log\left(f_X(X)\right)\right]
+h(X):=-\int_{-\infty}^{+\infty}f_{X}(x)\log\left(f_{X}(x)\right)dx=-\mathrm{E}\left[\log\left(f_{X}(X)\right)\right]
 \tag{3.10}
 $$
 :::
@@ -292,38 +313,38 @@ Si el logaritmo es natural, $h(X)$ se mide en **nats**. Si usamos logaritmo en b
 
 La expresión anterior se parece mucho a la entropía discreta definida en (3.5). Sin embargo, su interpretación es más delicada. Para entender por qué, conviene estudiar cómo aparece la entropía diferencial cuando discretizamos una variable continua.
 
-Supongamos que $X$ es una variable aleatoria continua con densidad $f_X(x)$. Construyamos una versión cuantizada de $X$ dividiendo la recta real en intervalos de ancho $\Delta x$. Si el intervalo $k$-ésimo está dado por $[k\Delta x,(k+1)\Delta x)$, entonces la probabilidad de que $X$ caiga en dicho intervalo es
+Supongamos que $X$ es una variable aleatoria continua con densidad $f_{X}(x)$. Construyamos una versión cuantizada de $X$ dividiendo la recta real en *pequeños* intervalos de ancho $\triangle x$. Si el intervalo $k$-ésimo está dado por $[k\triangle x,(k+1)\triangle x)$, entonces la probabilidad de que $X$ caiga en dicho intervalo es
 
 ::: {.eq-scroll}
 $$
-p_k^{\Delta}=\int_{k\Delta x}^{(k+1)\Delta x}f_X(x)dx
+p_k^{\triangle}=\int_{k\triangle x}^{(k+1)\triangle x}f_{X}(x)dx
 \tag{3.11}
 $$
 :::
 
-Si $\Delta x$ es pequeño, podemos aproximar esta probabilidad mediante una suma de Riemann. Es decir, para algún punto representativo $x_k$ del intervalo,
+Si $\triangle x$ es pequeño, podemos aproximar esta probabilidad mediante una suma de Riemann. Es decir, para algún punto representativo $x_k$ del intervalo,
 
 ::: {.eq-scroll}
 $$
-p_k^{\Delta} \approx f_X(x_k)\Delta x
+p_k^{\triangle} \approx f_X(x_k)\triangle x
 \tag{3.12}
 $$
 :::
 
-La entropía discreta de la variable cuantizada $X^\Delta$ queda entonces dada por
+La entropía discreta de la variable cuantizada $X^\triangle$ queda entonces dada por
 
 ::: {.eq-scroll}
 $$
-H^\Delta(X)=-\sum_{k}p_k^\Delta\log(p_k^\Delta)
+H^\triangle(X)=-\sum_{k}p_k^\triangle\log(p_k^\triangle)
 \tag{3.13}
 $$
 :::
 
-Sustituyendo la aproximación $p_k^\Delta\approx f_X(x_k)\Delta x$, obtenemos
+Sustituyendo la aproximación $p_k^\triangle\approx f_X(x_k)\triangle x$, obtenemos
 
 ::: {.eq-scroll}
 $$
-H^\Delta(X) \approx -\sum_k f_X(x_k)\Delta x \log\left(f_X(x_k)\Delta x\right).
+H^\triangle(X) \approx -\sum_k f_X(x_k)\triangle x \log\left(f_X(x_k)\triangle x\right).
 \tag{3.14}
 $$
 :::
@@ -332,25 +353,25 @@ Expandiendo el logaritmo,
 
 ::: {.eq-scroll}
 $$
-H^\Delta(X) \approx -\sum_k f_X(x_k)\Delta x \log\left(f_X(x_k)\right)- \sum_k f_X(x_k)\Delta x \log(\Delta x)
+H^\triangle(X) \approx -\sum_k f_X(x_k)\triangle x \log\left(f_X(x_k)\right)- \sum_k f_X(x_k)\triangle x \log(\triangle x)
 \tag{3.15}
 $$
 :::
 
-Como $\log(\Delta x)$ no depende de $k$, podemos escribir
+Como $\log(\triangle x)$ no depende de $k$, podemos escribir
 
 ::: {.eq-scroll}
 $$
-H^\Delta(X) \approx -\sum_k f_X(x_k)\Delta x \log\left(f_X(x_k)\right) -\log(\Delta x) \sum_k f_X(x_k)\Delta x
+H^\triangle(X) \approx -\sum_k f_X(x_k)\triangle x \log\left(f_X(x_k)\right) -\log(\triangle x) \sum_k f_X(x_k)\triangle x
 \tag{3.16}
 $$
 :::
 
-Al hacer $\Delta x\rightarrow 0$, el primer término converge a la entropía diferencial y el segundo término converge a $-\log(\Delta x)$, porque la suma de las probabilidades tiende a $1$. Por tanto,
+Al hacer $\triangle x\rightarrow 0$, el primer término converge a la entropía diferencial y el segundo término converge a $-\log(\triangle x)$, porque la suma de las probabilidades tiende a $1$. Por tanto,
 
 ::: {.eq-scroll}
 $$
-H^\Delta(X)=h(X)-\log(\Delta x)+o(1), \qquad \Delta x\rightarrow 0
+H^\triangle(X)=h(X)-\log(\triangle x)+o(1), \qquad \triangle x\rightarrow 0
 \tag{3.17}
 $$
 :::
@@ -359,12 +380,12 @@ Equivalentemente,
 
 ::: {.eq-scroll}
 $$
-h(X)=\lim_{\Delta x\rightarrow 0} \left[H^\Delta(X)+\log(\Delta x) \right]
+h(X)=\lim_{\triangle x\rightarrow 0} \left[H^\triangle(X)+\log(\triangle x) \right]
 \tag{3.18}
 $$
 :::
 
-Esta relación es fundamental. Nos dice que la entropía diferencial no es simplemente el límite de la entropía discreta cuando hacemos la discretización cada vez más fina. En efecto, cuando $\Delta x\rightarrow 0$, se tiene que $\log(\Delta x)\rightarrow -\infty$, de modo que $-\log(\Delta x)\rightarrow +\infty$. Por lo tanto, la entropía discreta de la variable cuantizada crece sin cota a medida que exigimos mayor precisión.
+Esta relación es fundamental. Nos dice que la entropía diferencial no es simplemente el límite de la entropía discreta cuando hacemos la discretización cada vez más fina. En efecto, cuando $\triangle x\rightarrow 0$, se tiene que $\log(\triangle x)\rightarrow -\infty$, de modo que $-\log(\triangle x)\rightarrow +\infty$. Por lo tanto, la entropía discreta de la variable cuantizada crece sin límite a medida que exigimos mayor precisión.
 
 La entropía diferencial aparece como el término finito que queda después de descontar la contribución asociada a la resolución de la medición. Esta es la razón profunda por la cual $h(X)$ no debe interpretarse como una cantidad absoluta de información del mismo modo que $H(X)$.
 
@@ -372,15 +393,7 @@ Cuando consideramos un vector aleatorio continuo $\mathbf{X}=(X_1,\dots,X_p)$ co
 
 ::: {.eq-scroll}
 $$
-h(\mathbf{X})
-=
--\int_{\mathbb{R}^{p}}
-f_{\mathbf{X}}(\mathbf{x})
-\log\left(f_{\mathbf{X}}(\mathbf{x})\right)d\mathbf{x}
-=
--\mathrm{E}\left[
-\log\left(f_{\mathbf{X}}(\mathbf{X})\right)
-\right]
+h(\mathbf{X} )=-\int_{\mathbb{R}^{p}} f_{\mathbf{X}}(\mathbf{x} )\log \left( f_{\mathbf{X}}(\mathbf{x} ) \right) d\mathbf{x} =-\mathrm{E} \left[ \log \left( f_{\mathbf{X}}(\mathbf{X} ) \right) \right]
 \tag{3.19}
 $$
 :::
@@ -391,11 +404,7 @@ Aquí $\mathbf{x}\in\mathbb{R}^{p}$ representa una realización del vector aleat
 
 ::: {.eq-scroll}
 $$
-f_X(x)
-=
-\lambda e^{-\lambda x},
-\qquad
-x\geq 0
+f_{X}(x)=\lambda e^{-\lambda x}\quad ;\quad x\geq 0
 \tag{3.20}
 $$
 :::
@@ -468,47 +477,30 @@ $$
 
 ::: {.eq-scroll}
 $$
-h(aX)
-=
-h(X)+\log|a|
+h(aX)=h(X)+\log|a|
 \tag{3.24}
 $$
 :::
 
-Para un vector aleatorio continuo $\mathbf{X}\in\mathbb{R}^{p}$ y una matriz invertible $\mathbf{A}\in\mathbb{R}^{p\times p}$, se tiene
+Para un vector aleatorio continuo $\mathbf{X}\in\mathbb{R}^{p}$ y una matriz invertible $\mathbf{A}\in\mathbb{R}^{p\times p}$, se tiene que
 
 ::: {.eq-scroll}
 $$
-h(\mathbf{A}\mathbf{X})
-=
-h(\mathbf{X})
-+
-\log|\det(\mathbf{A})|
+h(\mathbf{A} \mathbf{X} )=h(\mathbf{X} )+\log |\det (\mathbf{A} )|
 \tag{3.25}
 $$
 :::
 
-- **(P3):** Si $\mathbf{Y}=g(\mathbf{X})$, donde $g:\mathbb{R}^{p}\rightarrow\mathbb{R}^{p}$ es una transformación diferenciable y biyectiva, entonces
+- **(P3):** Si $\mathbf{Y}=g(\mathbf{X})$, donde $g:\mathbb{R}^{p}\rightarrow\mathbb{R}^{p}$ es una transformación diferenciable y biyectiva (típicamente el resultado de un cambio de variables), entonces
 
 ::: {.eq-scroll}
 $$
-h(\mathbf{Y})
-=
-h(\mathbf{X})
-+
-\mathrm{E}
-\left[
-\log
-\left|
-\det
-J_g(\mathbf{X})
-\right|
-\right]
+h(\mathbf{Y} )=h(\mathbf{X} )+\mathrm{E} \left[ \log \left| \det \mathbf{J}_{g}(\mathbf{X} ) \right| \right]
 \tag{3.26}
 $$
 :::
 
-donde $J_g(\mathbf{x})$ es la matriz Jacobiana de la transformación $g$ evaluada en $\mathbf{x}$. Si $g$ no es biyectiva, esta igualdad ya no tiene por qué cumplirse, porque varios valores de $\mathbf{X}$ pueden *colapsar* en una misma realización de $\mathbf{Y}$.
+donde $\mathbf{J}_{g}(\mathbf{x})$ es la matriz Jacobiana de la transformación $g$ evaluada en $\mathbf{x}$. Si $g$ no es biyectiva, esta igualdad ya no tiene por qué cumplirse, porque varios valores de $\mathbf{X}$ pueden *colapsar* en una misma realización de $\mathbf{Y}$.
 
 - **(P4):** Puede tomar valores negativos. A diferencia de la entropía discreta, no necesariamente se cumple que $h(X)\geq 0$.
 
@@ -516,7 +508,7 @@ donde $J_g(\mathbf{x})$ es la matriz Jacobiana de la transformación $g$ evaluad
 
 Estas propiedades hacen que la entropía diferencial sea menos intuitiva que la entropía discreta, pero no menos importante. En modelos probabilísticos continuos, estadística multivariada, representaciones latentes y aprendizaje profundo, $h(X)$ mide la dispersión efectiva de una densidad continua, siempre teniendo presente que dicha dispersión está atada a la escala del espacio donde vive la variable aleatoria.
 
-**Ejemplo 3.3 – Entropía diferencial de representaciones continuas de *tokens*:** En procesamiento de lenguaje natural moderno, las palabras (o *tokens*, xomo se denominan en la *jerga* técnica) no sólo se representan como símbolos discretos. También pueden representarse como vectores continuos, usualmente llamados **embeddings**. Un *embedding* busca ubicar tokens en un espacio vectorial de manera tal que tokens con usos o significados similares queden cerca entre sí.
+**Ejemplo 3.3 – Entropía diferencial de representaciones continuas de *tokens*:** En procesamiento de lenguaje natural moderno, las palabras (o *tokens*, como se denominan en la *jerga* técnica) no sólo se representan como símbolos discretos. También pueden representarse como vectores continuos, usualmente llamados **embeddings**. Un *embedding* busca ubicar tokens en un espacio vectorial de manera tal que tokens con usos o significados similares queden cerca entre sí.
 
 En este contexto, una colección de embeddings puede interpretarse como una muestra de una variable aleatoria continua $\mathbf{X}\in\mathbb{R}^{p}$. La entropía diferencial de esta variable no mide la incertidumbre discreta sobre qué token aparecerá, sino la dispersión geométrica de sus representaciones continuas.
 
@@ -526,36 +518,27 @@ Para fijar ideas, construiremos tres nubes sintéticas de embeddings bidimension
 2. Una nube intermedia, que representa mayor variedad semántica.
 3. Una nube dispersa, que representa tokens más heterogéneos en su representación vectorial.
 
-Aproximaremos cada nube mediante una distribución normal multivariada. Si
+Aproximaremos cada nube mediante una distribución normal multivariante. Si
 
 ::: {.eq-scroll}
 $$
-\mathbf{X}
-\sim
-\mathcal{N}(\boldsymbol{\mu},\boldsymbol{\Sigma})
+\mathbf{X} \sim \mathcal{N}(\boldsymbol{\mu},\boldsymbol{\Sigma})
 \tag{3.27}
 $$
 :::
 
-entonces su entropía diferencial es
+con $\boldsymbol{\mu}$ y $\boldsymbol{\Sigma}$ la media y la matriz de covarianza de la distribución, entonces su entropía diferencial es
 
 ::: {.eq-scroll}
 $$
-h(\mathbf{X})
-=
-\frac{1}{2}
-\log
-\left[
-(2\pi e)^p
-\det(\boldsymbol{\Sigma})
-\right]
+h(\mathbf{X})=\frac{1}{2}\log \left[(2\pi e)^p \det(\boldsymbol{\Sigma})\right]
 \tag{3.28}
 $$
 :::
 
-Esta fórmula muestra que, para una distribución normal multivariada, la entropía diferencial crece con el volumen efectivo de la nube, medido por $\det(\boldsymbol{\Sigma})$.
+Esta fórmula muestra que, para una distribución normal multivariante, la entropía diferencial crece con el volumen efectivo de la nube, cuyo valor es igual a $\det(\boldsymbol{\Sigma})$.
 
-Vamos a implementar esto en Python de manera directa. Primero, definimos una función que nos permitirá calcular la entropía diferencial para un vector aleatorio normal multivariante:
+Vamos a implementar esto en Python de manera directa. Primero, definimos una función que nos permitirá calcular la entropía diferencial para un vector aleatorio normal multivariable:
 
 ```{python}
 def gaussian_differential_entropy(cov, base=np.e):
@@ -635,6 +618,7 @@ for name, X_emb in embeddings.items():
         "det(cov)": np.linalg.det(cov_hat)
     })
 
+# Llevamos todo a formato de DataFrame y lo mostramos en pantalla.
 embedding_entropy_df = pd.DataFrame(embedding_entropy_rows)
 embedding_entropy_df
 ```
@@ -689,7 +673,7 @@ plt.tight_layout()
 
 El patrón es el esperado: Una nube más concentrada tiene menor entropía diferencial, mientras que una nube más dispersa tiene mayor entropía diferencial. En una lectura propia de NLP, esto no significa que el vocabulario discreto tenga más o menos entropía de Shannon, sino que las representaciones continuas de los tokens ocupan un mayor o menor volumen efectivo en el espacio latente.
 
-Ahora mostremos explícitamente la dependencia de escala. Tomemos la nube intermedia y reescalémosla por un factor $a=3$. Conforme la ecuación (3.25), como estamos en dimensión $p=2$, se debe cumplir
+Ahora mostremos explícitamente la dependencia de escala. Tomemos la nube intermedia y reescalémosla por un factor $a=3$. Conforme la ecuación (3.25), como estamos en una dimensión $p=2$, se debe cumplir
 
 ::: {.eq-scroll}
 $$
@@ -712,11 +696,13 @@ cov_mid_scaled = np.cov(X_mid_scaled, rowvar=False)
 h_mid = gaussian_differential_entropy(cov_mid, base=2)
 h_mid_scaled = gaussian_differential_entropy(cov_mid_scaled, base=2)
 
-scale_effect_df = pd.DataFrame({
-    "Caso": ["Original", "Reescalado por a=3"],
-    "Entropía diferencial [bits]": [h_mid, h_mid_scaled]
-})
-
+# Llevamos a DataFrame y lo mostramos en pantalla.
+scale_effect_df = pd.DataFrame(
+    {
+        "Caso": ["Original", "Reescalado por a=3"],
+        "Entropía diferencial [bits]": [h_mid, h_mid_scaled],
+    },
+)
 scale_effect_df
 ```
 
@@ -751,19 +737,19 @@ ax.legend(loc="best", frameon=True)
 plt.tight_layout()
 ```
 
-Este último experimento resulta súper importante. El contenido semántico relativo de los puntos no cambió: Las distancias relativas entre tokens se preservaron bajo el reescalamiento. Sin embargo, la entropía diferencial sí cambió, porque el volumen geométrico ocupado por la distribución aumentó.
+Este último experimento resulta súper importante. El contenido semántico relativo de los puntos no cambió: Las distancias relativas entre *tokens* se preservaron bajo el reescalamiento. Sin embargo, la entropía diferencial sí cambió, porque el volumen geométrico ocupado por la distribución aumentó.
 
-Por lo tanto, en NLP debemos interpretar la entropía diferencial de embeddings con cuidado. Puede ser útil para comparar dispersión geométrica dentro de un mismo espacio latente, bajo la misma normalización y la misma métrica. Pero no debe confundirse con la entropía discreta de una fuente de tokens. La primera mide volumen en un espacio continuo; la segunda mide incertidumbre sobre símbolos. Ambas nociones están relacionadas por la idea general de incertidumbre, pero operan sobre objetos matemáticos distintos. ◼︎
+Por lo tanto, en NLP debemos interpretar la entropía diferencial de embeddings con cuidado. Puede ser útil para comparar dispersión geométrica dentro de un mismo espacio latente, bajo la misma normalización y la misma métrica. Pero no debe confundirse con la entropía discreta de una fuente de *tokens*. La primera mide volumen en un espacio continuo; la segunda mide incertidumbre sobre símbolos. Ambas nociones están relacionadas por la idea general de incertidumbre, pero operan sobre objetos matemáticos distintos. ◼︎
 
 ## Principio de máxima entropía
 
 Supongamos que deseamos estudiar un sistema estocástico con un conjunto conocido de estados posibles, pero con probabilidades de ocurrencia desconocidas. En muchos problemas reales no conocemos la distribución completa que gobierna dichos estados, aunque sí disponemos de información parcial: Una media, una varianza, una cota, una frecuencia esperada, una proporción agregada o alguna restricción física u operacional.
 
-Un ejemplo aplicado aparece en el funcionamiento de un molino semiautógeno (SAG) en una planta de procesamiento de mineral. Estos molinos se caracterizan por variables de control como potencia, velocidad de rotación, tonelaje alimentado y presión sobre descansos. A medida que el molino opera, sus revestimientos interiores se desgastan por la acción abrasiva del mineral y los medios de molienda, lo que modifica progresivamente la presión de carga. En ese contexto, podríamos desconocer la distribución completa de la presión, pero sí conocer algunas restricciones razonables: Su rango físico admisible, su valor medio aproximado, su tendencia decreciente durante una campaña de revestimientos o su varianza esperada bajo cierto tipo de mineral.
+Un ejemplo aplicado aparece en el funcionamiento de un molino semiautógeno (SAG) en una planta de procesamiento de minerales. Estos molinos se caracterizan por el monitoreo de variables de control como potencia, velocidad de rotación, tonelaje alimentado y presión sobre descansos. A medida que el molino opera, sus revestimientos interiores se desgastan por la acción abrasiva del mineral y los medios de molienda, lo que modifica progresivamente la presión de carga. En ese contexto, podríamos desconocer la distribución completa de la presión, pero sí conocer algunas restricciones razonables: Su rango físico admisible, su valor medio aproximado, su tendencia decreciente durante una campaña de revestimientos o su varianza esperada bajo cierto tipo de mineral.
 
 Este tipo de información parcial se denomina **conocimiento a priori**. El problema es que, en general, existen infinitas distribuciones de probabilidad compatibles con un mismo conjunto de restricciones. Por lo tanto, surge una pregunta natural: *¿Cuál de todas esas distribuciones deberíamos escoger?*
 
-El **principio de máxima entropía** entrega una respuesta a esta pregunta. La idea central es que, entre todas las distribuciones compatibles con la información disponible, debemos escoger aquella que introduzca la menor cantidad posible de supuestos adicionales. En otras palabras, debemos escoger la distribución más incierta, o menos informativa, entre todas las que respetan las restricciones conocidas.
+El **principio de máxima entropía** entrega una respuesta a esta pregunta. La idea central es que, entre todas las distribuciones compatibles con la información disponible, debemos escoger aquella que introduzca la menor cantidad posible de supuestos adicionales. En otras palabras, debemos escoger la distribución más incierta, o menos informativa, entre todas las que respetan las restricciones conocidas, lo que da sentido al siguiente teorema.
 
 ::: {.callout-tip}
 ## Teorema 3.1 – Principio de máxima entropía
@@ -773,14 +759,11 @@ El **principio de máxima entropía** entrega una respuesta a esta pregunta. La 
 
 La fuerza conceptual del principio es que transforma el problema de inferencia en un problema de optimización restringida. No estamos escogiendo la distribución que “parece más bonita” ni la que resulta más cómoda algebraicamente, sino aquella que maximiza la incertidumbre restante después de imponer todo lo que efectivamente sabemos.
 
-Para formalizar esta idea, consideremos una variable aleatoria continua $X$ con densidad desconocida $f_X$. Queremos maximizar su entropía diferencial
+Para formalizar esta idea, consideremos una variable aleatoria continua $X$ con densidad desconocida $f_{X}$. Queremos maximizar su entropía diferencial
 
 ::: {.eq-scroll}
 $$
-h(X)
-=
--\int_{-\infty}^{+\infty}
-f_X(x)\log(f_X(x))dx
+h(X)=-\int_{-\infty}^{+\infty}f_X(x)\log(f_X(x))dx
 \tag{3.30}
 $$
 :::
@@ -824,7 +807,84 @@ f_X(x)g_i(x)dx
 $$
 :::
 
-Para resolver formalmente este problema, introducimos multiplicadores de Lagrange. Ignorando por el momento la restricción de no negatividad, y buscando soluciones interiores con $f_X(x)>0$, el funcional Lagrangiano puede escribirse como
+::: {.callout-note}
+## ¿Qué significa formular variacionalmente este problema?
+
+En un problema de optimización ordinario, la variable de decisión es un vector finito, por ejemplo, $\mathbf{x}\in\mathbb{R}^{n}$, y buscamos maximizar una función $F(\mathbf{x})$. En un **problema de optimización funcional**, en cambio, la incógnita es una función completa. En este caso no buscamos un número ni un conjunto finito de parámetros: Buscamos la densidad $f_X(x)$ entre todas las funciones que cumplen las restricciones impuestas. El objetivo es, por tanto, un **funcional**, es decir, una regla que recibe una función y devuelve un número:
+
+::: {.eq-scroll}
+$$
+\mathcal{J}[f]
+=
+-\int_{-\infty}^{+\infty}f(x)\log f(x)\,dx
+$$
+:::
+
+De manera abstracta, una formulación variacional restringida puede escribirse como
+
+::: {.eq-scroll}
+$$
+f^{\star}
+\in
+\underset{f\in\mathcal{A}}{\operatorname{arg\,max}}
+\;\mathcal{J}[f],
+\quad;\quad
+\mathcal{A}
+=
+\left\{
+f:\ f\geq 0,\;
+\mathcal{C}_{0}[f]=0,\;
+\mathcal{C}_{i}[f]=0,
+\ i=1,\dots,m
+\right\}
+$$
+:::
+
+donde $\mathcal{A}$ es el conjunto de funciones admisibles. En el problema de máxima entropía, las restricciones funcionales son
+
+::: {.eq-scroll}
+$$
+\mathcal{C}_{0}[f]
+=
+\int_{-\infty}^{+\infty}f(x)\,dx-1,
+\quad; \quad
+\mathcal{C}_{i}[f]
+=
+\int_{-\infty}^{+\infty}f(x)g_i(x)\,dx-\alpha_i
+$$
+:::
+
+El término **variacional** alude a que estudiamos cómo cambia el funcional cuando perturbamos ligeramente una función candidata. Si $f^{\star}$ es una posible solución y $\eta$ es una perturbación admisible, consideramos la familia $f_{\varepsilon}=f^{\star}+\varepsilon\eta$. La **primera variación** de $\mathcal{J}$ en la dirección $\eta$ se define como
+
+::: {.eq-scroll}
+$$
+\delta\mathcal{J}[f^{\star};\eta]
+=
+\left.
+\frac{d}{d\varepsilon}
+\mathcal{J}[f^{\star}+\varepsilon\eta]
+\right|_{\varepsilon=0}
+$$
+:::
+
+En una solución interior, esta variación debe anularse para toda dirección factible $\eta$. Cuando existen restricciones, se incorporan mediante multiplicadores de Lagrange y se exige
+
+::: {.eq-scroll}
+$$
+\delta\!\left(
+\mathcal{J}[f]
++\lambda_{0}\mathcal{C}_{0}[f]
++\sum_{i=1}^{m}\lambda_i\mathcal{C}_{i}[f]
+\right)[f^{\star};\eta]
+=0
+\ ; \forall\eta
+$$
+:::
+
+Así, la ecuación (3.31) es variacional porque su variable de decisión es la densidad completa $f_X$, su objetivo es el funcional de entropía y sus restricciones también actúan sobre la función mediante integrales. La condición anterior es el análogo funcional de imponer $\nabla F(\mathbf{x}^{\star})=\mathbf{0}$ en optimización finito-dimensional.
+:::
+
+Para resolver formalmente el problema (3.31), procederemos por medio del método de multiplicadores de Lagrange. Ignorando por el momento la restricción de no negatividad, y buscando soluciones interiores con $f_X(x)>0$, el funcional Lagrangiano puede escribirse como
 
 ::: {.eq-scroll}
 $$
@@ -863,15 +923,7 @@ La condición de primer orden se obtiene anulando la derivada funcional respecto
 
 ::: {.eq-scroll}
 $$
-\frac{\delta \mathcal{L}}{\delta f_X(x)}
-=
--1-\log(f_X(x))
-+
-\lambda_0
-+
-\sum_{i=1}^{m}\lambda_i g_i(x)
-=
-0
+\frac{\partial \mathcal{L}}{\partial f_{X}(x)} =-1-\log (f_{X}(x))+\lambda_{0} +\sum_{i=1}^{m} \lambda_{i} g_{i}(x)=0
 \tag{3.33}
 $$
 :::
@@ -880,13 +932,7 @@ Despejando $f_X(x)$, se obtiene
 
 ::: {.eq-scroll}
 $$
-f_X^{\star}(x)
-=
-\exp
-\left(
-\lambda_0-1+
-\sum_{i=1}^{m}\lambda_i g_i(x)
-\right)
+f_{X}^{\star}(x)=\exp \left( \lambda_{0} -1+\sum_{i=1}^{m} \lambda_{i} g_{i}(x) \right)
 \tag{3.34}
 $$
 :::
@@ -906,18 +952,15 @@ f_X^{\star}(x)
 $$
 :::
 
-donde $Z(\boldsymbol{\lambda})$ es una constante de normalización, también llamada **función de partición**, definida implícitamente para que la densidad integre uno.
+donde $Z(\boldsymbol{\lambda})$ es una constante de normalización, también llamada **función de partición**, definida implícitamente para que la integral de la función de densidad sea igual a 1.
 
-La ecuación (3.35) es extremadamente importante: muestra que las distribuciones de máxima entropía bajo restricciones de momentos pertenecen a una familia exponencial. Las funciones $g_i(x)$ codifican las estadísticas conocidas del sistema, mientras que los multiplicadores $\lambda_i$ se escogen para que las restricciones $\mathrm{E}[g_i(X)]=\alpha_i$ se satisfagan exactamente.
+La ecuación (3.35) es extremadamente importante: Muestra que las distribuciones de máxima entropía bajo restricciones de momentos pertenecen a una familia exponencial. Las funciones $g_i(x)$ codifican los estadígrafos conocidos del sistema, mientras que los multiplicadores $\lambda_i$ se escogen para que las restricciones $\mathrm{E}[g_i(X)]=\alpha_i$ se satisfagan exactamente.
 
 **Ejemplo 3.4 – El caso de la distribución normal unidimensional:** Supongamos que el conocimiento a priori disponible para una variable aleatoria continua $X$ consiste en un valor central $\mu$ y una varianza $\sigma^2$. Equivalentemente, conocemos el momento cuadrático centrado
 
 ::: {.eq-scroll}
 $$
-\int_{-\infty}^{+\infty}
-(x-\mu)^2 f_X(x)dx
-=
-\sigma^2
+\int_{-\infty}^{+\infty} (x-\mu )^{2}f_{X}(x)dx=\sigma^{2}
 \tag{3.36}
 $$
 :::
@@ -926,9 +969,7 @@ En este caso, la restricción informativa está dada por
 
 ::: {.eq-scroll}
 $$
-g_1(x)=(x-\mu)^2,
-\qquad
-\alpha_1=\sigma^2
+g_{1}(x)=(x-\mu )^{2}\quad ;\quad \alpha_{1} =\sigma^{2}
 \tag{3.37}
 $$
 :::
@@ -937,27 +978,16 @@ Al aplicar la forma general (3.34), obtenemos una densidad de la forma
 
 ::: {.eq-scroll}
 $$
-f_X^{\star}(x)
-=
-\exp
-\left(
-\lambda_0-1+\lambda_1(x-\mu)^2
-\right)
+f_{X}^{\star}(x)=\exp \left( \lambda_{0} -1+\lambda_{1} (x-\mu )^{2} \right)
 \tag{3.38}
 $$
 :::
 
-Para que esta función sea integrable en toda la recta real, necesariamente debe cumplirse que $\lambda_1<0$. Al imponer las restricciones de normalización y varianza, se obtiene
+Para que esta función sea integrable en todo $\mathbb{R}$, necesariamente debe cumplirse que $\lambda_1<0$. Al imponer las restricciones de normalización y varianza, se obtiene
 
 ::: {.eq-scroll}
 $$
-\lambda_1
-=
--\frac{1}{2\sigma^2},
-\qquad
-\lambda_0
-=
-1-\frac{1}{2}\log(2\pi\sigma^2)
+\lambda_{1} =-\frac{1}{2\sigma^{2}} \quad ;\quad \lambda_{0} =1-\frac{1}{2} \log (2\pi \sigma^{2} )
 \tag{3.39}
 $$
 :::
@@ -966,37 +996,21 @@ Sustituyendo estos valores en (3.38), resulta
 
 ::: {.eq-scroll}
 $$
-f_X^{\star}(x)
-=
-\frac{1}{\sqrt{2\pi}\sigma}
-\exp
-\left[
--\frac{(x-\mu)^2}{2\sigma^2}
-\right]
+f_{X}^{\star}(x)=\frac{1}{\sqrt{2\pi} \sigma} \exp \left[ -\frac{(x-\mu )^{2}}{2\sigma^{2}} \right]
 \tag{3.40}
 $$
 :::
 
-Reconocemos inmediatamente esta expresión como la densidad de una variable aleatoria Gaussiana $X\sim\mathcal{N}(\mu,\sigma^2)$.
-
-La entropía diferencial máxima correspondiente es
+Reconocemos inmediatamente esta expresión como la función de densidad de una variable aleatoria Gaussiana $X\sim\mathcal{N}(\mu,\sigma^2)$. La entropía diferencial máxima correspondiente es
 
 ::: {.eq-scroll}
 $$
-h(X)
-=
-\frac{1}{2}
-\log(2\pi e\sigma^2)
-=
-\frac{1}{2}
-\left[
-1+\log(2\pi\sigma^2)
-\right]
+\begin{array}{lll}h\left( X \right)&=&\dfrac{1}{2} \log (2\pi e\sigma^{2} )\\ &=&\dfrac{1}{2} \left[ 1+\log (2\pi \sigma^{2} ) \right]\end{array}
 \tag{3.41}
 $$
 :::
 
-Este resultado tiene una interpretación profunda: entre todas las variables aleatorias continuas con varianza fija $\sigma^2$, la distribución Gaussiana es la que maximiza la entropía diferencial. Dicho de otra forma, si sólo conocemos la escala de dispersión de una variable continua y no sabemos nada más, la inferencia menos sesgada compatible con esa información es una distribución normal. ◼︎
+Este resultado reviste una interpretación de gran importancia en la teoría de la información: En términos simples, de entre todas las variables aleatorias continuas con varianza fija $\sigma^{2}$, la distribución Gaussiana es la que maximiza la entropía diferencial correspondiente. Dicho de otra forma, si sólo conocemos la escala de dispersión de una variable continua y no sabemos nada más, la inferencia menos sesgada compatible con esa información es una distribución normal. ◼︎
 
 **Ejemplo 3.5 – El caso de la distribución Gaussiana multivariable:** El resultado anterior se extiende naturalmente al caso multivariable. Sea $\mathbf{X}\in\mathbb{R}^{m}$ un vector aleatorio continuo con media $\boldsymbol{\mu}$ y matriz de covarianza $\boldsymbol{\Sigma}$, donde $\boldsymbol{\Sigma}$ es simétrica y definida positiva.
 
@@ -1053,34 +1067,26 @@ $$
 
 La expresión anterior incluye al caso unidimensional como caso particular. Cuando $m=1$, la matriz de covarianza se reduce a $\boldsymbol{\Sigma}=\sigma^2$, y recuperamos la fórmula (3.41).
 
-Este resultado explica por qué la distribución Gaussiana aparece de manera tan recurrente en estadística, aprendizaje automático y teoría de señales: no sólo es algebraicamente conveniente, sino que también representa la distribución de máxima incertidumbre compatible con información de primer y segundo orden. Si conocemos media y covarianza, pero nada más, la distribución normal multivariable es la elección menos informativa entre todas las distribuciones continuas posibles. ◼︎
+Este resultado explica por qué la distribución Gaussiana aparece de manera tan recurrente en estadística, aprendizaje automático y teoría de señales: No sólo es algebraicamente conveniente, sino que también representa la distribución de máxima incertidumbre compatible con información de primer y segundo orden. Si conocemos media y covarianza, pero nada más, la distribución normal multivariable es la elección menos informativa entre todas las distribuciones continuas posibles para representar nuestra incertidumbre. ◼︎
 
-**Ejemplo 3.6 – Un modelo de máxima entropía para una distribución de próximos tokens:** En procesamiento de lenguaje natural, una fuente textual puede modelarse como un mecanismo que emite tokens. Si estamos construyendo un modelo probabilístico para el próximo token, podríamos no conocer toda la distribución verdadera sobre el vocabulario, pero sí algunas restricciones agregadas.
+**Ejemplo 3.6 – Un modelo de máxima entropía para una distribución de próximos *tokens*:** En procesamiento de lenguaje natural, una fuente textual puede modelarse como un mecanismo que emite *tokens*. Si estamos construyendo un modelo probabilístico para el próximo token, podríamos no conocer toda la distribución verdadera sobre el vocabulario, pero sí algunas restricciones agregadas.
 
-Por ejemplo, supongamos que tenemos un vocabulario pequeño $\mathcal{V}$ y sabemos que, en un corpus técnico, cierta proporción esperada de los tokens pertenece a un grupo semántico minero, mientras que otra proporción pertenece a un grupo asociado a analítica y modelamiento. El principio de máxima entropía nos permite construir la distribución menos sesgada sobre tokens que respeta exactamente esas proporciones esperadas.
+Por ejemplo, supongamos que tenemos un vocabulario pequeño $\mathcal{V}$ y sabemos que, en un corpus técnico, cierta proporción esperada de los *tokens* pertenece a un grupo semántico minero, mientras que otra proporción pertenece a un grupo asociado a analítica y modelamiento. El principio de máxima entropía nos permite construir la distribución menos sesgada sobre *tokens* que respeta exactamente esas proporciones esperadas.
 
-Sea $q(t)$ la probabilidad asignada al token $t\in\mathcal{V}$. Consideremos dos funciones de características:
+Sea $q(t)$ la probabilidad asignada al *token* $t\in\mathcal{V}$. Consideremos dos funciones de características:
 
 ::: {.eq-scroll}
 $$
-\phi_1(t)
-=
-\mathbf{1}\{t\ \text{es un token minero}\},
-\qquad
-\phi_2(t)
-=
-\mathbf{1}\{t\ \text{es un token analítico}\}
+\phi_{1} (t)=\mathbf{1} \{ t\  \text{es un token minero} \} \quad ;\quad \phi_{2} (t)=\mathbf{1} \{ t\  \text{es un token analítico} \}
 \tag{3.45}
 $$
 :::
 
-Supongamos que queremos imponer las restricciones
+donde $\mathbf{1}$ es la función indicatriz. Supongamos que queremos imponer las restricciones
 
 ::: {.eq-scroll}
 $$
-\sum_{t\in\mathcal{V}}q(t)\phi_1(t)=\alpha_1,
-\qquad
-\sum_{t\in\mathcal{V}}q(t)\phi_2(t)=\alpha_2
+\sum_{t\in\mathcal{V}}q(t)\phi_1(t)=\alpha_1 \quad ;\quad \sum_{t\in\mathcal{V}}q(t)\phi_2(t)=\alpha_2
 \tag{3.46}
 $$
 :::
@@ -2421,21 +2427,21 @@ $$
 $$
 :::
 
-La relación con la divergencia KL aparece al comparar dos distribuciones muy cercanas dentro de la misma familia paramétrica. Si perturbamos el parámetro desde $\boldsymbol{\theta}$ hacia $\boldsymbol{\theta}+\boldsymbol{\delta}$, entonces
+La relación con la divergencia KL aparece al comparar dos distribuciones muy cercanas dentro de la misma familia paramétrica. Si perturbamos el parámetro desde $\boldsymbol{\theta}$ hacia $\boldsymbol{\theta}+\boldsymbol{\triangle}$, entonces
 
 ::: {.eq-scroll}
 $$
 D_{KL}
 \left(
-P_{\boldsymbol{\theta}}\|P_{\boldsymbol{\theta}+\boldsymbol{\delta}}
+P_{\boldsymbol{\theta}}\|P_{\boldsymbol{\theta}+\boldsymbol{\triangle}}
 \right)
 =
 \frac{1}{2}
-\boldsymbol{\delta}^{\top}
+\boldsymbol{\triangle}^{\top}
 \mathcal{I}(\boldsymbol{\theta})
-\boldsymbol{\delta}
+\boldsymbol{\triangle}
 +
-o(\|\boldsymbol{\delta}\|^{2})
+o(\|\boldsymbol{\triangle}\|^{2})
 \tag{3.84}
 $$
 :::
@@ -2446,13 +2452,13 @@ En el caso unidimensional, si $\theta\in\mathbb{R}$, esto se reduce a
 $$
 D_{KL}
 \left(
-P_{\theta}\|P_{\theta+\delta}
+P_{\theta}\|P_{\theta+\triangle}
 \right)
 =
 \frac{1}{2}
-\mathcal{I}(\theta)\delta^{2}
+\mathcal{I}(\theta)\triangle^{2}
 +
-o(\delta^{2})
+o(\triangle^{2})
 \tag{3.85}
 $$
 :::
@@ -2475,7 +2481,7 @@ Por lo tanto, distribuciones normales con varianza pequeña son muy sensibles a 
 ::: {.eq-scroll}
 $$
 P=\mathcal{N}(\mu_0,\sigma_0^2),
-\qquad
+\quad ;\quad
 Q=\mathcal{N}(\mu_1,\sigma_1^2)
 \tag{3.87}
 $$
@@ -3061,8 +3067,8 @@ En clasificación multiclase, si la respuesta $y_i$ pertenece a una de $K$ clase
 $$
 \mathbf{q}_i
 =
-(q_{i1},q_{i2},\dots,q_{iK}),
-\qquad
+(q_{i1},q_{i2},\dots,q_{iK})
+\quad; \quad
 \sum_{s=1}^{K}q_{is}=1
 \tag{3.101}
 $$
@@ -3138,8 +3144,8 @@ La distribución predicha por el modelo es de tipo Bernoulli:
 
 ::: {.eq-scroll}
 $$
-q_i(Y=1)=\hat{y}_i,
-\qquad
+q_i(Y=1)=\hat{y}_i
+\quad; \quad
 q_i(Y=0)=1-\hat{y}_i
 \tag{3.107}
 $$
@@ -3727,8 +3733,8 @@ En modelos modernos basados en redes neuronales, la capa de salida tipo softmax 
 
 ::: {.eq-scroll}
 $$
-\mathrm{PPL}_A=2^{H_A},
-\qquad
+\mathrm{PPL}_A=2^{H_A}
+\quad; \quad
 \mathrm{PPL}_B=2^{H_B}
 \tag{3.132}
 $$
@@ -3787,7 +3793,7 @@ $$
 \frac{1}{T_{s}}
 \sum_{t=1}^{T_{s}}
 \log q(w_{t}|w_{<t})
-\right),
+\right)
 \tag{3.133}
 $$
 :::
@@ -3923,8 +3929,8 @@ p_{j|i}
 \exp\left(
 -\frac{\|\mathbf{x}_i-\mathbf{x}_k\|^2}{2\sigma_i^2}
 \right)
-},
-\qquad j\neq i
+}
+\quad; \quad j\neq i
 \tag{3.134}
 $$
 :::
@@ -3938,7 +3944,7 @@ $$
 H(P_{i})
 =
 -\sum_{j\neq i}
-p_{j|i}\log_2(p_{j|i}).
+p_{j|i}\log_2(p_{j|i})
 \tag{3.135}
 $$
 :::
@@ -4138,7 +4144,7 @@ Este resultado debe interpretarse con cuidado, ya que el algoritmo t-SNE no cons
 
 En este ejercicio, cada frase fue representada mediante una vectorización de tipo TF-IDF, de modo que frases con vocabulario parecido tienden a quedar más cerca en el espacio original. El algoritmo t-SNE toma esa geometría de alta dimensión y la traduce a una visualización bidimensional. Si el corpus tiene estructura semántica clara, esperaríamos ver cierta separación entre frases mineras, frases analíticas y frases poéticas.
 
-Desde la perspectiva de teoría de la información, este ejemplo es valioso porque muestra que la perplejidad no es sólo una métrica final para evaluar modelos de lenguaje. También puede usarse como una forma de controlar la incertidumbre local de una distribución de vecindad. En modelos de lenguaje, la pregunta es: *“¿cuántas palabras plausibles considera el modelo?”*. En el algoritmo t-SNE, la pregunta es: *“¿cuántos vecinos plausibles considera cada punto?”*. La fórmula es la misma: Una entropía transformada exponencialmente para obtener un número efectivo de alternativas. ◼︎
+Desde la perspectiva de teoría de la información, este ejemplo es valioso porque muestra que la perplejidad no es sólo una métrica final para evaluar modelos de lenguaje. También puede usarse como una forma de controlar la incertidumbre local de una distribución de vecindad. En modelos de lenguaje, la pregunta es: *“¿Cuántas palabras plausibles considera el modelo?”*. En el algoritmo t-SNE, la pregunta es: *“¿Cuántos vecinos plausibles considera cada punto?”*. La fórmula es la misma: Una entropía transformada exponencialmente para obtener un número efectivo de alternativas. ◼︎
 
 ## Comentarios finales
 

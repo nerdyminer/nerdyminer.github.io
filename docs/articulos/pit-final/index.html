@@ -1,12 +1,11 @@
 <!DOCTYPE html>
-<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="es" xml:lang="es"><head>
 
 <meta charset="utf-8">
 <meta name="generator" content="quarto-1.10.18">
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
-<meta name="dcterms.date" content="2026-03-19">
 <meta name="description" content="En esta entrada, aprenderemos cómo resolver uno de los problemas estructurales más fundamentales de la planificación minera por medio de una implementación sencilla en Python de un algoritmo traído directamente desde la teoría de grafos.">
 
 <title>El problema de pit final (variante 2D) – NerdyMiner</title>
@@ -84,9 +83,9 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <link href="../../site_libs/quarto-html/quarto-syntax-highlighting-3a2afb74665eb1f4bf935d8d5fcdd0e1.css" rel="stylesheet" class="quarto-color-scheme-extra" id="quarto-text-highlighting-styles">
 <script src="../../site_libs/bootstrap/bootstrap.min.js"></script>
 <link href="../../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="../../site_libs/bootstrap/bootstrap-4e65077583e97a55ccb852cae34ff7d8.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
-<link href="../../site_libs/bootstrap/bootstrap-dark-ad8833f34c1aa50550099f52021050dd.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
-<link href="../../site_libs/bootstrap/bootstrap-4e65077583e97a55ccb852cae34ff7d8.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
+<link href="../../site_libs/bootstrap/bootstrap-30503f7df6008de4d93e1d76480a7ba4.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
+<link href="../../site_libs/bootstrap/bootstrap-dark-94bf3db7416b8b979e1dd039c0f703e9.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
+<link href="../../site_libs/bootstrap/bootstrap-30503f7df6008de4d93e1d76480a7ba4.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
 <script id="quarto-search-options" type="application/json">{
   "location": "navbar",
   "copy-button": false,
@@ -101,17 +100,17 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   ],
   "show-item-context": false,
   "language": {
-    "search-no-results-text": "No results",
-    "search-matching-documents-text": "matching documents",
-    "search-copy-link-title": "Copy link to search",
-    "search-hide-matches-text": "Hide additional matches",
-    "search-more-match-text": "more match in this document",
-    "search-more-matches-text": "more matches in this document",
-    "search-clear-button-title": "Clear",
+    "search-no-results-text": "No se han encontrado resultados",
+    "search-matching-documents-text": "documentos encontrados",
+    "search-copy-link-title": "Copiar el enlace en la búsqueda",
+    "search-hide-matches-text": "Ocultar resultados adicionales",
+    "search-more-match-text": "resultado adicional en este documento",
+    "search-more-matches-text": "resultados adicionales en este documento",
+    "search-clear-button-title": "Borrar",
     "search-text-placeholder": "",
-    "search-detached-cancel-button-title": "Cancel",
-    "search-submit-button-title": "Submit",
-    "search-label": "Search"
+    "search-detached-cancel-button-title": "Cancelar",
+    "search-submit-button-title": "Enviar",
+    "search-label": "Buscar"
   }
 }</script>
 <style>html{ scroll-behavior: smooth; }</style>
@@ -121,6 +120,10 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <script src="https://cdn.jsdelivr.net/npm/requirejs@2.3.6/require.min.js" integrity="sha384-c9c+LnTbwQ3aujuU7ULEPVvgLs+Fn6fJUvIGTsuu1ZcCf11fiEubah0ttpca4ntM sha384-6V1/AdqZRWk1KAlWbKBlGhN7VG4iE/yAZcO6NZPMF8od0vukrvr0tg4qY6NSrItx" crossorigin="anonymous"></script>
 
 <script type="application/javascript">define('jquery', [],function() {return window.jQuery;})</script>
+<link rel="canonical" href="https://nerdyminer.github.io/articulos/pit-final/">
+<link rel="alternate" hreflang="es" href="https://nerdyminer.github.io/articulos/pit-final/">
+<link rel="alternate" hreflang="en" href="https://nerdyminer.github.io/en/articles/ultimate-pit/">
+<link rel="alternate" hreflang="x-default" href="https://nerdyminer.github.io/articulos/pit-final/">
 
   <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
   <script defer="" src="https://cdn.jsdelivr.net/npm/mathjax@4/tex-chtml.js" type="text/javascript"></script>
@@ -331,8 +334,8 @@ window.Quarto = {
     <span class="navbar-title">NerdyMiner</span>
     </a>
   </div>
-            <div id="quarto-search" class="" title="Search"></div>
-          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" role="menu" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+            <div id="quarto-search" class="" title="Buscar"></div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" role="menu" aria-expanded="false" aria-label="Navegación de palanca" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
   <span class="navbar-toggler-icon"></span>
 </button>
           <div class="collapse navbar-collapse" id="navbarCollapse">
@@ -375,7 +378,7 @@ window.Quarto = {
 </ul>
           </div> <!-- /navcollapse -->
             <div class="quarto-navbar-tools">
-  <a href="" class="quarto-color-scheme-toggle quarto-navigation-tool  px-1" onclick="window.quartoToggleColorScheme(); return false;" title="Toggle dark mode"><i class="bi"></i></a>
+  <a href="" class="quarto-color-scheme-toggle quarto-navigation-tool  px-1" onclick="window.quartoToggleColorScheme(); return false;" title="Alternar modo oscuro"><i class="bi"></i></a>
 </div>
       </div> <!-- /container-fluid -->
     </nav>
@@ -386,7 +389,7 @@ window.Quarto = {
 <!-- margin-sidebar -->
     <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
         <nav id="TOC" role="doc-toc" class="toc-active">
-    <h2 id="toc-title">On this page</h2>
+    <h2 id="toc-title">En esta página</h2>
    
   <ul>
   <li><a href="#introducción" id="toc-introducción" class="nav-link active" data-scroll-target="#introducción">Introducción</a></li>
@@ -402,7 +405,7 @@ window.Quarto = {
   <li><a href="#aplicación-al-problema-de-determinación-del-pit-final" id="toc-aplicación-al-problema-de-determinación-del-pit-final" class="nav-link" data-scroll-target="#aplicación-al-problema-de-determinación-del-pit-final">Aplicación al problema de determinación del pit final</a>
   <ul class="collapse">
   <li><a href="#formulación" id="toc-formulación" class="nav-link" data-scroll-target="#formulación">Formulación</a></li>
-  <li><a href="#solución-por-medio-de-networkx" id="toc-solución-por-medio-de-networkx" class="nav-link" data-scroll-target="#solución-por-medio-de-networkx">Solución por medio de <font color="darkmagenta">NetworkX</font></a></li>
+  <li><a href="#solución-por-medio-de-networkx" id="toc-solución-por-medio-de-networkx" class="nav-link" data-scroll-target="#solución-por-medio-de-networkx">Solución por medio de <strong><font color="darkmagenta">NetworkX</font></strong></a></li>
   </ul></li>
   <li><a href="#aspectos-geométricos" id="toc-aspectos-geométricos" class="nav-link" data-scroll-target="#aspectos-geométricos">Aspectos geométricos</a></li>
   <li><a href="#avance-por-etapas-pits-anidados" id="toc-avance-por-etapas-pits-anidados" class="nav-link" data-scroll-target="#avance-por-etapas-pits-anidados">Avance por etapas (pits anidados)</a></li>
@@ -438,9 +441,9 @@ window.Quarto = {
 
     
     <div>
-    <div class="quarto-title-meta-heading">Published</div>
+    <div class="quarto-title-meta-heading">Fecha de publicación</div>
     <div class="quarto-title-meta-contents">
-      <p class="date">March 19, 2026</p>
+      <p class="date">19 de marzo de 2026</p>
     </div>
   </div>
   
@@ -452,13 +455,18 @@ window.Quarto = {
 </header>
 
 
+<nav class="article-language-switch" aria-label="Idioma del artículo">
+  <span>Idioma</span>
+  <a class="is-active" href="../../articulos/pit-final/" lang="es" hreflang="es" aria-current="page">ES</a>
+  <a href="../../en/articles/ultimate-pit/" lang="en" hreflang="en">EN</a>
+</nav>
 <div class="callout callout-style-default callout-note callout-titled">
 <div class="callout-header d-flex align-content-center">
 <div class="callout-icon-container">
 <i class="callout-icon"></i>
 </div>
 <div class="callout-title-container flex-fill">
-<span class="screen-reader-only">Note</span>Idea central
+<span class="screen-reader-only">Nota</span>Idea central
 </div>
 </div>
 <div class="callout-body-container callout-body">
@@ -523,7 +531,7 @@ Figura&nbsp;3: Un recuerdo (quizás no tan feliz, para muchos compañeros de uni
 </section>
 <section id="qué-es-un-grafo" class="level3">
 <h3 class="anchored" data-anchor-id="qué-es-un-grafo">¿Qué es un grafo?</h3>
-<p>Esta pregunta puede resultar insultante para muchísimos ingenieros. No obstante, ofreciendo las debidas disculpas, resulta importante hacer un <em>refresh</em> debido a que los mineros solemos ser muchas veces “hijos del cerro”, o bien, “esclavos del Excel”. Y ambas alternativas suelen ser propensas a <em>olvidar</em> un poco algunos marcos teóricos importantes.</p>
+<p>Esta pregunta puede resultar insultante para muchísimos ingenieros. No obstante, ofreciendo las debidas disculpas, resulta importante hacer un <em>refresh</em> debido a que los mineros solemos ser muchas veces “hijos del cerro”, o bien, “esclavos del <strong><font color="dodgerblue">Excel</font></strong>”. Y ambas alternativas suelen ser propensas a <em>olvidar</em> un poco algunos marcos teóricos importantes.</p>
 <p>Un <strong>grafo</strong> o <strong>red</strong> es una estructura que comúnmente se utiliza para representar relaciones entre ciertos objetos. Tales objetos pueden ser de cualquier tipo, tales como sitios web, usuarios de una red social, elementos químicos que conforman la molécula de una estructura más compleja, o cualquier otra abstracción similar. Similarmente, las relaciones entre estos objetos suelen depender del contexto en el cual ha sido definido el grafo. Por ejemplo, enlances de dirección a sitios web, seguidores en una red social o enlaces químicos. La <a href="#fig-grafos" class="quarto-xref">Figura&nbsp;4</a> ilustra todos estos ejemplos de manera más gráfica.</p>
 <div id="fig-grafos" class="quarto-float quarto-figure quarto-figure-center anchored" data-fig-align="center">
 <figure class="quarto-float quarto-float-fig figure">
@@ -657,7 +665,7 @@ c\left( S,T \right) =\sum_{\left( i,j \right) \in X_{\mathcal{C}_{r}}} c_{ij}=\s
 <i class="callout-icon"></i>
 </div>
 <div class="callout-title-container flex-fill">
-<span class="screen-reader-only">Warning</span>¡Ojo!
+<span class="screen-reader-only">Advertencia</span>¡Ojo!
 </div>
 </div>
 <div class="callout-body-container callout-body">
@@ -676,20 +684,20 @@ c\left( S,T \right) =\sum_{\left( i,j \right) \in X_{\mathcal{C}_{r}}} c_{ij}=\s
 <li><strong><font color="darkmagenta">NetworkX</font></strong>, para formular el problema como un grafo e implementar el algoritmo de máximo flujo para resolverlo. Esta librería es increíblemente útil para formular y resolver todo tipo de problemas por medio de grafos. Recomiendo, a quienes no la tienen en su caja de herramientas, que le den una oportunidad.</li>
 </ul>
 <p>Importamos estas librerías:</p>
-<div id="30aae6ed" class="cell" data-execution_count="1">
+<div id="68a6c7e6" class="cell" data-execution_count="1">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> matplotlib.pyplot <span class="im">as</span> plt</span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> networkx <span class="im">as</span> nx</span>
 <span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
-<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> seaborn <span class="im">as</span> sns</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> seaborn <span class="im">as</span> sns</span></code></pre></div><button title="Copiar al portapapeles" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
-<div id="60069bcc" class="cell" data-execution_count="2">
+<div id="32d39df6" class="cell" data-execution_count="2">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Seteamos nuestras figuras, a fin de que se vean bonitas.</span></span>
 <span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>plt.rcParams[<span class="st">"figure.dpi"</span>] <span class="op">=</span> <span class="dv">90</span></span>
 <span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>sns.set_theme()</span>
-<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>plt.style.use(<span class="st">"bmh"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>plt.style.use(<span class="st">"bmh"</span>)</span></code></pre></div><button title="Copiar al portapapeles" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>Y creamos nuestro pequeño inventario:</p>
-<div id="b9eaf97c" class="cell" data-execution_count="3">
+<div id="9f5bf3d4" class="cell" data-execution_count="3">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Generamos la matriz con beneficios por bloque.</span></span>
 <span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>blocks <span class="op">=</span> np.array(</span>
 <span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>    [</span>
@@ -698,7 +706,7 @@ c\left( S,T \right) =\sum_{\left( i,j \right) \in X_{\mathcal{C}_{r}}} c_{ij}=\s
 <span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>        [<span class="op">-</span><span class="dv">9</span>, <span class="op">-</span><span class="dv">8</span>, <span class="dv">6</span>, <span class="dv">1</span>, <span class="op">-</span><span class="dv">2</span>, <span class="dv">2</span>, <span class="op">-</span><span class="dv">8</span>, <span class="op">-</span><span class="dv">3</span>, <span class="op">-</span><span class="dv">10</span>],</span>
 <span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>        [<span class="op">-</span><span class="dv">11</span>, <span class="op">-</span><span class="dv">5</span>, <span class="dv">2</span>, <span class="dv">10</span>, <span class="op">-</span><span class="dv">5</span>, <span class="dv">12</span>, <span class="op">-</span><span class="dv">10</span>, <span class="op">-</span><span class="dv">6</span>, <span class="op">-</span><span class="dv">10</span>],</span>
 <span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a>    ],</span>
-<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copiar al portapapeles" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <section id="formulación" class="level3">
 <h3 class="anchored" data-anchor-id="formulación">Formulación</h3>
@@ -730,37 +738,37 @@ c\left( S,T \right) =\sum_{\left( i,j \right) \in X_{\mathcal{C}_{r}}} c_{ij}=\s
 <p>Donde <span class="math inline">\(W=\sum_{w_{ij}&gt;0} w_{ij}\)</span> (la suma de todos los bloques con beneficio positivo) es constante. Por lo tanto, hemos llegado a un importante resultado: La función objetivo <span class="math inline">\(\phi\)</span> es máxima si y sólo si la capacidad <span class="math inline">\(c(S,T)\)</span> es mínima. De esta manera, <strong>concluimos que el problema de extracción óptima en la construcción de un pit final es, de hecho, un PCM y, por extensión, también un PMF (por la condición de dualidad)</strong>.</p>
 </section>
 <section id="solución-por-medio-de-networkx" class="level3">
-<h3 class="anchored" data-anchor-id="solución-por-medio-de-networkx">Solución por medio de <font color="darkmagenta">NetworkX</font></h3>
+<h3 class="anchored" data-anchor-id="solución-por-medio-de-networkx">Solución por medio de <strong><font color="darkmagenta">NetworkX</font></strong></h3>
 <p>Muy bien, ya tenemos todo lo que necesitamos y únicamente nos resta <em>programar</em> la solución. Con “programar” no me refiero al formular el algoritmo de máximo flujo desde cero, no porque sienta que no vale la pena (de hecho, es un ejercicio muy interesante), sino porque este texto está orientado a colegas que trabajan en minería. Y sé muy bien que no nos sobra el tiempo y muchas veces optamos por rutinas de solución prefabricadas.</p>
 <p>Lo anterior no es en absoluto algo negativo. De hecho, está perfecto… ¿Quienes somos nosotros, al final, para juzgar las herramientas que mentes tan brillantes nos proveen gratis en la forma de librerías de Python?</p>
 <p>En fin. La librería que usaremos para solucionar este problema se llama <strong><font color="darkmagenta">NetworkX</font></strong>. Como comenté previamente, se trata de una batería de recursos que nos permite formular, analizar y optimizar grafos. Viene equipada con una generosa cantidad de algoritmos de optimización que explotan la estructura sencilla de estos objetos matemáticos. Uno de esos algoritmos, por supuesto, es el de corte mínimo, el cual no es más que un <em>wrapper</em> para el algoritmo de Edmonds-Karp.</p>
 <p>La construcción de grafos en <strong><font color="darkmagenta">NetworkX</font></strong> está gobernada por ciertos objetos que describen redes con propiedades deseables. En nuestro caso, construiremos un grafo dirigido, el cual se representa en esta librería por medio del objeto <code>DiGraph</code> (del inglés <em>Directed Graph</em>). La adición de cualquier arco a este grafo puede realizarse por medio del método <code>add_edge()</code>, designando los nodos de inicio y término, y la capacidad del arco usando el parámetro <code>capacity</code>.</p>
 <p>Partimos pues definiendo nuestro grafo <code>G</code>, y los nodos fuente (<code>source</code>) y sumidero (<code>sink</code>):</p>
-<div id="c4e90c14" class="cell" data-execution_count="4">
+<div id="16cb74d3" class="cell" data-execution_count="4">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Construimos el grafo que representará el problema de extracción de estos bloques.</span></span>
 <span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>G <span class="op">=</span> nx.DiGraph()</span>
 <span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>source <span class="op">=</span> <span class="st">"s"</span></span>
-<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>sink <span class="op">=</span> <span class="st">"t"</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>sink <span class="op">=</span> <span class="st">"t"</span></span></code></pre></div><button title="Copiar al portapapeles" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>Luego, calculamos la suma de los beneficios de todos los bloques positivos, y le sumaremos <code>1</code>, a fin de construir la <code>M</code> que etiquetará a los arcos de precedencia para la extracción de bloques que no afloran a la superficie. Recordemos que esta capacidad funcionará igual que un restrictor que impeirá que el corte mínimo pase por esos arcos:</p>
-<div id="5cd66348" class="cell" data-execution_count="5">
+<div id="1574ca0c" class="cell" data-execution_count="5">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Definimos la suma de todos los beneficios de la red y le agregamos 1, a fin de construir el valor</span></span>
 <span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="co"># restrictor que impedirá que el corte mínimo pase por los arcos que definen las relaciones de precedencia</span></span>
 <span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a><span class="co"># que gobiernan la extracción de un bloque.</span></span>
-<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>M <span class="op">=</span> blocks[blocks <span class="op">&gt;</span> <span class="dv">0</span>].<span class="bu">sum</span>() <span class="op">+</span> <span class="dv">1</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>M <span class="op">=</span> blocks[blocks <span class="op">&gt;</span> <span class="dv">0</span>].<span class="bu">sum</span>() <span class="op">+</span> <span class="dv">1</span></span></code></pre></div><button title="Copiar al portapapeles" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>A continuación, crearemos una función sencilla que nos permitirá etiquetar cada nodo de la forma <code>B{i}_{j}</code>, donde <code>i</code> y <code>j</code> son los contadores que indexan las filas y columnas del inventario completo:</p>
-<div id="8387da1d" class="cell" data-execution_count="6">
+<div id="9d1c1bbe" class="cell" data-execution_count="6">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Creamos una función muy sencilla que nos permitirá mapear cada bloque a una única etiqueta </span></span>
 <span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a><span class="co"># de cada nodo.</span></span>
 <span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> node_label(i, j):</span>
 <span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> <span class="ss">f"B</span><span class="sc">{</span>i<span class="sc">}</span><span class="ss">_</span><span class="sc">{</span>j<span class="sc">}</span><span class="ss">"</span></span>
 <span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a><span class="co"># Asignamos a distintas variables las dimensiones del inventario.</span></span>
-<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a>n_rows, n_cols <span class="op">=</span> blocks.shape</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a>n_rows, n_cols <span class="op">=</span> blocks.shape</span></code></pre></div><button title="Copiar al portapapeles" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>Ahora construiremos el grafo que representará al problema de extracción en su totalidad, haciendo uso de un proceimiento iterativo. Cada nodo intermedio se llamará <code>v_ij</code>, asignando las correspondientes capacidades conforme las reglas que gobiernan los cortes, dependiendo del signo del beneficio asociado a cada bloque. Finalmente, conectaremos cada bloque con <code>i &gt; 0</code> (que no aflora a la superficie) con sus bloques precedentes, asignándoles capacidades lo suficientemente grandes (la <code>M</code>) para que el algoritmo de máximo flujo las ignore:</p>
-<div id="e891ad8f" class="cell" data-execution_count="7">
+<div id="d07a85de" class="cell" data-execution_count="7">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Construimos el grafo completo que representa al problema.</span></span>
 <span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> i <span class="kw">in</span> <span class="bu">range</span>(n_rows):</span>
 <span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> j <span class="kw">in</span> <span class="bu">range</span>(n_cols):</span>
@@ -787,30 +795,30 @@ c\left( S,T \right) =\sum_{\left( i,j \right) \in X_{\mathcal{C}_{r}}} c_{ij}=\s
 <span id="cb7-24"><a href="#cb7-24" aria-hidden="true" tabindex="-1"></a>                    pred <span class="op">=</span> node_label(i <span class="op">-</span> <span class="dv">1</span>, jj)</span>
 <span id="cb7-25"><a href="#cb7-25" aria-hidden="true" tabindex="-1"></a>                    </span>
 <span id="cb7-26"><a href="#cb7-26" aria-hidden="true" tabindex="-1"></a>                    <span class="co"># Asignamos la regla de precedencia.</span></span>
-<span id="cb7-27"><a href="#cb7-27" aria-hidden="true" tabindex="-1"></a>                    G.add_edge(v_ij, pred, capacity<span class="op">=</span>M)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb7-27"><a href="#cb7-27" aria-hidden="true" tabindex="-1"></a>                    G.add_edge(v_ij, pred, capacity<span class="op">=</span>M)</span></code></pre></div><button title="Copiar al portapapeles" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>Ahora sólo resta resolver este problema, lo que es tan fácil como utilizar la función <code>minimum_cut()</code> que, tras bambalinas, aplica el algoritmo de Edmonds-Karp para determinar el máximo flujo (beneficio neto máximo de la extracción de los bloques en el pit final). Como resultado obtendremos la capacidad del corte mínimo (<code>cut_value</code>) hallada por el algoritmo, además de los conjuntos <code>S</code> y <code>T</code>, que describen a los bloques que quedan del lado de la fuente y el sumidero, respectivamente, una vez trazado dicho corte. Los bloques que se extraen se encuentran en <code>S</code> (exceptuando la fuente):</p>
-<div id="21fa2bde" class="cell" data-execution_count="8">
+<div id="e99ad69c" class="cell" data-execution_count="8">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Resolvemos el problema usando el algoritmo de corte mínimo.</span></span>
 <span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>cut_value, (S, T) <span class="op">=</span> nx.minimum_cut(G, source, sink)</span>
-<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>selected_blocks <span class="op">=</span> [n <span class="cf">for</span> n <span class="kw">in</span> S <span class="cf">if</span> n <span class="kw">not</span> <span class="kw">in</span> (source, sink)]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>selected_blocks <span class="op">=</span> [n <span class="cf">for</span> n <span class="kw">in</span> S <span class="cf">if</span> n <span class="kw">not</span> <span class="kw">in</span> (source, sink)]</span></code></pre></div><button title="Copiar al portapapeles" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>Naturalmente, nos interesa visualizar la geometría del pit final, por lo cual crearemos un arreglo Booleano que indicará cuáles bloques son extraídos por el algoritmo de máximo flujo:</p>
-<div id="17012de4" class="cell" data-execution_count="9">
+<div id="2c9f8cc5" class="cell" data-execution_count="9">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb9"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Generamos una matriz indicadora para mostrar los bloques que son extraidos.</span></span>
 <span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>mask <span class="op">=</span> np.zeros_like(blocks, dtype<span class="op">=</span><span class="bu">bool</span>)</span>
 <span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> block <span class="kw">in</span> selected_blocks:</span>
 <span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a>    i, j <span class="op">=</span> <span class="bu">map</span>(<span class="bu">int</span>, block[<span class="dv">1</span>:].split(<span class="st">"_"</span>))</span>
-<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a>    mask[i, j] <span class="op">=</span> <span class="va">True</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a>    mask[i, j] <span class="op">=</span> <span class="va">True</span></span></code></pre></div><button title="Copiar al portapapeles" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>Finalmente, calculamos el beneficio neto de extracción:</p>
-<div id="addb3a81" class="cell" data-execution_count="10">
+<div id="fa7faef1" class="cell" data-execution_count="10">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb10"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Calculamos el máximo beneficio que obtenemos por la extracción determinada (pit final).</span></span>
-<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>total_profit <span class="op">=</span> (blocks <span class="op">*</span> mask).<span class="bu">sum</span>()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>total_profit <span class="op">=</span> (blocks <span class="op">*</span> mask).<span class="bu">sum</span>()</span></code></pre></div><button title="Copiar al portapapeles" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>Recordemos que, bajo nuestra formulación, tal beneficio neto es igual a <code>M</code>, menos la capacidad del corte mínimo (<code>cut_value</code>), menos <code>1</code> (que es la unidad que agregamos a la suma de beneficios positivos de cada bloque para asegurar que la <code>M</code> fuera lo suficientemente grande):</p>
-<div id="df01330f" class="cell" data-execution_count="11">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb11"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a>np.allclose(total_profit, M <span class="op">-</span> <span class="dv">1</span> <span class="op">-</span> cut_value)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div id="377ced34" class="cell" data-execution_count="11">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb11"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a>np.allclose(total_profit, M <span class="op">-</span> <span class="dv">1</span> <span class="op">-</span> cut_value)</span></code></pre></div><button title="Copiar al portapapeles" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display" data-execution_count="11">
 <pre><code>True</code></pre>
 </div>
@@ -837,7 +845,7 @@ c\left( S,T \right) =\sum_{\left( i,j \right) \in X_{\mathcal{C}_{r}}} c_{ij}=\s
 <span id="cb13-18"><a href="#cb13-18" aria-hidden="true" tabindex="-1"></a>ax.set_title(</span>
 <span id="cb13-19"><a href="#cb13-19" aria-hidden="true" tabindex="-1"></a>    <span class="ss">f"Pit óptimo: Beneficio total = </span><span class="sc">{</span>total_profit<span class="sc">}</span><span class="ss">"</span>, fontsize<span class="op">=</span><span class="dv">14</span>, fontweight<span class="op">=</span><span class="st">"bold"</span>, pad<span class="op">=</span><span class="dv">10</span>,</span>
 <span id="cb13-20"><a href="#cb13-20" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb13-21"><a href="#cb13-21" aria-hidden="true" tabindex="-1"></a>plt.tight_layout()<span class="op">;</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb13-21"><a href="#cb13-21" aria-hidden="true" tabindex="-1"></a>plt.tight_layout()<span class="op">;</span></span></code></pre></div><button title="Copiar al portapapeles" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display">
 <div id="fig-pit-final-toy-example" class="quarto-float quarto-figure quarto-figure-center anchored">
 <figure class="quarto-float quarto-float-fig figure">
@@ -853,7 +861,7 @@ Figura&nbsp;6: Bloques seleccionados en el primer inventario de juguete. Los val
 </div>
 <p>Y ahí lo tenemos, un bonito pit final geométrico que respeta las reglas de precedencia derivadas de un ángulo de extracción igual a 45º.</p>
 <p>Personalmente, hubiera deseado saber todo esto en mis tiempos universitarios…</p>
-<p>Uno podría evidentemente preguntar… ¿Y el grafo que simula la extracción de estos bloques? Siendo una pregunta completamente justa, y habiendo descrito iterativamente el procedimiento de construcción de este grafo, la verdad es que dibujarlo sí es un procedimiento costoso. Sin embargo, por ser el primer ejercicio que hemos resuelto usando este <em>approach</em>, mostraremos este gráfico (construido usando la herramienta Mermaid, especializada en diagramas de flujo) en la <a href="#fig-grafopit" class="quarto-xref">Figura&nbsp;7</a>.</p>
+<p>Uno podría evidentemente preguntar… ¿Y el grafo que simula la extracción de estos bloques? Siendo una pregunta completamente justa, y habiendo descrito iterativamente el procedimiento de construcción de este grafo, la verdad es que dibujarlo sí es un procedimiento costoso. Sin embargo, por ser el primer ejercicio que hemos resuelto usando este <em>approach</em>, mostraremos este gráfico (construido usando la herramienta <strong><font color="dodgerblue">Mermaid</font></strong>, especializada en diagramas de flujo) en la <a href="#fig-grafopit" class="quarto-xref">Figura&nbsp;7</a>.</p>
 <div class="cell" data-layout-align="default">
 <div class="cell-output-display">
 <div id="fig-grafopit" class="quarto-float quarto-figure quarto-figure-center anchored">
@@ -929,13 +937,13 @@ Figura&nbsp;7: Construcción conceptual de la red dirigida para el problema de p
 </div>
 </div>
 <p>Nuestra implementación es mayormente funcional, aunque modularizarla (llevar el código a varias funciones con responsabilidades específicas) no debería ser un problema para algún entusiasta que se inicie en el mundo de los datos. De hecho, podemos probar rápidamente que nuestra solución nos permite resolver cualquier problema 2D similar al anterior. Por ejemplo, consideremos ahora el siguiente inventario de tres niveles:</p>
-<div id="006ee065" class="cell" data-execution_count="13">
+<div id="af196733" class="cell" data-execution_count="13">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb14"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Definimos un nuevo inventario de bloques.</span></span>
 <span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a>blocks <span class="op">=</span> np.array([</span>
 <span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a>    [<span class="op">-</span><span class="dv">3</span>, <span class="op">-</span><span class="dv">2</span>, <span class="op">-</span><span class="dv">3</span>, <span class="op">-</span><span class="dv">4</span>, <span class="op">-</span><span class="dv">2</span>, <span class="op">-</span><span class="dv">1</span>,  <span class="dv">1</span>, <span class="op">-</span><span class="dv">1</span>, <span class="op">-</span><span class="dv">2</span>],</span>
 <span id="cb14-4"><a href="#cb14-4" aria-hidden="true" tabindex="-1"></a>    [<span class="op">-</span><span class="dv">10</span>,  <span class="dv">3</span>,  <span class="dv">6</span>,  <span class="dv">5</span>,  <span class="dv">2</span>, <span class="op">-</span><span class="dv">1</span>, <span class="op">-</span><span class="dv">3</span>,  <span class="dv">4</span>, <span class="op">-</span><span class="dv">9</span>],</span>
 <span id="cb14-5"><a href="#cb14-5" aria-hidden="true" tabindex="-1"></a>    [<span class="op">-</span><span class="dv">13</span>, <span class="op">-</span><span class="dv">3</span>,  <span class="dv">3</span>,  <span class="dv">9</span>,  <span class="dv">4</span>,  <span class="dv">1</span>, <span class="op">-</span><span class="dv">5</span>, <span class="op">-</span><span class="dv">10</span>, <span class="op">-</span><span class="dv">16</span>]</span>
-<span id="cb14-6"><a href="#cb14-6" aria-hidden="true" tabindex="-1"></a>])</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb14-6"><a href="#cb14-6" aria-hidden="true" tabindex="-1"></a>])</span></code></pre></div><button title="Copiar al portapapeles" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>La solución (de una sola vez):</p>
 <div id="cell-fig-pit-final-second-toy-example" class="cell" data-execution_count="14">
@@ -1017,7 +1025,7 @@ Figura&nbsp;7: Construcción conceptual de la red dirigida para el problema de p
 <span id="cb15-76"><a href="#cb15-76" aria-hidden="true" tabindex="-1"></a>ax.set_title(</span>
 <span id="cb15-77"><a href="#cb15-77" aria-hidden="true" tabindex="-1"></a>    <span class="ss">f"Pit óptimo: Beneficio total = </span><span class="sc">{</span>total_profit<span class="sc">}</span><span class="ss">"</span>, fontsize<span class="op">=</span><span class="dv">14</span>, fontweight<span class="op">=</span><span class="st">"bold"</span>, pad<span class="op">=</span><span class="dv">10</span>,</span>
 <span id="cb15-78"><a href="#cb15-78" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb15-79"><a href="#cb15-79" aria-hidden="true" tabindex="-1"></a>plt.tight_layout()<span class="op">;</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb15-79"><a href="#cb15-79" aria-hidden="true" tabindex="-1"></a>plt.tight_layout()<span class="op">;</span></span></code></pre></div><button title="Copiar al portapapeles" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display">
 <div id="fig-pit-final-second-toy-example" class="quarto-float quarto-figure quarto-figure-center anchored">
 <figure class="quarto-float quarto-float-fig figure">
@@ -1036,19 +1044,19 @@ Figura&nbsp;8: Pit final obtenido para el segundo inventario de juguete. La sele
 <div class="dataset-download">
 <p><a class="dataset-download-btn" href="../datasets/blocks_inventory_2d.csv" download="blocks_inventory_2d.csv">Descargar blocks_inventory_2d.csv</a></p>
 </div>
-<div id="4b9af0e4" class="cell" data-execution_count="15">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb16"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> pandas <span class="im">as</span> pd</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div id="cdff001d" class="cell" data-execution_count="15">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb16"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> pandas <span class="im">as</span> pd</span></code></pre></div><button title="Copiar al portapapeles" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
-<div id="1c843f67" class="cell" data-execution_count="16">
+<div id="34d08e07" class="cell" data-execution_count="16">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb17"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Accedemos al archivo.</span></span>
-<span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a>block_inventory <span class="op">=</span> pd.read_csv(<span class="st">"../datasets/blocks_inventory_2d.csv"</span>, delimiter<span class="op">=</span><span class="st">";"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a>block_inventory <span class="op">=</span> pd.read_csv(<span class="st">"../datasets/blocks_inventory_2d.csv"</span>, delimiter<span class="op">=</span><span class="st">";"</span>)</span></code></pre></div><button title="Copiar al portapapeles" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>A continuación, inspeccionamos este archivo:</p>
-<div id="f9cca36d" class="cell" data-execution_count="17">
+<div id="ab2731e2" class="cell" data-execution_count="17">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb18"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Inspeccionamos las primeras filas.</span></span>
 <span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Nº de filas = </span><span class="sc">{</span>block_inventory<span class="sc">.</span>shape[<span class="dv">0</span>]<span class="sc">}</span><span class="ss">"</span>)</span>
 <span id="cb18-3"><a href="#cb18-3" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Nº de columnas = </span><span class="sc">{</span>block_inventory<span class="sc">.</span>shape[<span class="dv">1</span>]<span class="sc">}</span><span class="ss">"</span>)</span>
-<span id="cb18-4"><a href="#cb18-4" aria-hidden="true" tabindex="-1"></a>block_inventory.head()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb18-4"><a href="#cb18-4" aria-hidden="true" tabindex="-1"></a>block_inventory.head()</span></code></pre></div><button title="Copiar al portapapeles" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>Nº de filas = 62
 Nº de columnas = 75</code></pre>
@@ -1214,9 +1222,9 @@ Nº de columnas = 75</code></pre>
 </div>
 <p>Vemos que se trata de un inventario 2D con 62 filas y 74 columnas. Esto nos da un total de 4588 bloques y, por extensión, una red con la misma cantidad de nodos, la que naturalmente resulta impracticable representar de forma visual. Sin embargo, la lógica del proceso de extracción es esencialmente la misma, con la diferencia de que este inventario viene con <strong>leyes de cobre</strong> en vez de beneficios de extracción de cada bloque.</p>
 <p>Partiremos entonces indexando este inventario con respecto a su primera columna (<code>"Instancia"</code>) y construiyendo una visualización muy sencilla de estas leyes, a fin de poder ver la geometría de este depósito:</p>
-<div id="605c35a9" class="cell" data-execution_count="18">
+<div id="c697cabb" class="cell" data-execution_count="18">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb20"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Seteamos la columna ´Instancia´ como índice para las filas del modelo.</span></span>
-<span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a>block_inventory.set_index(<span class="st">"Instancia"</span>, inplace<span class="op">=</span><span class="va">True</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a>block_inventory.set_index(<span class="st">"Instancia"</span>, inplace<span class="op">=</span><span class="va">True</span>)</span></code></pre></div><button title="Copiar al portapapeles" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <div id="cell-fig-pit-final-copper-inventory" class="cell" data-execution_count="19">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb21"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Creamos un mapa de calor para visualizar nuestro inventario.</span></span>
@@ -1234,7 +1242,7 @@ Nº de columnas = 75</code></pre>
 <span id="cb21-13"><a href="#cb21-13" aria-hidden="true" tabindex="-1"></a>cb.ax.tick_params(labelsize<span class="op">=</span><span class="dv">11</span>)</span>
 <span id="cb21-14"><a href="#cb21-14" aria-hidden="true" tabindex="-1"></a>ax.set_xticklabels([])</span>
 <span id="cb21-15"><a href="#cb21-15" aria-hidden="true" tabindex="-1"></a>ax.set_yticklabels([])</span>
-<span id="cb21-16"><a href="#cb21-16" aria-hidden="true" tabindex="-1"></a>plt.tight_layout()<span class="op">;</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb21-16"><a href="#cb21-16" aria-hidden="true" tabindex="-1"></a>plt.tight_layout()<span class="op">;</span></span></code></pre></div><button title="Copiar al portapapeles" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display">
 <div id="fig-pit-final-copper-inventory" class="quarto-float quarto-figure quarto-figure-center anchored">
 <figure class="quarto-float quarto-float-fig figure">
@@ -1270,7 +1278,7 @@ Figura&nbsp;9: Distribución espacial de las leyes de cobre del inventario bidim
 w_{ij}=\begin{cases}m_{ij}\left( \overbrace{g_{ij}R_{\mathrm{Cu}}P_{\mathrm{Cu}}F_{o}f_{\mathrm{t} \rightarrow \mathrm{lb}}}^{\mathrm{ingresos}} -\overbrace{C_{m}-C_{p}}^{\mathrm{costos}} \right)&amp;;\  \mathrm{si} \  e_{ij}\  \mathrm{indica\  mineral}\\ -m_{ij}C_{e}&amp;;\  \mathrm{si} \  e_{ij}\  \mathrm{indica\  esteril}\end{cases} \tag{9}
 \]</span></p>
 <p>Replicamos este procedimiento a continuación:</p>
-<div id="b9ecd35c" class="cell" data-execution_count="20">
+<div id="72fa820e" class="cell" data-execution_count="20">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb22"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Seteamos algunos parámetros de interés.</span></span>
 <span id="cb22-2"><a href="#cb22-2" aria-hidden="true" tabindex="-1"></a>Dx, Dy, Dz <span class="op">=</span> <span class="dv">10</span>, <span class="dv">10</span>, <span class="dv">10</span></span>
 <span id="cb22-3"><a href="#cb22-3" aria-hidden="true" tabindex="-1"></a>cutoff_grade <span class="op">=</span> <span class="fl">0.24</span></span>
@@ -1315,10 +1323,10 @@ w_{ij}=\begin{cases}m_{ij}\left( \overbrace{g_{ij}R_{\mathrm{Cu}}P_{\mathrm{Cu}}
 <span id="cb22-42"><a href="#cb22-42" aria-hidden="true" tabindex="-1"></a>            <span class="op">*</span> plant_efficiency <span class="op">\</span></span>
 <span id="cb22-43"><a href="#cb22-43" aria-hidden="true" tabindex="-1"></a>            <span class="op">*</span> conversion_factor</span>
 <span id="cb22-44"><a href="#cb22-44" aria-hidden="true" tabindex="-1"></a>            benefit_ij <span class="op">=</span> profit_ij <span class="op">-</span> mine_cost_ij <span class="op">-</span> plant_cost_ij</span>
-<span id="cb22-45"><a href="#cb22-45" aria-hidden="true" tabindex="-1"></a>            benefit_matrix[i, j] <span class="op">=</span> benefit_ij</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb22-45"><a href="#cb22-45" aria-hidden="true" tabindex="-1"></a>            benefit_matrix[i, j] <span class="op">=</span> benefit_ij</span></code></pre></div><button title="Copiar al portapapeles" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>Con el inventario de bloques expresado en términos de los correspondientes beneficios, es relativamente sencillo estimar el pit final aplicando nuestra implementación del algoritmo de Edmonds-Karp. Podemos observar a continuación que no moveremos ni siquiera una coma del código que ya hemos venido aplicando a inventarios más pequeños, a fin de mostrar que esta solución es independiente de la escala del problema:</p>
-<div id="279e9443" class="cell" data-execution_count="21">
+<div id="6b254a05" class="cell" data-execution_count="21">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb23"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Construimos el grafo que representará el problema de extracción de estos bloques.</span></span>
 <span id="cb23-2"><a href="#cb23-2" aria-hidden="true" tabindex="-1"></a>G <span class="op">=</span> nx.DiGraph()</span>
 <span id="cb23-3"><a href="#cb23-3" aria-hidden="true" tabindex="-1"></a>source <span class="op">=</span> <span class="st">"s"</span></span>
@@ -1372,14 +1380,14 @@ w_{ij}=\begin{cases}m_{ij}\left( \overbrace{g_{ij}R_{\mathrm{Cu}}P_{\mathrm{Cu}}
 <span id="cb23-51"><a href="#cb23-51" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb23-52"><a href="#cb23-52" aria-hidden="true" tabindex="-1"></a><span class="co"># Chequeamos que la solución del problema de máximo flujo sea equivalente a la solución del</span></span>
 <span id="cb23-53"><a href="#cb23-53" aria-hidden="true" tabindex="-1"></a><span class="co"># correspondiente problema de corte mínimo.</span></span>
-<span id="cb23-54"><a href="#cb23-54" aria-hidden="true" tabindex="-1"></a>np.allclose(total_profit, M <span class="op">-</span> <span class="dv">1</span> <span class="op">-</span> cut_value)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb23-54"><a href="#cb23-54" aria-hidden="true" tabindex="-1"></a>np.allclose(total_profit, M <span class="op">-</span> <span class="dv">1</span> <span class="op">-</span> cut_value)</span></code></pre></div><button title="Copiar al portapapeles" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display" data-execution_count="21">
 <pre><code>True</code></pre>
 </div>
 </div>
 <p>Finalmente, visualizamos el pit final obtenido por nuestro procedimiento:</p>
-<div id="bf01b76a" class="cell" data-execution_count="22">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb25"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> matplotlib <span class="im">import</span> colors</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div id="a9d92c14" class="cell" data-execution_count="22">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb25"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> matplotlib <span class="im">import</span> colors</span></code></pre></div><button title="Copiar al portapapeles" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <div id="cell-fig-pit-final-large-inventory" class="cell" data-execution_count="23">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb26"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb26-1"><a href="#cb26-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Graficamos nuestro pit final.</span></span>
@@ -1404,7 +1412,7 @@ w_{ij}=\begin{cases}m_{ij}\left( \overbrace{g_{ij}R_{\mathrm{Cu}}P_{\mathrm{Cu}}
 <span id="cb26-20"><a href="#cb26-20" aria-hidden="true" tabindex="-1"></a>cb <span class="op">=</span> ax.collections[<span class="dv">0</span>].colorbar</span>
 <span id="cb26-21"><a href="#cb26-21" aria-hidden="true" tabindex="-1"></a>cb.set_label(label<span class="op">=</span><span class="st">""</span>, fontsize<span class="op">=</span><span class="dv">11</span>, labelpad<span class="op">=</span><span class="dv">10</span>)</span>
 <span id="cb26-22"><a href="#cb26-22" aria-hidden="true" tabindex="-1"></a>cb.ax.set_yticklabels([<span class="st">"Bloque no extraído"</span>, <span class="st">"Bloque extraído"</span>])</span>
-<span id="cb26-23"><a href="#cb26-23" aria-hidden="true" tabindex="-1"></a>plt.tight_layout()<span class="op">;</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb26-23"><a href="#cb26-23" aria-hidden="true" tabindex="-1"></a>plt.tight_layout()<span class="op">;</span></span></code></pre></div><button title="Copiar al portapapeles" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display">
 <div id="fig-pit-final-large-inventory" class="quarto-float quarto-figure quarto-figure-center anchored">
 <figure class="quarto-float quarto-float-fig figure">
@@ -1449,17 +1457,17 @@ Figura&nbsp;10: Clasificación de los bloques del inventario de gran escala seg�
 <li>El resultado final (los pits anidados) se mostrará en una animación realizada en <strong><font color="darkmagenta">Matplotlib</font></strong>.</li>
 </ul>
 <p>Procedamos:</p>
-<div id="28bef9f7" class="cell" data-execution_count="24">
+<div id="1d5c5ddc" class="cell" data-execution_count="24">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb27"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb27-1"><a href="#cb27-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> base64</span>
 <span id="cb27-2"><a href="#cb27-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> io</span>
 <span id="cb27-3"><a href="#cb27-3" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> json</span>
-<span id="cb27-4"><a href="#cb27-4" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> math</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb27-4"><a href="#cb27-4" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> math</span></code></pre></div><button title="Copiar al portapapeles" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
-<div id="2085ffb7" class="cell" data-execution_count="25">
+<div id="3c59730a" class="cell" data-execution_count="25">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb28"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb28-1"><a href="#cb28-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> IPython.display <span class="im">import</span> HTML</span>
-<span id="cb28-2"><a href="#cb28-2" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> tqdm <span class="im">import</span> tqdm</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb28-2"><a href="#cb28-2" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> tqdm <span class="im">import</span> tqdm</span></code></pre></div><button title="Copiar al portapapeles" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
-<div id="bdc706cd" class="cell" data-execution_count="26">
+<div id="c3130d93" class="cell" data-execution_count="26">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb29"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb29-1"><a href="#cb29-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Llevamos nuestro procedimiento de armado del grafo que representa la extracción de los bloques</span></span>
 <span id="cb29-2"><a href="#cb29-2" aria-hidden="true" tabindex="-1"></a><span class="co"># a una función de Python.</span></span>
 <span id="cb29-3"><a href="#cb29-3" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> maximum_closure_graph(</span>
@@ -1529,16 +1537,16 @@ Figura&nbsp;10: Clasificación de los bloques del inventario de gran escala seg�
 <span id="cb29-67"><a href="#cb29-67" aria-hidden="true" tabindex="-1"></a>        i, j <span class="op">=</span> <span class="bu">map</span>(<span class="bu">int</span>, v[<span class="dv">1</span>:].split(<span class="st">'_'</span>))</span>
 <span id="cb29-68"><a href="#cb29-68" aria-hidden="true" tabindex="-1"></a>        mask[i, j] <span class="op">=</span> <span class="va">True</span></span>
 <span id="cb29-69"><a href="#cb29-69" aria-hidden="true" tabindex="-1"></a>    </span>
-<span id="cb29-70"><a href="#cb29-70" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> mask</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb29-70"><a href="#cb29-70" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> mask</span></code></pre></div><button title="Copiar al portapapeles" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>En este ejercicio, los <em>batches</em> de bloques se definirán cada 5 filas. Esto puede ser un tanto brusco, pero el lector es libre de elegir los que desee en su propio entorno de trabajo:</p>
-<div id="11844fed" class="cell" data-execution_count="27">
+<div id="ef93eb77" class="cell" data-execution_count="27">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb30"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb30-1"><a href="#cb30-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Definimos la secuencia en la cual generaremos nuestros pits anidados.</span></span>
 <span id="cb30-2"><a href="#cb30-2" aria-hidden="true" tabindex="-1"></a>depths <span class="op">=</span> <span class="bu">list</span>(<span class="bu">range</span>(<span class="dv">9</span>, n_rows, <span class="dv">5</span>))</span>
-<span id="cb30-3"><a href="#cb30-3" aria-hidden="true" tabindex="-1"></a>depths.append(n_rows <span class="op">-</span> <span class="dv">1</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb30-3"><a href="#cb30-3" aria-hidden="true" tabindex="-1"></a>depths.append(n_rows <span class="op">-</span> <span class="dv">1</span>)</span></code></pre></div><button title="Copiar al portapapeles" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>Y ahora calculamos los pits finales para cada <em>batch</em>. Para cada uno calculamos el correspondiente beneficio, y almacenamos en una lista los arreglos Booleanos que resultan de indicar las correspondientes extracciones (anidadas) para cada paso:</p>
-<div id="3f54fead" class="cell" data-execution_count="28">
+<div id="24c9f0b4" class="cell" data-execution_count="28">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb31"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb31-1"><a href="#cb31-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Obtenemos los pits óptimos para cada paso de la secuencia.</span></span>
 <span id="cb31-2"><a href="#cb31-2" aria-hidden="true" tabindex="-1"></a>mining_angle <span class="op">=</span> <span class="dv">45</span></span>
 <span id="cb31-3"><a href="#cb31-3" aria-hidden="true" tabindex="-1"></a>nested_masks <span class="op">=</span> []</span>
@@ -1551,23 +1559,24 @@ Figura&nbsp;10: Clasificación de los bloques del inventario de gran escala seg�
 <span id="cb31-10"><a href="#cb31-10" aria-hidden="true" tabindex="-1"></a>    padded_t <span class="op">=</span> np.zeros_like(benefit_matrix, dtype<span class="op">=</span><span class="bu">bool</span>)</span>
 <span id="cb31-11"><a href="#cb31-11" aria-hidden="true" tabindex="-1"></a>    padded_t[:t <span class="op">+</span> <span class="dv">1</span>, :] <span class="op">=</span> mask_t</span>
 <span id="cb31-12"><a href="#cb31-12" aria-hidden="true" tabindex="-1"></a>    nested_masks.append(padded_t)</span>
-<span id="cb31-13"><a href="#cb31-13" aria-hidden="true" tabindex="-1"></a>    profits.append((sub_benefits <span class="op">*</span> mask_t).<span class="bu">sum</span>())</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb31-13"><a href="#cb31-13" aria-hidden="true" tabindex="-1"></a>    profits.append((sub_benefits <span class="op">*</span> mask_t).<span class="bu">sum</span>())</span></code></pre></div><button title="Copiar al portapapeles" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stderr">
 <pre><code>
 Generando pits anidados:   0%|          | 0/12 [00:00&lt;?, ?it/s]
-Generando pits anidados:  25%|██▌       | 3/12 [00:00&lt;00:00, 19.19it/s]
-Generando pits anidados:  42%|████▏     | 5/12 [00:00&lt;00:00,  7.09it/s]
-Generando pits anidados:  58%|█████▊    | 7/12 [00:01&lt;00:00,  5.22it/s]
-Generando pits anidados:  67%|██████▋   | 8/12 [00:01&lt;00:00,  4.59it/s]
-Generando pits anidados:  75%|███████▌  | 9/12 [00:01&lt;00:00,  3.97it/s]
-Generando pits anidados:  83%|████████▎ | 10/12 [00:02&lt;00:00,  3.25it/s]
-Generando pits anidados:  92%|█████████▏| 11/12 [00:02&lt;00:00,  2.85it/s]
-Generando pits anidados: 100%|██████████| 12/12 [00:03&lt;00:00,  2.59it/s]
-Generando pits anidados: 100%|██████████| 12/12 [00:03&lt;00:00,  3.71it/s]</code></pre>
+Generando pits anidados:  25%|██▌       | 3/12 [00:00&lt;00:00, 16.93it/s]
+Generando pits anidados:  42%|████▏     | 5/12 [00:00&lt;00:00,  7.42it/s]
+Generando pits anidados:  50%|█████     | 6/12 [00:00&lt;00:00,  6.15it/s]
+Generando pits anidados:  58%|█████▊    | 7/12 [00:01&lt;00:01,  4.99it/s]
+Generando pits anidados:  67%|██████▋   | 8/12 [00:01&lt;00:00,  4.35it/s]
+Generando pits anidados:  75%|███████▌  | 9/12 [00:01&lt;00:00,  3.62it/s]
+Generando pits anidados:  83%|████████▎ | 10/12 [00:02&lt;00:00,  3.18it/s]
+Generando pits anidados:  92%|█████████▏| 11/12 [00:02&lt;00:00,  2.79it/s]
+Generando pits anidados: 100%|██████████| 12/12 [00:03&lt;00:00,  2.45it/s]
+Generando pits anidados: 100%|██████████| 12/12 [00:03&lt;00:00,  3.69it/s]</code></pre>
 </div>
 </div>
 <p>Finalmente, construimos nuestra animación:</p>
-<div id="a492839a" class="cell" data-execution_count="29">
+<div id="8a6a1777" class="cell" data-execution_count="29">
 <div class="cell-output cell-output-display" data-execution_count="29">
 
 <div id="pit-stage-player" class="pit-stage-player">
@@ -1766,7 +1775,7 @@ Generando pits anidados: 100%|██████████| 12/12 [00:03&lt;00
 <i class="callout-icon"></i>
 </div>
 <div class="callout-title-container flex-fill">
-<span class="screen-reader-only">Warning</span>¡Ojo!
+<span class="screen-reader-only">Advertencia</span>¡Ojo!
 </div>
 </div>
 <div class="callout-body-container callout-body">
@@ -2144,12 +2153,12 @@ document.addEventListener("DOMContentLoaded", function () {
       // flash "checked"
       button.classList.add('code-copy-button-checked');
       var currentTitle = button.getAttribute("title");
-      button.setAttribute("title", "Copied!");
+      button.setAttribute("title", "Copiado");
       let tooltip;
       if (window.bootstrap) {
         button.setAttribute("data-bs-toggle", "tooltip");
         button.setAttribute("data-bs-placement", "left");
-        button.setAttribute("data-bs-title", "Copied!");
+        button.setAttribute("data-bs-title", "Copiado");
         tooltip = new bootstrap.Tooltip(button, 
           { trigger: "manual", 
             customClass: "code-copy-button-tooltip",
