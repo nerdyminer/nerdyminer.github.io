@@ -836,6 +836,14 @@ $$
 
 La aplicación $\varphi_{\mathbf{x}}$ recibe puntos de una pequeña región de la variedad y les asigna coordenadas ordinarias en $\mathbb{R}^{d}$. A esta descripción local se le llama **carta**. No necesitamos todavía estudiar las condiciones topológicas y diferenciales completas que debe satisfacer. Por ahora basta con retener su función: Convertir una porción curva en un sistema de coordenadas manejable sin exigir que toda la estructura pueda desplegarse mediante una sola transformación lineal.
 
+::: {.callout-note}
+## ¿Variedad o variedad diferenciable?
+
+Una **variedad topológica** sólo exige que cada vecindad pueda describirse continuamente mediante coordenadas Euclidianas compatibles. Una **variedad diferenciable** añade una condición más fuerte: Cuando dos cartas se superponen, el cambio entre sus sistemas de coordenadas debe ser diferenciable. Esta regularidad adicional permite introducir matrices Jacobianas, espacios tangentes, campos vectoriales, derivadas y aproximaciones locales suaves.
+
+Los algoritmos de aprendizaje de variedades reciben una muestra finita y, en general, no pueden verificar por sí solos todos los axiomas topológicos ni la diferenciabilidad de la estructura que generó los datos. Por eso, a lo largo de esta entrada utilizaremos la palabra **variedad** en un sentido operativo cuando sólo necesitemos la hipótesis de baja dimensión. Cada vez que recurramos a tangentes, Hessianos, productos internos que cambian suavemente o geodésicas, estaremos adoptando además la hipótesis de que la variedad subyacente es diferenciable y suficientemente suave en las regiones estudiadas. Bifurcaciones, vértices, autointersecciones y otras singularidades pueden romper esa hipótesis y requieren un tratamiento diferente.
+:::
+
 En el aprendizaje de variedades rara vez conocemos las cartas, el mapeo generador $g$ o las coordenadas intrínsecas. Recibimos una muestra finita de puntos y tratamos de reconstruir parte de esa organización a partir de sus vecindades. Distintos algoritmos formalizarán esta tarea de maneras diferentes. Algunos intentarán conservar distancias geodésicas, otros reconstrucciones locales, probabilidades de vecindad o relaciones espectrales definidas sobre un grafo. Todos compartirán, sin embargo, una intuición común: **La estructura global debe aprenderse conectando información que resulta confiable a escala local**.
 
 Con esta base ya podemos avanzar sin que la palabra *variedad* funcione como una caja negra. No hemos construido aún su definición formal, pero sí reconocemos sus rasgos esenciales para el aprendizaje automático: Dimensión intrínseca menor que la dimensión ambiente, geometría global no lineal, aproximaciones locales casi Euclidianas y una noción de cercanía que debe respetar la estructura en lugar de atravesarla.
@@ -3138,13 +3146,13 @@ En una variedad, no existe una única manera de medir distancias sin especificar
 
 El conjunto de esas direcciones locales recibe el nombre de **espacio tangente**. Por ahora podemos imaginarlo simplemente como la recta o el plano que mejor aproxima la variedad alrededor de un punto. Cada posición posee su propia aproximación y ésta puede cambiar de orientación al recorrer una superficie curvada. En la sección siguiente construiremos esta idea con mayor cuidado, por lo que todavía no necesitamos una definición formal.
 
-Una vez disponible ese modelo lineal local, podemos medir longitudes sobre él mediante un producto interno. Si asignamos uno de estos productos internos a cada punto y hacemos que cambie suavemente al desplazarnos por la variedad, obtenemos una **métrica Riemanniana**. Esta estructura permite medir la longitud de las curvas trazadas sobre la variedad y definir la distancia intrínseca entre dos puntos como el ínfimo de las longitudes de todas las curvas que los conectan.
+Una vez disponible ese modelo lineal local, podemos medir longitudes y ángulos mediante un producto interno. Si asignamos uno de estos productos internos a cada punto y hacemos que cambie suavemente al desplazarnos por la variedad, obtenemos una regla local de medición que acompaña su curvatura. Más adelante definiremos formalmente esta estructura, una vez que dispongamos de todos los objetos necesarios. Por ahora basta con anticipar su consecuencia: Podremos medir la longitud de las curvas trazadas sobre la variedad y definir la distancia intrínseca entre dos puntos como el ínfimo de las longitudes de todas las curvas que los conectan.
 
 En $\mathbb{R}^{n}$, las curvas minimizantes son segmentos de recta y la distancia intrínseca coincide con la distancia Euclidiana. Consideremos ahora la esfera unitaria $S^{n-1}:=\left\{\mathbf{x}\in\mathbb{R}^{n}:\sum_{j=1}^{n}x_j^2=1\right\}$. En ella, las trayectorias localmente minimizantes siguen arcos de círculos máximos. Para la esfera ordinaria $S^{2}\subset\mathbb{R}^{3}$, los meridianos son ejemplos de esos círculos, con la condición de que éstos pasen por los polos *norte* y *sur* de la esfera, pero no todos los círculos máximos tienen que pasar por esos polos.
 
 Estas trayectorias se denominan **geodésicas** y generalizan localmente la noción de línea recta. Conviene ser precisos: Una geodésica no tiene por qué minimizar globalmente la distancia entre todos sus puntos. La existencia de una geodésica globalmente minimizante entre cualquier par de puntos requiere condiciones adicionales, como conexidad y completitud, que son inherentes a ciertos tipos de variedades. La definición formal utiliza como ingrediente principal el concepto de espacio tangente en cada punto, y que introduciremos un poco más adelante.
 
-Sí, todo esto suena súper abstracto. Las geodésicas son elementales en la teoría general de la relatividad desarrollada por Albert Einstein. Los cuerpos en caída libre siguen geodésicas temporales y la luz sigue geodésicas nulas dentro de un espacio-tiempo curvo. Una de las grandes ideas de la relatividad es que la gravedad no se interpreta como una fuerza clásica ordinaria, sino como una manifestación de la geometría del espacio-tiempo. Este espacio-tiempo se modela mediante una variedad diferenciable con una estructura particular, denominada **variedad pseudo-Riemanniana**.
+Sí, todo esto suena súper abstracto. Las geodésicas son elementales en la teoría general de la relatividad desarrollada por Albert Einstein. Los cuerpos en caída libre siguen geodésicas temporales y la luz sigue geodésicas nulas dentro de un espacio-tiempo curvo. Una de las grandes ideas de la relatividad es que la gravedad no se interpreta como una fuerza clásica ordinaria, sino como una manifestación de la geometría del espacio-tiempo. Este espacio-tiempo se modela mediante una variedad diferenciable provista de una regla de medición más general, capaz de distinguir intervalos espaciales, temporales y nulos. Esa generalización queda fuera del alcance de esta entrada, pero comparte la idea central de construir la geometría a partir de mediciones locales que cambian suavemente.
 
 Suficiente abstracción por un rato... ¿No creen?
 :::
@@ -4383,18 +4391,18 @@ El contraste también muestra por qué conviene separar el algoritmo de la métr
 El archivo industrial anonimizado <strong><font color="forestgreen">`mineralogy_log.csv`</font></strong> contiene 14537 registros de carga de mineral provisto por cuatro minas distintas hacia un proceso de chancado primario. Cada fila reúne cuatro familias de variables:
 
 - `grade_cut`: Ley de cobre total de la carga.
-- `ore_*`: Leyes mineralógicas de pirita, calcopirita, covelina, calcosina, digenita, bornita, enargita, molibdenita, blenda de zinc y turmalina.
+- `ore_*`: Leyes mineralógicas de pirita, calcopirita, covelina, calcosina, digenita, bornita, enargita, molibdenita, blenda de zinc y turmalina. Notemos que hay una gran cantidad de minerales sulfurados que alimentan a la planta concentradora. Si la mena principal es calcopirita, la presencia de otros sulfuros secundarios de cobre como la bornita y la calcosina puede convertirse en un problema, ya que pueden *competir* con la calcopirita durante el proceso de flotación, reduciendo su desempeño.
 - `met_wi` y `met_spi`: Indicadores de dureza conforme modelos geometalúrgicos para molienda de bolas (índice de trabajo del mineral o *work index*, en kWh/t) y molienda SAG (SPI o *SAG power index*, que es adimensional).
-- `clay_*`: Contenido de arcillas en el mineral, a nivel porcentual, por medio de espectrometría cercana al infrarrojo (NIR), separado en especies tales como esmectita, caolinita, limonita y moscovita. Las mediciones de arcillas son especialmente relevantes porque su comportamiento impermeable puede elevar la demanda de agua y alterar el desempeño de las etapas posteriores de concentración, sobretodo en flotación.
+- `clay_*`: Contenido de arcillas en el mineral, a nivel porcentual, estimado por medio de un proceso de espectrometría cercana al infrarrojo (NIR), separado en especies tales como esmectita, caolinita, limonita y moscovita. Las mediciones de arcillas son especialmente relevantes porque su comportamiento impermeable puede elevar la demanda de agua y alterar el desempeño de las etapas posteriores de concentración, sobretodo en flotación.
 
 En este contexto, llamaremos **afinidad mineralógica** a la proximidad entre dos cargas de mineral conforme su combinación de ley, mineralogía, dureza y contenido de arcillas. No se trata de "cercanía" geográfica: Dos observaciones pueden provenir de minas distintas y, aun así, ocupar regiones vecinas si presentan respuestas geometalúrgicas semejantes.
 
 Las columnas `mine`, `pushback`, `blasting` y `pala_ext` contienen identificadores genéricos. Ninguna de ellas participará en el ajuste. La mina se utilizará recién después de construir los mapas, únicamente para colorear los puntos y comprobar si la geometría aprendida recupera alguna estructura de procedencia sin haber recibido esa etiqueta.
 
-Comenzamos incorporando el imputador que reemplazará las mediciones ausentes. Usaremos la mediana de cada variable porque es menos sensible que la media a las colas largas y a las campañas mineralógicas extremas:
+Comenzamos incorporando el imputador que reemplazará las mediciones ausentes. Utilizaremos una imputación basada en los $k$ vecinos más cercanos, de modo que cada valor faltante se estime a partir de cargas con perfiles geometalúrgicos semejantes. Esta decisión conserva mejor la estructura local y las distribuciones multivariadas que una sustitución global por la media o la mediana:
 
 ```{python}
-from sklearn.impute import SimpleImputer
+from sklearn.impute import KNNImputer
 ```
 
 Ahora cargamos el registro y declaramos explícitamente las variables que conformarán el perfil geometalúrgico. Dejamos fuera la fecha, el tonelaje y todos los identificadores operacionales: El mapa debe responder a la composición y a la competencia del mineral, no a su nombre ni a su volumen transportado:
@@ -4428,13 +4436,14 @@ mineralogy_features = [
 mineralogy_log[["mine", *mineralogy_features]].head()
 ```
 
-El registro no está balanceado entre minas. Además, el algoritmo Isomap necesita almacenar distancias entre pares de observaciones, por lo que usar las 14.537 cargas completas elevaría innecesariamente el costo de este ejemplo. Conservaremos hasta 1.000 observaciones por mina mediante un muestreo reproducible. Esto limita el dominio de las minas abundantes sin inventar registros para las menos representadas:
+El registro no está balanceado entre las diferentes minas. Además, el algoritmo Isomap necesita almacenar distancias entre pares de observaciones, por lo que usar las 14537 cargas completas elevaría innecesariamente el costo de este ejemplo. Conservaremos hasta 2000 observaciones por mina mediante un muestreo reproducible. Esto limita el dominio de las minas abundantes sin inventar registros para las menos representadas:
 
 ```{python}
+# Escogemos hasta 2000 observaciones por mina de manera reproducible.
 sample_indices = np.concatenate(
     [
         group_i.sample(
-            n=min(group_i.shape[0], 1_000),
+            n=min(group_i.shape[0], 2000),
             random_state=42,
         ).index.to_numpy()
         for _, group_i in mineralogy_log.groupby("mine")
@@ -4448,39 +4457,52 @@ mineralogy_sample = (
     .reset_index(drop=True)
 )
 
+# Realizamos el conteo de observaciones por mina después del muestreo.
 mineralogy_sample["mine"].value_counts().sort_index()
 ```
 
+La muestra resultante contiene 3874 cargas: 2000 observaciones de la Mina A, 1269 de la Mina B, tres de la Mina C y 602 de la Mina D. Esta composición conserva una porción amplia de la variabilidad operacional disponible, aunque también mantiene el desbalance real entre las fuentes de mineral.
+
 ::: {.callout-warning}
+## Insuficiencia de datos en la Mina C
+
 La **Mina C** sólo dispone de tres cargas en el archivo original. Las conservaremos para no ocultar esa limitación, pero tres puntos no permiten inferir una distribución mineralógica estable ni comparar su variabilidad con la de las demás minas. Su posición en el mapa debe leerse como evidencia puntual, no como una caracterización de procedencia.
 :::
 
-El preprocesamiento se realiza sin utilizar la mina. Primero convertimos las columnas a valores numéricos, interpretando los símbolos de ausencia como datos faltantes. Luego acotamos en cero pequeñas inconsistencias negativas, imputamos por mediana y aplicamos `log1p()` para comprimir las colas derechas características de leyes mineralógicas con muchas trazas. Finalmente, estandarizamos cada variable para que una arcilla expresada en porcentaje no domine a un mineral minoritario sólo por su escala numérica:
+El preprocesamiento se realiza sin utilizar la información relativa al origen del mineral. Primero convertimos las columnas a valores numéricos, interpretando los símbolos de ausencia como datos faltantes, y acotamos en cero pequeñas inconsistencias negativas. Luego aplicamos `log1p()` para comprimir las colas derechas características de leyes mineralógicas con muchas trazas y estandarizamos las variables observadas. Esta estandarización previa es importante: La distancia utilizada por el imputador no debe quedar dominada por una arcilla expresada en porcentaje frente a un mineral minoritario con otra escala numérica.
+
+Sobre esta representación comparable aplicaremos un método de autoimputación por medio del algoritmo de $k$-vecinos más cercanos (kNN). Esto suena algo redundante respecto de la teoría subyacente a los algoritmos de aprendizaje de variedades que hemos estudiado hasta ahora, pero su propósito es distinto: Deseamos generar imputaciones que no destruyan la estructura de la variabilidad observada en los datos, porque esa es precisamente la información que deseamos preservar. Para ello, usaremos `KNNImputer`, con 5 vecinos y una ponderación de influencia inversamente proporcional a la distancia entre ellos y las instancias correspondientes. Para cada medición ausente, el método busca cargas de mineral cercanas usando las demás variables disponibles y concederá mayor influencia a los perfiles más semejantes. El resultado no inventa una nueva campaña ni garantiza recuperar el valor "verdadero" del registro que nos falta, pero evita concentrar artificialmente todos los registros incompletos alrededor de una agregación común:
 
 ```{python}
+# Realizamos el pre-procesamiento de la matriz mineralógica.
 mineralogy_matrix = (
     mineralogy_sample[mineralogy_features]
     .apply(pd.to_numeric, errors="coerce")
     .clip(lower=0)
 )
 
-mineralogy_imputer = SimpleImputer(strategy="median")
 mineralogy_scaler = StandardScaler()
-
-mineralogy_matrix_imputed = mineralogy_imputer.fit_transform(
-    mineralogy_matrix
+mineralogy_imputer = KNNImputer(
+    n_neighbors=5,
+    weights="distance",
 )
 
 mineralogy_matrix_scaled = mineralogy_scaler.fit_transform(
-    np.log1p(mineralogy_matrix_imputed)
+    np.log1p(mineralogy_matrix)
+)
+
+mineralogy_matrix_imputed = mineralogy_imputer.fit_transform(
+    mineralogy_matrix_scaled
 )
 ```
 
 Utilizaremos $k=50$ en ambos métodos. En esta muestra, ese valor produce un grafo conectado: Existe al menos una ruta entre cualquier par de cargas. La elección es deliberadamente más alta que en el rollo suizo porque aquí combinamos varias campañas, procedencias y dominios mineralógicos. Mantener el mismo $k$ también evita atribuir al algoritmo una diferencia causada, en realidad, por haberle entregado otra red de vecindades:
 
 ```{python}
+# Definimos el número de vecinos para LLE e Isomap.
 mineralogy_neighbors = 50
 
+# Instanciamos los correspondientes modelos.
 mineralogy_lle = LocallyLinearEmbedding(
     n_neighbors=mineralogy_neighbors,
     n_components=3,
@@ -4498,30 +4520,33 @@ mineralogy_isomap = Isomap(
     n_jobs=-1,
 )
 
+# Y los entrenamos.
 mineralogy_lle_embedding = mineralogy_lle.fit_transform(
-    mineralogy_matrix_scaled
+    mineralogy_matrix_imputed
 )
 
 mineralogy_isomap_embedding = mineralogy_isomap.fit_transform(
-    mineralogy_matrix_scaled
+    mineralogy_matrix_imputed
 )
 ```
 
 Antes de dibujar, evaluamos ambos mapas con la confiabilidad de vecindades. Esta métrica no utiliza las etiquetas de mina: Sólo pregunta si los vecinos del espacio reducido también eran cercanos en las 17 variables originales:
 
 ```{python}
+# Evaluamos la confiabilidad de los mapas obtenidos.
 mineralogy_lle_trustworthiness = trustworthiness(
-    mineralogy_matrix_scaled,
+    mineralogy_matrix_imputed,
     mineralogy_lle_embedding,
     n_neighbors=15,
 )
 
 mineralogy_isomap_trustworthiness = trustworthiness(
-    mineralogy_matrix_scaled,
+    mineralogy_matrix_imputed,
     mineralogy_isomap_embedding,
     n_neighbors=15,
 )
 
+# Llevamos a formato de serie y mostramos los resultados.
 pd.Series(
     {
         "LLE estándar": mineralogy_lle_trustworthiness,
@@ -4535,7 +4560,8 @@ Finalmente, superponemos la procedencia genérica sobre las dos representaciones
 
 ```{python}
 #| label: fig-mineralogical-affinity-lle-isomap
-#| fig-cap: "Mapas tridimensionales de afinidad mineralógica construidos con LLE e Isomap. Los modelos sólo reciben las leyes, la mineralogía, la dureza y las arcillas; el color de la mina se incorpora después del ajuste. Con $k=50$, la confiabilidad local alcanza aproximadamente 0.929 para LLE y 0.962 para Isomap."
+#| fig-cap: "Mapas tridimensionales de afinidad mineralógica construidos con LLE e Isomap sobre 3874 cargas. Los modelos sólo reciben las leyes, la mineralogía, la dureza y las arcillas; el color de la mina se incorpora después del ajuste. Los datos faltantes se estiman mediante vecinos geometalúrgicos cercanos. Con $k=50$, la confiabilidad local alcanza aproximadamente 0.885 para LLE y 0.962 para Isomap."
+# Definimos nuestra paleta de colores.
 mine_colors = {
     "Mina A": "royalblue",
     "Mina B": "indianred",
@@ -4543,6 +4569,7 @@ mine_colors = {
     "Mina D": "goldenrod",
 }
 
+# Construimos la figura.
 fig = make_subplots(
     rows=1,
     cols=2,
@@ -4585,10 +4612,10 @@ for mine_i, color_i in mine_colors.items():
                     "size": 6 if mine_i == "Mina C" else 3.5,
                     "color": color_i,
                     "opacity": 0.68,
-                    "line": {
-                        "color": "#20252b",
-                        "width": 0.35,
-                    },
+                    #"line": {
+                        #"color": "#20252b",
+                        #"width": 0.35,
+                    #},
                 },
                 hovertemplate=(
                     "<b>%{customdata[0]}</b><br>"
@@ -4620,6 +4647,7 @@ scene_layout = {
     "camera": {"eye": {"x": 1.45, "y": 1.45, "z": 1.15}},
 }
 
+# Rotulamos y finalizamos.
 fig.update_layout(
     scene=scene_layout,
     scene2=scene_layout,
@@ -4648,8 +4676,1891 @@ for annotation in fig.layout.annotations:
 show_plotly(fig)
 ```
 
-El mapa de LLE conserva agrupaciones locales, pero comprime parte de la geometría global y aproxima algunas campañas distintas sobre una misma región. Isomap entrega una estructura más extendida y obtiene una confiabilidad cercana a 0.962, superior al valor aproximado de 0.929 alcanzado por LLE. En este registro, los caminos geodésicos parecen representar mejor la continuidad entre perfiles mineralógicos que una única reconstrucción lineal local.
+El algoritmo LLE concentra la nube en una geometría más compacta y anisotrópica que Isomap. Aun así, su confiabilidad de aproximadamente 0.885 indica que conserva una proporción importante de las vecindades mineralógicas originales. El resultado no debe interpretarse como una reproducción métrica completa del espacio geometalúrgico, pero tampoco como un colapso absoluto: La reconstrucción lineal local todavía distingue regiones y transiciones entre perfiles de mineral.
 
-La lectura operacional más interesante está en las zonas de mezcla. Los colores no forman cuatro islas perfectamente separadas, y eso es razonable: La procedencia administrativa de una carga no determina por sí sola su mineralogía. Las regiones donde dos minas se superponen describen materiales potencialmente intercambiables desde la perspectiva de las variables seleccionadas. En cambio, una rama dominada por un solo color sugiere una combinación de mineralogía, dureza o arcillas menos habitual en las demás fuentes.
+El algoritmo Isomap mantiene una variedad tridimensional más extendida y alcanza una confiabilidad cercana a 0.962. Los caminos mínimos del grafo conservan mejor la continuidad acumulada entre los perfiles geometalúrgicos. Para esta muestra y este valor de $k$, la geometría geodésica ofrece una representación local más fiel que la reconstrucción lineal de LLE.
+
+La lectura operacional de las zonas de mezcla debe apoyarse principalmente en el mapa de Isomap, aunque el mapa de LLE conserva valor como contraste geométrico. Sus colores no forman cuatro islas perfectamente separadas, y eso es razonable: La procedencia administrativa de una carga no determina por sí sola su mineralogía. Las regiones donde dos minas se superponen describen materiales potencialmente intercambiables desde la perspectiva de las variables seleccionadas. En cambio, una rama dominada por un solo color sugiere una combinación de mineralogía, dureza o arcillas menos habitual en las demás fuentes.
 
 Este mapa no reemplaza un modelo de geometalurgia ni demuestra causalidad. Sí entrega una herramienta exploratoria muy minera: Permite reconocer campañas, mezclas y materiales atípicos antes de preguntar cómo esas diferencias se propagan hacia capacidad de chancado, consumo de energía, demanda de agua o recuperación metalúrgica. ◼︎
+
+## Algoritmo de escalamiento multidimensional (MDS)
+
+::: {.callout-important}
+## Fuente principal de esta sección
+
+La fuente principal de esta sección es el texto de [Abdi (2022), *Multidimensional Scaling*](https://personal.utdallas.edu/~herve/abdi-MDS-sage2022.pdf), publicado en *The SAGE Encyclopedia of Research Design*. El autor presenta el escalamiento multidimensional como una familia de métodos que transforma una matriz de distancias o disimilitudes en coordenadas Euclidianas, de manera que las distancias entre los puntos representados aproximen las relaciones contenidas en la matriz original.
+
+Nuestro desarrollo seguirá esa formulación como referencia central, pero expandirá las transiciones algebraicas, la interpretación geométrica y la conexión con los algoritmos de reducción de dimensionalidad que ya hemos estudiado. Distinguiremos además entre el escalamiento multidimensional métrico y no métrico antes de llevar la teoría a su implementación computacional.
+:::
+
+El **escalamiento multidimensional** (**MDS**, del inglés *multidimensional scaling*) es un conjunto de técnicas que buscan representar datos en un espacio de menor dimensión preservando, en la medida de lo posible, las distancias entre los puntos. La idea central es que podamos *traducir* las relaciones de proximidad contenidas en una matriz de distancias a un conjunto de coordenadas en un espacio Euclidiano de dimensión reducida.
+
+Si $\mathbf{X}\in \mathbb{R}^{m\times n}$ describe una matriz de diseño que contiene los datos de interés que deseamos representar en un espacio de menor dimensión, la **matriz de distancias Euclidianas** $\mathbf{D}\in \mathbb{R}^{m\times m}$ es un arreglo simétrico donde cada entrada $d_{ij}$ representa la distancia entre los puntos $\mathbf{x}_{i}$ y $\mathbf{x}_{j}$, para $i,j=1,\dots,m$
+
+::: {.eq-scroll}
+$$
+\mathbf{D} :=\left( d_{ij} \right)_{i,j=1}^{m} \quad ;\quad d_{ij}:=\left\| \mathbf{x}_{i} -\mathbf{x}_{j} \right\|_{2}
+\tag{2.95}
+$$
+:::
+
+Notemos que la diagonal principal de la matriz de distancias $\mathbf{D}$ contiene únicamente ceros, ya que la distancia de un punto consigo mismo es cero.
+
+Los métodos MDS no están limitados al uso de distancias Euclidianas, pero la formulación clásica y más comúnmente utilizada se basa en ellas. Esto permite aprovechar propiedades algebraicas y geométricas bien conocidas del espacio Euclidiano, facilitando la interpretación y el análisis de las soluciones obtenidas. Sin embargo, también podemos comenzar con otras distancias o con disimilitudes generales, aunque en esos casos la representación reducida puede no reproducirlas exactamente mediante separaciones Euclidianas.
+
+Antes de proceder, formalizaremos dos definiciones importantes en este contexto. Mantendremos el contexto general de variedades diferenciables y distancias definidas sobre ellas.
+
+<strong><font color="blue">Definición 2.4 – Métrica o distancia:</font></strong> Sea $X$ un conjunto no vacío. En nuestro contexto, $X$ puede corresponder a una muestra finita contenida en una variedad diferenciable $M$. Una función $d:X\times X\rightarrow\mathbb{R}_{\geq 0}$ es una **métrica**, o una **distancia**, si satisface las siguientes propiedades:
+
+- **(T1)** **No negatividad:** $d(x,y)\geq0$ para todo $x,y\in X$.
+- **(T2)** **Identidad de los indistinguibles:** $d(x,y)=0$ si y sólo si $x=y$.
+- **(T3)** **Simetría:** $d(x,y)=d(y,x)$ para todo $x,y\in X$.
+- **(T4)** **Desigualdad triangular:** $d(x,z)\leq d(x,y)+d(y,z)$ para todo $x,y,z\in X$.
+
+El par $(X,d)$ recibe el nombre de **espacio métrico**. La misión de la métrica es cuantificar de manera consistente la separación entre sus elementos. La definición no exige que $X$ sea abierto, continuo ni diferenciable: Una nube finita de observaciones también puede convertirse en un espacio métrico si la función utilizada satisface los cuatro axiomas. Esta estructura permite comparar proximidades y sustenta tareas como el agrupamiento, la búsqueda de vecinos y la reducción de dimensionalidad.
+
+<strong><font color="blue">Definición 2.5 – Disimilitud:</font></strong> Sea $X$ un conjunto no vacío. Una **disimilitud** es una función $\delta:X\times X\rightarrow\mathbb{R}_{\geq0}$ que cuantifica cuán diferentes son dos elementos y satisface $\delta(x,x)=0$. A diferencia de una métrica, no tiene que cumplir necesariamente con la identidad de los indistinguibles, la simetría ni la desigualdad triangular.
+
+Una disimilitud puede provenir de una calificación ordinal, un índice de diferencia química, una apreciación experta o cualquier regla que entregue separaciones comparables sin construir necesariamente un espacio métrico. Esto no la hace incorrecta: Sólo limita las conclusiones geométricas que podemos extraer directamente de ella. En particular, una disimilitud grande debe interpretarse como mayor separación conforme el criterio elegido, pero no garantiza por sí sola la existencia de caminos, longitudes o triángulos coherentes. Algunas formulaciones de MDS admiten información dirigida, pero el MDS clásico que desarrollaremos más adelante requiere una matriz simétrica. Cuando la disimilitud sea asimétrica tendremos que justificar una regla de simetrización antes de aplicarlo.
+
+::: {.callout-note}
+## Una distancia es también una decisión de modelamiento
+
+Los axiomas no seleccionan automáticamente la distancia apropiada para un problema. Dos funciones pueden satisfacerlos y, aun así, producir vecindades completamente distintas. En geometalurgia, por ejemplo, la distancia Euclidiana entre variables estandarizadas, una distancia de Mahalanobis y una distancia construida a partir de respuestas metalúrgicas representan preguntas diferentes. MDS preservará la noción de separación que le entreguemos, no una geometría verdadera que exista con independencia de esa decisión.
+:::
+
+La distancia más familiar es la **distancia Euclidiana**. Dados dos puntos $\mathbf{x}_{i},\mathbf{x}_{j}\in\mathbb{R}^{n}$, su valor corresponde a la longitud del segmento recto que los conecta
+
+::: {.eq-scroll}
+$$
+\begin{array}{lll}d_{E}\left( \mathbf{x}_{i} ,\mathbf{x}_{j} \right)&:=&\left\| \mathbf{x}_{i} -\mathbf{x}_{j} \right\|_{2}\\ &=&\displaystyle \left( \sum_{\ell =1}^{n} \left( x_{i\ell}-x_{j\ell} \right)^{2} \right)^{1/2}\end{array}
+\tag{2.96}
+$$
+:::
+
+Esta distancia se encuentra inducida por el producto interno usual de $\mathbb{R}^{n}$. Es invariante frente a traslaciones y rotaciones, pero no frente a cambios de escala independientes entre variables. Por esta razón, cuando las columnas de una matriz de diseño utilizan unidades diferentes, debemos decidir si corresponde estandarizarlas antes de construir $\mathbf{D}$. De lo contrario, la variable con mayor escala numérica puede determinar casi por completo la configuración obtenida.
+
+**Una métrica y una disimilitud sobre perfiles de mineral:** Las definiciones anteriores pueden parecer casi idénticas mientras permanezcan escritas como listas de propiedades. Construiremos dos separaciones sobre las cargas de mineral almacenadas en el archivo <strong><font color="forestgreen">`mineralogy_log.csv`</font></strong> estudiado en el ejemplo (2.7), para observar qué cambia cuando abandonamos los axiomas de una métrica.
+
+No volveremos a cargar ni a preprocesar los datos. Reutilizaremos los objetos `mineralogy_sample`, `mineralogy_matrix_imputed` y los transformadores ya ajustados. Elegiremos una carga representativa de las minas A, B y D. Para evitar una selección arbitraria, calcularemos el centro de cada mina en el espacio estandarizado de 17 variables y conservaremos la observación real más cercana. La Mina C queda fuera de esta comparación porque sus tres registros no permiten caracterizar un perfil representativo con la misma estabilidad:
+
+```{python}
+# Seleccionamos una carga representativa de cada mina analizada.
+representative_mines = ["Mina A", "Mina B", "Mina D"]
+representative_positions = []
+
+for mine_i in representative_mines:
+    mine_mask_i = mineralogy_sample["mine"].eq(mine_i).to_numpy()
+    mine_positions_i = np.flatnonzero(mine_mask_i)
+    mine_matrix_i = mineralogy_matrix_imputed[mine_mask_i]
+    mine_center_i = mine_matrix_i.mean(axis=0)
+
+    representative_positions.append(
+        mine_positions_i[
+            np.argmin(
+                np.sum(
+                    (mine_matrix_i - mine_center_i) ** 2,
+                    axis=1,
+                )
+            )
+        ]
+    )
+# Convertimos la lista de posiciones representativas a un arreglo de Numpy.
+representative_positions = np.asarray(representative_positions)
+```
+
+La selección se realiza sobre la matriz utilizada por los algoritmos LLE e Isomap, pero deseamos interpretar los perfiles en sus unidades originales. Por ello, revertimos la estandarización y la transformación logarítmica aplicadas en el ejemplo (2.7). Esta operación no deshace la imputación por medio del algoritmo kNN, sino que simplemente recupera la escala física tanto para los valores observados como para aquellos estimados mediante sus vecinos:
+
+```{python}
+# Recuperamos las unidades originales de los perfiles imputados.
+mineralogy_profiles = pd.DataFrame(
+    np.expm1(
+        mineralogy_scaler.inverse_transform(
+            mineralogy_matrix_imputed
+        )
+    ),
+    columns=mineralogy_features,
+    index=mineralogy_sample.index,
+).clip(lower=0)
+
+representative_profiles = (
+    mineralogy_profiles
+    .iloc[representative_positions]
+    .set_axis(representative_mines)
+)
+
+representative_metadata = (
+    mineralogy_sample
+    .iloc[representative_positions]
+    .loc[:, ["mine", "fecha", "pushback"]]
+    .set_axis(representative_mines)
+)
+
+# Mostramos la metadata de las cargas representativas.
+representative_metadata
+```
+
+Comenzaremos describiendo cada carga mediante su *work index* (WI) y su contenido total de arcillas. Como ambas variables poseen escalas y correlaciones diferentes, utilizaremos la **distancia de Mahalanobis**. Para dos vectores $\mathbf{x}_{i},\mathbf{x}_{j}\in\mathbb{R}^{n}$ y una matriz de covarianza simétrica definida positiva $\boldsymbol{\Sigma}$, esta distancia se define como
+
+::: {.eq-scroll}
+$$
+d_{\mathrm{M}}\left(\mathbf{x}_{i},\mathbf{x}_{j}\right):=\sqrt{\left(\mathbf{x}_{i}-\mathbf{x}_{j}\right)^{\top} \boldsymbol{\Sigma}^{-1} \left(\mathbf{x}_{i}-\mathbf{x}_{j}\right)}
+\tag{2.97}
+$$
+:::
+
+La matriz $\boldsymbol{\Sigma}^{-1}$ reduce la importancia de las direcciones naturalmente variables y considera las correlaciones entre las variables. La condición definida positiva garantiza que la expresión sea una métrica. Estimaremos $\boldsymbol{\Sigma}$ sobre todas las cargas del ejemplo (2.7), no sólo sobre las tres observaciones seleccionadas. De esta manera, la geometría de referencia representa la variabilidad conjunta del registro:
+
+```{python}
+# Construimos el plano geometalúrgico de dureza y arcillas.
+clay_columns = [
+    "clay_esm",
+    "clay_cao",
+    "clay_lim",
+    "clay_mus",
+]
+
+geometallurgical_population = pd.DataFrame(
+    {
+        "Work Index [kWh/t]": mineralogy_profiles["met_wi"],
+        "Arcillas totales [%]": mineralogy_profiles[clay_columns].sum(axis=1),
+        "Mina": mineralogy_sample["mine"],
+    }
+)
+
+geometallurgical_profiles = (
+    geometallurgical_population
+    .iloc[representative_positions]
+    .drop(columns="Mina")
+    .set_axis(representative_mines)
+)
+
+reference_covariance = (
+    geometallurgical_population
+    .drop(columns="Mina")
+    .cov()
+    .to_numpy()
+    + 1e-8 * np.eye(2)
+)
+
+# Mostramos los perfiles geometalúrgicos de las cargas representativas.
+geometallurgical_profiles
+```
+
+Para contrastar esta métrica con una disimilitud utilizaremos la [divergencia de Kullback-Leibler](/apuntes/grafos-e-informacion/introduccion-a-la-teoria-de-la-informacion/#divergencia-de-kullback-leibler). Esta cantidad mide la información adicional que necesitamos cuando empleamos una distribución $Q$ para representar observaciones generadas conforme una distribución de referencia $P$. Para distribuciones discretas definidas sobre el mismo soporte, escribimos
+
+::: {.eq-scroll}
+$$
+D_{\mathrm{KL}}\left( P\| Q \right) :=\sum_{\ell =1}^{n} p_{\ell}\log \left( \frac{p_{\ell}}{q_{\ell}} \right)
+\tag{2.98}
+$$
+:::
+
+El orden de los argumentos posee un significado importante: $P$ representa la distribución de referencia y $Q$ la aproximación utilizada en su lugar. Por esta razón, intercambiarlas puede cambiar el resultado. Esta falta de simetría basta para que la divergencia KL no sea una métrica, pero no impide utilizarla como una disimilitud dirigida entre composiciones mineralógicas.
+
+Construiremos entonces una distribución para cada una de las mismas cargas. Cada fila se normaliza para representar proporciones sobre un soporte común formado por diez minerales. La expresión anterior exige $q_{\ell}>0$ siempre que $p_{\ell}>0$. Como algunas especies poseen leyes iguales a cero, añadiremos una cantidad numéricamente despreciable antes de normalizar. Este ajuste sólo garantiza que el cociente y su logaritmo no se indeterminen:
+
+```{python}
+# Normalizamos las leyes mineralógicas de las cargas seleccionadas.
+ore_columns = [
+    "ore_py",
+    "ore_cp",
+    "ore_cv",
+    "ore_cc",
+    "ore_dg",
+    "ore_bn",
+    "ore_en",
+    "ore_mo",
+    "ore_bl",
+    "ore_tsx",
+]
+
+mineral_names = [
+    "Pirita",
+    "Calcopirita",
+    "Covelina",
+    "Calcosina",
+    "Digenita",
+    "Bornita",
+    "Enargita",
+    "Molibdenita",
+    "Blenda de zinc",
+    "Turmalina",
+]
+
+mineralogical_distributions = (
+    representative_profiles[ore_columns]
+    .add(1e-12)
+    .set_axis(mineral_names, axis="columns")
+)
+
+mineralogical_distributions = mineralogical_distributions.div(
+    mineralogical_distributions.sum(axis=1),
+    axis="index",
+)
+
+# Mostramos las distribuciones mineralógicas normalizadas de las cargas
+# seleccionadas.
+mineralogical_distributions
+```
+
+Antes de calcular las separaciones, observemos qué estamos comparando. El panel izquierdo sitúa las tres cargas de mineral sobre la población completa conforme dureza y arcillas. El panel derecho muestra que sus diferencias mineralógicas no se reducen a un cambio de magnitud: También cambia la distribución relativa entre especies:
+
+```{python}
+#| label: fig-metric-dissimilarity-profiles
+#| fig-cap: "Perfiles seleccionados desde el registro del ejemplo (2.7). A la izquierda, una ampliación alrededor de las cargas representativas permite ubicarlas sobre la población conforme dureza y contenido total de arcillas; la covarianza se estima de todos modos con el registro completo. A la derecha, las mismas cargas se expresan como composiciones mineralógicas normalizadas. Ambas representaciones describen objetos distintos y, por ello, justifican medidas de separación diferentes."
+
+# Iniciamos nuestra figura.
+fig, axes = plt.subplots(
+    nrows=1,
+    ncols=2,
+    figsize=(9, 5),
+)
+
+for mine_i, color_i in mine_colors.items():
+    mine_profiles_i = geometallurgical_population.loc[
+        geometallurgical_population["Mina"].eq(mine_i)
+    ]
+
+    mine_profiles_i.plot.scatter(
+        x="Work Index [kWh/t]",
+        y="Arcillas totales [%]",
+        color=color_i,
+        alpha=0.13,
+        s=11,
+        label=mine_i,
+        ax=axes[0],
+    )
+
+label_offsets = {
+    "Mina A": (7, 6),
+    "Mina B": (7, 8),
+    "Mina D": (7, -17),
+}
+
+for mine_i in representative_mines:
+    axes[0].scatter(
+        geometallurgical_profiles.loc[mine_i, "Work Index [kWh/t]"],
+        geometallurgical_profiles.loc[mine_i, "Arcillas totales [%]"],
+        color=mine_colors[mine_i],
+        edgecolor="black",
+        linewidth=1.2,
+        marker="D",
+        s=70,
+        zorder=5,
+    )
+    axes[0].annotate(
+        mine_i,
+        (
+            geometallurgical_profiles.loc[mine_i, "Work Index [kWh/t]"],
+            geometallurgical_profiles.loc[mine_i, "Arcillas totales [%]"],
+        ),
+        xytext=label_offsets[mine_i],
+        textcoords="offset points",
+        fontsize=9,
+        weight="bold",
+    )
+
+mineralogical_distributions.plot.bar(
+    stacked=True,
+    colormap="tab20",
+    width=0.72,
+    ax=axes[1],
+)
+
+# Rotulamos los ejes y títulos de los paneles.
+axes[0].set_title(
+    "Dureza y arcillas",
+    loc="left",
+    weight="bold",
+)
+
+axes[0].set_xlim(
+    geometallurgical_profiles["Work Index [kWh/t]"].min() - 3,
+    geometallurgical_profiles["Work Index [kWh/t]"].max() + 3,
+)
+
+axes[0].set_ylim(
+    -1,
+    geometallurgical_profiles["Arcillas totales [%]"].max() + 10,
+)
+
+axes[0].legend(
+    loc="upper left",
+    fontsize=8,
+    frameon=False,
+)
+
+axes[1].set_title(
+    "Composición mineralógica relativa",
+    loc="left",
+    weight="bold",
+)
+axes[1].set_xlabel("")
+axes[1].set_ylabel("Proporción")
+axes[1].tick_params(axis="x", rotation=0)
+axes[1].legend(
+    loc="upper center",
+    bbox_to_anchor=(0.5, -0.17),
+    ncols=2,
+    fontsize=7,
+    frameon=False,
+)
+
+fig.subplots_adjust(
+    bottom=0.31,
+    left=0.08,
+    right=0.98,
+    top=0.90,
+    wspace=0.30,
+)
+
+plt.tight_layout()
+```
+
+Con ambas separaciones definidas, implementaremos sus expresiones directamente para hacer visibles las diferencias estructurales entre una métrica y una disimilitud dirigida:
+
+```{python}
+# Definimos dos funciones para implementar la distancia de Mahalanobis
+# y la divergencia KL.
+def mahalanobis_distance(vector_i, vector_j, inverse_covariance):
+    """Calcula la distancia de Mahalanobis entre dos vectores."""
+    difference = vector_i - vector_j
+
+    return np.sqrt(
+        difference @ inverse_covariance @ difference.T
+    )
+
+
+def kullback_leibler_divergence(P, Q):
+    """Calcula D_KL(P_i || P_j) usando logaritmos naturales."""
+    return np.sum(P * np.log(P / Q))
+```
+
+La primera función recibe explícitamente la inversa de la covarianza que define la geometría de Mahalanobis. La segunda conserva la dirección de la divergencia KL. Calcularemos ahora todas las separaciones dirigidas entre las tres cargas, en lugar de escoger sólo algunos pares:
+
+```{python}
+# Calculamos las matrices completas de separación.
+inverse_reference_covariance = np.linalg.inv(reference_covariance)
+profile_labels = representative_mines
+
+mahalanobis_matrix = pd.DataFrame(
+    np.zeros((3, 3)),
+    index=profile_labels,
+    columns=profile_labels,
+)
+kl_matrix = pd.DataFrame(
+    np.zeros((3, 3)),
+    index=profile_labels,
+    columns=profile_labels,
+)
+
+for label_i in profile_labels:
+    for label_j in profile_labels:
+        mahalanobis_matrix.loc[label_i, label_j] = (
+            mahalanobis_distance(
+                geometallurgical_profiles.loc[label_i].to_numpy(),
+                geometallurgical_profiles.loc[label_j].to_numpy(),
+                inverse_reference_covariance,
+            )
+        )
+        kl_matrix.loc[label_i, label_j] = (
+            kullback_leibler_divergence(
+                mineralogical_distributions.loc[label_i].to_numpy(),
+                mineralogical_distributions.loc[label_j].to_numpy(),
+            )
+        )
+```
+
+Las matrices permiten observar todas las direcciones posibles. En el caso de la distancia de Mahalanobis, reflejar una celda respecto de la diagonal no cambia su valor. En la divergencia KL, la fila representa la distribución de referencia y la columna la distribución utilizada para aproximarla. Por eso ambas orientaciones pueden producir costos de información muy diferentes:
+
+```{python}
+#| label: fig-metric-dissimilarity-matrices
+#| fig-cap: "Matrices de separación entre las cargas representativas del ejemplo (2.7). La distancia de Mahalanobis produce una matriz simétrica porque intercambiar el origen y el destino no modifica la separación. La divergencia de Kullback-Leibler produce una matriz dirigida: Cada fila cuantifica el costo de representar su composición mineralógica mediante la distribución indicada por la columna."
+
+# Iniciamos nuestra figura.
+fig, axes = plt.subplots(
+    nrows=1,
+    ncols=2,
+    figsize=(9, 4),
+)
+
+sns.heatmap(
+    mahalanobis_matrix,
+    annot=True,
+    fmt=".3f",
+    cmap="Blues",
+    cbar=False,
+    square=True,
+    linewidths=0.8,
+    ax=axes[0],
+)
+
+sns.heatmap(
+    kl_matrix,
+    annot=True,
+    fmt=".3f",
+    cmap="Reds",
+    cbar=False,
+    square=True,
+    linewidths=0.8,
+    ax=axes[1],
+)
+
+# Y rotulamos los ejes y títulos correspondientes.
+axes[0].set_title(
+    "Distancia de Mahalanobis",
+    loc="left",
+    weight="bold",
+)
+axes[1].set_title(
+    "Divergencia de Kullback-Leibler",
+    loc="left",
+    weight="bold",
+)
+
+for ax_i in axes:
+    ax_i.set_xlabel("Perfil de destino")
+    ax_i.set_ylabel("Perfil de origen")
+    ax_i.tick_params(axis="x", rotation=0)
+    ax_i.tick_params(axis="y", rotation=0)
+
+fig.subplots_adjust(
+    bottom=0.20,
+    left=0.08,
+    right=0.98,
+    top=0.86,
+    wspace=0.34,
+)
+
+plt.tight_layout()
+```
+
+Finalmente, comprobamos programáticamente la simetría y la desigualdad triangular sobre todas las ternas posibles. La función auxiliar no presupone que la matriz provenga de una métrica: Sólo verifica si los valores observados satisfacen la propiedad:
+
+```{python}
+# Definimos una función auxiliar que verifica la desigualdad triangular
+# para todas las ternas posibles.
+def satisfies_triangle_inequality(distance_matrix, tolerance=1e-12):
+    """Comprueba la desigualdad triangular para todas las ternas."""
+    distances = distance_matrix.to_numpy()
+    n_profiles = distances.shape[0]
+
+    return all(
+        distances[i_i, j_j]
+        <= distances[i_i, k_k] + distances[k_k, j_j] + tolerance
+        for i_i in range(n_profiles)
+        for j_j in range(n_profiles)
+        for k_k in range(n_profiles)
+    )
+```
+
+```{python}
+# Construimos un resumen de las propiedades métricas de las matrices
+# de disimilitud.
+metric_diagnostics = pd.Series(
+    {
+        "Mahalanobis es simétrica": np.allclose(
+            mahalanobis_matrix,
+            mahalanobis_matrix.T,
+        ),
+        "Mahalanobis satisface T4": satisfies_triangle_inequality(
+            mahalanobis_matrix
+        ),
+        "KL es simétrica": np.allclose(
+            kl_matrix,
+            kl_matrix.T,
+        ),
+        "KL satisface T4": satisfies_triangle_inequality(
+            kl_matrix
+        ),
+    },
+    name="Resultado",
+)
+
+# Mostramos en pantalla los resultados.
+metric_diagnostics
+```
+
+La distancia de Mahalanobis entrega el mismo resultado en ambas direcciones y satisface la desigualdad triangular para las cargas seleccionadas. La divergencia KL cambia sustancialmente cuando invertimos sus argumentos. Por ejemplo, representar la composición de la Mina D mediante la de la Mina B requiere bastante más información que hacer la sustitución inversa. Además, el recorrido dirigido Mina D $\rightarrow$ Mina A $\rightarrow$ Mina B resulta menos costoso que la sustitución directa Mina D $\rightarrow$ Mina B, por lo que la divergencia KL tampoco satisface la desigualdad triangular en estos datos.
+
+Esto convierte a la divergencia KL en una disimilitud informativa, pero no en una métrica. Si quisiéramos entregarla al MDS clásico, primero necesitaríamos construir una versión simétrica, por ejemplo promediando ambas direcciones. Incluso después de esa operación no obtendríamos automáticamente una métrica, porque la simetrización no garantiza la desigualdad triangular. ◼︎
+
+Antes de medir longitudes sobre una variedad debemos especificar qué significa medir un vector tangente en cada uno de sus puntos. La intuición apareció previamente al estudiar el espacio tangente, pero ahora podemos formalizarla.
+
+<strong><font color="blue">Definición 2.6 – Métrica Riemanniana:</font></strong> Sea $M$ una variedad diferenciable. Una **métrica Riemanniana** es una aplicación $g$ que asigna a cada punto $\mathbf{x}\in M$ un producto interno $g_{\mathbf{x}}$ sobre el espacio tangente $T_{\mathbf{x}}M$
+
+::: {.eq-scroll}
+$$
+g_{\mathbf{x}}:T_{\mathbf{x}}M\times T_{\mathbf{x}}M\longrightarrow \mathbb{R} \quad ;\quad (\mathbf{u} ,\mathbf{v} )\longmapsto g_{\mathbf{x}}(\mathbf{u} ,\mathbf{v} )
+\tag{2.99}
+$$
+:::
+
+Para cada punto, la aplicación $g_{\mathbf{x}}$ es bilineal, simétrica y definida positiva. Además, la asignación debe variar suavemente con $\mathbf{x}$: Si $\mathbf{U}$ y $\mathbf{V}$ son campos vectoriales suaves, la función $\mathbf{x}\mapsto g_{\mathbf{x}}(\mathbf{U}_{\mathbf{x}},\mathbf{V}_{\mathbf{x}})$ también debe ser regular (sus derivadas parciales existen y son continuas). Esta condición permite comparar mediciones realizadas en vecindades cercanas sin introducir cambios abruptos en la geometría.
+
+La calificación de *Riemanniana* hace referencia al matemático alemán Bernhard Riemann, quien introdujo la idea de estudiar entidades geométricas "inmersas" en espacios Euclidianos cuyas geometrías podían variar de manera suave de un punto a otro, en contraste con la geometría Euclidiana clásica, donde las propiedades métricas son uniformes en todo el espacio. Notemos además que, aunque la métrica $g$ lleve la coletilla de *Riemanniana*, esto no significa que ésta sea directamente una distancia entre dos puntos, sino que proporciona un producto interno en cada espacio tangente, a partir del cual se pueden derivar longitudes y distancias de manera consistente con la geometría de la variedad. En cada $\mathbf{x}$, el producto interno $g_{\mathbf{x}}$ mide longitudes y ángulos entre vectores del espacio tangente. Al integrar esas mediciones infinitesimales a lo largo de una curva obtendremos su longitud y, sólo después, una distancia entre sus extremos. Utilizaremos la notación $\langle\mathbf{u},\mathbf{v}\rangle_{\mathbf{x}}:=g_{\mathbf{x}}(\mathbf{u},\mathbf{v})$ para hacer explícito el punto donde se realiza cada medición.
+
+La línea recta deja de ser el camino admisible cuando los puntos deben permanecer sobre una variedad cuya geometría intrínseca es curva. Para dos puntos $\mathbf{x}_{i}$ y $\mathbf{x}_{j}$ pertenecientes a una misma componente conexa de $M$ (es decir, "colineales" sobre una curva que pertenece a $M$), consideremos el conjunto $\Gamma(\mathbf{x}_{i},\mathbf{x}_{j})$ de curvas regulares por tramos $\gamma:[0,1]\rightarrow M$, tales que $\gamma(0)=\mathbf{x}_{i}$ y $\gamma(1)=\mathbf{x}_{j}$. La longitud de una curva se define conforme la ecuación
+
+::: {.eq-scroll}
+$$
+L(\gamma )=\int_{0}^{1} \sqrt{\left\langle \dot{\gamma} (t),\dot{\gamma} (t) \right\rangle_{\gamma (t)}} \, \mathrm{d} t
+\tag{2.100}
+$$
+:::
+
+El subíndice $\gamma(t)$ recuerda que el producto interno puede cambiar de un punto a otro de la variedad. La **distancia geodésica** es entonces la menor longitud alcanzable entre ambos puntos sin abandonar $M$
+
+::: {.eq-scroll}
+$$
+d_{M}\left( \mathbf{x}_{i} ,\mathbf{x}_{j} \right) :=\inf_{\gamma \in \Gamma (\mathbf{x}_{i} ,\mathbf{x}_{j} )} L(\gamma )
+\tag{2.101}
+$$
+:::
+
+Cuando alguna curva alcanza ese ínfimo, recibe el nombre de **geodésica minimizante** entre $\mathbf{x}_{i}$ y $\mathbf{x}_{j}$. Esta precisión es geométricamente importantísima: Una geodésica es localmente recta conforme la geometría de $M$, pero no toda geodésica tiene que ser el camino globalmente más corto entre sus extremos. Sobre una esfera, por ejemplo, dos puntos antipodales pueden conectarse mediante varias geodésicas minimizantes de igual longitud.
+
+La @fig-nonunique-minimizing-geodesics traslada esa idea a un elipsoide oblato de revolución. Sus polos son puntos antipodales y cualquier meridiano que los conecte recorre exactamente la misma longitud. El primer panel permite distinguir algunas trayectorias; el segundo muestra que no estamos frente a cinco soluciones aisladas, sino ante una familia continua de curvas minimizantes.
+
+```{python}
+#| label: fig-nonunique-minimizing-geodesics
+#| fig-cap: "Geodésicas minimizantes entre los polos de un elipsoide oblato de revolución. Todas las curvas conectan los mismos extremos, permanecen sobre la superficie y poseen igual longitud; la simetría rotacional produce una familia continua de soluciones."
+#| echo: false
+#| warning: false
+
+# Geometría del elipsoide oblato.
+equatorial_radius = 1.0
+polar_radius = 0.78
+polar_angles = np.linspace(0.0, np.pi, 100)
+azimuthal_angles = np.linspace(0.0, 2.0 * np.pi, 160)
+azimuth_grid, polar_grid = np.meshgrid(azimuthal_angles, polar_angles)
+
+ellipsoid_x = equatorial_radius * np.sin(polar_grid) * np.cos(azimuth_grid)
+ellipsoid_y = equatorial_radius * np.sin(polar_grid) * np.sin(azimuth_grid)
+ellipsoid_z = polar_radius * np.cos(polar_grid)
+
+
+def add_oblate_ellipsoid(fig, row, col, opacity):
+    """Añade la superficie de referencia a uno de los paneles."""
+    fig.add_trace(
+        go.Surface(
+            x=ellipsoid_x,
+            y=ellipsoid_y,
+            z=ellipsoid_z,
+            surfacecolor=ellipsoid_z,
+            colorscale=[
+                [0.0, "#d6dee5"],
+                [0.5, "#f4f6f8"],
+                [1.0, "#d6dee5"],
+            ],
+            cmin=-polar_radius,
+            cmax=polar_radius,
+            opacity=opacity,
+            showscale=False,
+            hoverinfo="skip",
+        ),
+        row=row,
+        col=col,
+    )
+
+
+def add_meridian(fig, azimuth, row, col, width, opacity=1.0):
+    """Traza un meridiano entre los dos polos del elipsoide."""
+    meridian_x = equatorial_radius * np.sin(polar_angles) * np.cos(azimuth)
+    meridian_y = equatorial_radius * np.sin(polar_angles) * np.sin(azimuth)
+    meridian_z = polar_radius * np.cos(polar_angles)
+
+    fig.add_trace(
+        go.Scatter3d(
+            x=meridian_x,
+            y=meridian_y,
+            z=meridian_z,
+            mode="lines",
+            line={"color": "dodgerblue", "width": width},
+            opacity=opacity,
+            customdata=np.full_like(polar_angles, np.degrees(azimuth)),
+            hovertemplate=(
+                "Meridiano: %{customdata:.0f}°<br>"
+                "x₁ = %{x:.2f}<br>x₂ = %{y:.2f}<br>x₃ = %{z:.2f}"
+                "<extra></extra>"
+            ),
+            showlegend=False,
+        ),
+        row=row,
+        col=col,
+    )
+
+
+def add_antipodal_points(fig, row, col):
+    """Destaca los extremos compartidos por todas las geodésicas."""
+    fig.add_trace(
+        go.Scatter3d(
+            x=[0.0, 0.0],
+            y=[0.0, 0.0],
+            z=[polar_radius, -polar_radius],
+            mode="markers+text",
+            marker={
+                "size": 7,
+                "color": "firebrick",
+                "line": {"color": "#ffffff", "width": 1.5},
+            },
+            text=["xᵢ", "xⱼ"],
+            textposition=["top center", "bottom center"],
+            textfont={"family": PLOTLY_FONT, "size": 16, "color": PLOTLY_TEXT},
+            hovertemplate="%{text}<extra></extra>",
+            showlegend=False,
+        ),
+        row=row,
+        col=col,
+    )
+
+
+fig = make_subplots(
+    rows=1,
+    cols=2,
+    specs=[[{"type": "scene"}, {"type": "scene"}]],
+    subplot_titles=(
+        "Cinco trayectorias de igual longitud",
+        "Familia continua de minimizadores",
+    ),
+    horizontal_spacing=0.035,
+)
+
+add_oblate_ellipsoid(fig, row=1, col=1, opacity=0.25)
+add_oblate_ellipsoid(fig, row=1, col=2, opacity=0.14)
+
+for azimuth in np.deg2rad([-70.0, -35.0, 0.0, 35.0, 70.0]):
+    add_meridian(fig, azimuth, row=1, col=1, width=7)
+
+for azimuth in np.linspace(0.0, 2.0 * np.pi, 28, endpoint=False):
+    add_meridian(fig, azimuth, row=1, col=2, width=3, opacity=0.82)
+
+add_antipodal_points(fig, row=1, col=1)
+add_antipodal_points(fig, row=1, col=2)
+
+style_plotly_figure(
+    fig,
+    "",
+    height=650,
+)
+
+scene_layout = {
+    "xaxis": {"visible": False, "range": [-1.08, 1.08]},
+    "yaxis": {"visible": False, "range": [-1.08, 1.08]},
+    "zaxis": {"visible": False, "range": [-0.9, 0.9]},
+    "aspectmode": "manual",
+    "aspectratio": {"x": 1.0, "y": 1.0, "z": 0.78},
+    "camera": {"eye": {"x": 1.55, "y": 1.35, "z": 0.85}},
+    "bgcolor": "#ffffff",
+}
+
+fig.update_layout(
+    scene=scene_layout,
+    scene2=scene_layout,
+    margin={"l": 5, "r": 5, "t": 125, "b": 10},
+)
+
+fig.layout.title.y = 0.98
+fig.layout.title.yanchor = "top"
+
+for annotation in fig.layout.annotations or []:
+    annotation.y = 0.92
+    annotation.yanchor = "bottom"
+    annotation.font = {
+        "family": PLOTLY_FONT,
+        "size": 18,
+        "color": PLOTLY_TEXT,
+    }
+
+show_plotly(fig)
+```
+
+La figura también permite separar dos afirmaciones que suelen confundirse. Cada meridiano es una geodésica porque sigue localmente la dirección recta determinada por la superficie. En este caso particular, todos son además minimizantes entre los polos. Si desplazáramos uno de los extremos fuera del polo, la simetría se rompería y, en general, sólo una de las trayectorias conservaría la longitud mínima.
+
+La distancia geodésica sigue siendo una métrica y, por tanto, satisface la desigualdad triangular. Su diferencia con la distancia Euclidiana no consiste en abandonar los axiomas, sino en restringir los recorridos al interior de la variedad. En el algoritmo Isomap no conocíamos $M$ ni podíamos evaluar la ecuación (2.101) directamente. Por eso aproximamos sus geodésicas mediante caminos mínimos sobre un grafo de vecindades. Los métodos MDS reciben después esas distancias estimadas y construyen las coordenadas reducidas.
+
+Ya podemos comenzar a desarrollar la teoría de los métodos MDS con suficiente generalidad. Sea $\mathbf{X}\in \mathbb{R}^{m\times n}$ una matriz de diseño y sea $\delta$ una distancia o una disimilitud definida entre las $m$ observaciones de $\mathbf{X}$. Su **matriz de proximidades** es
+
+::: {.eq-scroll}
+$$
+\boldsymbol{\Delta}:=\left( \delta_{ij} \right)_{i,j=1}^{m} \quad ;\quad \delta_{ij} =\delta \left( \mathbf{x}_{i} ,\mathbf{x}_{j} \right)
+\tag{2.102}
+$$
+:::
+
+Con la convención de la definición (2.5), la matriz $\boldsymbol{\Delta}$ es no negativa y posee una diagonal nula, pero no tiene por qué ser simétrica. Cuando $\delta$ es una métrica, la matriz sí es simétrica y sus entradas satisfacen la desigualdad triangular. Para desarrollar el algoritmo MDS clásico trabajaremos con proximidades simétricas. Si la fuente original es una disimilitud dirigida, como la divergencia KL, cualquier simetrización debe declararse y justificarse antes de construir la configuración. En todos estos casos, la matriz contiene relaciones entre pares de observaciones y puede existir incluso cuando las variables originales que dieron lugar a esas relaciones no están disponibles.
+
+El objetivo de un método MDS será encontrar una matriz de coordenadas reducidas $\mathbf{Z}\in\mathbb{R}^{m\times d}$, con $d\ll n$, cuyas filas $\mathbf{z}_{i}$ induzcan distancias Euclidianas
+
+::: {.eq-scroll}
+$$
+\widehat{d}_{ij} =\left\| \mathbf{z}_{i} -\mathbf{z}_{j} \right\|_{2}
+\tag{2.103}
+$$
+:::
+
+de modo que $\widehat{d}_{ij}$ reproduzca, tan fielmente como sea posible, la información contenida en la componente $\delta_{ij}$. Cuando importan los valores numéricos de las distancias, trabajaremos con **MDS métrico**. Cuando sólo queremos preservar su orden relativo mediante una transformación monótona, hablaremos de **MDS no métrico**. Esta distinción nos permitirá estudiar ambas variantes de MDS sin confundir una distancia geométrica con una simple medida de separación.
+
+### MDS clásico
+
+El **escalamiento multidimensional clásico** (CMDS, del inglés *classical multidimensional scaling*) resuelve el caso en que $\boldsymbol{\Delta}$ contiene distancias que deseamos reproducir mediante una configuración Euclidiana. Ya utilizamos este procedimiento dentro del algoritmo Isomap: Una vez estimadas las distancias geodésicas sobre el grafo, aplicamos doble centrado y recuperamos las coordenadas mediante una descomposición espectral. Ahora separaremos ese mecanismo del algoritmo Isomap para comprender qué hace MDS por sí mismo y cómo se conecta con el análisis de componentes principales.
+
+Partiremos suponiendo que $\boldsymbol{\Delta}$ es simétrica, posee diagonal nula y contiene distancias entre las $m$ observaciones de la matriz de diseño $\mathbf{X}$. El algoritmo no recibe necesariamente las variables originales de $\mathbf{X}$. Su entrada puede ser únicamente la tabla de separaciones entre pares. Esta diferencia será importante en la práctica: El algoritmo MDS clásico reconstruye una configuración compatible con las distancias, no los ejes físicos originales con los cuales se midieron las observaciones.
+
+#### Recuperación de productos internos
+
+Supongamos primero que existe una matriz centrada $\mathbf{Z}\in\mathbb{R}^{m\times r}$ cuyas filas generan exactamente las distancias de $\boldsymbol{\Delta}$. La condición de centrado se escribe $\mathbf{Z}^{\top}\mathbf{1}_{m}=\mathbf{0}$. Definiremos su matriz de productos internos como $\mathbf{G}:=\mathbf{Z}\mathbf{Z}^{\top}\in\mathbb{R}^{m\times m}$. En esta subsección utilizaremos la letra $\mathbf{G}$ para no confundirla con la matriz $\mathbf{B}$, reservada en la [entrada dedicada a PCA](/clases/machine-learning/aprendizaje-no-supervisado/reduccion-de-dimensionalidad/analisis-de-componentes-principales/) para reunir los vectores que generan el subespacio principal.
+
+La relación entre las distancias cuadráticas y los productos internos ya fue establecida en la ecuación (2.89). Si $\boldsymbol{\Delta}^{\circ 2}$ representa la potencia elemento a elemento de la matriz de proximidades y $\mathbf{H}$ es la matriz de centrado definida en la ecuación (2.88), el doble centrado elimina los términos asociados con las normas individuales y permite recuperar
+
+::: {.eq-scroll}
+$$
+\mathbf{G}_{\Delta}
+:=
+-\frac{1}{2}
+\mathbf{H}
+\boldsymbol{\Delta}^{\circ 2}
+\mathbf{H}
+\tag{2.104}
+$$
+:::
+
+La matriz $\mathbf{G}_{\Delta}$ es la matriz de Gram inducida por las distancias. Cada entrada intenta recuperar el producto interno $\mathbf{z}_{i}^{\top}\mathbf{z}_{j}$ de la configuración centrada que buscamos. El doble centrado fija el origen en el centroide de los puntos, porque las distancias son invariantes frente a una traslación común y, por sí solas, no contienen información sobre una posición absoluta.
+
+::: {.callout-note}
+## ¿Cuándo las distancias son Euclidianas?
+
+Una matriz simétrica con diagonal nula no garantiza que sus entradas correspondan a distancias Euclidianas. Las proximidades de $\boldsymbol{\Delta}$ admiten una representación Euclidiana exacta si y sólo si $\mathbf{G}_{\Delta}$ es semidefinida positiva. En ese caso, todos sus autovalores son no negativos. Si además su rango es $r$, la configuración puede representarse exactamente en $\mathbb{R}^{r}$.
+
+Los autovalores negativos no son un error del algoritmo: Son evidencia de que las proximidades entregadas no pueden realizarse exactamente como distancias Euclidianas. Esto puede ocurrir al utilizar disimilitudes generales, distancias geodésicas sobre una geometría curva, mediciones ruidosas o una regla de simetrización que no preserve una estructura métrica Euclidiana.
+:::
+
+#### Descomposición espectral
+
+Como $\mathbf{G}_{\Delta}$ es simétrica, admite una base ortonormal de autovectores. Escribiremos su descomposición espectral como
+
+::: {.eq-scroll}
+$$
+\mathbf{G}_{\Delta}
+=
+\mathbf{U}
+\boldsymbol{\Lambda}_{G}
+\mathbf{U}^{\top}
+\quad; \quad
+\boldsymbol{\Lambda}_{G}
+:=
+\operatorname{diag}\left(\rho_{1},\ldots,\rho_{m}\right)
+\tag{2.105}
+$$
+:::
+
+donde ordenamos los autovalores conforme $\rho_{1}\geq\rho_{2}\geq\cdots\geq\rho_{m}$. Utilizamos $\rho_{k}$, en vez de $\lambda_{k}$, para distinguir los autovalores de la matriz de Gram de los autovalores de la matriz de covarianza que empleamos en PCA. Si $\mathbf{U}_{d}:=(\mathbf{u}_{1},\ldots,\mathbf{u}_{d})$ reúne los autovectores asociados con los $d$ autovalores positivos más grandes y $\boldsymbol{\Lambda}_{G,d}:=\operatorname{diag}(\rho_{1},\ldots,\rho_{d})$, la configuración reducida queda dada por
+
+::: {.eq-scroll}
+$$
+\mathbf{Z}_{d}
+:=
+\mathbf{U}_{d}
+\boldsymbol{\Lambda}_{G,d}^{1/2}
+\tag{2.106}
+$$
+:::
+
+La fila $\mathbf{z}_{i}^{\top}$ de $\mathbf{Z}_{d}$ entrega las coordenadas reducidas de la $i$-ésima observación. El factor $\boldsymbol{\Lambda}_{G,d}^{1/2}$ permite escalar cada autovector mediante la raíz del autovalor correspondiente para que el producto $\mathbf{Z}_{d}\mathbf{Z}_{d}^{\top}$ recupere la porción retenida de $\mathbf{G}_{\Delta}$.
+
+Cuando $\mathbf{G}_{\Delta}$ posee exactamente $r\leq d$ autovalores positivos y los demás son cero, la configuración reproduce todas las distancias sin error. Cuando existen más de $d$ autovalores positivos, el algoritmo MDS clásico obtiene la mejor aproximación semidefinida positiva de rango $d$ al resolver el problema no restringido
+
+::: {.eq-scroll}
+$$
+\min_{\mathbf{Z} \in \mathbb{R}^{m\times d}} \left\Vert \mathbf{G}_{\Delta} -\mathbf{Z} \mathbf{Z}^{\top} \right\Vert_{F}^{2}
+\tag{2.107}
+$$
+:::
+
+La solución conserva las $d$ direcciones espectrales asociadas con los mayores autovalores positivos. Es el mismo principio de aproximación de rango reducido que estudiamos al conectar el [análisis de componentes principales](../analisis-de-componentes-principales/) con la [descomposición en valores singulares](/apuntes/estructuras-lineales/descomposiciones-matriciales/#descomposición-en-valores-singulares): Las direcciones de mayor *energía* espectral concentran la mayor parte de la estructura que puede representarse en la dimensión escogida, donde, con "energía", nos referimos a la suma de los correspondientes autovalores.
+
+La configuración no es única en orientación. Si $\mathbf{R}\in\mathbb{R}^{d\times d}$ es una matriz ortogonal, entonces $\mathbf{Z}_{d}\mathbf{R}$ genera exactamente las mismas distancias, porque $\mathbf{R}\mathbf{R}^{\top}=\mathbf{I}_{d}$. Por eso dos implementaciones pueden producir mapas rotados o reflejados sin que exista una diferencia geométrica entre sus soluciones.
+
+#### Conexión con el análisis de componentes principales
+
+Consideremos ahora el caso especial en que las proximidades provienen de las distancias Euclidianas entre las filas de una matriz de diseño centrada $\mathbf{X}\in\mathbb{R}^{m\times n}$. Al aplicar el doble centrado, el algoritmo MDS clásico recupera
+
+::: {.eq-scroll}
+$$
+\mathbf{G}_{X} =\mathbf{X} \mathbf{X}^{\top}
+\tag{2.108}
+$$
+:::
+
+El análisis de componentes principales, en cambio, trabaja con la matriz de covarianza poblacional
+
+::: {.eq-scroll}
+$$
+\boldsymbol{\Sigma}:=\frac{1}{m}\mathbf{X}^{\top}\mathbf{X}
+\tag{2.109}
+$$
+:::
+
+Siguiendo la notación de la [entrada dedicada al análisis de componentes principales](../analisis-de-componentes-principales/), sea $\mathbf{B}_{d}:=(\mathbf{b}_{1},\ldots,\mathbf{b}_{d})\in\mathbb{R}^{n\times d}$ la matriz cuyas columnas son los autovectores asociados con los $d$ mayores autovalores $\lambda_{1},\ldots,\lambda_{d}$ de $\boldsymbol{\Sigma}$. Las coordenadas principales se obtienen mediante
+
+::: {.eq-scroll}
+$$
+\mathbf{Z}_{\mathrm{PCA}} :=\mathbf{X} \mathbf{B}_{d}
+\tag{2.110}
+$$
+:::
+
+Las matrices $\mathbf{X}^{\top}\mathbf{X}$ y $\mathbf{X}\mathbf{X}^{\top}$ poseen los mismos autovalores no nulos, aunque sus autovectores viven en espacios diferentes. Para cada componente con $\lambda_{k}>0$, podemos construir
+
+::: {.eq-scroll}
+$$
+\mathbf{u}_{k} :=\frac{\mathbf{X} \mathbf{b}_{k}}{\sqrt{m\lambda_{k}}} \quad \Longrightarrow \quad \mathbf{G}_{X} \mathbf{u}_{k} =m\lambda_{k} \mathbf{u}_{k}
+\tag{2.111}
+$$
+:::
+
+Por consiguiente, los autovalores de la matriz de Gram satisfacen $\rho_{k}=m\lambda_{k}$ y las coordenadas recuperadas mediante el algoritmo MDS clásico son
+
+::: {.eq-scroll}
+$$
+\begin{array}{lll}\mathbf{Z}_{\mathrm{CMDS}}&=&\mathbf{U}_{d} \operatorname{diag} \left( \sqrt{m\lambda_{1}} ,\ldots ,\sqrt{m\lambda_{d}} \right)\\ &=&\mathbf{X} \mathbf{B}_{d}\\ &=&\mathbf{Z}_{\mathrm{PCA}}\end{array}
+\tag{2.112}
+$$
+:::
+
+Esta igualdad muestra que **el algoritmo MDS clásico aplicado a las distancias Euclidianas de datos centrados recupera las mismas coordenadas reducidas que el análisis de componentes principales**, salvo posibles cambios de signo, rotaciones o reflexiones dentro de subespacios asociados con autovalores repetidos. Los dos métodos llegan a la misma configuración desde entradas diferentes:
+
+- El análisis de componentes principales comienza con las variables de $\mathbf{X}$ y diagonaliza su matriz de covarianza.
+- El algoritmo MDS clásico comienza con las distancias de $\boldsymbol{\Delta}$ y diagonaliza la matriz de Gram obtenida mediante doble centrado.
+
+La equivalencia también aclara sus diferencias. El análisis de componentes principales conserva una matriz de cargas $\mathbf{B}_{d}$ que conecta cada componente con las variables originales y permite proyectar nuevas observaciones mediante $\mathbf{x}_{*}^{\top}\mathbf{B}_{d}$. El algoritmo MDS clásico puede operar aunque $\mathbf{X}$ ya no esté disponible, pero las distancias por sí solas no permiten recuperar de manera única los ejes originales ni las cargas de las variables.
+
+::: {.callout-important}
+## La distancia elegida determina el método que realmente ejecutamos
+
+La equivalencia con el análisis de componentes principales sólo se cumple cuando $\boldsymbol{\Delta}$ contiene distancias Euclidianas calculadas sobre la misma matriz centrada. Si estandarizamos las variables antes de medir, la configuración corresponde al análisis de componentes principales de los datos estandarizados. Si utilizamos la distancia de Mahalanobis, distancias geodésicas, divergencias simetrizadas u otra proximidad, el algoritmo MDS construye una geometría diferente y la interpretación como componentes principales de $\mathbf{X}$ deja de ser válida.
+
+Ésta es precisamente la razón por la cual el algoritmo Isomap puede reutilizar el mecanismo espectral del algoritmo MDS sin convertirse en un análisis de componentes principales: La matriz que entrega al doble centrado contiene caminos mínimos sobre un grafo, no distancias Euclidianas directas entre las filas de la matriz de diseño.
+:::
+
+Podemos resumir el algoritmo MDS clásico mediante una secuencia compacta de pasos:
+
+1. Verificar que la matriz de proximidades sea simétrica y posea diagonal nula.
+2. Elevar sus entradas al cuadrado y aplicar doble centrado para construir $\mathbf{G}_{\Delta}$.
+3. Descomponer $\mathbf{G}_{\Delta}$ conforme sus autovalores y autovectores.
+4. Conservar los $d$ mayores autovalores positivos.
+5. Escalar sus autovectores mediante $\boldsymbol{\Lambda}_{G,d}^{1/2}$ para obtener $\mathbf{Z}_{d}$.
+
+El resultado es una configuración centrada que reproduce exactamente las proximidades cuando éstas son Euclidianas y existe dimensión suficiente. En los demás casos, entrega una aproximación cuya calidad dependerá tanto de $d$ como de la geometría codificada en $\boldsymbol{\Delta}$.
+
+### MDS métrico
+
+El algoritmo MDS clásico pertenece a la familia de los métodos MDS métricos, pero no agota todas sus posibilidades. Su solución espectral minimiza una discrepancia entre matrices de productos internos. En cambio, el algoritmo **MDS métrico** puede formularse directamente en el espacio de las distancias: Busca una configuración $\mathbf{Z}\in\mathbb{R}^{m\times d}$ cuyas distancias $\widehat{d}_{ij}$ se aproximen a las proximidades observadas $\delta_{ij}$, respetando además la escala cuantitativa con la cual fueron medidas.
+
+Esta última condición es lo que le entrega el calificativo de *métrico*. No basta con preservar que una pareja sea más cercana que otra. Si una separación observada duplica a otra, esperamos que esa relación numérica continúe siendo relevante en la configuración reducida. Por eso este método resulta apropiado cuando $\boldsymbol{\Delta}$ contiene distancias, o disimilitudes cuya magnitud posee una interpretación cuantitativa defendible (en el sentido de que podemos comparar sus valores numéricos).
+
+::: {.callout-note}
+## Métrico no significa únicamente que “satisface los axiomas de una métrica”
+
+En este contexto, el término **métrico** también describe el nivel de información que decidimos conservar. El algoritmo utiliza las magnitudes de $\delta_{ij}$ y no sólo su orden. Naturalmente, disponer de una métrica genuina entrega una base geométrica más sólida, pero también podemos ejecutar MDS métrico sobre una disimilitud simétrica si aceptamos que sus valores constituyen una escala cuantitativa comparable.
+
+La consecuencia de ésto debe explicitarse: Si la proximidad original no satisface los axiomas de la definición (2.4), la configuración Euclidiana resultante será una aproximación de esa disimilitud, no una demostración de que la disimilitud original era una distancia.
+:::
+
+#### Disparidades
+
+Antes de comparar ambas geometrías, introduciremos una cantidad intermedia. Denominaremos **disparidad** a la proximidad transformada que deseamos reproducir mediante una distancia Euclidiana
+
+::: {.eq-scroll}
+$$
+\widetilde{\delta}_{ij} := T_{\boldsymbol{\theta}}\left(\delta_{ij}\right)
+\tag{2.113}
+$$
+:::
+
+donde $T_{\boldsymbol{\theta}}$ es una transformación paramétrica y $\boldsymbol{\theta}$ reúne sus parámetros. Esta separación evita confundir tres objetos diferentes: $\delta_{ij}$ es la proximidad observada, $\widetilde{\delta}_{ij}$ es el valor que el modelo solicita reproducir y $\widehat{d}_{ij}$ es la distancia que realmente induce la configuración reducida mediante la ecuación (2.103).
+
+La transformación se elige conforme la escala de medición que podemos justificar:
+
+- En un modelo **absoluto**, $\widetilde{\delta}_{ij}=\delta_{ij}$. Preservamos directamente las magnitudes originales.
+- En un modelo **de razón**, $\widetilde{\delta}_{ij}=b\delta_{ij}$, con $b>0$. Permitimos cambiar la unidad de medida, pero preservamos las razones entre proximidades.
+- En un modelo **de intervalo**, $\widetilde{\delta}_{ij}=a+b\delta_{ij}$, con $b>0$ y $\widetilde{\delta}_{ij}\geq 0$. Permitimos modificar el origen y la unidad de la escala.
+
+El modelo absoluto será nuestra referencia cuando $\boldsymbol{\Delta}$ contenga distancias físicas o geométricas expresadas en una unidad significativa. Las transformaciones de razón o intervalo son útiles cuando la escala es arbitraria, pero sus diferencias siguen siendo cuantitativamente interpretables. En todos los casos, la transformación conserva más información que la transformación monótona que utilizaremos posteriormente en el caso del MDS no métrico.
+
+#### Medición del desajuste
+
+Para evaluar una configuración, compararemos cada distancia reducida $\widehat{d}_{ij}$ con su disparidad $\widetilde{\delta}_{ij}$. La suma ponderada de errores cuadráticos recibe habitualmente el nombre de **desajuste bruto** o *raw stress*
+
+::: {.eq-scroll}
+$$
+\sigma_{\mathrm{bruto}}\left(\mathbf{Z},\boldsymbol{\theta}\right) := \sum_{i=1}^{m-1} \sum_{j=i+1}^{m} \omega_{ij} \left(\widehat{d}_{ij}-\widetilde{\delta}_{ij}\right)^{2}
+\tag{2.114}
+$$
+:::
+
+Los coeficientes $\omega_{ij}\geq 0$ permiten controlar la contribución de cada pareja. Si todas las proximidades son igualmente confiables, utilizamos $\omega_{ij}=1$. Una proximidad faltante puede excluirse mediante $\omega_{ij}=0$, mientras que una medición particularmente confiable puede recibir un peso mayor. Esta formulación evita inventar distancias para completar una matriz incompleta y hace explícita la confianza que depositamos en cada relación.
+
+El desajuste bruto conserva las unidades al cuadrado de las proximidades. Por eso su valor cambia cuando expresamos una misma distancia en metros o kilómetros y no permite comparar directamente problemas con escalas diferentes. Una alternativa adimensional es el **desajuste normalizado**, también conocido como *stress-1* de Kruskal (o *falta de ajuste*)
+
+::: {.eq-scroll}
+$$
+\sigma_{1}\left(\mathbf{Z},\boldsymbol{\theta}\right):=\left[ \frac{\displaystyle \sum_{i<j} \omega_{ij} \left( \widehat{d}_{ij} -\widetilde{\delta}_{ij} \right)^{2}}{\displaystyle \sum_{i<j} \omega_{ij} \widehat{d}_{ij}^{2}} \right]^{1/2}
+\tag{2.115}
+$$
+:::
+
+Un valor cercano a cero indica que la geometría reducida reproduce bien las disparidades. Sin embargo, no existe un umbral universal que convierta automáticamente una solución en “buena” o “mala”. La interpretación depende del número de observaciones, la dimensión escogida, el ruido de las proximidades y el uso posterior del mapa. Resulta más informativo comparar valores entre dimensiones, inicializaciones o modelos construidos sobre el mismo problema.
+
+::: {.callout-important}
+## El MDS clásico minimiza deformaciones distintas
+
+La función de la ecuación (2.107) aproxima la matriz de Gram $\mathbf{G}_{\Delta}$ mediante $\mathbf{Z}\mathbf{Z}^{\top}$. Este desajuste entre productos internos suele denominarse **deformación** o *strain*. En cambio, la ecuación (2.114) compara directamente distancias y mide **tensión** o *stress*. Esta es una analogía inspirada en la mecánica de sólidos, donde la deformación se asocia a cambios en la geometría interna y la tensión a la energía almacenada por dichos cambios.
+
+Ambos criterios coinciden en que buscan una representación Euclidiana, pero no ponderan los errores de la misma manera. La truncación espectral del algoritmo MDS clásico posee una solución cerrada y entrega una excelente inicialización. La optimización métrica puede mejorar después la fidelidad de las distancias en una dimensión $d$ fijada, especialmente cuando $\boldsymbol{\Delta}$ no es perfectamente Euclidiana o cuando debemos incorporar pesos $\omega_{ij}$.
+:::
+
+#### Problema de optimización
+
+Una vez seleccionada la transformación métrica, buscamos simultáneamente la configuración y, cuando corresponda, sus parámetros
+
+::: {.eq-scroll}
+$$
+\left(
+\mathbf{Z}^{\star},
+\boldsymbol{\theta}^{\star}
+\right)
+\in
+\underset{
+\substack{
+\mathbf{Z}\in\mathbb{R}^{m\times d}
+\\
+\mathbf{Z}^{\top}\mathbf{1}_{m}=\mathbf{0}
+\\
+\boldsymbol{\theta}\in\Theta
+}}
+{\operatorname{argmin}}
+\;
+\sigma_{\mathrm{bruto}}
+\left(
+\mathbf{Z},
+\boldsymbol{\theta}
+\right)
+\tag{2.116}
+$$
+:::
+
+El conjunto $\Theta$ reúne los valores admisibles para la transformación seleccionada, como la condición $b>0$ del modelo de razón. La restricción de centrado fija el origen en el centroide y elimina la indeterminación frente a traslaciones. Todavía permanecen las rotaciones y reflexiones, porque ninguna de ellas modifica las distancias. Si además estimamos una transformación de razón o intervalo, debemos fijar una escala, por ejemplo normalizando las disparidades, para impedir que $\mathbf{Z}$ y $\boldsymbol{\theta}$ se contraigan conjuntamente hacia una solución degenerada.
+
+A diferencia del algoritmo MDS clásico, la dependencia de $\widehat{d}_{ij}$ respecto de las coordenadas hace que la ecuación (2.116) no posea, en general, una solución espectral cerrada. En el modelo absoluto, y siempre que $\widehat{d}_{ij}>0$, el gradiente asociado con la fila $\mathbf{z}_{i}^{\top}$ es
+
+::: {.eq-scroll}
+$$
+\nabla_{\mathbf{z}_{i}} \sigma_{\mathrm{bruto}} =2\sum_{i\neq j} \omega_{ij} \left( 1-\frac{\delta_{ij}}{\widehat{d}_{ij}} \right) \left( \mathbf{z}_{i} -\mathbf{z}_{j} \right)
+\tag{2.117}
+$$
+:::
+
+La expresión entrega una intuición mecánica muy útil. Si $\widehat{d}_{ij}>\delta_{ij}$, la pareja se encuentra demasiado separada y el gradiente induce una corrección que la aproxima. Si $\widehat{d}_{ij}<\delta_{ij}$, ocurre lo contrario. El mapa puede imaginarse como una red de resortes cuyas longitudes objetivo están determinadas por las proximidades originales y cuyas rigideces dependen de $\omega_{ij}$.
+
+En la práctica, el procedimiento alterna tres tareas: Calcula las distancias de la configuración vigente, actualiza las disparidades cuando la transformación contiene parámetros y modifica las coordenadas para reducir el desajuste. Después vuelve a centrar $\mathbf{Z}$ y repite el ciclo hasta que la disminución sea despreciable. Una inicialización mediante el algoritmo MDS clásico suele acelerar la convergencia y entregar una solución más estable que una configuración completamente aleatoria.
+
+El problema sigue siendo no convexo. Distintas inicializaciones pueden converger hacia mínimos locales diferentes, por lo que conviene ejecutar el ajuste varias veces y conservar la solución con menor desajuste. Esta precaución también evita interpretar como estructura de los datos una configuración que sólo refleja una inicialización poco afortunada.
+
+Podemos sintetizar la progresión del MDS métrico de la siguiente manera:
+
+1. Seleccionar una matriz simétrica de proximidades $\boldsymbol{\Delta}$ y, si corresponde, una matriz de pesos $\boldsymbol{\Omega}:=[\omega_{ij}]$.
+2. Definir una transformación métrica $T_{\boldsymbol{\theta}}$ compatible con la escala de medición.
+3. Inicializar una configuración centrada $\mathbf{Z}\in\mathbb{R}^{m\times d}$, preferentemente mediante MDS clásico.
+4. Calcular las distancias reducidas $\widehat{d}_{ij}$ y el desajuste de la ecuación (2.114) o (2.115).
+5. Actualizar las disparidades y las coordenadas hasta alcanzar convergencia.
+6. Comparar dimensiones e inicializaciones antes de interpretar la geometría resultante.
+
+MDS métrico conserva, por tanto, el contenido cuantitativo de las proximidades, pero flexibiliza el criterio espectral del caso clásico. Esta formulación prepara además la transición hacia MDS no métrico: Allí mantendremos la misma función de desajuste y la misma geometría Euclidiana de salida, pero reemplazaremos la transformación paramétrica por una regla que sólo preserve el orden de las proximidades.
+
+### MDS no métrico
+
+Existen problemas donde asignar una magnitud exacta a cada separación sería una exigencia forzada y/o artificial. Una persona puede afirmar que dos muestras se parecen más entre sí que otro par, aunque no pueda sostener que una diferencia sea exactamente dos veces mayor que otra. Algo similar ocurre con clasificaciones ordinales, evaluaciones sensoriales, juicios expertos y disimilitudes construidas mediante reglas cuyos valores permiten ordenar parejas, pero no interpretar diferencias o razones de forma estable.
+
+El **MDS no métrico** trabaja precisamente con ese nivel de información. Su objetivo no consiste en reproducir directamente las magnitudes de $\delta_{ij}$, sino en construir una configuración donde el orden de las distancias $\widehat{d}_{ij}$ sea compatible con el orden de las proximidades observadas. Si una pareja fue declarada menos disímil que otra, esperamos que también aparezca más próxima en el mapa.
+
+En términos formales, si $\delta_{ij}<\delta_{k\ell}$, las disparidades deben satisfacer
+
+::: {.eq-scroll}
+$$
+\delta_{ij} <\delta_{k\ell} \quad \Longrightarrow \quad \widetilde{\delta}_{ij} \leq \widetilde{\delta}_{k\ell}
+\tag{2.118}
+$$
+:::
+
+Esta restricción reemplaza las transformaciones lineales del algoritmo MDS métrico. Ahora $T$ puede ser cualquier función monótona no decreciente que respete la ecuación (2.118). Su forma se aprende desde los datos y puede contener tramos planos, pendientes variables y cambios de escala que no podrían expresarse mediante un único intercepto y una única pendiente.
+
+::: {.callout-important}
+## Preservar orden no equivale a recuperar magnitudes
+
+Si aplicamos a todas las proximidades una transformación estrictamente creciente, su orden no cambia y el problema no métrico contiene exactamente la misma información ordinal. Por ejemplo, $\delta_{ij}$, $\delta_{ij}^{2}$ y $\log(1+\delta_{ij})$ generan el mismo orden siempre que se apliquen sobre valores no negativos.
+
+Esto entrega robustez frente a escalas arbitrarias, pero también limita la interpretación. Una distancia dos veces mayor en el mapa no implica que la disimilitud original fuese dos veces mayor. El resultado describe una organización relativa de los objetos, no una calibración física de sus separaciones.
+:::
+
+#### Estimación de las disparidades
+
+Para una configuración provisional $\mathbf{Z}$, reunamos las parejas distintas con peso positivo y ordenémoslas conforme sus proximidades. La transformación monótona se estima mediante una **regresión isotónica**. Es decir, un ajuste por mínimos cuadrados sujeto a que la secuencia resultante no decrezca. Si $p=1,\ldots,P$ es un entero que indexa las parejas después de ordenarlas, donde $P\leq m(m-1)/2$ es el número de proximidades efectivamente observadas, resolvemos
+
+::: {.eq-scroll}
+$$
+\left( \widetilde{\delta}_{(1)} ,\ldots ,\widetilde{\delta}_{(P)} \right) \in \underset{\widetilde{\delta}_{(1)} \leq \cdots \leq \widetilde{\delta}_{(P)}}{\operatorname{argmin}} \; \sum_{p=1}^{P} \omega_{(p)} \left( \widehat{d}_{(p)} -\widetilde{\delta}_{(p)} \right)^{2}
+\tag{2.119}
+$$
+:::
+
+Los paréntesis en los subíndices indican posiciones dentro del ordenamiento, no índices de observaciones. La solución se obtiene agrupando bloques consecutivos que violan la monotonía y reemplazándolos mediante sus promedios ponderados. Este procedimiento se conoce como **algoritmo de bloques adyacentes** y entrega la proyección cuadrática de las distancias vigentes sobre el conjunto de secuencias monótonas.
+
+Las proximidades empatadas requieren una convención explícita. La alternativa más conservadora asigna la misma disparidad a todas las parejas con igual proximidad. Otra posibilidad permite que esas parejas adopten disparidades distintas mientras no inviertan el orden respecto de los niveles vecinos. La primera trata el empate como información sustantiva; la segunda lo interpreta como una limitación de resolución de la escala original.
+
+Después de la regresión isotónica, normalizamos las disparidades para fijar su escala. Sin esa operación, multiplicar simultáneamente las coordenadas y las disparidades por una constante produciría una configuración geométricamente equivalente y dejaría indeterminado el tamaño del mapa. Una elección posible es imponer la condición
+
+::: {.eq-scroll}
+$$
+\sum_{i<j} \omega_{ij} \widetilde{\delta}_{ij}^{2} =\sum_{i<j} \omega_{ij} \widehat{d}_{ij}^{2}
+\tag{2.120}
+$$
+:::
+
+#### Optimización conjunta
+
+La configuración y la transformación monótona se estiman conjuntamente. Si $\mathcal{C}(\boldsymbol{\Delta})$ representa el conjunto de matrices de disparidades compatibles con el orden de $\boldsymbol{\Delta}$, el problema puede escribirse como
+
+::: {.eq-scroll}
+$$
+\left(\mathbf{Z}^{\star}, \widetilde{\boldsymbol{\Delta}}^{\star} \right) \in \underset{\substack{\mathbf{Z}\in\mathbb{R}^{m\times d} \\ \mathbf{Z}^{\top}\mathbf{1}_{m}=\mathbf{0} \\ \widetilde{\boldsymbol{\Delta}} \in \mathcal{C}(\boldsymbol{\Delta})}}{\operatorname{argmin}} \; \sum_{i<j} \omega_{ij} \left(\widehat{d}_{ij}-\widetilde{\delta}_{ij}\right)^{2}
+\tag{2.121}
+$$
+:::
+
+El problema alterna entre dos operaciones. Con $\mathbf{Z}$ fija, la regresión isotónica actualiza las disparidades. Con las disparidades fijas, actualizamos las coordenadas para reducir el desajuste. Este segundo paso puede ejecutarse mediante el algoritmo de gradiente descendente, pero suele resolverse mediante un proceso denominado **mayorización**: En vez de minimizar directamente la función complicada de evaluar, construimos en cada iteración una función auxiliar más sencilla que la acota por arriba, coincide con ella en la configuración vigente y puede minimizarse de forma explícita.
+
+Esta estrategia da lugar al algoritmo **SMACOF**, cuyo nombre proviene del acrónimo inglés asociado con el escalamiento mediante mayorización (*Scaling by MAjorizing a COmplicated Function*). Su propiedad central es más importante que su denominación: Cada actualización garantiza que el desajuste no aumente mientras las disparidades permanezcan fijas.
+
+Para escribir la actualización, definamos primero la matriz Laplaciana de los pesos $\mathbf{V}\in\mathbb{R}^{m\times m}$ mediante
+
+::: {.eq-scroll}
+$$
+v_{ij}=\left\{ \begin{array}{ll}-\omega_{ij}&;\mathrm{si} \  i\neq j\\ \displaystyle \sum_{k\neq i} \omega_{ik}&;\mathrm{si} \  i=j\end{array} \right.
+\tag{2.122}
+$$
+:::
+
+Al igual que el Laplaciano estudiado en LLE, sus filas suman cero. Definamos además una matriz $\mathbf{Q}(\mathbf{Z})$ que combina pesos, disparidades y distancias vigentes
+
+::: {.eq-scroll}
+$$
+q_{ij}(\mathbf{Z} )=\left\{ \begin{array}{ll}-\omega_{ij} \dfrac{\widetilde{\delta}_{ij}}{\widehat{d}_{ij}}&\mathrm{si} \  i\neq j\wedge \widehat{d}_{ij} >0\\ 0&\mathrm{si} \  i\neq j\wedge \widehat{d}_{ij} =0\\ -\displaystyle \sum_{k\neq i} q_{ik}(\mathbf{Z} )&\mathrm{si} \  i=j\end{array} \right.
+\tag{2.123}
+$$
+:::
+
+La actualización de Guttman asociada con la mayorización queda dada por
+
+::: {.eq-scroll}
+$$
+\mathbf{Z}^{(s+1)} =\mathbf{V}^{+} \mathbf{Q} \left( \mathbf{Z}^{(s)} \right) \mathbf{Z}^{(s)}
+\tag{2.124}
+$$
+:::
+
+donde $s$ indexa las iteraciones y $\mathbf{V}^{+}$ es la inversa generalizada de Moore-Penrose. La necesitamos porque $\mathbf{V}$ es un Laplaciano y, por construcción, posee al menos un autovalor nulo asociado con las traslaciones globales. La condición de centrado retira precisamente esa libertad geométrica.
+
+::: {.callout-note}
+## ¿Por qué reaparece un Laplaciano y qué es una *actualización de Guttman*?
+
+La función de desajuste depende de diferencias entre pares, no de posiciones absolutas. La matriz $\mathbf{V}$ reúne esas relaciones ponderadas con la misma estructura que un Laplaciano de grafo: Sus términos diagonales acumulan los pesos incidentes y sus términos externos a la diagonal contienen el negativo de cada conexión. Esto no significa que los algoritmos MDS no métrico y LLE optimicen el mismo criterio. La coincidencia estructural proviene de una idea más general: Cuando una función cuadrática se construye a partir de diferencias entre nodos, el Laplaciano aparece naturalmente como el operador matricial que organiza esas interacciones.
+
+Por otro lado, la **actualización de Guttman** es un procedimiento iterativo que garantiza la disminución del desajuste en cada paso. Se basa en la idea de mayorización, donde se construye una función auxiliar que domina la función objetivo y es más fácil de minimizar. Al minimizar esta función auxiliar, se obtiene una nueva configuración que no aumenta el desajuste, asegurando así la convergencia hacia un mínimo local.
+:::
+
+Una iteración completa del algoritmo MDS no métrico sigue esta secuencia:
+
+1. Inicializar $\mathbf{Z}^{(0)}$, preferentemente mediante MDS clásico o MDS métrico.
+2. Calcular las distancias $\widehat{d}_{ij}^{(s)}$ inducidas por la configuración vigente.
+3. Ajustar las disparidades $\widetilde{\delta}_{ij}^{(s)}$ mediante regresión isotónica.
+4. Normalizar las disparidades para fijar la escala.
+5. Actualizar las coordenadas mediante la ecuación (2.124) y volver a centrar la configuración.
+6. Repetir hasta que la disminución de *Stress-1* sea menor que la tolerancia escogida.
+
+El algoritmo disminuye el desajuste en cada ciclo, pero el problema completo continúa siendo no convexo. Por ello conserva las precauciones del algoritmo MDS métrico: Debemos comparar varias inicializaciones y evitar interpretar como única una orientación que puede rotarse o reflejarse sin alterar las distancias.
+
+#### Diagnóstico mediante el diagrama de Shepard
+
+Una manera directa de verificar la solución consiste en representar las proximidades $\delta_{ij}$ sobre el eje horizontal y las distancias embebidas $\widehat{d}_{ij}$ sobre el eje vertical. Sobre esa nube se añade la curva escalonada o monótona formada por las disparidades $\widetilde{\delta}_{ij}$. Esta representación recibe el nombre de **diagrama de Shepard**.
+
+Una solución adecuada concentra los puntos alrededor de una tendencia creciente. La dispersión vertical muestra parejas cuyo orden puede preservarse globalmente, pero cuyas distancias no encajan bien en la dimensión seleccionada. Las inversiones locales, los tramos saturados y los grupos separados ayudan a distinguir entre ruido, empates, una dimensión insuficiente y una matriz de proximidades difícil de representar en un espacio Euclidiano.
+
+::: {.callout-warning}
+## Una buena preservación ordinal tampoco garantiza una explicación física
+
+MDS no métrico puede construir un mapa convincente incluso cuando las proximidades originales carecen de unidad física. Su flexibilidad es útil para explorar juicios expertos o escalas ordinales, pero no autoriza a interpretar los ejes como variables latentes únicas ni las distancias como magnitudes calibradas.
+
+La configuración debe leerse como una organización geométrica compatible con el orden observado. Su interpretación necesita volver al origen de las proximidades, revisar las parejas que dominan el desajuste y contrastar el mapa con conocimiento del proceso.
+:::
+
+La familia de métodos MDS queda así organizada en tres niveles. El MDS clásico recupera coordenadas mediante una solución espectral sobre productos internos; el MDS métrico optimiza directamente la fidelidad cuantitativa de las distancias; y el MDS no métrico conserva únicamente su organización ordinal. Los tres métodos producen configuraciones Euclidianas, pero responden preguntas distintas y exigen interpretar con cuidado qué información contenía realmente $\boldsymbol{\Delta}$ antes de reducir su dimensión.
+
+### Implementación en <strong><font color="darkmagenta">Scikit-Learn</font></strong>
+
+Al igual que los algoritmos de aprendizaje de variedades previamente abordados, la librería <strong><font color="darkmagenta">Scikit-Learn</font></strong> dispone de implementaciones de los algoritmos MDS clásico, métrico y no métrico, conformes las clases `ClassicalMDS` y `MDS`, respectivamente, siendo la última capaz de implementar las variantes métrica y no métrica del algoritmo.
+
+La clase `ClassicalMDS` requiere del siguiente conjunto de parámetros:
+
+- `n_components`: Total de dimensiones que se desean conservar en la representación reducida. Similar al parámetro requerido por otras implementaciones de reducción de dimensionalidad, como `LocallyLinearEmbedding` e `Isomap`.
+- `metric`: Parámetro que permite especificar la métrica a utilizar para calcular las distancias entre los puntos. Por defecto, se utiliza la métrica Euclidiana (`metric="euclidean"`). Sin embargo, existen otras alternativas disponibles, como la norma $ell_{1}$ (`metric="manhattan"`) y la similitud cosenoidal (`metric="cosine"`).
+
+La solución provista por el `ClassicalMDS` es algebraicamente cerrada y se obtiene mediante descomposición espectral de la matriz de productos internos derivada de las distancias. Como tal, ésta dispone de varios atributos de interés, entre los que consideramos:
+
+- `embedding_`: Matriz de coordenadas en el espacio reducido (en un formato de arreglo de <strong><font color="darkmagenta">Numpy</font></strong>), de tamaño `(m, d)`, donde `m` es el nùmero de instancias de nuestra matriz de diseño y `d` es el número de dimensiones conservadas en la representación reducida.
+- `dissimilarity_matrix_`: Matriz de disimilitudes utilizada para construir la representación reducida, igualmente en un formato de arreglo de <strong><font color="darkmagenta">Numpy</font></strong>, de tamaño `(m, m)`.
+- `eigenvalues_`: Arreglo que contiene los autovalores de la matriz de productos internos utilizada para construir la representación reducida, en un formato de arreglo de <strong><font color="darkmagenta">Numpy</font></strong>, de tamaño `(d,)`.
+
+Por otro lado, la clase `MDS` acepta el siguiente conjunto de parámetros adicionales:
+
+- `metric_mds`: Parámetro Booleano que indica si se debe utilizar la versión métrica del algoritmo MDS. Si se establece en `True`, se emplea el MDS métrico; si se establece en `False`, se utiliza el MDS no métrico. Por defecto, este parámetro está configurado en `True`.
+- `n_init`: Número de inicializaciones aleatorias del algoritmo SMACOF. El algoritmo se ejecutará `n_init` veces con diferentes configuraciones iniciales, y se seleccionará la solución que minimice la función de estrés. Por defecto, este parámetro está configurado en `1`.
+- `max_iter`: Número máximo de iteraciones del algoritmo SMACOF. El algoritmo se detendrá si alcanza este número de iteraciones antes de converger. Por defecto, este parámetro está configurado en `300`.
+- `dissimilarity`: Parámetro que especifica cómo se deben calcular las disimilitudes entre los puntos. Puede tomar los valores `"euclidean"` para utilizar la distancia Euclidiana o `"precomputed"` si se proporciona una matriz de disimilitudes previamente calculada, las cuales se pasan directamente a los métodos `fit()` y `fit_transform()`. Por defecto, este parámetro está configurado en `"euclidean"`.
+- `normalized_stress`: Parámetro Booleano que indica si se debe normalizar la función de estrés. Si se establece en `True`, la función de estrés se normalizará dividiéndola por la suma de los cuadrados de las disimilitudes. Por defecto, este parámetro está configurado en `False`.
+
+Como en el caso del `ClassicalMDS`, la clase `MDS` dispone de varios atributos de interés, equivalentes a los considerados en `ClassicalMDS`. Se considera adicionalmente el atributo `stress_`, que nos entrega el valor de la función de estrés correspondiente a la solución encontrada por el algoritmo SMACOF, y refleja qué tan bien la representación reducida preserva las disimilitudes originales entre los puntos.
+
+En los siguientes ejemplos, mostraremos un par de casos de uso para ambas clases. Replicaremos la construcción del *embedding* 2D para el conjunto de datos <strong><font color="forestgreen">MNIST</font></strong> y también exploraremos la construcción de un mapa de afinidad mineralógica como el obtenido en el ejemplo (2.7). En ambos casos construiremos los correspondientes diagramas de Shepard.
+
+**Ejemplo 2.8 – Tres representaciones MDS de <strong><font color="forestgreen">MNIST</font></strong>:** En los ejemplos (2.3) y (2.6) estudiamos la misma muestra balanceada de <strong><font color="forestgreen">MNIST</font></strong> mediante los algoritmos LLE e Isomap. Conservaremos ahora sus 1000 imágenes y construiremos una sola matriz de distancias Euclidianas entre ellas. Esta decisión fija el punto de partida: Las tres variantes de MDS recibirán exactamente las mismas proximidades y sólo cambiará la información que intentan preservar.
+
+El algoritmo MDS clásico recuperará una configuración mediante doble centrado y descomposición espectral. El algoritmo MDS métrico refinará iterativamente las coordenadas para aproximar las magnitudes de las distancias. El algoritmo MDS no métrico reemplazará esas magnitudes por disparidades monótonas, de manera que la organización ordinal de los pares tenga prioridad sobre su escala original.
+
+Comenzamos incorporando las clases de MDS, la función que calcula distancias entre pares y la regresión isotónica que necesitaremos para reconstruir las disparidades del caso no métrico:
+
+```{python}
+from sklearn.isotonic import IsotonicRegression
+from sklearn.manifold import ClassicalMDS, MDS
+from sklearn.metrics import pairwise_distances
+```
+
+La función siguiente encapsula el ajuste de la familia completa. Entregar la matriz de distancias mediante `metric="precomputed"` evita calcular tres veces el mismo objeto y hace explícito que los algoritmos no reciben las etiquetas de los dígitos. Usamos la solución clásica como inicialización de los dos procedimientos iterativos. Así reducimos la variabilidad debida al punto de partida y concentramos la comparación en sus criterios de desajuste:
+
+```{python}
+# Definimos una función que nos permitirá ajustar las tres variantes de MDS sobre una misma matriz de disimilitudes.
+def fit_mds_family(
+    dissimilarity_matrix,
+    n_components,
+    random_state=42,
+    max_iter=120,
+):
+    """Ajusta las tres variantes de MDS sobre una matriz común."""
+
+    models = {
+        "MDS clásico": ClassicalMDS(
+            n_components=n_components,
+            metric="precomputed",
+        ),
+        "MDS métrico": MDS(
+            n_components=n_components,
+            metric_mds=True,
+            metric="precomputed",
+            init="classical_mds",
+            normalized_stress=True,
+            n_init=1,
+            max_iter=max_iter,
+            eps=1e-4,
+            n_jobs=-1,
+            random_state=random_state,
+        ),
+        "MDS no métrico": MDS(
+            n_components=n_components,
+            metric_mds=False,
+            metric="precomputed",
+            init="classical_mds",
+            normalized_stress=True,
+            n_init=1,
+            max_iter=max_iter,
+            eps=1e-4,
+            n_jobs=-1,
+            random_state=random_state,
+        ),
+    }
+
+    embeddings = {
+        name_i: model_i.fit_transform(dissimilarity_matrix)
+        for name_i, model_i in models.items()
+    }
+
+    return models, embeddings
+```
+
+Para construir un diagrama de Shepard necesitamos recuperar tres arreglos. El primero contiene las proximidades originales $\delta_{ij}$; el segundo, las distancias $\widehat{d}_{ij}$ inducidas por el *embedding*; y el tercero, las disparidades $widetilde{\delta}_{ij}$ que el modelo pretende reproducir. En los casos clásico y métrico mantendremos $\widetilde{\delta}_{ij}=\delta_{ij}$. En el caso no métrico ajustaremos una función monótona mediante regresión isotónica.
+
+La matriz de distancias es simétrica, por lo que representar sus dos triángulos duplicaría cada pareja. La función conserva únicamente las entradas con $i<j$ y extrae una muestra reproducible para dibujar. El ajuste y el diagnóstico utilizan todos los pares; el muestreo afecta sólo la densidad visual del gráfico:
+
+```{python}
+# Función que nos permitirá construir los datos necesarios para un diagrama de Shepard.
+def build_shepard_diagnostics(
+    dissimilarity_matrix,
+    embedding,
+    nonmetric=False,
+    max_visible_pairs=30_000,
+    random_state=42,
+):
+    """Construye pares y curva de referencia para un diagrama de Shepard."""
+
+    upper_i, upper_j = np.triu_indices_from(
+        dissimilarity_matrix,
+        k=1,
+    )
+    proximities = dissimilarity_matrix[upper_i, upper_j]
+    embedded_distances = pairwise_distances(embedding)[upper_i, upper_j]
+
+    if nonmetric:
+        monotonic_model = IsotonicRegression(
+            increasing=True,
+            out_of_bounds="clip",
+        )
+        disparities = monotonic_model.fit_transform(
+            proximities,
+            embedded_distances,
+        )
+        curve_x = np.linspace(
+            proximities.min(),
+            proximities.max(),
+            300,
+        )
+        curve_y = monotonic_model.predict(curve_x)
+    else:
+        disparities = proximities.copy()
+        curve_x = np.linspace(
+            proximities.min(),
+            proximities.max(),
+            300,
+        )
+        curve_y = curve_x.copy()
+
+    normalized_stress = np.sqrt(
+        np.sum((embedded_distances - disparities) ** 2)
+        / np.sum(disparities ** 2)
+    )
+
+    rng = np.random.default_rng(random_state)
+    visible_positions = rng.choice(
+        proximities.size,
+        size=min(max_visible_pairs, proximities.size),
+        replace=False,
+    )
+
+    visible_pairs = pd.DataFrame(
+        {
+            "Proximidad": proximities[visible_positions],
+            "Distancia embebida": embedded_distances[visible_positions],
+            "Disparidad": disparities[visible_positions],
+        }
+    )
+
+    curve = pd.DataFrame(
+        {
+            "Proximidad": curve_x,
+            "Disparidad": curve_y,
+        }
+    )
+
+    return visible_pairs, curve, normalized_stress
+```
+
+Construimos una sola matriz de distancias a partir de `X_mnist` y ajustamos las tres variantes con dos coordenadas. MDS métrico y MDS no métrico son procedimientos iterativos; por ello fijamos una semilla, una tolerancia y un máximo de iteraciones. Estos controles forman parte del experimento y deben mantenerse cuando queramos reproducir sus resultados:
+
+```{python}
+# Calculamos las proximidades comunes entre las imágenes.
+mnist_dissimilarities = pairwise_distances(
+    X_mnist,
+    metric="euclidean",
+    n_jobs=-1,
+)
+
+# Ajustamos las tres variantes de MDS.
+mnist_mds_models, mnist_mds_embeddings = fit_mds_family(
+    mnist_dissimilarities,
+    n_components=2,
+    random_state=42,
+    max_iter=120,
+)
+```
+
+Evaluaremos los tres mapas mediante la confiabilidad de diez vecinos y mediante el desajuste normalizado reconstruido desde el diagrama de Shepard. Las dos cantidades responden preguntas diferentes. La confiabilidad examina si se conservaron vecindades del espacio de pixeles; el desajuste de Shepard examina la relación entre proximidades, disparidades y distancias del mapa:
+
+```{python}
+mnist_shepard = {}
+mnist_mds_diagnostics = []
+
+for method_i, embedding_i in mnist_mds_embeddings.items():
+    shepard_pairs_i, shepard_curve_i, stress_i = (
+        build_shepard_diagnostics(
+            mnist_dissimilarities,
+            embedding_i,
+            nonmetric=method_i == "MDS no métrico",
+            random_state=42,
+        )
+    )
+
+    mnist_shepard[method_i] = {
+        "pairs": shepard_pairs_i,
+        "curve": shepard_curve_i,
+    }
+    mnist_mds_diagnostics.append(
+        {
+            "Método": method_i,
+            "Confiabilidad": trustworthiness(
+                X_mnist,
+                embedding_i,
+                n_neighbors=10,
+            ),
+            "Desajuste de Shepard": stress_i,
+        }
+    )
+
+mnist_mds_diagnostics = (
+    pd.DataFrame(mnist_mds_diagnostics)
+    .set_index("Método")
+)
+
+mnist_mds_diagnostics.round(4)
+```
+
+El primer resultado visual es el *embedding* propiamente tal. Cada dígito conserva la paleta utilizada en los ejemplos anteriores y aparece identificado cerca de la mediana de su nube. Las etiquetas continúan siendo información externa al ajuste: Ninguna variante de MDS las utiliza para construir sus coordenadas:
+
+```{python}
+#| label: fig-mnist-mds-embeddings
+#| fig-cap: "Embeddings bidimensionales de una misma muestra balanceada de <strong><font color='forestgreen'>MNIST</font></strong> obtenidos mediante MDS clásico, MDS métrico y MDS no métrico. Los tres métodos reciben la misma matriz de distancias Euclidianas; cada color identifica un dígito y se incorpora únicamente para interpretar la configuración resultante."
+# Construimos la figura.
+fig = make_subplots(
+    rows=1,
+    cols=3,
+    horizontal_spacing=0.07,
+    subplot_titles=tuple(
+        f"<b>{method_i}</b>"
+        for method_i in mnist_mds_embeddings
+    ),
+)
+
+for col_j, (method_j, embedding_j) in enumerate(
+    mnist_mds_embeddings.items(),
+    start=1,
+):
+    for digit_k, digit_color_k in enumerate(digit_colors):
+        digit_mask_k = y_mnist == digit_k
+        digit_embedding_k = embedding_j[digit_mask_k]
+
+        fig.add_trace(
+            go.Scattergl(
+                x=digit_embedding_k[:, 0],
+                y=digit_embedding_k[:, 1],
+                mode="markers",
+                marker={
+                    "size": 5.5,
+                    "color": digit_color_k,
+                    "opacity": 0.62,
+                },
+                name=str(digit_k),
+                legendgroup=str(digit_k),
+                showlegend=col_j == 1,
+                customdata=np.full(digit_embedding_k.shape[0], digit_k),
+                hovertemplate=(
+                    "Dígito = %{customdata}<br>"
+                    "z<sub>1</sub> = %{x:.4f}<br>"
+                    "z<sub>2</sub> = %{y:.4f}<extra></extra>"
+                ),
+            ),
+            row=1,
+            col=col_j,
+        )
+
+        digit_center_k = np.median(digit_embedding_k, axis=0)
+        axis_suffix_j = "" if col_j == 1 else str(col_j)
+        fig.add_annotation(
+            x=digit_center_k[0],
+            y=digit_center_k[1],
+            xref=f"x{axis_suffix_j}",
+            yref=f"y{axis_suffix_j}",
+            text=f"<b>{digit_k}</b>",
+            showarrow=False,
+            bgcolor="rgba(255,255,255,0.88)",
+            bordercolor=digit_color_k,
+            borderwidth=1.5,
+            borderpad=3,
+            font={
+                "family": PLOTLY_FONT,
+                "size": 13,
+                "color": digit_color_k,
+            },
+        )
+
+fig.update_xaxes(title_text="Coordenada z<sub>1</sub>")
+fig.update_yaxes(title_text="Coordenada z<sub>2</sub>", row=1, col=1)
+fig.update_xaxes(
+    title_font={"family": PLOTLY_FONT, "size": 16},
+    tickfont={"family": PLOTLY_FONT, "size": 13},
+    gridcolor=PLOTLY_GRID,
+    zeroline=False,
+)
+fig.update_yaxes(
+    title_font={"family": PLOTLY_FONT, "size": 16},
+    tickfont={"family": PLOTLY_FONT, "size": 13},
+    gridcolor=PLOTLY_GRID,
+    zeroline=False,
+)
+fig.update_layout(
+    height=560,
+    margin={"l": 70, "r": 25, "t": 90, "b": 105},
+    font={"family": PLOTLY_FONT, "size": 14, "color": PLOTLY_TEXT},
+    hoverlabel={"font": {"family": PLOTLY_FONT, "size": 14}},
+    legend={
+        "title": {"text": "Dígito"},
+        "orientation": "h",
+        "x": 0.5,
+        "xanchor": "center",
+        "y": -0.20,
+        "yanchor": "top",
+    },
+    paper_bgcolor="#ffffff",
+    plot_bgcolor="#ffffff",
+)
+
+# Y rotulamos los ejes de los paneles.
+for annotation_i, axis_name_i in zip(
+    fig.layout.annotations[:3],
+    ("xaxis", "xaxis2", "xaxis3"),
+):
+    annotation_i.update(
+        x=fig.layout[axis_name_i].domain[0],
+        xanchor="left",
+        font={"family": PLOTLY_FONT, "size": 18, "color": PLOTLY_TEXT},
+    )
+
+show_plotly(fig)
+```
+
+El diagrama de Shepard permite mirar el mismo problema sin depender de la orientación arbitraria de cada mapa. Cada punto representa una pareja de imágenes. El eje horizontal contiene su separación original y el eje vertical la distancia inducida por el *embedding*. En los dos primeros paneles, la recta negra representa la igualdad entre ambas magnitudes. En el tercero, la curva negra es la transformación monótona aprendida: Puede cambiar la escala y la pendiente, pero nunca invertir el orden de las proximidades.
+
+```{python}
+#| label: fig-mnist-mds-shepard
+#| fig-cap: "Diagramas de Shepard para las tres representaciones de <strong><font color='forestgreen'>MNIST</font></strong>. Cada nube compara proximidades originales y distancias del embedding; la línea negra representa la relación objetivo. En MDS no métrico corresponde a las disparidades estimadas mediante una transformación monótona."
+# Elegimos algunos colores para representar cada nube en el correspondiente diagrama de Shepard.
+method_colors = {
+    "MDS clásico": "dodgerblue",
+    "MDS métrico": "indianred",
+    "MDS no métrico": "goldenrod",
+}
+
+# Construimos los diagramas.
+fig = make_subplots(
+    rows=1,
+    cols=3,
+    horizontal_spacing=0.075,
+    subplot_titles=tuple(
+        f"<b>{method_i}</b>"
+        for method_i in mnist_mds_embeddings
+    ),
+)
+
+for col_j, method_j in enumerate(mnist_mds_embeddings, start=1):
+    pairs_j = mnist_shepard[method_j]["pairs"]
+    curve_j = mnist_shepard[method_j]["curve"]
+
+    fig.add_trace(
+        go.Scattergl(
+            x=pairs_j["Proximidad"],
+            y=pairs_j["Distancia embebida"],
+            mode="markers",
+            marker={
+                "size": 3.5,
+                "color": method_colors[method_j],
+                "opacity": 0.18,
+            },
+            name=method_j,
+            showlegend=False,
+            hovertemplate=(
+                "Proximidad = %{x:.3f}<br>"
+                "Distancia embebida = %{y:.3f}<extra></extra>"
+            ),
+        ),
+        row=1,
+        col=col_j,
+    )
+    fig.add_trace(
+        go.Scatter(
+            x=curve_j["Proximidad"],
+            y=curve_j["Disparidad"],
+            mode="lines",
+            line={"color": "black", "width": 3},
+            name="Disparidad objetivo",
+            showlegend=col_j == 1,
+            hovertemplate=(
+                "Proximidad = %{x:.3f}<br>"
+                "Disparidad = %{y:.3f}<extra></extra>"
+            ),
+        ),
+        row=1,
+        col=col_j,
+    )
+
+# Y los rotulamos.
+fig.update_xaxes(title_text="Proximidad original")
+fig.update_yaxes(title_text="Distancia embebida", row=1, col=1)
+fig.update_xaxes(
+    title_font={"family": PLOTLY_FONT, "size": 16},
+    tickfont={"family": PLOTLY_FONT, "size": 13},
+    gridcolor=PLOTLY_GRID,
+    zeroline=False,
+)
+fig.update_yaxes(
+    title_font={"family": PLOTLY_FONT, "size": 16},
+    tickfont={"family": PLOTLY_FONT, "size": 13},
+    gridcolor=PLOTLY_GRID,
+    zeroline=False,
+)
+fig.update_layout(
+    height=520,
+    margin={"l": 75, "r": 25, "t": 85, "b": 80},
+    font={"family": PLOTLY_FONT, "size": 14, "color": PLOTLY_TEXT},
+    hoverlabel={"font": {"family": PLOTLY_FONT, "size": 14}},
+    legend={
+        "orientation": "h",
+        "x": 0.5,
+        "xanchor": "center",
+        "y": -0.17,
+        "yanchor": "top",
+    },
+    paper_bgcolor="#ffffff",
+    plot_bgcolor="#ffffff",
+)
+
+for annotation_i, axis_name_i in zip(
+    fig.layout.annotations[:3],
+    ("xaxis", "xaxis2", "xaxis3"),
+):
+    annotation_i.update(
+        x=fig.layout[axis_name_i].domain[0],
+        xanchor="left",
+        font={"family": PLOTLY_FONT, "size": 18, "color": PLOTLY_TEXT},
+    )
+
+show_plotly(fig)
+```
+
+Los tres mapas nacen de las mismas distancias, pero no son intercambiables. El algoritmo MDS clásico entrega la solución espectral asociada con la matriz de productos internos y alcanza una confiabilidad de 0.727. El algoritmo MDS métrico modifica esa configuración para reducir directamente la discrepancia entre distancias: Su confiabilidad aumenta a 0.764 y el desajuste de Shepard desciende desde 0.655 hasta 0.361. El algoritmo MDS no métrico dispone de mayor libertad y, para esta muestra, alcanza una confiabilidad de 0.782 y un desajuste de 0.309. Puede curvar la relación entre proximidad y distancia siempre que conserve su orden.
+
+La flexibilidad adicional puede mejorar una medida de desajuste sin convertir automáticamente el mapa en una representación más útil para reconocer dígitos. Por eso acompañamos el diagrama de Shepard con la confiabilidad de vecindades. El primero informa qué tan bien se respeta el *contrato* propio del algoritmo MDS; la segunda examina una propiedad local que el algoritmo no optimiza de manera explícita. ◼︎
+
+**Ejemplo 2.9 – Tres mapas MDS de afinidad mineralógica:** Replicaremos ahora el problema industrial del ejemplo (2.7) con los métodos MDS clásico, métrico y no métrico. Conservaremos las 17 variables geometalúrgicas ya imputadas y estandarizadas, y la procedencia seguirá utilizándose únicamente después del ajuste para interpretar los mapas.
+
+En el ejemplo (2.7), los algoritmos LLE e Isomap trabajaron sobre 3874 cargas de mineral mediante grafos dispersos de vecindades. El algoritmo MDS construye, en cambio, una matriz densa con todas las parejas y los procedimientos SMACOF la recorren repetidamente. Para mantener el ejemplo reproducible sin ocultar este costo, extraeremos hasta 300 observaciones de cada mina abundante y conservaremos las tres cargas disponibles de la Mina C. La submuestra continúa cubriendo las cuatro procedencias, pero reduce la matriz de proximidades a un tamaño apropiado para comparar tres optimizaciones completas dentro del blog:
+
+```{python}
+# Generamos las extracciones aleatorias de cada mina para la submuestra.
+mineralogy_mds_positions = np.concatenate(
+    [
+        group_i.sample(
+            n=min(group_i.shape[0], 300),
+            random_state=42,
+        ).index.to_numpy()
+        for _, group_i in mineralogy_sample.groupby("mine")
+    ]
+)
+
+mineralogy_mds_sample = (
+    mineralogy_sample
+    .loc[mineralogy_mds_positions]
+    .sort_values(["mine", "fecha"])
+)
+mineralogy_mds_matrix = mineralogy_matrix_imputed[
+    mineralogy_mds_sample.index.to_numpy()
+]
+
+# Mostramos en pantalla las cuantías de cada mina en la submuestra.
+mineralogy_mds_sample["mine"].value_counts().sort_index()
+```
+
+Calculamos las distancias Euclidianas sobre la representación geometalúrgica comparable y ajustamos mapas tridimensionales. La elección de tres coordenadas mantiene la lógica del ejemplo (2.7): Deseamos observar regiones, transiciones y superposiciones entre las fuentes de mineral, no forzar toda la estructura sobre un único plano:
+
+```{python}
+# Calculamos las distancias Euclidianas entre las muestras de la submuestra mineralógica.
+mineralogy_mds_dissimilarities = pairwise_distances(
+    mineralogy_mds_matrix,
+    metric="euclidean",
+    n_jobs=-1,
+)
+
+# Ajustamos mapas tridimensionales mediante diferentes variantes de MDS.
+mineralogy_mds_models, mineralogy_mds_embeddings = fit_mds_family(
+    mineralogy_mds_dissimilarities,
+    n_components=3,
+    random_state=42,
+    max_iter=120,
+)
+```
+
+Volvemos a separar las dos dimensiones del diagnóstico. La confiabilidad utiliza quince vecinos, igual que en el mapa mineralógico anterior. El desajuste de Shepard compara las proximidades entregadas a cada algoritmo con las distancias que finalmente induce su representación:
+
+```{python}
+# Inicializamos un par de estructuras para almacenar los diagnósticos de Shepard y las métricas de confiabilidad.
+mineralogy_mds_shepard = {}
+mineralogy_mds_diagnostics = []
+
+# Ciclamos sobre cada modelo de MDS para construir los diagnósticos correspondientes.
+for method_i, embedding_i in mineralogy_mds_embeddings.items():
+    shepard_pairs_i, shepard_curve_i, stress_i = (
+        build_shepard_diagnostics(
+            mineralogy_mds_dissimilarities,
+            embedding_i,
+            nonmetric=method_i == "MDS no métrico",
+            random_state=42,
+        )
+    )
+
+    mineralogy_mds_shepard[method_i] = {
+        "pairs": shepard_pairs_i,
+        "curve": shepard_curve_i,
+    }
+    mineralogy_mds_diagnostics.append(
+        {
+            "Método": method_i,
+            "Confiabilidad": trustworthiness(
+                mineralogy_mds_matrix,
+                embedding_i,
+                n_neighbors=15,
+            ),
+            "Desajuste de Shepard": stress_i,
+        }
+    )
+
+# Construimos el DataFrame con los diagnósticos de confiabilidad y desajuste de Shepard.
+mineralogy_mds_diagnostics = (
+    pd.DataFrame(mineralogy_mds_diagnostics)
+    .set_index("Método")
+)
+
+# Y lo mostramos en pantalla.
+mineralogy_mds_diagnostics.round(4)
+```
+
+Superponemos las minas sobre las tres configuraciones. Los colores no participan en la construcción de las coordenadas. Sirven para comprobar si una geometría basada exclusivamente en ley, mineralogía, dureza y arcillas recupera dominios asociados con la procedencia o, por el contrario, revela zonas de mezcla entre ellas:
+
+```{python}
+#| label: fig-mineralogical-affinity-mds
+#| fig-cap: "Mapas tridimensionales de afinidad mineralógica obtenidos mediante MDS clásico, MDS métrico y MDS no métrico. Los tres algoritmos reciben la misma matriz de distancias calculada desde 17 variables geometalúrgicas imputadas y estandarizadas; la mina se utiliza sólo como referencia visual posterior al ajuste."
+# Creamos nuestra figura.
+fig = make_subplots(
+    rows=1,
+    cols=3,
+    specs=[[
+        {"type": "scene"},
+        {"type": "scene"},
+        {"type": "scene"},
+    ]],
+    horizontal_spacing=0.025,
+    subplot_titles=tuple(
+        f"<b>{method_i}</b>"
+        for method_i in mineralogy_mds_embeddings
+    ),
+)
+
+for mine_i, color_i in mine_colors.items():
+    mine_mask_i = mineralogy_mds_sample["mine"].eq(mine_i).to_numpy()
+    hover_data_i = np.column_stack(
+        [
+            mineralogy_mds_sample.loc[mine_mask_i, "mine"],
+            mineralogy_mds_sample.loc[mine_mask_i, "pushback"],
+            mineralogy_mds_sample.loc[mine_mask_i, "fecha"].dt.strftime(
+                "%Y-%m-%d"
+            ),
+        ]
+    )
+
+    for col_j, embedding_j in enumerate(
+        mineralogy_mds_embeddings.values(),
+        start=1,
+    ):
+        fig.add_trace(
+            go.Scatter3d(
+                x=embedding_j[mine_mask_i, 0],
+                y=embedding_j[mine_mask_i, 1],
+                z=embedding_j[mine_mask_i, 2],
+                mode="markers",
+                name=mine_i,
+                legendgroup=mine_i,
+                showlegend=col_j == 1,
+                customdata=hover_data_i,
+                marker={
+                    "size": 7 if mine_i == "Mina C" else 3.8,
+                    "color": color_i,
+                    "opacity": 0.70,
+                },
+                hovertemplate=(
+                    "<b>%{customdata[0]}</b><br>"
+                    "Dominio: %{customdata[1]}<br>"
+                    "Fecha: %{customdata[2]}<br>"
+                    "z<sub>1</sub>: %{x:.3f}<br>"
+                    "z<sub>2</sub>: %{y:.3f}<br>"
+                    "z<sub>3</sub>: %{z:.3f}<extra></extra>"
+                ),
+            ),
+            row=1,
+            col=col_j,
+        )
+
+# Personalizamos y etiquetamos.
+scene_axis = {
+    "backgroundcolor": "#ffffff",
+    "gridcolor": PLOTLY_GRID,
+    "zerolinecolor": "#aab4bd",
+    "showbackground": True,
+    "title_font": {"family": PLOTLY_FONT, "size": 15},
+    "tickfont": {"family": PLOTLY_FONT, "size": 11},
+}
+scene_layout = {
+    "xaxis": {**scene_axis, "title": "Coordenada z<sub>1</sub>"},
+    "yaxis": {**scene_axis, "title": "Coordenada z<sub>2</sub>"},
+    "zaxis": {**scene_axis, "title": "Coordenada z<sub>3</sub>"},
+    "aspectmode": "cube",
+    "camera": {"eye": {"x": 1.45, "y": 1.45, "z": 1.15}},
+}
+
+fig.update_layout(
+    scene=scene_layout,
+    scene2=scene_layout,
+    scene3=scene_layout,
+    height=630,
+    margin={"l": 10, "r": 10, "t": 90, "b": 100},
+    font={"family": PLOTLY_FONT, "size": 14, "color": PLOTLY_TEXT},
+    hoverlabel={"font": {"family": PLOTLY_FONT, "size": 14}},
+    legend={
+        "title": {"text": "Mina"},
+        "orientation": "h",
+        "x": 0.5,
+        "xanchor": "center",
+        "y": -0.13,
+        "yanchor": "top",
+    },
+    paper_bgcolor="#ffffff",
+)
+
+for annotation_i in fig.layout.annotations[:3]:
+    annotation_i.update(
+        y=1.03,
+        font={"family": PLOTLY_FONT, "size": 18, "color": PLOTLY_TEXT},
+    )
+
+show_plotly(fig)
+```
+
+El diagrama de Shepard completa la lectura. Un mapa visualmente separado por colores puede ser atractivo y, sin embargo, deformar de manera importante las relaciones entre cargas. Del mismo modo, una nube menos espectacular puede ser más fiel al *contrato* cuantitativo u ordinal del método:
+
+```{python}
+#| label: fig-mineralogical-affinity-mds-shepard
+#| fig-cap: "Diagramas de Shepard para los tres mapas de afinidad mineralógica. Las nubes muestran una muestra reproducible de pares de cargas; la línea negra representa las proximidades originales en los casos clásico y métrico, y las disparidades monótonas estimadas en el caso no métrico."
+# Construimos nuestra figura.
+fig = make_subplots(
+    rows=1,
+    cols=3,
+    horizontal_spacing=0.075,
+    subplot_titles=tuple(
+        f"<b>{method_i}</b>"
+        for method_i in mineralogy_mds_embeddings
+    ),
+)
+
+for col_j, method_j in enumerate(mineralogy_mds_embeddings, start=1):
+    pairs_j = mineralogy_mds_shepard[method_j]["pairs"]
+    curve_j = mineralogy_mds_shepard[method_j]["curve"]
+
+    fig.add_trace(
+        go.Scattergl(
+            x=pairs_j["Proximidad"],
+            y=pairs_j["Distancia embebida"],
+            mode="markers",
+            marker={
+                "size": 3.5,
+                "color": method_colors[method_j],
+                "opacity": 0.18,
+            },
+            name=method_j,
+            showlegend=False,
+            hovertemplate=(
+                "Proximidad = %{x:.3f}<br>"
+                "Distancia embebida = %{y:.3f}<extra></extra>"
+            ),
+        ),
+        row=1,
+        col=col_j,
+    )
+    fig.add_trace(
+        go.Scatter(
+            x=curve_j["Proximidad"],
+            y=curve_j["Disparidad"],
+            mode="lines",
+            line={"color": "black", "width": 3},
+            name="Disparidad objetivo",
+            showlegend=col_j == 1,
+            hovertemplate=(
+                "Proximidad = %{x:.3f}<br>"
+                "Disparidad = %{y:.3f}<extra></extra>"
+            ),
+        ),
+        row=1,
+        col=col_j,
+    )
+
+# Rotulamos y personalizamos los ejes.
+fig.update_xaxes(title_text="Proximidad original")
+fig.update_yaxes(title_text="Distancia embebida", row=1, col=1)
+fig.update_xaxes(
+    title_font={"family": PLOTLY_FONT, "size": 16},
+    tickfont={"family": PLOTLY_FONT, "size": 13},
+    gridcolor=PLOTLY_GRID,
+    zeroline=False,
+)
+fig.update_yaxes(
+    title_font={"family": PLOTLY_FONT, "size": 16},
+    tickfont={"family": PLOTLY_FONT, "size": 13},
+    gridcolor=PLOTLY_GRID,
+    zeroline=False,
+)
+fig.update_layout(
+    height=520,
+    margin={"l": 75, "r": 25, "t": 85, "b": 80},
+    font={"family": PLOTLY_FONT, "size": 14, "color": PLOTLY_TEXT},
+    hoverlabel={"font": {"family": PLOTLY_FONT, "size": 14}},
+    legend={
+        "orientation": "h",
+        "x": 0.5,
+        "xanchor": "center",
+        "y": -0.17,
+        "yanchor": "top",
+    },
+    paper_bgcolor="#ffffff",
+    plot_bgcolor="#ffffff",
+)
+
+for annotation_i, axis_name_i in zip(
+    fig.layout.annotations[:3],
+    ("xaxis", "xaxis2", "xaxis3"),
+):
+    annotation_i.update(
+        x=fig.layout[axis_name_i].domain[0],
+        xanchor="left",
+        font={"family": PLOTLY_FONT, "size": 18, "color": PLOTLY_TEXT},
+    )
+
+show_plotly(fig)
+```
+
+La comparación debe interpretarse junto con la tabla de diagnósticos. El método MDS clásico entrega una referencia espectral reproducible y muy rápida, con una confiabilidad de 0.960 y un desajuste de Shepard de 0.265. El algoritmo MDS métrico utiliza esa referencia para ajustar con mayor fidelidad las magnitudes de las separaciones: Eleva la confiabilidad a 0.976 y reduce el desajuste a 0.108. El algoritmo MDS no métrico conserva prácticamente la misma fidelidad local, con una confiabilidad de 0.976, pero reduce el desajuste ordinal hasta 0.070 al reorganizar la escala de las afinidades. Esa libertad resulta útil cuando las proximidades expresan intensidad relativa y no una unidad física calibrada.
+
+Ninguno de los mapas convierte la procedencia en una verdad mineralógica. Una zona compartida por distintas minas sigue indicando perfiles comparables dentro de las 17 variables escogidas, mientras que una rama dominada por una sola procedencia sugiere una combinación menos habitual. El diagrama de Shepard permite comprobar cuánto de esa lectura visual se sostiene en las proximidades originales y cuánto proviene de la libertad geométrica del método. ◼︎

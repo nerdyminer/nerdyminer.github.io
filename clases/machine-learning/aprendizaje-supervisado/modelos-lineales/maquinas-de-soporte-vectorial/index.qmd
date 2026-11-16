@@ -89,7 +89,7 @@ sns.set()
 plt.style.use("bmh")
 ```
 
-La función `make_blobs()` nos permite construir un conjunto de datos tal que los puntos que lo componen se agrupen en torno a un determinado centroide en el espacio de atributos, de manera tal que se generen nubes de puntos bien diferenciadas, similares a clusters en dicho espacio. Suele utilizarse mayormente para probar algoritmos de agrupamiento, pero será perfecta para ejemplificar nuestro caso. El parámetro `n_samples` permite especificar el total de puntos que compondrán el conjunto de datos, `centers` el total de clusters, `n_features` el total de variables independientes del mismo y `center_box` las coordenadas relativas al centro de simetría de los clusters en un espacio de 10 $\times$ 10. Por lo tanto, construir un conjunto de datos que represente un problema de clasificación binaria a partir de esta función resulta bastante sencillo:
+La función `make_blobs()` nos permite construir un conjunto de datos tal que los puntos que lo componen se agrupen en torno a un determinado centroide en el espacio de características, de manera tal que se generen nubes de puntos bien diferenciadas, similares a clusters en dicho espacio. Suele utilizarse mayormente para probar algoritmos de agrupamiento, pero será perfecta para ejemplificar nuestro caso. El parámetro `n_samples` permite especificar el total de puntos que compondrán el conjunto de datos, `centers` el total de clusters, `n_features` el total de variables independientes del mismo y `center_box` las coordenadas relativas al centro de simetría de los clusters en un espacio de 10 $\times$ 10. Por lo tanto, construir un conjunto de datos que represente un problema de clasificación binaria a partir de esta función resulta bastante sencillo:
 
 ```{python}
 # Construimos nuestro conjunto de datos.
@@ -1250,16 +1250,16 @@ Los enfoques desarrollados previamente para la construir los problemas de optimi
 
 Sin embargo, como veremos más adelante, no hemos perdido nuestro tiempo. Los desarrollos efectuados previamente contienen todos los ingredientes esenciales para, en efecto, entender cómo una máquina de soporte vectorial puede efectuar clasificaciones con gran precisión en un conjunto de entrenamiento que no admite fronteras de separación lineales. Para ello, vamos a darle un sentido más heurístico a este modelo, y lo segmentaremos en dos procedimientos matemáticos de interés:
 
-- **(P1):** Dado un conjunto de entrenamiento $\mathcal{D} =\left\{ \left( \mathbf{X} ,\mathbf{y} \right)  :\mathbf{X} =\left\{ x_{ij}\right\}  \in \mathbb{R}^{m\times n} \wedge \mathbf{y} \in \mathbb{R}^{m} \right\}$, donde $\mathbf{y}$ puede tomar únicamente los valores $-1$ y $+1$, con una matriz de diseño $\mathbf{X}$ cuyo rango de entradas posibles será denominado genéricamente como **espacio o dominio de entrada** del problema, y denotado como $\mathcal{X}$, y que sabemos (o, probablemente, asumimos) de antemano que no es linealmente separable, definiremos una aplicación que mapeará todos los elementos de $\mathcal{D}$ sobre un espacio vectorial de dimensión prácticamente infinita, denominado como **espacio o dominio de atributos**, y que de alguna forma estará *oculto* tanto de la entrada como de la salida del modelo.
-- **(P2):** En este nuevo dominio de atributos, el problema resultante sí será *linealmente separable*, por lo que procederemos a resolverlo de la manera usual, construyendo un hiperplano de separación con todas las condiciones previamente estudiadas. Los valores obtenidos como resultado del modelo estarán todos definidos en un espacio vectorial denominado **espacio de salida** del modelo.
+- **(P1):** Dado un conjunto de entrenamiento $\mathcal{D} =\left\{ \left( \mathbf{X} ,\mathbf{y} \right)  :\mathbf{X} =\left\{ x_{ij}\right\}  \in \mathbb{R}^{m\times n} \wedge \mathbf{y} \in \mathbb{R}^{m} \right\}$, donde $\mathbf{y}$ puede tomar únicamente los valores $-1$ y $+1$, con una matriz de diseño $\mathbf{X}$ cuyo rango de entradas posibles será denominado genéricamente como **espacio o dominio de entrada** del problema, y denotado como $\mathcal{X}$, y que sabemos (o, probablemente, asumimos) de antemano que no es linealmente separable, definiremos una aplicación que mapeará todos los elementos de $\mathcal{D}$ sobre un espacio vectorial de dimensión prácticamente infinita, denominado como **espacio o dominio de características**, y que de alguna forma estará *oculto* tanto de la entrada como de la salida del modelo.
+- **(P2):** En este nuevo dominio de características, el problema resultante sí será *linealmente separable*, por lo que procederemos a resolverlo de la manera usual, construyendo un hiperplano de separación con todas las condiciones previamente estudiadas. Los valores obtenidos como resultado del modelo estarán todos definidos en un espacio vectorial denominado **espacio de salida** del modelo.
 
-Esta idea es la que desarrollaremos a continuación, no sin antes mencionar que el dominio de atributos previamente comentado no es un constructo *esotérico* en absoluto. De hecho, el número de atributos que lo caracterizarán será siempre una función del número de vectores de soporte, por lo cual la dificultad del problema radicará en determinar (analíticamente) el tamaño óptimo de este espacio (oculto). Tal idea se ilustra en la @fig-kernel-trick.
+Esta idea es la que desarrollaremos a continuación, no sin antes mencionar que el dominio de características previamente comentado no es un constructo *esotérico* en absoluto. De hecho, el número de características que lo caracterizarán será siempre una función del número de vectores de soporte, por lo cual la dificultad del problema radicará en determinar (analíticamente) el tamaño óptimo de este espacio (oculto). Tal idea se ilustra en la @fig-kernel-trick.
 
 ![Ilustración de los dos procedimientos matemáticos que se realizan en una máquina de soporte vectorial cuando el conjunto de entrenamiento no necesariamente es linealmente separable](images/fig_7_5.png){#fig-kernel-trick fig-align="center" width="90%"}
 
 ### Implementación de funciones kernel
 
-Sea pues $\mathbf{x}_{i}\in \mathbb{R}^{n}$ una instancia del espacio de entrada $\mathcal{X}$, donde $1\leq i\leq m$. Sea $\left\{ \phi_{j} \left( \mathbf{x}_{i} \right)  \right\}^{+\infty }_{j=1}$ una colección (infinita) de funciones no lineales que, entre ellas, *transforman* el espacio de entrada de dimensión $n$ en un **espacio de atributos** de dimensión infinita. Dada esta transformación, podemos definir un hiperplano que hará el trabajo de una frontera de separación por medio de la fórmula
+Sea pues $\mathbf{x}_{i}\in \mathbb{R}^{n}$ una instancia del espacio de entrada $\mathcal{X}$, donde $1\leq i\leq m$. Sea $\left\{ \phi_{j} \left( \mathbf{x}_{i} \right)  \right\}^{+\infty }_{j=1}$ una colección (infinita) de funciones no lineales que, entre ellas, *transforman* el espacio de entrada de dimensión $n$ en un **espacio de características** de dimensión infinita. Dada esta transformación, podemos definir un hiperplano que hará el trabajo de una frontera de separación por medio de la fórmula
 
 ::: {.eq-scroll}
 $$
@@ -1268,7 +1268,7 @@ $$
 $$
 :::
 
-donde $\left\{ w_{j}\right\}^{+\infty }_{j=1}$ denota a una colección infinita de pesos que tiene como objetivo transformar a nuestro espacio de atributos en el espacio de salida del modelo. Es en este espacio de salida donde se toma la decisión con respecto a la pertenencia de la instancia $\mathbf{x}_{i}$ a la clase positiva o negativa. Sin pérdida de generalidad, vamos a ilustrar el caso para el cual el parámetro de sesgo $b$ es igual a cero. De esta manera, podemos reescribir la ecuación (7.69) en forma matricial como
+donde $\left\{ w_{j}\right\}^{+\infty }_{j=1}$ denota a una colección infinita de pesos que tiene como objetivo transformar a nuestro espacio de características en el espacio de salida del modelo. Es en este espacio de salida donde se toma la decisión con respecto a la pertenencia de la instancia $\mathbf{x}_{i}$ a la clase positiva o negativa. Sin pérdida de generalidad, vamos a ilustrar el caso para el cual el parámetro de sesgo $b$ es igual a cero. De esta manera, podemos reescribir la ecuación (7.69) en forma matricial como
 
 ::: {.eq-scroll}
 $$
@@ -1277,9 +1277,9 @@ $$
 $$
 :::
 
-donde $\mathbf{\phi } \left( \mathbf{x}_{i} \right)$ es llamado **vector de atributos**, siendo $\mathbf{w}$ el correspondiente vector que aglutina a los pesos $w_{1},w_{2},...$.
+donde $\mathbf{\phi } \left( \mathbf{x}_{i} \right)$ es llamado **vector de características**, siendo $\mathbf{w}$ el correspondiente vector que aglutina a los pesos $w_{1},w_{2},...$.
 
-Como antes, estamos interesados en la separabilidad lineal de los puntos en el espacio de atributos. Con este objetivo en mente, podemos adaptar la ecuación (7.56) a nuestra situación actual, por lo que el vector óptimo de pesos $\mathbf{w}^{\ast}$ puede escribirse como
+Como antes, estamos interesados en la separabilidad lineal de los puntos en el espacio de características. Con este objetivo en mente, podemos adaptar la ecuación (7.56) a nuestra situación actual, por lo que el vector óptimo de pesos $\mathbf{w}^{\ast}$ puede escribirse como
 
 ::: {.eq-scroll}
 $$
@@ -1288,7 +1288,7 @@ $$
 $$
 :::
 
-Donde $m_{s}$ es un contador que únicamente toma en consideración a aquellas instancias tales que $\lambda_{i}>0$ para todo $i=1,...,m$, las cuales, como ya hemos verificado, corresponden a los vectores de soporte del modelo. En la ecuación (7.71), el vector de atributos está expresado de la forma $\mathbf{\phi}(\mathbf{x}_{i})=(\phi_{1}(\mathbf{x}_{i}),\phi_{2}(\mathbf{x}_{i}),...)^{\top}$. Por lo tanto, al sustituir la ecuación (7.70) en (7.71), podemos expresar la **frontera de separación** en el espacio de atributos como
+Donde $m_{s}$ es un contador que únicamente toma en consideración a aquellas instancias tales que $\lambda_{i}>0$ para todo $i=1,...,m$, las cuales, como ya hemos verificado, corresponden a los vectores de soporte del modelo. En la ecuación (7.71), el vector de características está expresado de la forma $\mathbf{\phi}(\mathbf{x}_{i})=(\phi_{1}(\mathbf{x}_{i}),\phi_{2}(\mathbf{x}_{i}),...)^{\top}$. Por lo tanto, al sustituir la ecuación (7.70) en (7.71), podemos expresar la **frontera de separación** en el espacio de características como
 
 ::: {.eq-scroll}
 $$
@@ -1340,7 +1340,7 @@ $$
 $$
 :::
 
-Donde $\Omega$ es el espacio de atributos.
+Donde $\Omega$ es el espacio de características.
 
 Si el kernel $K(\mathbf{x},\mathbf{x}_{i})$ se escala de manera apropiada, de manera tal que la integral (7.76) tenga un valor igual a 1, entonces $K$ tendrá propiedades similares a las de una función de densidad para una variable aleatoria.
 
@@ -1349,7 +1349,7 @@ Si el kernel $K(\mathbf{x},\mathbf{x}_{i})$ se escala de manera apropiada, de ma
 Examinando la ecuación (7.74), podemos hacer dos importantes observaciones:
 
 - En lo que respecta a un problema de clasificación general sobre el espacio de salida, la especificación del kernel $K(\mathbf{x},\mathbf{x}_{i})$ es *suficiente* para resolver dicho problema. En palabras más simples, no necesitamos explicitar el vector $\mathbf{w}^{\ast}$ especificado en la ecuación (7.71). Es por esta razón que la ecuación (7.73) suele denominarse como **truco del kernel**.
-- Incluso aunque hemos asumido que el espacio de atributos puede ser de dimensión infinita, la ecuación lineal (7.74), que define la frontera de separación de nuestro modelo, consiste de un número *finito* de términos, y que es igual al número de instancias del conjunto de entrenamiento.
+- Incluso aunque hemos asumido que el espacio de características puede ser de dimensión infinita, la ecuación lineal (7.74), que define la frontera de separación de nuestro modelo, consiste de un número *finito* de términos, y que es igual al número de instancias del conjunto de entrenamiento.
 
 A la luz de lo anterior, suele ser común que en textos especializados se haga referencia a que las máquinas de soporte vectorial sean un caso particular de métodos conocidos como **máquinas kernel**. Para el caso de un problema de clasificación, esta *máquina* particular se parametriza mediante un vector de dimensión $m$ cuyo $i$-ésimo término está definido por el producto $\lambda_{i}y_{i}$ (para $1\leq i\leq m$).
 
@@ -1526,7 +1526,7 @@ $$
 Donde,
 
 - $\mathbf{w}\in \mathbb{R}^{n}$ es el vector de parámetros que caracterizan a la frontera de separación que deseamos estimar (inducido por $\phi$). $b$ es l correspondiente parámetro de sesgo.
-- $\phi$ es la función que aplica a las instancias $\mathbf{x}_{i}$ ($i=1,...,m$) a un espacio de atributos posiblemente de mayor dimensión que el original, donde el conjunto de datos de interés será linealmente separable.
+- $\phi$ es la función que aplica a las instancias $\mathbf{x}_{i}$ ($i=1,...,m$) a un espacio de características posiblemente de mayor dimensión que el original, donde el conjunto de datos de interés será linealmente separable.
 - $\zeta_{i}$ son las variables de holgura que permiten clasificaciones incorrectas dentro del margen de separación ($i=1,...,m$).
 
 ### Problema dual
@@ -2246,7 +2246,7 @@ class KernelSVM(BaseEstimator, ClassifierMixin):
         self.support_labels_ = y[self.support_]
         self.alpha_support_ = self.lambda_[self.support_]
     
-        # Calculamos el término de sesgo en el espacio de atributos.
+        # Calculamos el término de sesgo en el espacio de características.
         self.b_ = np.mean(
             self.support_labels_
             - np.sum(
@@ -2346,7 +2346,7 @@ G = np.vstack([-np.eye(m), np.eye(m)])
 h = np.hstack([np.zeros(m), np.ones(m) * self.C])
 ```
 
-Por lo cual, una vez definidos los elementos estructurales correspondientes, sólo resta formular el programa cuadrático en <strong><font color='darkmagenta'>CVXPY</font></strong>. Una vez ajustado el modelo (esto es, resuelto el programa cuadrático), calculamos el término de sesgo del hiperplano de decisión en el espacio de atributos como
+Por lo cual, una vez definidos los elementos estructurales correspondientes, sólo resta formular el programa cuadrático en <strong><font color='darkmagenta'>CVXPY</font></strong>. Una vez ajustado el modelo (esto es, resuelto el programa cuadrático), calculamos el término de sesgo del hiperplano de decisión en el espacio de características como
 
 ::: {.eq-scroll}
 $$
