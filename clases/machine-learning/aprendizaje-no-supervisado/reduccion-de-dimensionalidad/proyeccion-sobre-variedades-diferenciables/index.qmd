@@ -78,13 +78,7 @@ Partamos por una observación muy sencilla: **Curvar un objeto no necesariamente
 
 ::: {.eq-scroll}
 $$
-g(t)=
-\begin{bmatrix}
-\cos(t)\\
-\sin(t)\\
-t/(4\pi)
-\end{bmatrix}
-\in\mathbb{R}^{3}
+g(t)=\left( \begin{matrix}\cos \left( t \right)\\ \sin (t)\\ t/4\pi\end{matrix} \right) \in \mathbb{R}^{3}
 \tag{2.3}
 $$
 :::
@@ -274,7 +268,7 @@ fig.add_trace(
 
 style_plotly_figure(
     fig,
-    "Una coordenada puede describir una forma curva en tres dimensiones",
+    "",
     height=580,
 )
 fig.update_xaxes(title_text="Parámetro t", row=1, col=1)
@@ -394,7 +388,7 @@ for row, deformation in enumerate(deformation_levels, start=1):
 
 style_plotly_figure(
     fig,
-    "De una lámina plana a una superficie enrollada",
+    "",
     height=1580,
 )
 
@@ -501,7 +495,7 @@ fig.add_trace(
 
 style_plotly_figure(
     fig,
-    "Una superficie bidimensional puede vivir curvada en tres dimensiones",
+    "",
     height=710,
 )
 fig.update_xaxes(title_text="Coordenada intrínseca u", row=1, col=2)
@@ -808,7 +802,7 @@ fig.add_trace(
 
 style_plotly_figure(
     fig,
-    "Una descripción lineal puede ser válida localmente sin serlo globalmente",
+    "",
     height=660,
 )
 fig.update_layout(
@@ -6564,3 +6558,690 @@ show_plotly(fig)
 La comparación debe interpretarse junto con la tabla de diagnósticos. El método MDS clásico entrega una referencia espectral reproducible y muy rápida, con una confiabilidad de 0.960 y un desajuste de Shepard de 0.265. El algoritmo MDS métrico utiliza esa referencia para ajustar con mayor fidelidad las magnitudes de las separaciones: Eleva la confiabilidad a 0.976 y reduce el desajuste a 0.108. El algoritmo MDS no métrico conserva prácticamente la misma fidelidad local, con una confiabilidad de 0.976, pero reduce el desajuste ordinal hasta 0.070 al reorganizar la escala de las afinidades. Esa libertad resulta útil cuando las proximidades expresan intensidad relativa y no una unidad física calibrada.
 
 Ninguno de los mapas convierte la procedencia en una verdad mineralógica. Una zona compartida por distintas minas sigue indicando perfiles comparables dentro de las 17 variables escogidas, mientras que una rama dominada por una sola procedencia sugiere una combinación menos habitual. El diagrama de Shepard permite comprobar cuánto de esa lectura visual se sostiene en las proximidades originales y cuánto proviene de la libertad geométrica del método. ◼︎
+
+## Algoritmo de encaje estocástico de vecinos con distribución t (t-SNE)
+
+::: {.callout-important}
+## Fuente principal de esta sección
+
+La formulación del algoritmo sigue el artículo original de [van der Maaten y Hinton (2008), *Visualizing Data using t-SNE*](https://www.cs.toronto.edu/~hinton/absps/tsne.pdf). El análisis de la exageración temprana y de la evolución del *embedding* se apoya en [Cai y Ma (2022), *Theoretical Foundations of t-SNE for Visualizing High-Dimensional Clustered Data*](https://arxiv.org/pdf/2105.07536). Ambos trabajos están recogidos en la [bibliografía general del sitio](/bibliografia.html#aprendizaje-no-supervisado-y-reducción-de-dimensionalidad).
+:::
+
+### Introducción
+
+Hasta ahora hemos buscado representar las $m$ observaciones de una matriz de diseño $\mathbf{X}\in\mathbb{R}^{m\times n}$ usando menos de las $n$ variables con que fueron descritas. La pregunta común ha sido qué relaciones vale la pena conservar al construir el *embedding*. En el caso del algoritmo LLE, quisimos mantener los pesos con que aproximamos cada observación a partir de sus vecinos más cercanos. En el algoritmo Isomap, estimamos las distancias a lo largo de la variedad mediante caminos mínimos sobre un grafo y buscamos reproducirlas en el *embedding*. En los métodos MDS, trabajamos con las separaciones entre pares de observaciones: El método clásico parte de sus cuadrados, el métrico procura reproducir sus magnitudes y el no métrico, su orden. La hipótesis de la variedad nos dio una motivación geométrica para este recorrido, pero estos métodos no requieren que conozcamos ni que demostremos la existencia de una variedad diferenciable para construir sus *embeddings* correspondientes.
+
+En el último método de aprendizaje intrínseco de variedades que estudiaremos cambiará la prioridad: Si dos observaciones eran vecinas en el espacio original, queremos que tiendan a quedar cerca en el *embedding* resultante, aunque cambie la distancia que las separa. En vez de trazar una frontera rígida entre vecinos y no vecinos, asignaremos pesos de cercanía y los normalizaremos para obtener probabilidades. Así, desde una misma observación, un punto cercano tendrá más peso que uno lejano. Esta es la idea fundamental del algoritmo **t-SNE**, del inglés *$t$-distributed stochastic neighbor embedding*. Lo de *estocástico* alude a cómo representamos las vecindades mediante probabilidades; la $t$ alude a la distribución $t$ de Student que usaremos para convertir las distancias del *embedding* en afinidades.
+
+### Aspectos teóricos
+
+Mantengamos la notación: Designaremos por $\mathbf{x}_{i}\in\mathbb{R}^{n}$ a la observación asociada a la $i$-ésima fila de $\mathbf{X}$, para $i=1,\ldots,m$. Imaginemos que, partiendo desde $\mathbf{x}_{i}$, tenemos que elegir otra observación al azar y queremos favorecer a las más próximas. Llamaremos $p_{j\mid i}$ a la probabilidad de elegir $\mathbf{x}_{j}$ en ese experimento. Como juzgar la cercanía desde $\mathbf{x}_{i}$ no es necesariamente lo mismo que juzgarla desde $\mathbf{x}_{j}$, $p_{j\mid i}$ y $p_{i\mid j}$ pueden ser distintas. Para obtener una **afinidad simétrica**, promediamos ambas direcciones y normalizamos por el número de observaciones:
+
+::: {.eq-scroll}
+$$
+p_{ij}=\frac{p_{j\mid i}+p_{i\mid j}}{2m} \quad; \quad i\neq j
+\tag{2.125}
+$$
+:::
+
+Aquí, $p_{ij}$ es la entrada de la matriz simétrica $\mathbf{P}:=(p_{ij})_{i,j=1}^{m}\in\mathbb{R}^{m\times m}$. Definimos $p_{ii}=0$ porque ninguna observación participa como su propia vecina. La suma de las probabilidades condicionales sobre los candidatos de cada punto es 1; por eso $\sum_{i\neq j}p_{ij}=1$ cuando recorremos todos los pares **ordenados**. Esta normalización nos permite interpretar $\mathbf{P}$ como una distribución conjunta sobre pares de índices distintos.
+
+Para calcular la probabilidad condicional de elegir a $\mathbf{x}_{j}$ desde $\mathbf{x}_{i}$, asignamos a cada candidato un peso Gaussiano que decrece con la distancia y lo dividimos por la suma de los pesos de todos los candidatos, salvo el propio punto de partida:
+
+::: {.eq-scroll}
+$$
+p_{j\mid i}=\frac{\exp \left( -\| \mathbf{x}_{i} -\mathbf{x}_{j} \|_{2}^{2} /(2\tau_{i}^{2} ) \right)}{\displaystyle \sum_{\ell \neq i} \exp \left( -\| \mathbf{x}_{i} -\mathbf{x}_{\ell} \|_{2}^{2} /(2\tau_{i}^{2} ) \right)} \quad; \quad j\neq i
+\tag{2.126}
+$$
+:::
+
+En la ecuación (2.126), $\tau_{i}>0$ es la **escala** que controla el ancho de la vecindad alrededor de $\mathbf{x}_{i}$. Si $\tau_{i}$ es pequeño, el peso cae rápidamente con la distancia; si es grande, observaciones más alejadas también reciben peso que puede ser significativo. No escogemos un $\tau_{i}$ a mano para cada punto. El hiperparámetro que fijamos es una **perplejidad objetivo** común. Para ello, suele implementarse una búsqueda binaria que ajusta iterativamente $\tau_i$ hasta que la perplejidad de la distribución condicional de cada punto se acerque al valor objetivo (Hinton y Roweis, 2002).
+
+::: {.callout-note}
+## ¿Qué significa la perplejidad de una vecindad?
+
+Calculemos la [entropía de Shannon en bits](/apuntes/grafos-e-informacion/introduccion-a-la-teoria-de-la-informacion/#entropía-de-una-variable-aleatoria-discreta) de las probabilidades que parten desde $\mathbf{x}_{i}$: $H_i:=-\sum_{j\neq i}p_{j\mid i}\log_{2}p_{j\mid i}$. La perplejidad es $2^{H_i}$. Si repartimos todo el peso por igual entre diez vecinos, obtenemos una perplejidad de 10. Si los pesos son desiguales, la perplejidad nos da un **número efectivo de vecinos**, no un corte rígido como los $k$ vecinos más cercanos. Por eso un mismo objetivo puede dar lugar a una vecindad de radio corto en una zona densa y a una más amplia en una zona dispersa.
+:::
+
+Hagamos ahora el mismo ejercicio en un *embedding* bidimensional. Denotaremos por $\mathbf{z}_{i}\in\mathbb{R}^{2}$ el vector de coordenadas de $\mathbf{x}_{i}$ en el *embedding* y por $\mathbf{Z}\in\mathbb{R}^{m\times 2}$ la matriz que reúne estas coordenadas por filas. A un par separado por una distancia Euclidiana $r$ le asignamos un peso de la forma $(1+r^{2})^{-1}$. El peso es proporcional a la densidad de una distribución $t$ de Student con un grado de libertad, evaluada en $r$. Se dice que esta distribución tiene **colas pesadas** porque su densidad decrece más lentamente que la de una distribución Gaussiana al alejarnos del origen. Así, dos puntos pueden quedar bastante separados en el *embedding* antes de que su afinidad se vuelva despreciable. Al normalizar los pesos sobre todos los pares ordenados de índices distintos, obtenemos la matriz simétrica $\mathbf{Q}:=(q_{ij})_{i,j=1}^{m}\in\mathbb{R}^{m\times m}$, con entradas definidas como
+
+::: {.eq-scroll}
+$$
+q_{ij}=\frac{\left( 1+\| \mathbf{z}_{i} -\mathbf{z}_{j} \|_{2}^{2} \right)^{-1}}{\displaystyle \sum_{a\neq b} \left( 1+\| \mathbf{z}_{a} -\mathbf{z}_{b} \|_{2}^{2} \right)^{-1}} \quad; \quad i\neq j
+\tag{2.127}
+$$
+:::
+
+::: {.callout-note}
+## La distribución $t$ de Student
+
+La distribución $t$ de Student es una familia de distribuciones continuas de probabilidad. Su densidad tiene forma de campana y es simétrica respecto de cero, pero sus colas decrecen más lentamente que las de una distribución Gaussiana. El parámetro de forma $\nu>0$, que representa sus **grados de libertad**, controla el peso de las colas. A medida que $\nu$ aumenta, la distribución $t$ de Student se aproxima a la distribución Gaussiana estándar. En el otro extremo, que cero sea el centro de simetría no significa necesariamente que la media sea nula: La media sólo existe si $\nu>1$. Escribiremos $X\sim t_{\nu}$ para indicar que $X$ sigue una distribución $t$ con $\nu$ grados de libertad.
+
+Con $\Gamma$ la [función Gamma de Euler](/apuntes/calculo-incertidumbre-y-optimizacion/distribuciones-especificas-de-probabilidad/#fig-beta), la función de densidad para una variable $X\sim t_{\nu}$ es
+
+::: {.eq-scroll}
+$$
+f\left( x \right) =\frac{\Gamma \left( \frac{\nu +1}{2} \right)}{\sqrt{\pi \nu} \Gamma \left( \frac{\nu}{2} \right)} \left( 1+\frac{x^{2}}{\nu} \right)^{-\frac{\nu +1}{2}}
+\tag{2.128}
+$$
+:::
+:::
+
+
+Al igual que con $\mathbf{P}$, establecemos $q_{ii}=0$. Por construcción, $\mathbf{Q}$ suma 1 sobre los pares distintos. La diferencia es que $\mathbf{P}$ se calcula una sola vez a partir de $\mathbf{X}$, mientras que $\mathbf{Q}$ cambia cada vez que movemos los puntos del *embedding*. Para medir cuánto se aparta $\mathbf{Q}$ de la referencia $\mathbf{P}$, recuperamos la [divergencia de Kullback-Leibler](/apuntes/grafos-e-informacion/introduccion-a-la-teoria-de-la-informacion/#divergencia-de-kullback-leibler) de la ecuación (2.98). Denotemos por $\mathcal{L}(\mathbf{Z})$ el costo de este reemplazo, calculado con el logaritmo natural, y por $\mathbf{Z}_{\star}$ una configuración que lo minimiza:
+
+::: {.eq-scroll}
+$$
+\begin{aligned}
+\mathcal{L}(\mathbf{Z})
+&:=D_{\mathrm{KL}}\left(\mathbf{P}\,\|\,\mathbf{Q}(\mathbf{Z})\right)
+=\sum_{i\neq j}p_{ij}\log\left(\frac{p_{ij}}{q_{ij}}\right)\\[3pt]
+\mathbf{Z}_{\star}
+&\in\operatorname*{arg\,min}_{\mathbf{Z}\in\mathbb{R}^{m\times 2}}\mathcal{L}(\mathbf{Z})
+\end{aligned}
+\tag{2.129}
+$$
+:::
+
+Aquí el orden de los argumentos es fundamental: Un par con $p_{ij}$ grande y $q_{ij}$ muy pequeño aporta un desajuste importante, porque sus observaciones eran vecinas en los datos pero quedaron demasiado separadas en el *embedding*. Al mismo tiempo, no podemos hacer grandes todas las afinidades del *embedding*, porque deben sumar 1. Por eso el algoritmo debe encontrar un equilibrio entre acercar a los vecinos y dejar espacio para los demás puntos.
+
+Para minimizar el costo de la ecuación (2.129), podemos utilizar el [algoritmo de gradiente descendente](/apuntes/calculo-incertidumbre-y-optimizacion/optimizacion-aplicada-al-aprendizaje-automatico/#algoritmo-de-gradiente-descendente) con [moméntum](/apuntes/calculo-incertidumbre-y-optimizacion/optimizacion-aplicada-al-aprendizaje-automatico/#adición-de-moméntum). Escribiremos $\mathbf{z}_{i}^{(k)}$ para la posición de la observación $i$ en la iteración $k$. La dirección de descenso más pronunciado es el **negativo** del gradiente respecto de esa posición, que denotaremos por $\mathbf{D}_{i}^{(k)}$. La actualización tiene la forma
+
+::: {.eq-scroll}
+$$
+\mathbf{z}_{i}^{(k+1)} =\mathbf{z}_{i}^{(k)} +h\mathbf{D}_{i}^{(k)} +\mu_{k+1} \left( \mathbf{z}_{i}^{(k)} -\mathbf{z}_{i}^{(k-1)} \right) \quad; \quad i=1,\ldots ,m
+\tag{2.130}
+$$
+:::
+
+donde:
+
+- $h>0$ es el tamaño del paso en la dirección de descenso.
+- $\mathbf{D}_{i}^{(k)}=4\sum_{j\neq i}S_{ij}^{(k)}(\mathbf{z}_{j}^{(k)}-\mathbf{z}_{i}^{(k)})\in\mathbb{R}^{2}$ es la dirección de descenso para la observación $i$. La suma recorre los demás puntos, manteniendo fijo a $i$.
+- $S_{ij}^{(k)}=(p_{ij}-q_{ij}^{(k)})/(1+\|\mathbf{z}_{j}^{(k)}-\mathbf{z}_{i}^{(k)}\|_{2}^{2})$ es el peso de la interacción con el punto $j$, donde $q_{ij}^{(k)}$ es la afinidad calculada con las posiciones actuales. Si $p_{ij}>q_{ij}^{(k)}$, la contribución de $j$ orienta el paso hacia ese punto; si $p_{ij}<q_{ij}^{(k)}$, lo orienta en sentido contrario.
+- $\mu_{k+1}\in[0,1)$ es el coeficiente de moméntum. Controla qué fracción del desplazamiento previo se añade al nuevo paso.
+
+Para iniciar el cálculo podemos muestrear las posiciones $\mathbf{z}_{i}^{(0)}$ de forma independiente, ya sea desde una distribución uniforme en el cuadrado $\left[-0.01,0.01\right]\times\left[-0.01,0.01\right]$ o desde una distribución Gaussiana $\mathcal{N}(\mathbf{0},\delta^{2}\mathbf{I}_{2})$ con $\delta>0$ pequeño. En ambos casos fijamos $\mathbf{z}_{i}^{(-1)}=\mathbf{z}_{i}^{(0)}$ para que el primer paso no arrastre un desplazamiento inexistente. El moméntum puede ayudar a avanzar con mayor rapidez cuando las direcciones de descenso se sostienen a lo largo de varias iteraciones, pero no garantiza encontrar un mínimo global. El problema (2.130) no es convexo y distintas inicializaciones pueden conducir a *embeddings* diferentes.
+
+Para entender qué interacciones acercan o separan los puntos, estudiaremos primero el paso sin el arrastre de las iteraciones anteriores. Al fijar $\mu_{k+1}=0$ en la ecuación (2.130), obtenemos
+
+::: {.eq-scroll}
+$$
+\mathbf{z}_{i}^{(k+1)} =\mathbf{z}_{i}^{(k)} +h\mathbf{D}_{i}^{(k)} \quad; \quad i=1,\ldots ,m
+\tag{2.131}
+$$
+:::
+
+Conviene distinguir la regla de actualización de los ajustes empleados al ejecutarla. Por ejemplo, un presupuesto de 1000 iteraciones y un paso inicial de 100, ajustado durante el cálculo con el esquema de Jacobs (1988), son referencias de la [formulación original](https://www.jmlr.org/papers/v9/vandermaaten08a.html). También se encuentran pasos iniciales de 400 u 800, según la implementación. Antes de trasladar uno de esos valores, hay que verificar en qué escala está expresado: Algunas implementaciones incorporan el factor 4 de $\mathbf{D}_{i}^{(k)}$ en el tamaño del paso.
+
+El algoritmo no usa la misma intensidad de atracción durante todo el cálculo. En las primeras iteraciones la refuerza para que los puntos que ya eran afines tengan la oportunidad de reunirse antes de que se reorganice la configuración completa. A este primer tramo lo llamaremos **exageración temprana**. Después se retira el refuerzo y comienza la **etapa de encaje o *embedding***. Esta distinción, que también aplica la implementación del algoritmo t-SNE en <strong><font color="darkmagenta">Scikit-Learn</font></strong>, nos permitirá entender por separado por qué se compactan las vecindades y qué ocurre con las separaciones entre ellas.
+
+#### Etapa de exageración temprana
+
+Durante las primeras $k_{0}$ iteraciones, con $k_{0}$ un entero positivo, multiplicamos $p_{ij}$ por un **factor de exageración** $\alpha>1$ en el término de atracción. No renormalizamos $\alpha\mathbf{P}$, porque eso cancelaría el refuerzo. La repulsión sigue dependiendo de $\mathbf{Q}$, calculada con las posiciones de la iteración actual según la ecuación (2.127). Con nuestra convención de mantener explícito el factor $4$ de la dirección de descenso, para $k=0,\ldots,k_{0}-1$ la ecuación (2.131) pasa a ser
+
+::: {.eq-scroll}
+$$
+\begin{aligned}
+\mathbf{z}_{i}^{(k+1)}
+&=\mathbf{z}_{i}^{(k)}
++4h\sum_{j\neq i}S_{ij}^{(k)}(\alpha)\left(\mathbf{z}_{j}^{(k)}-\mathbf{z}_{i}^{(k)}\right)\\[3pt]
+S_{ij}^{(k)}(\alpha)
+&:=\frac{\alpha p_{ij}-q_{ij}^{(k)}}{1+\|\mathbf{z}_{i}^{(k)}-\mathbf{z}_{j}^{(k)}\|_{2}^{2}}
+\quad; \quad i\neq j
+\end{aligned}
+\tag{2.132}
+$$
+:::
+
+El factor $\alpha$ controla la intensidad del refuerzo y $k_{0}$, el tiempo durante el cual lo mantenemos. Se han usado, por ejemplo, $\alpha=4$ durante $50$ iteraciones y $\alpha=12$ durante $250$ iteraciones. Son configuraciones de referencia, no una regla universal ([van der Maaten y Hinton, 2008](https://www.jmlr.org/papers/v9/vandermaaten08a.html); [van der Maaten, 2014](https://www.jmlr.org/papers/v15/vandermaaten14a.html)). Para entender por qué ambos parámetros importan, conviene mirar primero qué hace un paso cuando las posiciones siguen cerca de su inicialización.
+
+**I. Cuando todos los puntos parten cerca.**
+
+El **diámetro del *embedding*** es la mayor distancia $\|\mathbf{z}_{i}^{(k)}-\mathbf{z}_{j}^{(k)}\|_{2}$ entre dos de sus puntos. Mientras el diámetro sea mucho menor que 1, los pesos derivados de la distribución $t$ de Student en la ecuación (2.127) son todos cercanos a 1. Como hay $m(m-1)$ pares ordenados distintos, sus afinidades $q_{ij}^{(k)}$ son aproximadamente uniformes. Denotaremos por $\mathbf{U}\in\mathbb{R}^{m\times m}$ la matriz con entradas $u_{ij}=1/[m(m-1)]$ para $i\neq j$ y $u_{ii}=0$. Si $\mathbf{S}^{(k)}(\alpha)$ reúne los pesos de la ecuación (2.132), con diagonal nula, entonces $\mathbf{S}^{(k)}(\alpha)\approx\alpha\mathbf{P}-\mathbf{U}$. El paso deja de depender fuertemente de las posiciones actuales a través de sus pesos: En una primera aproximación, tenemos una red de interacciones fijas.
+
+Aquí reaparece el Laplaciano de la ecuación (2.29). Para una matriz de pesos $\mathbf{A}=(a_{ij})\in\mathbb{R}^{m\times m}$, escribiremos $\mathbf{L}(\mathbf{A})=\operatorname{diag}(\mathbf{A}\mathbf{1}_{m})-\mathbf{A}$, donde $\mathbf{1}_{m}$ es el vector de unos y $\operatorname{diag}$ coloca las sumas de fila en la diagonal. Aplicado a $\mathbf{Z}^{(k)}$, su fila $i$ reúne las diferencias ponderadas desde $\mathbf{z}_{i}^{(k)}$ hacia las posiciones de las demás observaciones, con el signo opuesto al de la suma en la ecuación (2.132). Si llamamos $\mathbf{B}_{\alpha}:=\mathbf{I}_{m}-4h\mathbf{L}(\alpha\mathbf{P}-\mathbf{U})$ a la matriz del paso aproximado, con $\mathbf{I}_{m}$ la matriz identidad, podemos escribir
+
+::: {.eq-scroll}
+$$
+\begin{aligned}
+\mathbf{Z}^{(k+1)}
+&=\left[\mathbf{I}_{m}-4h\mathbf{L}\!\left(\mathbf{S}^{(k)}(\alpha)\right)\right]\mathbf{Z}^{(k)}
+\approx \mathbf{B}_{\alpha}\mathbf{Z}^{(k)}\\[3pt]
+\mathbf{Z}^{(k)}
+&\approx \mathbf{B}_{\alpha}^{\,k}\mathbf{Z}^{(0)}
+\end{aligned}
+\tag{2.133}
+$$
+:::
+
+La primera igualdad es exacta. La última aproximación corresponde a aplicar repetidamente una misma matriz, es decir, a una **iteración por potencias**. No basta con que la nube inicial sea pequeña: Si el *embedding* deja de ser compacto o el paso es demasiado grande, el error puede acumularse. Bajo condiciones sobre la inicialización, el paso y el número de iteraciones, ese error resulta pequeño en relación con la escala inicial a medida que crece el número de observaciones ([Cai y Ma, 2022, teorema (4)](https://arxiv.org/pdf/2105.07536#page=11)).
+
+**II. ¿Qué queda después de aplicar tantas veces la misma matriz?**
+
+El Laplaciano de $\mathbf{U}$ actúa sobre cada coordenada restándole la media y dividiendo el resultado por $m-1$. Por eso, si $\mathbf{v}$ es un autovector centrado de $\mathbf{L}(\mathbf{P})$ con autovalor $\lambda$, entonces $\mathbf{L}(\mathbf{U})\mathbf{v}=\mathbf{v}/(m-1)$. Multiplicar por $\mathbf{B}_{\alpha}$ cambia la amplitud de ese autovector según
+
+::: {.eq-scroll}
+$$
+\mathbf{B}_{\alpha}\mathbf{v}
+=\left(1+\frac{4h}{m-1}-4h\alpha\lambda\right)\mathbf{v}
+\tag{2.134}
+$$
+:::
+
+La repulsión casi uniforme aporta el mismo término de expansión a todos los autovectores centrados. La atracción hace la diferencia: Con un paso suficientemente pequeño, las componentes asociadas a $\lambda$ grandes pierden peso frente a las de $\lambda$ pequeñas. En particular, si el grafo de afinidades tuviera componentes desconectadas, los vectores constantes dentro de cada componente pertenecerían al espacio nulo de $\mathbf{L}(\mathbf{P})$. En ese caso ideal, las diferencias entre los puntos de un mismo grupo pierden peso frente a las diferencias entre los centros de los grupos. No es el mismo problema espectral que resolvimos con el algoritmo LLE: Aquí el Laplaciano aparece al aproximar la **dinámica de la optimización**, no al imponer desde el inicio un problema de autovalores.
+
+En los datos reales, $\mathbf{P}$ puede contener conexiones débiles entre grupos. Para entender el efecto de esas conexiones, comparemos $\mathbf{P}$ con una matriz ideal $\mathbf{P}_{\ast}$ que conserva los bloques de afinidad, pero no las conexiones entre ellos. Si la diferencia es pequeña y elegimos un intervalo en el que se atenúan las diferencias internas sin que se acumulen demasiado los efectos de las conexiones entre grupos, el *embedding* se acerca a una configuración casi constante por grupo. Los centros de esa configuración tienen su origen en las medias de las posiciones iniciales dentro de cada bloque ([Cai y Ma, 2022, teorema (7)](https://arxiv.org/pdf/2105.07536#page=13)). Si partimos al azar, **la posición relativa de los grupos no es una medida confiable de cuán separados estaban en los datos**.
+
+::: {.callout-note}
+## ¿Por qué conviene retirar el refuerzo a tiempo?
+
+La exageración necesita durar lo suficiente para atenuar las diferencias internas de cada grupo. Pero si seguimos iterando cuando existen conexiones débiles entre grupos, el efecto de esas conexiones también se acumula. Parar a tiempo actúa como una **regularización implícita**: Limitamos cuánto puede cambiar la configuración sin tener que añadir una penalización explícita al costo ([Cai y Ma, 2022, sección (2.3)](https://arxiv.org/pdf/2105.07536#page=14)). Cuanto más débiles sean las fronteras entre grupos, más importa dónde interrumpimos esta etapa. Alargarla no garantiza un *embedding* más fiel.
+:::
+
+#### Etapa de *embedding*
+
+Al terminar la exageración temprana conservamos las posiciones $\mathbf{Z}^{(k_{0})}$ y volvemos a $\alpha=1$. En ese instante, las afinidades $\mathbf{Q}$ siguen siendo las mismas: Todavía no hemos movido ningún punto. Lo único que cambia es el peso de la atracción. Desde entonces aplicamos la ecuación (2.131) con un paso $h_{\mathrm{emb}}>0$, que puede coincidir o no con $h$. La **amplificación** y la **estabilización** son dos formas de describir lo que puede suceder a partir de aquí, no dos reglas de actualización que debamos programar por separado.
+
+**I. Amplificación: Los grupos compactos se apartan.**
+
+Supongamos que las afinidades entre grupos son bajas, que las observaciones de cada grupo ya están cerca entre sí y que el diámetro total del *embedding* sigue siendo pequeño. Para un par de grupos distintos, la escala de referencia no es cero, sino la afinidad casi uniforme $u_{ij}=1/[m(m-1)]$. Si $p_{ij}$ es mucho menor que ese valor, entonces $p_{ij}-q_{ij}^{(k)}\approx -u_{ij}$. Además, el denominador de $S_{ij}^{(k)}(1)$ es cercano a 1. Por lo tanto, cada uno de esos pares aporta una repulsión con un peso aproximadamente igual. Dentro de un grupo, las afinidades $p_{ij}$ ya no tienen por qué ser pequeñas. Pero incluso un par con mucha afinidad produce poco desplazamiento si sus puntos están muy juntos, porque su contribución es proporcional a $\mathbf{z}_{j}^{(k)}-\mathbf{z}_{i}^{(k)}$.
+
+Sea $C_r$ el conjunto de índices del grupo $r$, con $|C_r|$ observaciones y posición media $\overline{\mathbf{z}}_{r}^{(k)}:=|C_r|^{-1}\sum_{j\in C_r}\mathbf{z}_{j}^{(k)}$. Para un punto $i$ fuera de ese grupo, llamemos $\mathbf{F}_{ir}^{(k)}$ a la contribución conjunta de todos los $j\in C_r$ a su desplazamiento. Con el peso aproximadamente uniforme, podemos sumar primero los desplazamientos que provienen del grupo:
+
+::: {.eq-scroll}
+$$
+\begin{aligned}
+\mathbf{F}_{ir}^{(k)}
+&\approx \frac{4h_{\mathrm{emb}}}{m(m-1)}
+\sum_{j\in C_r}\left(\mathbf{z}_{i}^{(k)}-\mathbf{z}_{j}^{(k)}\right)\\[3pt]
+&=\frac{4h_{\mathrm{emb}}|C_r|}{m(m-1)}
+\left(\mathbf{z}_{i}^{(k)}-\overline{\mathbf{z}}_{r}^{(k)}\right)
+\end{aligned}
+\tag{2.135}
+$$
+:::
+
+La expresión tiene una lectura geométrica directa: Cada grupo ajeno empuja al punto $i$ en la dirección que va desde el centro de ese grupo hacia el punto. A igual posición relativa, un grupo con más observaciones contribuye más al desplazamiento. El movimiento de un punto resulta de sumar esos aportes, que pueden reforzarse o compensarse.
+
+Pasemos de observar un punto a seguir el centro de un grupo. Las interacciones internas no desplazan su centro: Si sumamos los desplazamientos dentro del grupo, la contribución de $j$ a $i$ cancela la de $i$ a $j$, porque el peso es simétrico y los vectores apuntan en sentidos opuestos. El mismo razonamiento aplicado a todas las observaciones muestra que el centro global $\overline{\mathbf{z}}:=m^{-1}\sum_{i=1}^{m}\mathbf{z}_{i}^{(k)}$ permanece fijo. Si las afinidades entre grupos son despreciables y los grupos forman una partición de las observaciones, al promediar la ecuación (2.135) sobre un grupo y sumar los aportes de todos los demás, obtenemos
+
+::: {.eq-scroll}
+$$
+\overline{\mathbf{z}}_{r}^{(k+1)}-\overline{\mathbf{z}}
+\approx
+\left(1+\frac{4h_{\mathrm{emb}}}{m-1}\right)
+\left(\overline{\mathbf{z}}_{r}^{(k)}-\overline{\mathbf{z}}\right)
+\tag{2.136}
+$$
+:::
+
+En esta aproximación, los centros se alejan del centro global por un factor común mayor que 1. Al restar las expresiones para dos grupos vemos que su separación también crece por ese factor. De ahí el nombre de *amplificación*: Una separación que ya existía en $\mathbf{Z}^{(k_{0})}$ se hace más visible; si dos centros coincidieran exactamente, esta aproximación no crearía una separación entre ellos. Tampoco implica que todas las distancias entre puntos crezcan. El crecimiento del diámetro total y la persistencia de grupos compactos requieren hipótesis adicionales sobre las afinidades, la inicialización y la duración de esta fase ([Cai y Ma, 2022, teoremas (13) y (15)](https://arxiv.org/pdf/2105.07536#page=19)).
+
+**II. Estabilización: Vuelven a importar las distancias de cada par.**
+
+El cálculo anterior deja de describir bien la dinámica cuando las distancias en el *embedding* ya no son pequeñas. Para ver qué cambia, llamemos $d_{ij}^{(k)}:=\|\mathbf{z}_{i}^{(k)}-\mathbf{z}_{j}^{(k)}\|_{2}$ a la distancia actual entre $i$ y $j$, $w_{ij}^{(k)}:=(1+(d_{ij}^{(k)})^{2})^{-1}$ a su peso antes de normalizar, y $T^{(k)}:=\sum_{a\neq b}w_{ab}^{(k)}$ a la suma de esos pesos. Como $q_{ij}^{(k)}=w_{ij}^{(k)}/T^{(k)}$, el coeficiente que multiplica al vector $\mathbf{z}_{j}^{(k)}-\mathbf{z}_{i}^{(k)}$ en la suma de la ecuación (2.132), con $\alpha=1$, puede escribirse como
+
+::: {.eq-scroll}
+$$
+S_{ij}^{(k)}(1)
+=\underbrace{p_{ij}w_{ij}^{(k)}}_{\text{atracción}}
+-\underbrace{\frac{\left(w_{ij}^{(k)}\right)^{2}}{T^{(k)}}}_{\text{repulsión}}
+\quad; \quad i\neq j
+\tag{2.137}
+$$
+:::
+
+El término de repulsión contiene el peso al cuadrado. Si comparamos pares **en una misma iteración**, el denominador $T^{(k)}$ es común: Un par más separado tiene una afinidad menor y, además, un peso menor al convertir esa afinidad en un desplazamiento. Por eso la repulsión deja de actuar casi por igual sobre pares con baja afinidad original. Entre iteraciones también cambia $T^{(k)}$, de modo que no podemos explicar la evolución de un par mirando sólo su distancia: Los demás puntos intervienen a través de esa normalización.
+
+Así, un par con $q_{ij}^{(k)}>p_{ij}$ aporta repulsión porque el *embedding* le asigna más cercanía que los datos. Si $q_{ij}^{(k)}<p_{ij}$, su aporte es atractivo. El ajuste se estabiliza en la medida en que esos aportes tienden a compensarse, haciendo menores los desplazamientos y ralentizando la expansión. Que el desplazamiento neto sea pequeño no exige que $p_{ij}=q_{ij}^{(k)}$ para cada par: Un punto puede recibir dos contribuciones grandes en sentidos opuestos. Tampoco certifica un mínimo global. Lo que obtenemos es una configuración bidimensional que concilia afinidades en competencia, no una representación que deba reproducir todas las separaciones originales.
+
+::: {.callout-note}
+## ¿Qué podemos leer en el *embedding* final?
+
+Volvamos a las cargas de mineral que venimos estudiando. Si dos grupos de cargas aparecen separados en el *embedding*, vale la pena preguntar qué variables explican esa separación y si las vecindades coinciden con las de los perfiles originales. El espacio en blanco entre ambos grupos, por sí solo, no nos dice cuánto difieren en ley, mineralogía o dureza. Parte de ese espacio resulta de la repulsión del algoritmo y puede cambiar con la inicialización o la perplejidad. Una lectura más sólida es comprobar qué vecindades se mantienen al repetir el ajuste y contrastarlas con las variables originales, en lugar de tomar cada isla del gráfico como evidencia de una población distinta.
+:::
+
+### Implementación en <strong><font color="darkmagenta">Scikit-Learn</font></strong>
+
+Al igual que el algoritmo LLE y el algoritmo Isomap, el algoritmo t-SNE está disponible en el módulo `sklearn.manifold` de <strong><font color="darkmagenta">Scikit-Learn</font></strong>. La [clase `TSNE`](https://scikit-learn.org/stable/modules/generated/sklearn.manifold.TSNE.html) recibe la matriz de diseño $\mathbf{X}$ y, al llamar a `fit_transform()`, devuelve las coordenadas de esas mismas observaciones en el *embedding*. Antes de ajustarla, conviene distinguir qué parámetros definen las afinidades y cuáles controlan la búsqueda de las coordenadas:
+
+- `n_components`: Número de coordenadas que tendrá cada observación en el *embedding*. Con el valor predeterminado de `2`, el resultado es un arreglo de dimensión $(m,2)$.
+- `metric` y `perplexity`: La métrica define cómo medimos cercanía en el espacio original. Por defecto se usa la distancia Euclidiana, a partir de la cual construimos las afinidades de la ecuación (2.126). La perplejidad fija el número **efectivo** de vecinos que orienta el ajuste de cada escala $\tau_i$. Su valor predeterminado es `30.0` y debe ser menor que $m$. No equivale a escoger exactamente 30 vecinos para cada observación.
+- `early_exaggeration`: Factor $\alpha$ que amplifica la atracción durante el primer tramo de la optimización, como en la ecuación (2.132). El valor predeterminado es `12.0`. Este parámetro controla la intensidad del refuerzo, no el número de iteraciones durante las que se aplica.
+- `init` y `random_state`: El primero elige las posiciones iniciales $\mathbf{Z}^{(0)}$. Con `"pca"`, el valor predeterminado, partimos de coordenadas obtenidas mediante componentes principales. Con `"random"`, partimos de posiciones aleatorias. También podemos entregar un arreglo con coordenadas iniciales propias. Fijar una semilla con `random_state` permite repetir el ajuste en las mismas condiciones, pero no hace que su resultado sea independiente de la inicialización.
+- `learning_rate` y `max_iter`: El primero fija la escala de los desplazamientos en cada paso. Con `"auto"`, el estimador la elige en función del tamaño de la muestra y del factor de exageración. El segundo limita el número total de iteraciones a `1000` por defecto. Es un presupuesto de cálculo, no una garantía de convergencia.
+- `method`: Con `"exact"` se calculan las interacciones entre todos los pares. Como el número de pares crece cuadráticamente con $m$, esta opción es útil para muestras moderadas. La opción predeterminada, `"barnes_hut"`, abarata el cálculo aproximando el efecto repulsivo de conjuntos de puntos lejanos en vez de evaluarlos uno por uno. *Exacto* describe el cálculo de las interacciones, no la solución del problema no convexo.
+
+Una vez ajustado el estimador, podemos inspeccionar el resultado y recuperar parte de la información que describe cómo se obtuvo:
+
+- `embedding_`: Coordenadas de las observaciones usadas en el ajuste, en el mismo orden que las filas de la matriz de entrada. Es el arreglo que devuelve `fit_transform()`.
+- `kl_divergence_`: Valor final de la divergencia de Kullback-Leibler de la ecuación (2.129). Mide el desajuste entre afinidades, no el error de reconstrucción de las variables originales. Si cambiamos la perplejidad, cambia $\mathbf{P}$ y, por tanto, también la referencia con que calculamos ese valor.
+- `learning_rate_`: Tamaño de paso que utilizó el estimador. Es útil cuando delegamos su selección mediante `learning_rate="auto"`.
+
+Hay una diferencia práctica respecto del análisis de componentes principales: `TSNE` ajusta un conjunto de posiciones para las observaciones que recibe, no una regla de proyección que después podamos aplicar a cualquier observación nueva mediante `transform()`. Si incorporamos más observaciones y repetimos el ajuste, también pueden cambiar las coordenadas de las que ya teníamos.
+
+**Ejemplo 2.10 – *Embedding* bidimensional de <strong><font color="forestgreen">MNIST</font></strong> mediante el algoritmo t-SNE:** ¿Qué ocurre si le pedimos al algoritmo que reúna imágenes parecidas sin decirle qué dígito contiene cada una? Retomemos el criterio de muestreo balanceado del ejemplo (2.3), esta vez con 500 imágenes por dígito. Así obtenemos 5000 observaciones y podemos incluir más maneras de escribir un mismo número. Conservaremos las 784 intensidades de pixel entre 0 y 1 que describen cada imagen. Usaremos las etiquetas para seleccionar el mismo número de imágenes por dígito y, después del ajuste, para colorearlas. El algoritmo recibirá sólo las intensidades.
+
+Además del *embedding* final, queremos observar cómo cambia su diámetro durante el ajuste. La clase `TSNE` devuelve las coordenadas finales, pero no ofrece un mecanismo público para consultar las intermedias. Importaremos el estimador y, para esta medición, el módulo de uso interno `_t_sne` que contiene su optimizador. Usaremos `ConvexHull` y `pdist()` de la librería <strong><font color="darkmagenta">Scipy</font></strong> para encontrar la envolvente convexa y calcular las distancias entre sus vértices. Con `threadpool_limits()` limitaremos los hilos de cálculo del ajuste, sin modificar los parámetros del algoritmo:
+
+```{python}
+from unittest.mock import patch
+
+from scipy.spatial import ConvexHull
+from scipy.spatial.distance import pdist
+from sklearn.manifold import TSNE, _t_sne
+from threadpoolctl import threadpool_limits
+```
+
+Definiremos ahora la función `fit_tsne_with_diameters()`. Cuando el estimador llama al optimizador para la exageración temprana, dejamos que esa etapa corra sin registrar nada. En la segunda llamada, la función interna `observe_objective()` lee las coordenadas antes de cada actualización y luego devuelve el costo y el gradiente calculados por el estimador tal cual. Usamos `patch.object()` para instalar el observador sólo durante este ajuste. Notemos que este es simplemente un recurso para inspeccionar la trayectoria de la optimización, no un paso necesario para aplicar el algoritmo t-SNE. Como depende de una interfaz privada, podría requerir un ajuste si cambia la implementación de <strong><font color="darkmagenta">Scikit-Learn</font></strong> en versiones futuras de la librería:
+
+```{python}
+def fit_tsne_with_diameters(estimator, samples, n_steps):
+    """Registra el diámetro inicial y los n_steps siguientes tras la exageración."""
+    diameters = []
+    gradient_descent = _t_sne._gradient_descent
+
+    def observe_descent(objective, p0, it, **settings):
+        if it == 0:
+            return gradient_descent(objective, p0, it, **settings)
+
+        def observe_objective(params, *args, **kwargs):
+            if len(diameters) <= n_steps:
+                coordinates = params.reshape(-1, 2)
+                vertices = ConvexHull(coordinates).vertices
+                diameters.append(pdist(coordinates[vertices]).max())
+
+            return objective(params, *args, **kwargs)
+
+        return gradient_descent(observe_objective, p0, it, **settings)
+
+    # Observamos el comienzo de cada paso sin cambiar el optimizador ni su salida.
+    with (
+        threadpool_limits(limits=2),
+        patch.object(_t_sne, "_gradient_descent", observe_descent),
+    ):
+        embedding = estimator.fit_transform(samples)
+
+    if len(diameters) != n_steps + 1:
+        raise RuntimeError("No se registraron todos los diámetros solicitados.")
+
+    return embedding, np.asarray(diameters)
+```
+
+El primer diámetro registrado corresponde a la configuración que deja la exageración temprana. Como necesitamos comparar cada paso con el anterior, guardamos ese diámetro de partida además de uno por cada paso observado. La función también devuelve el *embedding* final, calculado por el estimador.
+
+Preparemos ahora la muestra. Elegiremos 500 índices distintos de cada dígito con una semilla fija y seleccionaremos esas mismas filas de la matriz de imágenes y del arreglo de etiquetas:
+
+```{python}
+# Definimos la muestra aleatoria de 500 imágenes por dígito con semilla fija.
+tsne_sample_rng = np.random.default_rng(42)
+tsne_sample_indices = np.concatenate(
+    [
+        tsne_sample_rng.choice(
+            np.flatnonzero(y_mnist_full == digit_i),
+            size=500,
+            replace=False,
+        )
+        for digit_i in range(10)
+    ]
+)
+
+X_mnist_tsne = X_mnist_full[tsne_sample_indices].astype(np.float32) / 255.0
+y_mnist_tsne = y_mnist_full[tsne_sample_indices]
+```
+
+Ya tenemos las intensidades normalizadas en `X_mnist_tsne` y las etiquetas en `y_mnist_tsne`. Con 5000 observaciones, usaremos la aproximación de Barnes-Hut para reducir el costo de las interacciones con puntos alejados. Fijaremos la perplejidad en 30 y el factor de exageración temprana en 12. Partiremos de posiciones aleatorias y registraremos los diámetros durante los primeros 160 pasos posteriores a la exageración:
+
+```{python}
+# Instanciamos el estimador t-SNE con los parámetros deseados.
+mnist_tsne = TSNE(
+    n_components=2,
+    perplexity=30.0,
+    early_exaggeration=12.0,
+    learning_rate="auto",
+    init="random",
+    method="barnes_hut",
+    max_iter=1000,
+    random_state=42,
+)
+
+# Y lo ajustamos, haciendo el seguimiento de los diámetros durante
+# los primeros 160 pasos posteriores a la exageración temprana.
+mnist_tsne_embedding, mnist_tsne_diameters = fit_tsne_with_diameters(
+    mnist_tsne,
+    X_mnist_tsne,
+    n_steps=160,
+)
+```
+
+Cada fila del nuevo arreglo contiene las dos coordenadas de la imagen que ocupa esa misma fila en `X_mnist_tsne`. Para evaluar el resultado usaremos dos cantidades distintas. La primera es la divergencia de Kullback-Leibler final, disponible en `kl_divergence_`: Nos dice cuánto se apartan las afinidades embebidas de las que t-SNE intenta reproducir, pero no es un error de reconstrucción de pixeles. La segunda es la confiabilidad local con diez vecinos, calculada con el mismo criterio del ejemplo (2.3). Un valor más próximo a 1 indica que el *embedding* introduce menos vecinos que estaban lejos en el espacio de las imágenes:
+
+```{python}
+# Calculamos la confiabilidad local del embedding con 10 vecinos.
+mnist_tsne_trustworthiness = trustworthiness(
+    X_mnist_tsne,
+    mnist_tsne_embedding,
+    n_neighbors=10,
+)
+
+# Mostramos en pantalla las dimensiones del embedding, la divergencia
+# KL final y la confiabilidad local.
+print(f"Dimensiones del embedding: {mnist_tsne_embedding.shape}")
+print(f"Divergencia KL final: {mnist_tsne.kl_divergence_:.3f}")
+print(f"Confiabilidad local con 10 vecinos: {mnist_tsne_trustworthiness:.3f}")
+```
+
+Sólo ahora recuperaremos las etiquetas. Dibujaremos una serie de puntos por dígito, con la misma paleta discreta que usamos antes. De este modo podremos activar o desactivar cada dígito desde la leyenda para examinar dónde se mezclan las nubes. Ambas coordenadas tendrán la misma escala gráfica para que la forma del *embedding* no dependa de cuánto espacio tenga disponible cada eje:
+
+```{python}
+#| label: fig-mnist-tsne-embedding
+#| fig-cap: "Embedding bidimensional de una muestra balanceada de <strong><font color='forestgreen'>MNIST</font></strong> (500 imágenes por dígito) mediante el algoritmo t-SNE, con perplejidad 30. Cada punto representa una imagen. Los colores indican el dígito real y sólo se incorporan después del ajuste, para examinar en qué regiones coinciden o se mezclan las etiquetas."
+# Iniciamos nuestra figura.
+fig = go.Figure()
+
+for digit_i, color_i in enumerate(digit_colors):
+    digit_embedding_i = mnist_tsne_embedding[y_mnist_tsne == digit_i]
+
+    fig.add_trace(
+        go.Scattergl(
+            x=digit_embedding_i[:, 0],
+            y=digit_embedding_i[:, 1],
+            mode="markers",
+            name=str(digit_i),
+            marker={"color": color_i, "size": 5, "opacity": 0.65},
+            hovertemplate=(
+                f"Dígito: {digit_i}<br>"
+                "Coordenada 1: %{x:.2f}<br>"
+                "Coordenada 2: %{y:.2f}<extra></extra>"
+            ),
+        )
+    )
+
+# Estilizamos la figura y configuramos los ejes y la leyenda.
+style_plotly_figure(fig, "Embedding de MNIST mediante el algoritmo t-SNE", height=570)
+fig.update_xaxes(title_text="Coordenada z₁", constrain="domain")
+fig.update_yaxes(
+    title_text="Coordenada z₂",
+    scaleanchor="x",
+    scaleratio=1,
+    constrain="domain",
+)
+
+fig.update_layout(
+    margin={"l": 65, "r": 35, "t": 75, "b": 95},
+    legend={
+        "title": {"text": "Dígito"},
+        "orientation": "h",
+        "x": 0.5,
+        "xanchor": "center",
+        "y": -0.2,
+        "yanchor": "top",
+    },
+)
+
+show_plotly(fig)
+```
+
+En la @fig-mnist-tsne-embedding varias imágenes del mismo dígito quedan juntas, aunque el algoritmo nunca vio las etiquetas. Donde se mezclan colores, vale la pena volver a las imágenes para revisar qué trazos pueden estar acercándolas. La confiabilidad local evalúa las vecindades geométricas, no si los puntos juntos tienen la misma etiqueta. Los ejes tampoco representan propiedades físicas del dígito y el espacio entre dos nubes no cuantifica cuánto difieren sus formas originales.
+
+El *embedding* final no nos dice **cuándo** aparecieron las separaciones. Para ver cómo cambió su extensión, midamos en cada paso el diámetro: La mayor distancia Euclidiana entre dos puntos del *embedding*. No necesitamos comparar todos los pares para encontrar ese máximo. En el plano, basta con considerar los vértices de la **envolvente convexa**, el polígono convexo más pequeño que contiene a todos los puntos: Ningún punto interior puede quedar más lejos que todos los vértices.
+
+Sea $D_{0}$ el diámetro al terminar la exageración temprana y $D_{s}$ el diámetro después de $s$ pasos de la etapa de *embedding*. La **tasa de amplificación** del paso $s$ compara dos configuraciones consecutivas, como en la [figura (3) de Cai y Ma (2022)](https://arxiv.org/pdf/2105.07536#page=17):
+
+::: {.eq-scroll}
+$$
+\rho_{s} :=\frac{D_{s}}{D_{s-1}} \quad ;\quad s=1,\ldots ,160
+\tag{2.138}
+$$
+:::
+
+Una tasa superior a 1 indica que el diámetro creció durante ese paso. Un valor cercano a 1 sólo significa que cambió poco en términos relativos, no que los puntos se hayan detenido. Para orientar la lectura, marcaremos el primer tramo posterior al máximo en que la tasa permanece a una distancia de 0.01 o menos de 1 durante diez pasos consecutivos. Es una referencia visual para este ajuste, no un criterio de parada del algoritmo:
+
+```{python}
+# Calculamos la tasa de amplificación entre pasos consecutivos.
+amplification_rates = mnist_tsne_diameters[1:] / mnist_tsne_diameters[:-1]
+embedding_steps = np.arange(1, amplification_rates.size + 1)
+peak_index = int(np.argmax(amplification_rates))
+near_one = np.abs(amplification_rates - 1.0) <= 0.01
+
+# Buscamos el primer tramo estable después del máximo.
+stable_index = next(
+    (
+        index_i
+        for index_i in range(peak_index + 1, len(near_one) - 9)
+        if near_one[index_i : index_i + 10].all()
+    ),
+    None,
+)
+```
+
+Dibujaremos el cociente observado, sin suavizarlo. La referencia horizontal en 1 separa los pasos donde el diámetro crece de aquellos donde se contrae:
+
+```{python}
+#| label: fig-mnist-tsne-amplification-rate
+#| fig-cap: "Tasa de amplificación del embedding bidimensional de <strong><font color='forestgreen'>MNIST</font></strong> durante los primeros 160 pasos posteriores a la exageración temprana. El cociente usa los diámetros medidos en el mismo ajuste que produjo la figura anterior. La marca vertical, cuando aparece, señala el primer tramo de diez pasos consecutivos dentro del 1 % de la referencia después del máximo."
+# Iniciamos la figura.
+fig = go.Figure(
+    go.Scatter(
+        x=embedding_steps,
+        y=amplification_rates,
+        mode="lines",
+        line={"color": PLOTLY_BLUE, "width": 2.5},
+        hovertemplate="Paso: %{x}<br>Tasa: %{y:.4f}<extra></extra>",
+    )
+)
+style_plotly_figure(fig, "Tasa de amplificación del embedding", height=455)
+fig.add_hline(y=1.0, line_dash="dot", line_color="#687780")
+
+if stable_index is not None:
+    stable_step = int(embedding_steps[stable_index])
+    fig.add_vline(x=stable_step, line_dash="dash", line_color=PLOTLY_BLUE)
+    for start_i, end_i, label_i in (
+        (1, stable_step, "Amplificación inicial"),
+        (stable_step, int(embedding_steps[-1]), "Tramo cercano a 1"),
+    ):
+        fig.add_annotation(
+            x=(start_i + end_i) / 2,
+            y=1.01,
+            yref="paper",
+            text=f"<b>{label_i}</b>",
+            showarrow=False,
+            yanchor="bottom",
+            font={"family": PLOTLY_FONT, "size": 16},
+        )
+
+# Y rotulamos los ejes y ajustamos los márgenes.
+fig.update_xaxes(title_text="Paso desde el fin de la exageración temprana")
+fig.update_yaxes(title_text="Tasa de amplificación", tickformat=".2f")
+fig.update_layout(margin={"l": 72, "r": 28, "t": 110, "b": 62})
+
+show_plotly(fig)
+```
+
+La @fig-mnist-tsne-amplification-rate permite distinguir un aumento inicial del diámetro y un tramo posterior en que los cambios relativos son menores. Como estamos observando el ajuste con Barnes-Hut y moméntum sobre nuestra propia muestra, no esperamos reproducir la altura del pico ni el momento de la transición de la figura de referencia. Además, el diámetro sigue sólo a los dos puntos más alejados en cada paso: La expansión del conjunto no implica que todas las vecindades se separen al mismo ritmo. ◼︎
+
+**Ejemplo 2.11 – *Embedding* de rechazos de un recomendador de molienda:** Imaginemos una sala de control en la que el sistema propone cambiar una consigna para sostener el rendimiento de la molienda. El equipo de operación ve la sugerencia, pero decide no aplicarla porque el circuito está absorbiendo una perturbación en la alimentación. El rechazo no es necesariamente un error del sistema ni una mala decisión del equipo. Es el registro de que, para ese estado del circuito, la acción sugerida no se llevó a cabo. Si decisiones parecidas se repiten bajo propuestas similares, vale la pena preguntar qué tienen en común.
+
+Un **recomendador prescriptivo de molienda** es un sistema de apoyo a la operación que propone **qué ajuste conviene realizar**, dadas las condiciones del circuito y un objetivo, como sostener el tratamiento de mineral sin sobrepasar restricciones de carga o potencia. Una consigna es el valor o intervalo que se le pide mantener a un lazo de control. Por ejemplo, un recomendador puede sugerir otra consigna de presión, un intervalo distinto de porcentaje de sólidos de la pulpa o un cambio en la proporción aportada por los alimentadores, lo que puede alterar la mezcla de mineral. A diferencia de un predictor, que estima qué podría pasar si se adopta cierto ajuste, el recomendador usa esa estimación o un conjunto de reglas para elegir qué acción proponer. En el escenario de este ejemplo el recomendador **asiste** a la operación: La decisión de aplicar la consigna sigue en manos del equipo de turno. Para ver un caso de estudio sobre apoyo a decisiones de control en molienda semiautógena, se puede consultar [este trabajo sobre circuitos SAG](https://doi.org/10.3390/min11060595).
+
+En una sala de control interesa distinguir, por ejemplo, una seguidilla de propuestas de presión en un circuito con alertas de clasificación de otra en la que predominan los cambios de mezcla y hay alertas aguas abajo. Un rechazo aislado no nos permite reconocer ambas situaciones. Por eso, en <strong><font color="forestgreen">`grinding_rejections_public.csv`</font></strong> cada fila resume un bloque de rechazos consecutivos de un registro industrial anonimizado. Todos los bloques contienen el mismo número de rechazos, pero no cubren necesariamente el mismo tiempo. Los 160 perfiles publicados no conservan fechas, orden de ocurrencia, nombres de equipos ni comentarios individuales.
+
+Describiremos cada perfil a partir de tres preguntas:
+
+- **¿Qué se sugirió?** Las proporciones de propuestas de presión, sólidos en la pulpa y mezcla de alimentación describen la composición del bloque. Suman 1 porque cada propuesta pertenece a una sola familia.
+- **¿Qué alertas estaban registradas?** Separamos las alertas de alimentación, del circuito de molienda y clasificación, y de etapas aguas abajo. La diferencia hasta 1 corresponde a propuestas sin alerta registrada. Eso no significa que sepamos que el circuito operaba sin perturbaciones.
+- **¿Cómo eran las consignas propuestas?** En lugar de comparar presión y porcentajes en sus unidades originales, ubicamos cada consigna entre las propuestas de su propio tipo en una escala relativa de 0 a 1. Conservamos la mediana y el rango intercuartílico del bloque: La primera indica dónde se concentra el conjunto de consignas; el segundo, qué tan separadas están las posiciones que dejan al 50 % central entre ellas. Una posición alta no implica que se haya sugerido elevar una consigna vigente, pues no estamos comparando la propuesta con el valor de partida.
+
+El archivo incluye, por separado, proporciones aproximadas de comentarios que mencionan **carga y presión**, **alimentación y mineral**, o **pulpa y clasificación**. Un comentario puede tocar más de un tema, y otros no permiten asignar ninguno. Estas columnas no tienen por qué sumar 1. Son una forma de orientar la revisión de los rechazos, no un diagnóstico de sus causas.
+
+<div class="dataset-download">
+  <a class="dataset-download-btn" href="datasets/grinding_rejections_public.csv" download="grinding_rejections_public.csv">Descargar grinding_rejections_public.csv</a>
+</div>
+
+Empecemos por armar la matriz de diseño. Las ocho columnas que responden las tres preguntas anteriores ya están en una escala común entre 0 y 1. No las dividiremos por sus desviaciones estándar: Hacerlo podría dar mucho peso a pequeñas diferencias en una alerta poco frecuente. Tampoco incluiremos los temas de los comentarios. Nos interesa saber si se repiten **después** de formar las vecindades, no imponer esa semejanza desde el inicio:
+
+```{python}
+grinding_profiles = pd.read_csv("datasets/grinding_rejections_public.csv")
+action_columns = ["pressure_share", "solids_share", "feed_blend_share"]
+alert_columns = ["feed_alert_share", "circuit_alert_share", "downstream_alert_share"]
+setpoint_columns = ["relative_setpoint_median", "relative_setpoint_iqr"]
+
+profile_columns = action_columns + alert_columns + setpoint_columns
+X_rejections = grinding_profiles[profile_columns].to_numpy()
+```
+
+En esta matriz, dos bloques se consideran cercanos cuando se parecen en el reparto de acciones, las alertas registradas y el perfil de sus consignas. Con 160 filas podemos usar el método exacto sin recurrir a la aproximación de Barnes-Hut. Elegimos una perplejidad de 15 para examinar vecindades pequeñas respecto al tamaño del conjunto, y evaluamos la confiabilidad con diez vecinos:
+
+```{python}
+rejections_tsne = TSNE(
+    n_components=2,
+    perplexity=15.0,
+    method="exact",
+    init="pca",
+    learning_rate="auto",
+    random_state=42,
+)
+
+with threadpool_limits(limits=2):
+    rejections_embedding = rejections_tsne.fit_transform(X_rejections)
+
+rejections_trustworthiness = trustworthiness(
+    X_rejections,
+    rejections_embedding,
+    n_neighbors=10,
+)
+
+print(f"Dimensiones del embedding: {rejections_embedding.shape}")
+print(f"Confiabilidad local con 10 vecinos: {rejections_trustworthiness:.3f}")
+```
+
+Ahora recuperemos los comentarios para darle una lectura operacional al *embedding*. Colorearemos un perfil por tema sólo si aparece en al menos el 20 % del bloque y aventaja al segundo en 10 puntos porcentuales o más. En caso contrario, dejaremos el punto gris: No estamos diciendo que esos rechazos no tengan motivo; sólo que, con este criterio de lectura, no destaca un solo tema. Aplicaremos esos umbrales a las proporciones del archivo, no a las coordenadas que obtuvimos del algoritmo:
+
+```{python}
+reason_labels = {
+    "load_mentions_share": "Carga y presión",
+    "feed_mentions_share": "Alimentación y mineral",
+    "pulp_mentions_share": "Pulpa y clasificación",
+}
+reason_shares = grinding_profiles[list(reason_labels)]
+sorted_shares = np.sort(reason_shares.to_numpy(), axis=1)
+reason_margin = (sorted_shares[:, -1] - sorted_shares[:, -2]).round(2)
+has_prevalent_reason = (sorted_shares[:, -1] >= 0.20) & (reason_margin >= 0.10)
+profile_reasons = (
+    reason_shares.idxmax(axis=1)
+    .map(reason_labels)
+    .where(has_prevalent_reason, "Sin predominio claro")
+)
+```
+
+Con eso tenemos un tema por punto, asignado sin modificar el *embedding*. Al pasar el cursor distinguiremos las proporciones de acciones de las alertas registradas. Así podemos revisar qué caracteriza a dos perfiles cercanos aunque sus temas sean distintos:
+
+```{python}
+#| label: fig-tsne-grinding-advisory-rejections
+#| fig-cap: "Embedding bidimensional de perfiles de rechazo de un recomendador de molienda. Cada punto reúne varias propuestas no aplicadas. Las acciones, las alertas y las consignas definen las vecindades. Los temas de los comentarios se usan sólo para colorear."
+
+reason_styles = {
+    "Sin predominio claro": ("#9aa5ad", "circle-open"),
+    "Carga y presión": ("firebrick", "circle"),
+    "Alimentación y mineral": ("#1769ad", "diamond"),
+    "Pulpa y clasificación": ("#137767", "square"),
+}
+
+fig = go.Figure()
+
+for reason_i, (color_i, symbol_i) in reason_styles.items():
+    mask_i = profile_reasons.eq(reason_i)
+    coordinates_i = rejections_embedding[mask_i.to_numpy()]
+    hover_i = grinding_profiles.loc[mask_i, profile_columns].to_numpy()
+
+    fig.add_trace(
+        go.Scatter(
+            x=coordinates_i[:, 0],
+            y=coordinates_i[:, 1],
+            mode="markers",
+            name=reason_i,
+            customdata=hover_i,
+            marker={"size": 8, "color": color_i, "symbol": symbol_i, "opacity": 0.86},
+            hovertemplate=(
+                "<b>Propuestas</b><br>"
+                "Presión: %{customdata[0]:.0%}<br>"
+                "Sólidos: %{customdata[1]:.0%}<br>"
+                "Mezcla: %{customdata[2]:.0%}<br>"
+                "<b>Alertas registradas</b><br>"
+                "Alimentación: %{customdata[3]:.0%}<br>"
+                "Circuito: %{customdata[4]:.0%}<br>"
+                "Aguas abajo: %{customdata[5]:.0%}<br>"
+                "<b>Consignas relativas</b><br>"
+                "Mediana: %{customdata[6]:.2f}<br>"
+                "Rango intercuartílico: %{customdata[7]:.2f}"
+                "<extra>%{fullData.name}</extra>"
+            ),
+        )
+    )
+
+style_plotly_figure(fig, "Perfiles de rechazo en molienda", height=615)
+fig.update_xaxes(title_text="Coordenada z₁", constrain="domain", zeroline=False)
+fig.update_yaxes(
+    title_text="Coordenada z₂",
+    scaleanchor="x",
+    scaleratio=1,
+    constrain="domain",
+    zeroline=False,
+)
+fig.update_layout(
+    margin={"l": 65, "r": 30, "t": 75, "b": 142},
+    legend={
+        "orientation": "h",
+        "x": 0.5,
+        "xanchor": "center",
+        "y": -0.20,
+        "yanchor": "top",
+    },
+)
+
+show_plotly(fig)
+```
+
+La @fig-tsne-grinding-advisory-rejections no entrega una isla por tema. Dos bloques cercanos pueden reunir propuestas y alertas similares aun cuando el equipo haya enfatizado razones distintas para rechazarlas. Y la confiabilidad local de aproximadamente 0.934 indica que la proyección preserva buena parte de la estructura de vecindades a diez vecinos según las características que elegimos. No nos dice que dentro de una región todos los rechazos respondan a una misma condición de planta.
+
+Para saber de dónde viene un contraste, volvamos a las variables originales. La siguiente tabla cuenta los perfiles de cada tema y calcula, dentro de cada grupo, la mediana de tres proporciones: Propuestas de presión, propuestas de mezcla y alertas aguas abajo. No son proporciones calculadas sobre todos los rechazos del grupo, sino medianas entre sus perfiles:
+
+```{python}
+comparison_columns = {
+    "pressure_share": "Propuestas de presión",
+    "feed_blend_share": "Propuestas de mezcla",
+    "downstream_alert_share": "Alertas aguas abajo",
+}
+profiles_by_reason = (
+    grinding_profiles.assign(reason=profile_reasons)
+    .groupby("reason")
+)
+reason_summary = (
+    profiles_by_reason[list(comparison_columns)].median()
+    .rename(columns=comparison_columns)
+    .assign(Perfiles=profiles_by_reason.size())
+    .rename_axis("Tema predominante")
+)
+reason_summary.style.format({label: "{:.1%}" for label in comparison_columns.values()})
+```
+
+Comparemos dos filas. Entre los perfiles donde predominan las menciones de alimentación y mineral, la mediana de propuestas de mezcla ronda el 38 % y la de alertas aguas abajo, el 40 %. Entre los perfiles con menciones de carga y presión, esas medianas son 30 % y 15 %, respectivamente. Eso ofrece un punto de partida concreto para la revisión: Antes de modificar la lógica que sugiere cambios de mezcla, valdría la pena comprobar si ciertas propuestas coincidieron con restricciones aguas abajo que el recomendador no podía observar o no estaba considerando. Para comprobarlo harían falta las señales del proceso y las reglas vigentes, no sólo estos rechazos. Los perfiles de pulpa y clasificación son muy pocos para sacar una conclusión similar.
+
+::: {.callout-note}
+## Un registro de rechazos no entrega una tasa de rechazo
+
+Para saber si una acción se rechaza a menudo necesitaríamos cuántas veces se propuso en total, incluidas las recomendaciones aceptadas. Tampoco podemos inferir qué habría ocurrido al aplicar una consigna que no se ejecutó, ni si una alerta presente motivó la decisión. El *embedding* sirve para seleccionar casos comparables que vale la pena revisar, no para juzgar al equipo de turno o medir la eficacia del recomendador.
+:::
+
+◼︎
+
+## Comentarios finales
+
+Al comienzo de esta entrada pudimos enrollar una lámina sin añadirle un grado de libertad. Sobre ella bastaban dos coordenadas para ubicarnos, aunque desde fuera necesitáramos tres para describir cada punto. El rollo suizo nos permitió ver algo que, frente a una tabla de datos, es mucho más difícil de reconocer: Dos observaciones pueden quedar muy cerca en línea recta y, sin embargo, estar lejos si recorremos la superficie que las une. Allí conocíamos la lámina de antemano. En una aplicación industrial sólo tenemos las observaciones, y la hipótesis de que se organizan cerca de una variedad sigue siendo una hipótesis.
+
+Esa diferencia explica por qué no todos los algoritmos producen el mismo *embedding*. El algoritmo LLE procura que los pesos con los que reconstruimos un punto a partir de sus vecinos sigan siendo útiles en la representación reducida. El algoritmo Isomap intenta conservar las distancias estimadas al recorrer el grafo de vecindades, y por eso un solo atajo puede acortar trayectorias que conectan regiones enteras. Con los métodos MDS podemos preguntar si interesa conservar las magnitudes de las disimilitudes o sólo su orden. El algoritmo t-SNE, por su parte, ajusta afinidades entre puntos y es útil para examinar vecindades, pero no para leer el espacio entre dos *clusters* como una medida de cuánto difieren. No son cuatro maneras de dibujar lo mismo: Cada una conserva relaciones distintas y, por lo tanto, admite conclusiones distintas.
+
+En la práctica, conviene decidir qué relaciones necesitamos antes de elegir el algoritmo. Si nos interesa comparar muestras por su respuesta esperada a la molienda, no da lo mismo medir cercanía por ley, por mineralogía o por dureza. Podemos partir con una referencia lineal, comprobar qué vecindades recuperamos y repetir el ajuste con escalas de vecindad razonables. Si un patrón sólo aparece con una combinación muy particular de parámetros, hay que tratarlo con cautela. Y cuando persiste, todavía queda el paso más importante: Volver a las variables originales y averiguar qué hace que esos casos se parezcan.
+
+El ejemplo (2.11) muestra por qué ese último paso importa. Los perfiles de rechazo no formaron un clúster por tema, pero al volver a las propuestas y a las alertas registradas encontramos una pregunta concreta para la sala de control: ¿Coincidían ciertas recomendaciones de mezcla con restricciones aguas abajo que el sistema no estaba considerando? El gráfico ayudó a elegir qué registros valía la pena revisar. Para responder la pregunta hacían falta otras señales del proceso. Esa distinción es la que llevaremos a los modelos de clustering (que constituyen el siguiente paradigma de aprendizaje no supervisado): Ahora que sabemos construir y examinar representaciones, nos tocará distinguir cuándo un grupo está respaldado por los datos y cuándo sólo parece existir en la proyección.
